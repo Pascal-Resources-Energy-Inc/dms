@@ -12,7 +12,10 @@
             <div class="aging-title-block">
                 <div class="aging-eyebrow">Inventory Report</div>
                 <h4 class="mb-1">Aging Report</h4>
-                <div class="text-muted">Remaining stock grouped by age as of {{ $asOf->format('M d, Y') }}.</div>
+                <div class="text-muted">
+                    {{ $isAdmin ? 'Remaining stock for all Area Distributors' : 'Remaining stock' }}
+                    grouped by age as of {{ $asOf->format('M d, Y') }}.
+                </div>
             </div>
             <div class="aging-actions">
                 <span class="aging-asof">
@@ -54,8 +57,8 @@
             <div class="aging-kpi">
                 <div class="aging-kpi-icon is-area"><i class="ti ti-map-pin"></i></div>
                 <div>
-                    <div class="text-muted small">Areas</div>
-                    <div class="aging-kpi-value">{{ number_format($summary->area_count) }}</div>
+                    <div class="text-muted small">{{ $isAdmin ? 'Area Distributors' : 'Areas' }}</div>
+                    <div class="aging-kpi-value">{{ number_format($isAdmin ? $summary->distributor_count : $summary->area_count) }}</div>
                 </div>
             </div>
         </div>
@@ -77,6 +80,19 @@
                     <label class="form-label"><i class="ti ti-calendar"></i> As Of</label>
                     <input type="date" name="as_of" class="form-control" value="{{ request('as_of', $asOf->format('Y-m-d')) }}">
                 </div>
+                @if($isAdmin)
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label"><i class="ti ti-building-store"></i> Area Distributor</label>
+                        <select name="distributor" class="form-control">
+                            <option value="">All Area Distributors</option>
+                            @foreach($distributorOptions as $distributor)
+                                <option value="{{ $distributor->id }}" {{ (string) request('distributor') === (string) $distributor->id ? 'selected' : '' }}>
+                                    {{ $distributor->business_name ?: $distributor->name ?: $distributor->store_code }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
                 <div class="col-lg-3 col-md-6">
                     <label class="form-label"><i class="ti ti-package"></i> Product</label>
                     <select name="product" class="form-control">
@@ -150,6 +166,9 @@
                 <table class="table aging-table align-middle mb-0" id="agingReportTable">
                     <thead>
                         <tr>
+                            @if($isAdmin)
+                                <th>Area Distributor</th>
+                            @endif
                             <th>Product</th>
                             <th>Area</th>
                             <th>Source Date</th>
@@ -162,6 +181,12 @@
                     <tbody>
                         @forelse($batches as $batch)
                             <tr>
+                                @if($isAdmin)
+                                    <td>
+                                        <div class="fw-semibold">{{ $batch->distributor_name }}</div>
+                                        <div class="small text-muted">AD #{{ $batch->distributor_id }}</div>
+                                    </td>
+                                @endif
                                 <td>
                                     <div class="fw-semibold">{{ $batch->product_name }}</div>
                                     <div class="small text-muted">{{ $batch->sku ?: 'No SKU' }}</div>
@@ -185,7 +210,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">No aged inventory found.</td>
+                                <td colspan="{{ $isAdmin ? 8 : 7 }}" class="text-center text-muted py-4">No aged inventory found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -531,7 +556,7 @@
         if (window.jQuery && window.jQuery.fn.DataTable) {
             window.jQuery('#agingReportTable').DataTable({
                 pageLength: 25,
-                order: [[4, 'desc']],
+                order: [[{{ $isAdmin ? 5 : 4 }}, 'desc']],
                 autoWidth: false,
                 language: {
                     search: 'Search aging:',

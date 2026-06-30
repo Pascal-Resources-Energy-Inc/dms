@@ -72,6 +72,11 @@
         background: #dcfce7;
     }
 
+    .dealer-stat-icon.is-total {
+        color: #1d4ed8;
+        background: #dbeafe;
+    }
+
     .dealer-stat-icon.is-inactive {
         color: #991b1b;
         background: #fee2e2;
@@ -99,6 +104,80 @@
 
     .dealer-table-card .card-body {
         padding: 0;
+    }
+
+    .dealer-tabs {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #f8fafc;
+    }
+
+    .dealer-tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 36px;
+        padding: 7px 13px;
+        border: 0;
+        border-radius: 7px;
+        color: #64748b;
+        background: transparent;
+        font-size: 12px;
+        font-weight: 800;
+        transition: color .18s ease, background-color .18s ease, box-shadow .18s ease;
+    }
+
+    .dealer-tab:hover {
+        color: #1d4ed8;
+        background: #fff;
+    }
+
+    .dealer-tab.active {
+        color: #1d4ed8;
+        background: #fff;
+        box-shadow: 0 3px 10px rgba(15, 23, 42, .08);
+    }
+
+    .dealer-tab[data-dealer-tab="Regular"].active {
+        color: #047857;
+    }
+
+    .dealer-tab[data-dealer-tab="admin_crms"].active {
+        color: #1d4ed8;
+    }
+
+    .dealer-tab[data-dealer-tab="admin_crms2"].active {
+        color: #7c3aed;
+    }
+
+    .dealer-tab-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 23px;
+        height: 23px;
+        padding: 0 7px;
+        border-radius: 999px;
+        color: inherit;
+        background: #e2e8f0;
+        font-size: 11px;
+    }
+
+    .dealer-tab.active .dealer-tab-count {
+        background: #dbeafe;
+    }
+
+    .dealer-tab[data-dealer-tab="Regular"].active .dealer-tab-count {
+        background: #d1fae5;
+    }
+
+    .dealer-tab[data-dealer-tab="admin_crms2"].active .dealer-tab-count {
+        background: #ede9fe;
     }
 
     .dealer-table {
@@ -150,6 +229,163 @@
         font-size: 12px;
         font-weight: 800;
         white-space: nowrap;
+    }
+
+    .dealer-source {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        border-radius: 999px;
+        padding: 4px 10px;
+        color: #475569;
+        background: #f1f5f9;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .dealer-source.is-admin-crms {
+        color: #1d4ed8;
+        background: #dbeafe;
+    }
+
+    .dealer-source.is-admin-crms2 {
+        color: #7c3aed;
+        background: #ede9fe;
+    }
+
+    .dealer-action-btn {
+        width: 34px;
+        height: 34px;
+        border: 1px solid #dbe2ea;
+        border-radius: 8px;
+        background: #fff;
+        color: #2563eb;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+    }
+
+    .dealer-action-btn:hover {
+        border-color: #2563eb;
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .dealer-info-hero {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%);
+        margin-bottom: 16px;
+    }
+
+    .dealer-info-person {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+    }
+
+    .dealer-info-avatar {
+        width: 54px;
+        height: 54px;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        font-size: 20px;
+        font-weight: 900;
+    }
+
+    .dealer-info-title {
+        margin: 0;
+        color: #111827;
+        font-size: 20px;
+        font-weight: 900;
+        line-height: 1.2;
+    }
+
+    .dealer-info-subtitle {
+        margin-top: 5px;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .dealer-info-badges {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .dealer-info-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .dealer-info-badge.is-source {
+        color: #1d4ed8;
+        background: #dbeafe;
+    }
+
+    .dealer-info-badge.is-status-active {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .dealer-info-badge.is-status-inactive {
+        color: #991b1b;
+        background: #fee2e2;
+    }
+
+    .dealer-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .dealer-info-item {
+        border: 1px solid #edf0f5;
+        border-radius: 8px;
+        background: #f8fafc;
+        padding: 11px 12px;
+    }
+
+    .dealer-info-item span {
+        display: block;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .dealer-info-item strong {
+        display: block;
+        margin-top: 4px;
+        color: #111827;
+        font-size: 13px;
+        word-break: break-word;
+    }
+
+    .dealer-info-item.is-wide {
+        grid-column: 1 / -1;
     }
 
     .dealer-metric {
@@ -207,6 +443,29 @@
         background: #fee2e2;
     }
 
+    .dealer-type {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 76px;
+        min-height: 28px;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .dealer-type.is-project {
+        color: #1d4ed8;
+        background: #dbeafe;
+    }
+
+    .dealer-type.is-regular {
+        color: #047857;
+        background: #d1fae5;
+    }
+
     .dealer-muted {
         color: #64748b;
         max-width: 260px;
@@ -239,6 +498,32 @@
         margin-bottom: 0 !important;
     }
 
+    .dealer-empty-state {
+        padding: 48px 18px;
+        text-align: center;
+        color: #64748b;
+    }
+
+    .dealer-empty-state i {
+        display: block;
+        margin-bottom: 10px;
+        color: #94a3b8;
+        font-size: 38px;
+    }
+
+    .dealer-empty-state strong {
+        display: block;
+        color: #111827;
+        font-size: 15px;
+    }
+
+    .dealer-sync-note {
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
     @media (max-width: 575px) {
         .dealer-head {
             padding: 16px;
@@ -252,24 +537,68 @@
         .dealer-stat-value {
             font-size: 26px;
         }
+
+        .dealer-info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .dealer-info-hero {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .dealer-info-badges {
+            justify-content: flex-start;
+        }
     }
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
 @endsection
 @section('content')
 @php
     $dealerPageTitle = $dealerPageTitle ?? 'Dealers';
     $dealerSingularTitle = $dealerSingularTitle ?? 'Dealer';
+    $isAdminDealerPage = auth()->user()->role == 'Admin' && Route::currentRouteName() !== 'mds';
+    $adminCrmDealers = $adminCrmDealers ?? collect();
+    $adminCrm2Dealers = $adminCrm2Dealers ?? collect();
+    $adminRegularDealers = $adminRegularDealers ?? collect();
+
+    if ($isAdminDealerPage) {
+        $dealerTabs = collect([
+            ['key' => 'Regular', 'label' => 'Regular', 'icon' => 'ti ti-building-store', 'count' => $adminRegularDealers->count()],
+            ['key' => 'admin_crms', 'label' => 'Project Rise', 'icon' => 'ti ti-database', 'count' => $adminCrmDealers->count()],
+            ['key' => 'admin_crms2', 'label' => 'Project Genesis', 'icon' => 'ti ti-database-export', 'count' => $adminCrm2Dealers->count()],
+        ]);
+    } else {
+        $projectDealerCount = $dealers->filter(function ($dealer) {
+            return strcasecmp((string) ($dealer->dealer_type ?: 'Project'), 'Regular') !== 0;
+        })->count();
+        $regularDealerCount = $dealers->filter(function ($dealer) {
+            return strcasecmp((string) $dealer->dealer_type, 'Regular') === 0;
+        })->count();
+        $dealerTabs = collect([
+            ['key' => 'Project', 'label' => 'Project', 'icon' => 'ti ti-building-community', 'count' => $projectDealerCount],
+            ['key' => 'Regular', 'label' => 'Regular', 'icon' => 'ti ti-building-store', 'count' => $regularDealerCount],
+        ]);
+    }
+
+    $initialDealerTab = $dealerTabs->firstWhere('count', '>', 0) ?: $dealerTabs->first();
+    $initialDealerKey = $initialDealerTab['key'] ?? 'Project';
+    $initialDealerLabel = $initialDealerTab['label'] ?? 'Project';
+    $initialDealerCount = $initialDealerTab['count'] ?? 0;
 @endphp
 <section class="dealer-page">
     <div class="dealer-head">
         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
             <div>
                 <div class="dealer-eyebrow">Partner Network</div>
-                <h4 class="mb-1">{{ $dealerPageTitle }}</h4>
+                <h4 class="mb-1 mt-2">{{ $dealerPageTitle }}</h4>
                 <div class="text-muted">Monitor dealer status, territory, stock, and sales performance.</div>
+                {{-- @if($isAdminDealerPage)
+                    <div class="dealer-sync-note">
+                        Synced from admin_crms and admin_crms2. Use the tabs to inspect each CRM source.
+                    </div>
+                @endif --}}
             </div>
             <div class="dealer-actions">
                 @if(auth()->user()->role == 'Admin' && Route::currentRouteName() !== 'mds')
@@ -283,6 +612,18 @@
     </div>
 
     <div class="row g-3 mb-3">
+        <div class="col-sm-6 col-lg-4 col-xl-3">
+            <div class="dealer-stat">
+                <div class="dealer-stat-icon is-total">
+                    <i class="ti ti-users"></i>
+                </div>
+                <div>
+                    <div class="dealer-stat-value">{{ number_format($dealers->count()) }}</div>
+                    <div class="dealer-stat-label">Total {{ $dealerPageTitle }}</div>
+                </div>
+            </div>
+        </div>
+
         <div class="col-sm-6 col-lg-4 col-xl-3">
             <div class="dealer-stat">
                 <div class="dealer-stat-icon is-active">
@@ -312,17 +653,41 @@
             <div class="card dealer-table-card w-100">
                 <div class="card-header bg-white d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
                     <div>
-                        <h5 class="mb-0">{{ $dealerPageTitle }}</h5>
-                        <div class="small text-muted">{{ $dealers->count() }} record{{ $dealers->count() == 1 ? '' : 's' }} listed</div>
+                        <h5 class="mb-0" id="dealerTableTitle">{{ $initialDealerLabel }} Dealers</h5>
+                        <div class="small text-muted" id="dealerTableCount">{{ $initialDealerCount }} record{{ $initialDealerCount == 1 ? '' : 's' }} listed</div>
+                    </div>
+                    <div class="dealer-tabs mt-3 mt-lg-0" role="tablist" aria-label="Dealer type">
+                        @foreach($dealerTabs as $tab)
+                            <button type="button"
+                                class="dealer-tab {{ $initialDealerKey === $tab['key'] ? 'active' : '' }}"
+                                data-dealer-tab="{{ $tab['key'] }}"
+                                data-dealer-tab-label="{{ $tab['label'] }}"
+                                data-count="{{ $tab['count'] }}"
+                                role="tab"
+                                aria-selected="{{ $initialDealerKey === $tab['key'] ? 'true' : 'false' }}">
+                                <i class="{{ $tab['icon'] }}"></i>
+                                {{ $tab['label'] }}
+                                <span class="dealer-tab-count">{{ number_format($tab['count']) }}</span>
+                            </button>
+                        @endforeach
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
+                    <div id="dealerEmptyState" class="dealer-empty-state" style="display: {{ $dealers->count() ? 'none' : 'block' }};">
+                        <i class="ti ti-users-off"></i>
+                        <strong>No dealers found</strong>
+                        <span>Add a dealer to start building this list.</span>
+                    </div>
+                    <div class="table-responsive" id="dealerTableWrap" style="display: {{ $dealers->count() ? 'block' : 'none' }};">
                         @if(auth()->user()->role == 'Admin')
                             <table class="table dealer-table transaction-table" style="width:100%">
                                 <thead>
                                     <tr>
+                                        {{-- @if($isAdminDealerPage)
+                                            <th>Source</th>
+                                        @endif --}}
                                         <th>{{ $dealerSingularTitle }} Reference</th>
+                                        {{-- <th>Dealer Type</th> --}}
                                         <th>{{ $dealerSingularTitle }} Name</th>
                                         <th>Store Name</th>
                                         <th>Store Type</th>
@@ -332,13 +697,41 @@
                                         <th>Address</th>
                                         <th>Sales Territory</th>
                                         <th>Status</th>
+                                        <th>View</th>
                                     </tr>
                                 </thead>
                                 <tbody id="adBody">
                                     @foreach($dealers as $dealer)
-                                    <tr>
+                                    @php
+                                        $dealerType = strcasecmp((string) $dealer->dealer_type, 'Regular') === 0 ? 'Regular' : 'Project';
+                                        $dealerTabKey = $isAdminDealerPage ? ($dealer->source ?? 'admin_crms') : $dealerType;
+                                        $adminDealerViewUrl = $isAdminDealerPage
+                                            ? ($dealerTabKey === 'Regular'
+                                                ? url('view-dealer/' . $dealer->id)
+                                                : route('admin.crm.dealer.view', ['source' => $dealerTabKey, 'id' => $dealer->id]))
+                                            : null;
+                                    @endphp
+                                    <tr data-dealer-tab-key="{{ $dealerTabKey }}" data-dealer-type="{{ $dealerType }}">
+                                        {{-- @if($isAdminDealerPage)
+                                            <td scope="col">
+                                                <span class="dealer-source {{ ($dealer->source ?? '') === 'admin_crms2' ? 'is-admin-crms2' : 'is-admin-crms' }}">
+                                                    {{ strtoupper($dealer->source_label ?? $dealerTabKey) }}
+                                                </span>
+                                            </td>
+                                        @endif --}}
                                         <td scope="col"><span class="dealer-ref">{{  strtoupper($dealer->dealer_reference) }}</span></td>
-                                        <td scope="col"><a href='view-dealer/{{$dealer->id}}' class="dealer-link">{{ strtoupper($dealer->name)}} </a></td>
+                                        {{-- <td>
+                                            <span class="dealer-type {{ $dealerType === 'Regular' ? 'is-regular' : 'is-project' }}">
+                                                {{ strtoupper($dealerType) }}
+                                            </span>
+                                        </td> --}}
+                                        <td scope="col">
+                                            @if($isAdminDealerPage)
+                                                <a href="{{ $adminDealerViewUrl }}" class="dealer-link">{{ strtoupper($dealer->name)}} </a>
+                                            @else
+                                                <a href='view-dealer/{{$dealer->id}}' class="dealer-link">{{ strtoupper($dealer->name)}} </a>
+                                            @endif
+                                        </td>
                                         <td scope="col">{{ strtoupper($dealer->store_name ?? '-')}}</td>
                                         <td scope="col">{{ strtoupper($dealer->store_type ?? '-')}}</td>
                                         <td scope="col">{{ strtoupper($dealer->number)}}</td>
@@ -353,6 +746,35 @@
                                                 <span class="dealer-status is-inactive">Inactive</span>
                                             @endif
                                         </td>
+                                        <td>
+                                            @php
+                                                $dealerName = $dealer->name ?: '-';
+                                                $dealerInfo = [
+                                                    'source' => $dealer->source_label ?: 'Local',
+                                                    'reference' => $dealer->dealer_reference ?: '-',
+                                                    'name' => $dealerName,
+                                                    'initials' => collect(explode(' ', $dealerName))->filter()->map(function ($part) { return strtoupper(substr($part, 0, 1)); })->take(2)->implode(''),
+                                                    'store_name' => $dealer->store_name ?: '-',
+                                                    'store_type' => $dealer->store_type ?: '-',
+                                                    'number' => $dealer->number ?: '-',
+                                                    'address' => $dealer->address ?: '-',
+                                                    'area' => $dealer->area ?: '-',
+                                                    'status' => $dealer->status ?: '-',
+                                                ];
+                                            @endphp
+                                            @if($isAdminDealerPage)
+                                                <a href="{{ $adminDealerViewUrl }}" class="dealer-action-btn" title="View dealer">
+                                                    <i class="ti ti-eye"></i>
+                                                </a>
+                                            @else
+                                                <button type="button"
+                                                    class="dealer-action-btn js-view-dealer"
+                                                    title="View dealer"
+                                                    data-dealer="{{ e(json_encode($dealerInfo)) }}">
+                                                    <i class="ti ti-eye"></i>
+                                                </button>
+                                            @endif
+                                        </td>
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -362,6 +784,7 @@
                                 <thead>
                                     <tr>
                                         <th rowspan="2">{{ $dealerSingularTitle }} Ref</th>
+                                        {{-- <th rowspan="2">Dealer Type</th> --}}
                                         <th rowspan="2">{{ $dealerSingularTitle }} Name</th>
                                         <th rowspan="2">Store</th>
                                         <th rowspan="2">Type</th>
@@ -374,6 +797,7 @@
                                         <th rowspan="2">Address</th>
                                         <th rowspan="2">Sales Territory</th>
                                         <th rowspan="2">Status</th>
+                                        <th rowspan="2">View</th>
                                     </tr>
                                     <tr>
                                         @foreach($items as $item)
@@ -386,8 +810,14 @@
 
                                 <tbody id="adBody">
                                     @foreach($dealers as $dealer)
-                                    <tr>
+                                    @php $dealerType = strcasecmp((string) $dealer->dealer_type, 'Regular') === 0 ? 'Regular' : 'Project'; @endphp
+                                    <tr data-dealer-tab-key="{{ $dealerType }}" data-dealer-type="{{ $dealerType }}">
                                         <td><span class="dealer-ref">{{ $dealer->dealer_reference }}</span></td>
+                                        {{-- <td>
+                                            <span class="dealer-type {{ $dealerType === 'Regular' ? 'is-regular' : 'is-project' }}">
+                                                {{ strtoupper($dealerType) }}
+                                            </span>
+                                        </td> --}}
 
                                         <td>
                                             <a href="view-dealer/{{$dealer->id}}" class="dealer-link">
@@ -432,6 +862,29 @@
                                                 <span class="dealer-status is-inactive">Inactive</span>
                                             @endif
                                         </td>
+                                        <td>
+                                            @php
+                                                $dealerName = $dealer->name ?: '-';
+                                                $dealerInfo = [
+                                                    'source' => 'Local',
+                                                    'reference' => $dealer->dealer_reference ?: '-',
+                                                    'name' => $dealerName,
+                                                    'initials' => collect(explode(' ', $dealerName))->filter()->map(function ($part) { return strtoupper(substr($part, 0, 1)); })->take(2)->implode(''),
+                                                    'store_name' => $dealer->store_name ?: '-',
+                                                    'store_type' => $dealer->store_type ?: '-',
+                                                    'number' => $dealer->number ?: '-',
+                                                    'address' => $dealer->address ?: '-',
+                                                    'area' => $dealer->area ?: '-',
+                                                    'status' => $dealer->status ?: '-',
+                                                ];
+                                            @endphp
+                                            <button type="button"
+                                                class="dealer-action-btn js-view-dealer"
+                                                title="View dealer"
+                                                data-dealer="{{ e(json_encode($dealerInfo)) }}">
+                                                <i class="ti ti-eye"></i>
+                                            </button>
+                                        </td>
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -443,17 +896,217 @@
         </div>
     </div>
 </section>
+
+<div class="modal fade" id="dealerInfoModal" tabindex="-1" aria-labelledby="dealerInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="dealerInfoModalLabel">Dealer Information</h5>
+                    <div class="small text-muted">Complete dealer profile and CRM source details</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="dealer-info-hero">
+                    <div class="dealer-info-person">
+                        <div class="dealer-info-avatar" id="dealerInfoInitials">DL</div>
+                        <div>
+                            <h4 class="dealer-info-title" id="dealerInfoName">-</h4>
+                            <div class="dealer-info-subtitle">
+                                <span id="dealerInfoStoreName">-</span>
+                                <span class="mx-1">/</span>
+                                <span id="dealerInfoReference">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dealer-info-badges">
+                        <span class="dealer-info-badge is-source" id="dealerInfoSource">Source</span>
+                        <span class="dealer-info-badge" id="dealerInfoStatus">Status</span>
+                    </div>
+                </div>
+
+                <div class="dealer-info-grid">
+                    <div class="dealer-info-item"><span>Store Type</span><strong id="dealerInfoStoreType">-</strong></div>
+                    <div class="dealer-info-item"><span>Contact Number</span><strong id="dealerInfoNumber">-</strong></div>
+                    <div class="dealer-info-item"><span>Sales Territory</span><strong id="dealerInfoArea">-</strong></div>
+                    <div class="dealer-info-item"><span>CRM Source</span><strong id="dealerInfoSourceDetail">-</strong></div>
+                    <div class="dealer-info-item is-wide"><span>Address</span><strong id="dealerInfoAddress">-</strong></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 @include('new_dealer')
 @section('javascript')
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
 <script>
-    $(document).ready(function () {
-        $('.transaction-table').DataTable({
+    $(document).ready(async function () {
+        function loadScript(src) {
+            return new Promise(function (resolve, reject) {
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = false;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        async function ensureDataTables() {
+            if ($.fn && $.fn.DataTable) {
+                return true;
+            }
+
+            const sources = [
+                "{{ asset('design/assets/libs/datatables.net/js/jquery.dataTables.min.js') }}",
+                "{{ asset('design/vendors/datatables.net/jquery.dataTables.js') }}",
+                "https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"
+            ];
+
+            for (let i = 0; i < sources.length; i++) {
+                try {
+                    await loadScript(sources[i]);
+
+                    if ($.fn && $.fn.DataTable) {
+                        break;
+                    }
+                } catch (error) {
+                    console.warn('Unable to load DataTables from:', sources[i]);
+                }
+            }
+
+            if (!$.fn || !$.fn.DataTable) {
+                return false;
+            }
+
+            try {
+                await loadScript("{{ asset('design/vendors/datatables.net-bs4/dataTables.bootstrap4.js') }}");
+            } catch (error) {
+                console.warn('DataTables Bootstrap integration did not load. Continuing with core DataTables.');
+            }
+
+            return true;
+        }
+
+        let activeDealerType = $('.dealer-tab.active').data('dealer-tab') || 'Project';
+        const $dealerTable = $('.transaction-table');
+        const $dealerTableBody = $dealerTable.find('tbody');
+        const hasDealerRows = $dealerTableBody.find('tr').length > 0;
+        const allDealerRows = $dealerTableBody.find('tr').detach().toArray();
+
+        function updateDealerHeader(label, count) {
+            $('#dealerTableTitle').text(label + ' Dealers');
+            $('#dealerTableCount').text(
+                count.toLocaleString() + ' record' + (count === 1 ? '' : 's') + ' listed'
+            );
+        }
+
+        function setDealerEmptyState(label, count) {
+            const hasRows = count > 0;
+
+            $('#dealerTableWrap').toggle(hasRows);
+            $('#dealerEmptyState')
+                .toggle(!hasRows)
+                .find('strong')
+                .text(hasRows ? 'No dealers found' : 'No ' + label.toLowerCase() + ' dealers found');
+            $('#dealerEmptyState span').text(
+                hasRows ? '' : 'Switch tabs or add a dealer to populate this list.'
+            );
+        }
+
+        function activateDealerTab($tab) {
+            activeDealerType = $tab.data('dealer-tab');
+            const label = $tab.data('dealer-tab-label') || activeDealerType;
+            const count = Number($tab.data('count') || 0);
+
+            $('.dealer-tab')
+                .removeClass('active')
+                .attr('aria-selected', 'false');
+            $tab
+                .addClass('active')
+                .attr('aria-selected', 'true');
+
+            updateDealerHeader(label, count);
+            setDealerEmptyState(label, count);
+
+            return count;
+        }
+
+        function renderDealerRowsForActiveTab() {
+            const matchingRows = allDealerRows.filter(function (row) {
+                return row.getAttribute('data-dealer-tab-key') === activeDealerType;
+            });
+
+            $dealerTableBody.empty().append(matchingRows);
+        }
+
+        function showDealerInfo(dealer) {
+            const status = dealer.status || '-';
+            const isActive = String(status).toLowerCase() === 'active';
+
+            $('#dealerInfoSource').text(dealer.source || 'Local');
+            $('#dealerInfoSourceDetail').text(dealer.source || 'Local');
+            $('#dealerInfoInitials').text(dealer.initials || 'DL');
+            $('#dealerInfoReference').text(dealer.reference || '-');
+            $('#dealerInfoName').text(dealer.name || '-');
+            $('#dealerInfoStoreName').text(dealer.store_name || '-');
+            $('#dealerInfoStoreType').text(dealer.store_type || '-');
+            $('#dealerInfoNumber').text(dealer.number || '-');
+            $('#dealerInfoStatus')
+                .text(status)
+                .removeClass('is-status-active is-status-inactive')
+                .addClass(isActive ? 'is-status-active' : 'is-status-inactive');
+            $('#dealerInfoArea').text(dealer.area || '-');
+            $('#dealerInfoAddress').text(dealer.address || '-');
+
+            const modalElement = document.getElementById('dealerInfoModal');
+
+            if (window.bootstrap && bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance(modalElement).show();
+            } else {
+                $('#dealerInfoModal').modal('show');
+            }
+        }
+
+        $(document).on('click', '.js-view-dealer', function () {
+            let dealer = {};
+
+            try {
+                dealer = JSON.parse($(this).attr('data-dealer') || '{}');
+            } catch (error) {
+                dealer = {};
+            }
+
+            showDealerInfo(dealer);
+        });
+
+        if (!hasDealerRows) {
+            $('.dealer-tab').on('click', function () {
+                activateDealerTab($(this));
+            });
+
+            if (typeof initSelect2 === 'function') {
+                initSelect2();
+            }
+            return;
+        }
+
+        if (!await ensureDataTables()) {
+            console.error('DataTables failed to load.');
+            $('.dealer-tab').on('click', function () {
+                activateDealerTab($(this));
+            });
+
+            if (typeof initSelect2 === 'function') {
+                initSelect2();
+            }
+            return;
+        }
+
+        renderDealerRowsForActiveTab();
+
+        const dealerTable = $dealerTable.DataTable({
             pageLength: 10,
             autoWidth: false,
             language: {
@@ -462,7 +1115,20 @@
                 emptyTable: 'No dealers found.'
             }
         });
-        initSelect2(); // initial load
+
+        setDealerEmptyState(activeDealerType, Number($('.dealer-tab.active').data('count') || 0));
+
+        $('.dealer-tab').on('click', function () {
+            activateDealerTab($(this));
+            dealerTable.clear();
+            dealerTable.rows.add($(allDealerRows).filter(function () {
+                return this.getAttribute('data-dealer-tab-key') === activeDealerType;
+            })).search('').page('first').draw();
+        });
+
+        if (typeof initSelect2 === 'function') {
+            initSelect2();
+        }
     });
 
     
@@ -476,24 +1142,4 @@
         }
     });
 </script>
-{{-- <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        document.getElementById("adFilter").addEventListener("change", function () {
-            const selectedAdDealer = this.value;
-            filterAdsByName(selectedAdDealer);
-        });
-
-        function filterAdsByName(adName) {
-            const rows = document.querySelectorAll('#adBody tr');
-            rows.forEach(row => {
-                const dealerColumn = row.cells[0].textContent;
-                if (adName === 'All' || dealerColumn === adName) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        }
-    });
-</script> --}}
 @endsection

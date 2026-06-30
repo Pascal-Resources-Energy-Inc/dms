@@ -39,6 +39,8 @@
     .partial-summary-item:nth-child(3) span { color: #be123c; }
     .partial-summary-item span { display: block; color: #92400e; font-size: 10px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
     .partial-summary-item strong { display: block; margin-top: 3px; color: #111827; font-size: 18px; font-weight: 900; }
+    .partial-shared-date { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 9px 11px; border: 1px solid #dbe7f4; border-radius: 8px; background: #f8fbff; color: #344054; font-size: 12px; font-weight: 700; }
+    .partial-shared-date .form-check-input { margin: 0; }
     .partial-item-list { display: grid; gap: 10px; }
     .partial-item-row { display: grid; grid-template-columns: minmax(220px, 1fr) 120px 155px 155px; align-items: center; gap: 12px; padding: 12px; border: 1px solid #edf0f5; border-radius: 8px; background: #fff; }
     .partial-item-row:hover { border-color: #cfe0f5; background: #fbfdff; }
@@ -81,6 +83,13 @@
 @section('content')
     @php
         $isFinalStatus = in_array($order->status, ['Completed', 'Cancelled']);
+        $availableStatuses = $order->status === 'Pending'
+            ? ['Pending', 'SO Created', 'Cancelled']
+            : ['Pending', 'SO Created', 'For Delivery', 'Partial Received', 'Completed'];
+
+        if ($order->status === 'SO Created') {
+            $availableStatuses[] = 'Cancelled';
+        }
         $partialEditableItems = $order->items;
         $partialOrderedQty = $partialEditableItems->sum('qty');
         $partialReceivedQty = $partialEditableItems->sum(function ($item) {
@@ -145,7 +154,7 @@
                                 Status
                             </label>
                             <select name="status" id="adpoStatus" class="form-select form-select-sm" @if($isFinalStatus) disabled @endif>
-                                @foreach(['Pending','For Delivery','SO Created','Partial Received','Completed','Cancelled'] as $status)
+                                @foreach($availableStatuses as $status)
                                     <option value="{{ $status }}" @if(old('status', $order->status) === $status) selected @endif>{{ strtoupper($status) }}</option>
                                 @endforeach
                             </select>
@@ -162,6 +171,7 @@
                                     <option value="{{ $value }}" @if(old('payment_method', $order->payment_method) === $value) selected @endif>{{ strtoupper($label) }}</option>
                                 @endforeach
                             </select>
+                            @if($order->bank_name)<small>{{ strtoupper($order->bank_name) }}</small>@endif
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -222,7 +232,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-12 status-details @if(old('status', $order->status) === 'For Delivery') is-visible @endif" id="deliveryDetailsWrap">
+                    <div class="col-12 status-details @if(in_array(old('status', $order->status), ['For Delivery', 'Partial Received'])) is-visible @endif" id="deliveryDetailsWrap">
                         <div class="status-details-head">
                             <div>
                                 <h6 class="status-details-title">
@@ -279,6 +289,13 @@
                                 <strong id="showPartialPending">{{ number_format($partialPendingQty) }}</strong>
                             </div>
                         </div>
+                        <label class="partial-shared-date" for="samePartialDeliveryDate">
+                            <input type="checkbox"
+                                id="samePartialDeliveryDate"
+                                class="form-check-input"
+                                @if(old('status', $order->status) !== 'Partial Received' || $isFinalStatus) disabled @endif>
+                            Use the same delivery date for all received products
+                        </label>
                         <div class="partial-item-list" id="showPartialItems">
                             @forelse($partialEditableItems as $item)
                                 @php
@@ -291,6 +308,12 @@
                                     $pendingQty = max($orderedQty - $totalReceivedQty, 0);
                                     $isFullyReceived = $previousReceivedQty >= $orderedQty;
                                     $hasPreviousPartial = $previousReceivedQty > 0 && !$isFullyReceived;
+                                    $latestPartialReceipt = $item->partialReceipts->sortByDesc('id')->first();
+                                    $latestOrderPartialReceipt = $order->partialReceipts->sortByDesc('id')->first();
+                                    $previousPartialDrNumber = optional($latestPartialReceipt)->dr_number
+                                        ?: $item->partial_dr_number
+                                        ?: optional($latestOrderPartialReceipt)->dr_number
+                                        ?: $order->dr_number;
                                     $partialItemDeliveryDate = $isFullyReceived ? '' : old('partial_items.' . $item->id . '.delivery_date', $hasPreviousPartial ? '' : optional($item->partial_delivery_date)->format('Y-m-d'));
                                     $partialItemDrNumber = $isFullyReceived ? '' : old('partial_items.' . $item->id . '.dr_number', $hasPreviousPartial ? '' : $item->partial_dr_number);
                                 @endphp
@@ -347,6 +370,7 @@
                                             class="form-control form-control-sm partial-doc-input partial-dr-number"
                                             value="{{ $partialItemDrNumber }}"
                                             placeholder="{{ $isFullyReceived ? 'Fully received' : ($hasPreviousPartial ? 'Enter next DR no.' : 'Enter DR no.') }}"
+                                            data-previous-dr-number="{{ $hasPreviousPartial ? $previousPartialDrNumber : '' }}"
                                             data-uppercase
                                             @if($isFullyReceived)
                                                 disabled readonly
@@ -466,10 +490,10 @@
                                     </div>
                                 </td>
                                 <td class="text-center">
-                                    @if(auth()->user()->role === 'Admin')
+                                    @if(auth()->user()->role === 'Admin' && in_array($order->status, ['Pending', 'SO Created']))
                                         <input type="number" name="items[{{ $item->id }}][qty]" class="form-control form-control-sm qty-input text-center" value="{{ old('items.' . $item->id . '.qty', $item->qty) }}" min="1">
                                     @else
-                                        {{ $item->qty }}
+                                        {{ number_format($item->qty) }}
                                     @endif
                                 </td>
                                 @if($order->status === 'Partial Received')
@@ -565,9 +589,146 @@
                 const partialOrdered = document.getElementById('showPartialOrdered');
                 const partialReceived = document.getElementById('showPartialReceived');
                 const partialPending = document.getElementById('showPartialPending');
+                const samePartialDeliveryDate = document.getElementById('samePartialDeliveryDate');
+                const warehousePreviousDrNumber = @json(
+                    optional($order->partialReceipts->sortByDesc('id')->first())->dr_number
+                        ?: $order->dr_number
+                );
 
-                if (!form || !status || !remarksWrap || !remarksLabel || !remarks || !soDetailsWrap || !deliveryDetailsWrap || !partialDetailsWrap || !partialItems || !soNumber || !deliveryDate || !drNumber || !siNumber) {
+                if (!form || !status || !remarksWrap || !remarksLabel || !remarks || !soDetailsWrap || !deliveryDetailsWrap || !partialDetailsWrap || !partialItems || !soNumber || !deliveryDate || !drNumber || !siNumber || !samePartialDeliveryDate) {
                     return;
+                }
+
+                function applySharedPartialDeliveryDate(sourceInput) {
+                    if (!samePartialDeliveryDate.checked) {
+                        return;
+                    }
+
+                    const dateInputs = Array.from(partialItems.querySelectorAll('.partial-delivery-date:not(:disabled)'));
+                    const existingDateInput = dateInputs.find(function (input) {
+                        return input.value;
+                    });
+                    const sharedDate = sourceInput && sourceInput.value
+                        ? sourceInput.value
+                        : (existingDateInput ? existingDateInput.value : '');
+
+                    if (!sharedDate) {
+                        return;
+                    }
+
+                    dateInputs.forEach(function (input) {
+                        const row = input.closest('.partial-item-row');
+                        const qtyInput = row ? row.querySelector('.partial-received-qty') : null;
+
+                        if (Number(qtyInput ? qtyInput.value || 0 : 0) > 0) {
+                            input.value = sharedDate;
+                        }
+                    });
+                }
+
+                function applyMainDeliveryDateToPartialItems() {
+                    if (!['For Delivery', 'Partial Received'].includes(status.value)) {
+                        return;
+                    }
+
+                    const hasMainDeliveryDate = deliveryDate.value !== '';
+                    samePartialDeliveryDate.checked = hasMainDeliveryDate;
+                    samePartialDeliveryDate.disabled = hasMainDeliveryDate || @json($isFinalStatus);
+
+                    partialItems.querySelectorAll('.partial-delivery-date').forEach(function (input) {
+                        const row = input.closest('.partial-item-row');
+                        const qtyInput = row ? row.querySelector('.partial-received-qty') : null;
+                        const orderedQty = Number(qtyInput ? qtyInput.dataset.orderedQty || 0 : 0);
+                        const previousReceivedQty = Number(qtyInput ? qtyInput.dataset.previousReceivedQty || 0 : 0);
+
+                        if (hasMainDeliveryDate && previousReceivedQty < orderedQty) {
+                            input.value = deliveryDate.value;
+                        }
+
+                        if (status.value === 'Partial Received') {
+                            input.readOnly = hasMainDeliveryDate || @json($isFinalStatus);
+                        }
+                    });
+                }
+
+                function applyMainDrNumberToPartialItems() {
+                    if (status.value !== 'Partial Received' || !@json(filled(auth()->user()->warehouse))) {
+                        drNumber.readOnly = @json($isFinalStatus);
+                        return;
+                    }
+
+                    if (
+                        warehousePreviousDrNumber
+                        && drNumber.dataset.partialDrGenerated !== '1'
+                    ) {
+                        drNumber.value = incrementPartialDrNumber(warehousePreviousDrNumber);
+                        drNumber.dataset.partialDrGenerated = '1';
+                    }
+
+                    const sharedDrNumber = normalizePartialDrNumber(drNumber.value);
+                    drNumber.value = sharedDrNumber;
+                    drNumber.readOnly = Boolean(warehousePreviousDrNumber) || @json($isFinalStatus);
+
+                    partialItems.querySelectorAll('.partial-dr-number:not(:disabled)').forEach(function (input) {
+                        const row = input.closest('.partial-item-row');
+                        const qtyInput = row ? row.querySelector('.partial-received-qty') : null;
+                        const receivedQty = Number(qtyInput ? qtyInput.value || 0 : 0);
+
+                        input.readOnly = sharedDrNumber !== '' || @json($isFinalStatus);
+
+                        if (receivedQty > 0 && sharedDrNumber !== '') {
+                            input.value = sharedDrNumber;
+                            input.dataset.autoGenerated = '1';
+                        }
+                    });
+                }
+
+                function normalizePartialDrNumber(drValue) {
+                    let normalizedDrNumber = String(drValue || '')
+                        .trim()
+                        .toUpperCase()
+                        .replace(/\s*-\s*(\d+)\s*$/, '-$1');
+
+                    if (normalizedDrNumber && !normalizedDrNumber.startsWith('DR')) {
+                        normalizedDrNumber = 'DR' + normalizedDrNumber;
+                    }
+
+                    return normalizedDrNumber;
+                }
+
+                function incrementPartialDrNumber(previousDrNumber) {
+                    const normalizedDrNumber = normalizePartialDrNumber(previousDrNumber);
+                    const incrementMatch = normalizedDrNumber.match(/^(.*)-(\d+)$/);
+
+                    if (incrementMatch) {
+                        return incrementMatch[1] + '-' + (Number(incrementMatch[2]) + 1);
+                    }
+
+                    return normalizedDrNumber ? normalizedDrNumber + '-1' : '';
+                }
+
+                function applyNextPartialDrNumber(row) {
+                    if (!row) {
+                        return;
+                    }
+
+                    const qtyInput = row.querySelector('.partial-received-qty');
+                    const drInput = row.querySelector('.partial-dr-number');
+                    const receivedQty = Number(qtyInput ? qtyInput.value || 0 : 0);
+                    const previousReceivedQty = Number(qtyInput ? qtyInput.dataset.previousReceivedQty || 0 : 0);
+                    const previousDrNumber = drInput ? drInput.dataset.previousDrNumber || '' : '';
+
+                    if (!drInput || previousReceivedQty <= 0 || !previousDrNumber) {
+                        return;
+                    }
+
+                    if (receivedQty > 0 && (!drInput.value.trim() || drInput.dataset.autoGenerated === '1')) {
+                        drInput.value = incrementPartialDrNumber(previousDrNumber);
+                        drInput.dataset.autoGenerated = '1';
+                    } else if (receivedQty <= 0 && drInput.dataset.autoGenerated === '1') {
+                        drInput.value = '';
+                        drInput.dataset.autoGenerated = '0';
+                    }
                 }
 
                 function syncPartialRow(row) {
@@ -618,6 +779,9 @@
                             drInput.value = '';
                         }
                     }
+
+                    applyNextPartialDrNumber(row);
+                    applyMainDrNumberToPartialItems();
                 }
 
                 function updatePartialSummary() {
@@ -646,8 +810,10 @@
                 function toggleStatusFields() {
                     const needsRemarks = ['Cancelled', 'Partial Received'].includes(status.value);
                     const needsSoDetails = status.value === 'SO Created';
+                    const showsDeliveryDetails = ['For Delivery', 'Partial Received'].includes(status.value);
                     const needsDeliveryDetails = status.value === 'For Delivery';
                     const needsPartialDetails = status.value === 'Partial Received';
+                    const needsWarehousePartialDr = needsPartialDetails && @json(filled(auth()->user()->warehouse));
 
                     remarksWrap.classList.toggle('is-visible', needsRemarks);
                     remarks.required = needsRemarks;
@@ -662,27 +828,42 @@
                     soNumber.disabled = !needsSoDetails;
                     soNumber.required = needsSoDetails;
 
-                    deliveryDetailsWrap.classList.toggle('is-visible', needsDeliveryDetails);
-                    deliveryDate.disabled = !needsDeliveryDetails;
-                    drNumber.disabled = !needsDeliveryDetails;
-                    siNumber.disabled = !needsDeliveryDetails;
+                    deliveryDetailsWrap.classList.toggle('is-visible', showsDeliveryDetails);
+                    deliveryDate.disabled = !showsDeliveryDetails;
+                    drNumber.disabled = !showsDeliveryDetails;
+                    siNumber.disabled = !showsDeliveryDetails;
                     deliveryDate.required = needsDeliveryDetails;
-                    drNumber.required = needsDeliveryDetails;
+                    drNumber.required = needsDeliveryDetails || needsWarehousePartialDr;
                     siNumber.required = needsDeliveryDetails;
 
                     partialDetailsWrap.classList.toggle('is-visible', needsPartialDetails);
+                    samePartialDeliveryDate.disabled = !needsPartialDetails || @json($isFinalStatus);
                     partialItems.querySelectorAll('.partial-receive-mode, .partial-received-qty, .partial-delivery-date, .partial-dr-number').forEach(function (input) {
                         input.disabled = !needsPartialDetails;
                     });
                     partialItems.querySelectorAll('.partial-item-row').forEach(syncPartialRow);
 
+                    applyMainDeliveryDateToPartialItems();
+                    applyMainDrNumberToPartialItems();
                     updatePartialSummary();
                 }
 
                 status.addEventListener('change', toggleStatusFields);
+                deliveryDate.addEventListener('input', applyMainDeliveryDateToPartialItems);
+                deliveryDate.addEventListener('change', applyMainDeliveryDateToPartialItems);
+                drNumber.addEventListener('input', applyMainDrNumberToPartialItems);
+                drNumber.addEventListener('change', applyMainDrNumberToPartialItems);
+                drNumber.addEventListener('input', function () {
+                    drNumber.dataset.partialDrGenerated = '1';
+                });
                 toggleStatusFields();
 
                 partialItems.addEventListener('input', function (event) {
+                    if (event.target.classList.contains('partial-dr-number')) {
+                        event.target.dataset.autoGenerated = '0';
+                        return;
+                    }
+
                     if (!event.target.classList.contains('partial-received-qty')) {
                         return;
                     }
@@ -711,7 +892,20 @@
                     }
 
                     syncPartialRow(row);
+                    applyMainDeliveryDateToPartialItems();
+                    applyMainDrNumberToPartialItems();
+                    applySharedPartialDeliveryDate();
                     updatePartialSummary();
+                });
+
+                samePartialDeliveryDate.addEventListener('change', function () {
+                    applySharedPartialDeliveryDate();
+                });
+
+                partialItems.addEventListener('change', function (event) {
+                    if (event.target.classList.contains('partial-delivery-date')) {
+                        applySharedPartialDeliveryDate(event.target);
+                    }
                 });
 
                 function showLoading() {

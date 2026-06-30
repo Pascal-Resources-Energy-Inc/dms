@@ -6,7 +6,7 @@
     .dpo-title { margin: 0; color: #101828; font-size: 24px; font-weight: 900; }
     .dpo-copy { margin: 4px 0 0; color: #667085; font-size: 13px; }
     .dpo-filter { padding: 14px; border: 1px solid #e6e9ef; border-radius: 8px; background: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, .04); }
-    .dpo-filter-form { display: grid; grid-template-columns: repeat(2, minmax(130px, 1fr)) 150px minmax(220px, 1.5fr) auto auto; gap: 8px; align-items: center; }
+    .dpo-filter-form { display: grid; grid-template-columns: repeat(2, minmax(130px, 1fr)) 150px minmax(150px, 1fr) minmax(220px, 1.5fr) auto auto; gap: 8px; align-items: center; }
     /* .dpo-filter-form .form-control, .dpo-filter-form .form-select, .dpo-filter-form .btn { min-height: 36px; } */
     .dpo-kpis { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 12px; margin: 16px 0; }
     .dpo-kpi { position: relative; padding: 14px 15px; border: 1px solid #e6e9ef; border-radius: 8px; background: #fff; overflow: hidden; box-shadow: 0 10px 24px rgba(15, 23, 42, .04); }
@@ -44,6 +44,13 @@
     .dpo-receipt-table { margin: 0; font-size: 12px; }
     .dpo-receipt-table th { color: #667085; font-size: 10px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
     .dpo-history-empty { padding: 22px; color: #667085; text-align: center; }
+    .dpo-history-title { margin: 0 0 8px; color: #101828; font-size: 13px; font-weight: 900; }
+    .dpo-document-history { margin-bottom: 16px; border: 1px solid #e6e9ef; border-radius: 8px; overflow: hidden; }
+    .dpo-order-history { border: 1px solid #dfe4ec; border-radius: 10px; background: #fff; overflow: hidden; }
+    .dpo-order-history-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 15px; background: #f8fafc; border-bottom: 1px solid #e6e9ef; }
+    .dpo-order-history-title { margin: 0; color: #101828; font-size: 14px; font-weight: 900; }
+    .dpo-order-history-meta { margin-top: 3px; color: #667085; font-size: 11px; font-weight: 700; }
+    .dpo-order-history-body { padding: 14px; }
     @media (max-width: 992px) {
         .dpo-head { align-items: flex-start; flex-direction: column; }
         .dpo-filter-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -65,7 +72,7 @@
     <div class="dpo-head">
         <div>
             <h4 class="dpo-title">Distributor Purchase Order Report</h4>
-            <p class="dpo-copy">Complete DPO document register with SO, DR, SI, status, and partial DR breakdowns.</p>
+            <p class="dpo-copy">One register row per SO Number, with the complete DPO and receiving history.</p>
         </div>
     </div>
 
@@ -79,6 +86,7 @@
                     <option value="{{ $status }}" @if(request('status') === $status) selected @endif>{{ $status }}</option>
                 @endforeach
             </select>
+            <input type="text" name="so_number" class="form-control form-control-sm" value="{{ request('so_number') }}" placeholder="SO Number">
             <input type="text" name="search" class="form-control form-control-sm" value="{{ request('search') }}" placeholder="Search DPO, SO, DR, SI, business">
             <button class="btn btn-sm btn-primary" type="submit">
                 <i class="bi bi-funnel"></i> Filter
@@ -91,12 +99,12 @@
 
     <div class="dpo-kpis">
         <div class="dpo-kpi">
-            <span>DPO Count</span>
-            <strong>{{ number_format($summary['adpo_count']) }}</strong>
+            <span>SO Count</span>
+            <strong>{{ number_format($summary['so_count']) }}</strong>
         </div>
         <div class="dpo-kpi">
-            <span>Document Rows</span>
-            <strong>{{ number_format($summary['document_count']) }}</strong>
+            <span>DPO Count</span>
+            <strong>{{ number_format($summary['adpo_count']) }}</strong>
         </div>
         <div class="dpo-kpi">
             <span>Total Qty</span>
@@ -110,20 +118,22 @@
 
     <div class="dpo-panel">
         <div class="dpo-panel-head">
-            <h6 class="dpo-panel-title">DPO Document Register</h6>
-            <div class="dpo-panel-count">{{ number_format($rows->count()) }} rows</div>
+            <h6 class="dpo-panel-title">Sales Order Register</h6>
+            <div class="dpo-panel-count">{{ number_format($rows->count()) }} SO numbers</div>
         </div>
         <div class="table-responsive">
             <table class="table dpo-table align-middle">
                 <thead>
                     <tr>
-                        <th>DPO Ref</th>
-                        <th>Date</th>
-                        <th>SO #</th>
-                        <th>DR #</th>
-                        <th>SI #</th>
+                        <th>SO Number</th>
+                        <th>Latest Date</th>
+                        <th>Business</th>
+                        <th class="text-center">DPOs</th>
+                        <th class="text-center">Documents</th>
+                        <th class="text-end">Total Qty</th>
+                        <th class="text-end">Total Amount</th>
                         <th>Status</th>
-                        <th class="text-center">Items</th>
+                        <th class="text-center">History</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -133,37 +143,35 @@
                         @endphp
                         <tr>
                             <td>
-                                <span class="dpo-ref">{{ $row->adpo_ref ?: 'N/A' }}</span>
-                                <span class="dpo-sub">{{ $row->business_name ?: 'N/A' }}</span>
+                                <span class="dpo-ref">{{ $row->so_number }}</span>
+                                <span class="dpo-sub">{{ number_format($row->order_count) }} linked order(s)</span>
                             </td>
-                            <td>
-                                <span class="dpo-doc">{{ optional($row->date)->format('M d, Y') ?: 'N/A' }}</span>
-                                <span class="dpo-sub">{{ $row->is_partial_receipt ? 'Partial DR receipt' : 'DPO document' }}</span>
-                            </td>
-                            <td><span class="dpo-doc">{{ $row->so_number ? strtoupper($row->so_number) : 'N/A' }}</span></td>
-                            <td>
-                                <span class="dpo-doc">{{ $row->dr_number ? strtoupper($row->dr_number) : 'N/A' }}</span>
-                                <span class="dpo-sub">{{ $row->product_name ?: 'All products' }} - {{ number_format($row->qty) }} qty</span>
-                            </td>
-                            <td><span class="dpo-doc">{{ $row->si_number ? strtoupper($row->si_number) : 'N/A' }}</span></td>
+                            <td><span class="dpo-doc">{{ optional($row->latest_date)->format('M d, Y') ?: 'N/A' }}</span></td>
+                            <td>{{ $row->business_name ?: 'N/A' }}</td>
+                            <td class="text-center">{{ number_format($row->order_count) }}</td>
+                            <td class="text-center">{{ number_format($row->document_count) }}</td>
+                            <td class="text-end">{{ number_format($row->total_qty) }}</td>
+                            <td class="text-end"><span class="dpo-doc">PHP {{ number_format($row->total_amount, 2) }}</span></td>
                             <td>
                                 <span class="dpo-status {{ $statusClass }}">{{ $row->status }}</span>
-                                <span class="dpo-sub">{{ $row->is_partial_receipt ? number_format($row->confirmed_qty) . ' confirmed' : 'Order status: ' . $row->order_status }}</span>
+                                @if($row->statuses !== $row->status)
+                                    <span class="dpo-sub">{{ $row->statuses }}</span>
+                                @endif
                             </td>
                             <td class="text-center">
                                 <button type="button"
                                     class="btn btn-sm btn-outline-primary js-dpo-items"
-                                    data-order-id="{{ $row->order_id }}"
+                                    data-so-key="{{ $row->so_key }}"
                                     data-bs-toggle="modal"
                                     data-bs-target="#dpoItemsModal">
-                                    <i class="bi bi-list-check"></i> View
+                                    <i class="bi bi-clock-history"></i> View
                                 </button>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
-                                <div class="dpo-empty">No distributor purchase order records found for the selected filters.</div>
+                            <td colspan="9">
+                                <div class="dpo-empty">No sales order numbers found for the selected filters.</div>
                             </td>
                         </tr>
                     @endforelse
@@ -177,8 +185,8 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <div>
-                        <h5 class="modal-title" id="dpoItemsModalLabel">Purchase Order Items</h5>
-                        <div class="text-muted small" id="dpoItemsModalMeta">Item history</div>
+                        <h5 class="modal-title" id="dpoItemsModalLabel">Sales Order History</h5>
+                        <div class="text-muted small" id="dpoItemsModalMeta">Order and document history</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -224,62 +232,133 @@
 
         document.querySelectorAll('.js-dpo-items').forEach(function (button) {
             button.addEventListener('click', function () {
-                const history = histories[button.dataset.orderId] || {};
-                const items = Array.isArray(history.items) ? history.items : [];
+                const history = histories[button.dataset.soKey] || {};
+                const orders = Array.isArray(history.orders) ? history.orders : [];
 
-                modalTitle.textContent = history.po_number ? 'Purchase Order Items - ' + history.po_number : 'Purchase Order Items';
-                modalMeta.textContent = [history.business_name || 'N/A', history.status || 'N/A'].join(' | ');
+                modalTitle.textContent = history.so_number
+                    ? 'SO History - ' + history.so_number
+                    : 'Sales Order History';
+                modalMeta.textContent = [
+                    history.business_name || 'N/A',
+                    numberFormat(history.order_count) + ' DPO(s)',
+                    numberFormat(history.total_qty) + ' total qty',
+                    'PHP ' + numberFormat(history.total_amount, 2)
+                ].join(' | ');
 
-                if (!items.length) {
-                    historyWrap.innerHTML = '<div class="dpo-history-empty">No item history found for this purchase order.</div>';
+                if (!orders.length) {
+                    historyWrap.innerHTML = '<div class="dpo-history-empty">No order history found for this SO Number.</div>';
                     return;
                 }
 
-                historyWrap.innerHTML = items.map(function (item) {
-                    const receipts = Array.isArray(item.receipts) ? item.receipts : [];
-                    const receiptRows = receipts.length
-                        ? receipts.map(function (receipt) {
+                historyWrap.innerHTML = orders.map(function (order) {
+                    const items = Array.isArray(order.items) ? order.items : [];
+                    const documents = Array.isArray(order.document_history) ? order.document_history : [];
+                    const statusClass = String(order.status || '').toLowerCase().replace(/\s+/g, '-');
+                    const documentRows = documents.length
+                        ? documents.map(function (document) {
                             return `
                                 <tr>
-                                    <td>${escapeHtml(receipt.delivery_date || 'N/A')}</td>
-                                    <td><strong>${escapeHtml(receipt.dr_number || 'N/A').toUpperCase()}</strong></td>
-                                    <td class="text-center">${numberFormat(receipt.received_qty)}</td>
-                                    <td class="text-center">${numberFormat(receipt.confirmed_qty)}</td>
-                                    <td class="text-center">${numberFormat(receipt.pending_qty)}</td>
-                                    <td>${escapeHtml(receipt.status || 'N/A')}</td>
+                                    <td>${escapeHtml(document.date || 'N/A')}</td>
+                                    <td><strong>${escapeHtml(document.dr_number || 'N/A').toUpperCase()}</strong></td>
+                                    <td><strong>${escapeHtml(document.si_number || 'N/A').toUpperCase()}</strong></td>
+                                    <td>${escapeHtml(document.product_name || 'All products')}</td>
+                                    <td class="text-center">${numberFormat(document.received_qty)}</td>
+                                    <td class="text-center">${numberFormat(document.confirmed_qty)}</td>
+                                    <td class="text-center">${numberFormat(document.pending_qty)}</td>
+                                    <td>${escapeHtml(document.status || 'N/A')}</td>
                                 </tr>
                             `;
                         }).join('')
-                        : '<tr><td colspan="6" class="text-center text-muted py-3">No DR receipt history.</td></tr>';
+                        : '<tr><td colspan="8" class="text-center text-muted py-3">No document history.</td></tr>';
+
+                    const itemHistoryHtml = items.length
+                        ? items.map(function (item) {
+                            const receipts = Array.isArray(item.receipts) ? item.receipts : [];
+                            const receiptRows = receipts.length
+                                ? receipts.map(function (receipt) {
+                                    return `
+                                        <tr>
+                                            <td>${escapeHtml(receipt.delivery_date || 'N/A')}</td>
+                                            <td><strong>${escapeHtml(receipt.dr_number || 'N/A').toUpperCase()}</strong></td>
+                                            <td class="text-center">${numberFormat(receipt.received_qty)}</td>
+                                            <td class="text-center">${numberFormat(receipt.confirmed_qty)}</td>
+                                            <td class="text-center">${numberFormat(receipt.pending_qty)}</td>
+                                            <td>${escapeHtml(receipt.status || 'N/A')}</td>
+                                        </tr>
+                                    `;
+                                }).join('')
+                                : '<tr><td colspan="6" class="text-center text-muted py-3">No DR receipt history.</td></tr>';
+
+                            return `
+                                <div class="dpo-item-card">
+                                    <div class="dpo-item-head">
+                                        <div>
+                                            <div class="dpo-item-name">${escapeHtml(item.name || 'Product')}</div>
+                                            <div class="dpo-item-meta">${escapeHtml(item.sku || 'No SKU')} | PHP ${numberFormat(item.unit_price, 2)} unit | PHP ${numberFormat(item.line_total, 2)} total</div>
+                                        </div>
+                                        <div class="dpo-item-metric"><span>Ordered</span><strong>${numberFormat(item.ordered_qty)}</strong></div>
+                                        <div class="dpo-item-metric"><span>Received</span><strong>${numberFormat(item.received_qty)}</strong></div>
+                                        <div class="dpo-item-metric"><span>Confirmed</span><strong>${numberFormat(item.confirmed_qty)}</strong></div>
+                                        <div class="dpo-item-metric"><span>Pending</span><strong>${numberFormat(item.pending_qty)}</strong></div>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm dpo-receipt-table align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>DR No.</th>
+                                                    <th class="text-center">Received</th>
+                                                    <th class="text-center">Confirmed</th>
+                                                    <th class="text-center">Pending</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>${receiptRows}</tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')
+                        : '<div class="dpo-history-empty">No product history found for this DPO.</div>';
 
                     return `
-                        <div class="dpo-item-card">
-                            <div class="dpo-item-head">
+                        <section class="dpo-order-history">
+                            <div class="dpo-order-history-head">
                                 <div>
-                                    <div class="dpo-item-name">${escapeHtml(item.name || 'Product')}</div>
-                                    <div class="dpo-item-meta">${escapeHtml(item.sku || 'No SKU')} | PHP ${numberFormat(item.unit_price, 2)} unit | PHP ${numberFormat(item.line_total, 2)} total</div>
+                                    <h6 class="dpo-order-history-title">${escapeHtml(order.po_number || 'DPO')}</h6>
+                                    <div class="dpo-order-history-meta">
+                                        ${escapeHtml(order.date || 'N/A')} |
+                                        DR: ${escapeHtml(order.dr_number || 'N/A').toUpperCase()} |
+                                        SI: ${escapeHtml(order.si_number || 'N/A').toUpperCase()} |
+                                        ${numberFormat(order.total_qty)} qty |
+                                        PHP ${numberFormat(order.total_amount, 2)}
+                                    </div>
                                 </div>
-                                <div class="dpo-item-metric"><span>Ordered</span><strong>${numberFormat(item.ordered_qty)}</strong></div>
-                                <div class="dpo-item-metric"><span>Received</span><strong>${numberFormat(item.received_qty)}</strong></div>
-                                <div class="dpo-item-metric"><span>Confirmed</span><strong>${numberFormat(item.confirmed_qty)}</strong></div>
-                                <div class="dpo-item-metric"><span>Pending</span><strong>${numberFormat(item.pending_qty)}</strong></div>
+                                <span class="dpo-status ${escapeHtml(statusClass)}">${escapeHtml(order.status || 'N/A')}</span>
                             </div>
-                            <div class="table-responsive">
-                                <table class="table table-sm dpo-receipt-table align-middle">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>DR No.</th>
-                                            <th class="text-center">Received</th>
-                                            <th class="text-center">Confirmed</th>
-                                            <th class="text-center">Pending</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>${receiptRows}</tbody>
-                                </table>
+                            <div class="dpo-order-history-body">
+                                <h6 class="dpo-history-title">Document History</h6>
+                                <div class="dpo-document-history table-responsive">
+                                    <table class="table table-sm dpo-receipt-table align-middle">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>DR No.</th>
+                                                <th>SI No.</th>
+                                                <th>Product</th>
+                                                <th class="text-center">Received</th>
+                                                <th class="text-center">Confirmed</th>
+                                                <th class="text-center">Pending</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>${documentRows}</tbody>
+                                    </table>
+                                </div>
+                                <h6 class="dpo-history-title">Product History</h6>
+                                <div class="dpo-item-list">${itemHistoryHtml}</div>
                             </div>
-                        </div>
+                        </section>
                     `;
                 }).join('');
             });

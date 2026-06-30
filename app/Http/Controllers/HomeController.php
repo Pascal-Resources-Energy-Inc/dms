@@ -904,18 +904,14 @@ class HomeController extends Controller
 
         $user = auth()->user();
         $adId = optional($user->ad)->id; 
+        $orderTabs = $this->adOrderTabs($user, $adId);
+        $orders = $orderTabs->pluck('orders')->flatten(1);
 
         $areas = optional($user->ad)
             ->areas
             ? $user->ad->areas->pluck('area_name')->toArray()
             : [];
 
-        $orders = OrderDetail::with('ad')
-            ->where('ad_id', $adId)
-            ->where('status', 'Completed')
-            ->whereDate('date', Carbon::today())
-            ->get();
-        
         $product_sold = OrderDetail::with('ad')
             ->where('ad_id', $adId)
             ->where('status', 'Completed')
@@ -1241,8 +1237,165 @@ class HomeController extends Controller
                 'totalProductsSoldQty' => $totalProductsSoldQty,
                 'managedAreas' => $areas,
                 'stockInventoryRows' => $stockInventoryRows,
+                'orderTabs' => $orderTabs,
             )
         );
+    }
+
+    private function adOrderTabs($user, $adId)
+    {
+        $tabs = collect();
+
+        if (!$adId) {
+            return $tabs;
+        }
+
+        $decodedTypes = json_decode($user->type ?? '[]', true);
+        $types = collect(is_array($decodedTypes) ? $decodedTypes : []);
+
+        $areaTypes = optional($user->ad)->areas
+            ? $user->ad->areas->pluck('project_type')
+            : collect();
+
+        $availableTypes = $types
+            ->merge($areaTypes)
+            ->filter()
+            ->map(function ($type) {
+                return strtolower(trim((string) $type));
+            })
+            ->unique();
+
+        if ($availableTypes->isEmpty()) {
+            $availableTypes = collect(['regular']);
+        }
+
+        $definitions = collect([
+            [
+                'key' => 'regular',
+                'label' => 'Regular',
+                'type' => 'regular',
+                'connection' => null,
+            ],
+            [
+                'key' => 'project_rise',
+                'label' => 'Project Rise',
+                'type' => 'project rise',
+                'connection' => 'admin_crms2',
+            ],
+            [
+                'key' => 'project_genesis',
+                'label' => 'Project Genesis',
+                'type' => 'project genesis',
+                'connection' => 'admin_crms',
+            ],
+        ]);
+
+        foreach ($definitions as $definition) {
+            if (!$availableTypes->contains($definition['type'])) {
+                continue;
+            }
+
+            $orders = $definition['connection']
+                ? $this->remoteAdOrders($definition['connection'], $definition['label'], $adId)
+                : OrderDetail::with(['dealer', 'adDealer', 'ad'])
+                    ->where('ad_id', $adId)
+                    ->orderByDesc('id')
+                    ->get()
+                    ->map(function ($order) use ($definition) {
+                        $order->source_key = $definition['key'];
+                        $order->source_label = $definition['label'];
+                        $order->is_remote = false;
+
+                        return $order;
+                    });
+
+            $tabs->push([
+                'key' => $definition['key'],
+                'label' => $definition['label'],
+                'orders' => $orders,
+            ]);
+        }
+
+        return $tabs->values();
+    }
+
+    private function remoteAdOrders($connection, $label, $adId)
+    {
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (!$schema->hasTable('order_details') || !$schema->hasColumn('order_details', 'ad_id')) {
+                return collect();
+            }
+
+            $query = DB::connection($connection)->table('order_details as od')
+                ->select('od.*')
+                ->where('od.ad_id', $adId);
+
+            if ($schema->hasTable('dealers') && $schema->hasColumn('order_details', 'dealer_id')) {
+                if ($schema->hasColumn('dealers', 'user_id')) {
+                    $query->leftJoin('dealers as d', 'od.dealer_id', '=', 'd.user_id');
+                } elseif ($schema->hasColumn('dealers', 'id')) {
+                    $query->leftJoin('dealers as d', 'od.dealer_id', '=', 'd.id');
+                }
+
+                $dealerSelects = [];
+
+                foreach (['name', 'area', 'dealer_type'] as $column) {
+                    if ($schema->hasColumn('dealers', $column)) {
+                        $dealerSelects[] = 'd.' . $column . ' as dealer_' . $column;
+                    }
+                }
+
+                if (!empty($dealerSelects)) {
+                    $query->addSelect($dealerSelects);
+                }
+            }
+
+            if ($schema->hasColumn('order_details', 'deleted_at')) {
+                $query->whereNull('od.deleted_at');
+            }
+
+            if ($schema->hasColumn('order_details', 'id')) {
+                $query->orderByDesc('od.id');
+            } elseif ($schema->hasColumn('order_details', 'created_at')) {
+                $query->orderByDesc('od.created_at');
+            }
+
+            return $query->get()->map(function ($order) use ($connection, $label) {
+                $order->source_key = $connection;
+                $order->source_label = $label;
+                $order->is_remote = true;
+                $order->transaction_id = $order->transaction_id ?? $order->id ?? '-';
+                $order->date = $order->date ?? $order->created_at ?? now();
+                $order->qty = (float) ($order->qty ?? $order->quantity ?? 0);
+                $amount = (float) ($order->amount ?? $order->total_amount ?? 0);
+                $order->price = (float) ($order->price ?? ($order->qty > 0 && $amount > 0 ? $amount / $order->qty : $amount));
+                $order->delivery_fee = (float) ($order->delivery_fee ?? 0);
+                $order->item = $order->item ?? $order->product_name ?? $order->product ?? '-';
+                $order->is_guest = $order->is_guest ?? false;
+                $order->guest_name = $order->guest_name ?? null;
+                $order->guest_phone = $order->guest_phone ?? null;
+                $order->guest_email = $order->guest_email ?? null;
+                $order->guest_authorized_territory = $order->guest_authorized_territory ?? null;
+                $order->payment_method = $order->payment_method ?? '-';
+                $order->delivery_type = $order->delivery_type ?? '-';
+                $order->status = $order->status ?? '-';
+                $order->points_dealer = $order->points_dealer ?? $order->points ?? 0;
+                $order->dealer = (object) [
+                    'name' => $order->dealer_name ?? ($order->dealer ?? ''),
+                    'area' => $order->dealer_area ?? '',
+                ];
+                $order->adDealer = (object) [
+                    'area' => $order->dealer_area ?? '',
+                    'dealer_type' => $order->dealer_type ?? 'Project',
+                ];
+
+                return $order;
+            });
+        } catch (\Exception $exception) {
+            return collect();
+        }
     }
 
     

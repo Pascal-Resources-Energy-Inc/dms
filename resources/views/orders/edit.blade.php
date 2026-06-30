@@ -80,6 +80,7 @@
             <option value="Pending">Pending</option>
             <option value="For Verification">For Pickup Verification</option>
             <option value="For Delivery">For Delivery</option>
+            {{-- <option value="SO Created">SO Created</option> --}}
             {{-- <option value="Completed">Completed</option> --}}
             <option value="Cancelled">Cancelled</option>
           </select>

@@ -2,249 +2,404 @@
 <link rel="icon" type="image/png" href="{{asset('images/logo_nya.png')}}">
 @section('css')
 <style>
-    table td:nth-child(6) {
-        white-space: nowrap;
-        text-align: center;
-        vertical-align: middle;
+    .users-page {
+        padding-bottom: 32px;
     }
 
-    .transaction-table th {
-        text-align: center;
+    .users-hero {
+        border: 1px solid #e2edf4;
+        border-radius: 8px;
+        padding: 22px;
+        margin-bottom: 18px;
+        background:
+            linear-gradient(135deg, rgba(47, 155, 215, .09), rgba(22, 120, 180, .04)),
+            #fff;
+        box-shadow: 0 18px 45px rgba(19, 47, 69, .06);
     }
-    .btn-view {
-        width: 100px;
+
+    .users-eyebrow {
+        margin-bottom: 6px;
+        color: #2f9bd7;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .users-title {
+        margin: 0;
+        color: #0f172a;
+        font-size: 24px;
+        font-weight: 900;
+    }
+
+    .users-subtitle {
+        margin: 7px 0 0;
+        color: #64748b;
         font-size: 14px;
-    }
-
-    .welcome {
-        margin-top: 20px;
-    }
-
-    .card-header {
-        font-size: 1.25rem;
-        font-weight: bold;
-    }
-
-    .card-body.users {
-        padding: 20px;
-        background-color: #ffffffff;
-        border-radius: 50px;
-    }
-
-    .filter-container {
-        margin-bottom: 20px;
-    }
-
-    .btn-custom {
-        display: inline-block;
-        padding: 8px 12px;
-        font-size: 14px;
-        font-weight: 500;
-        text-align: center;
-        white-space: nowrap;
-        vertical-align: middle;
-        border-radius: 20px;
-        border: 2px solid;
-        background-color: white;
-        text-decoration: none;
-        margin: 2px;
-        min-width: 40px;
-        min-height: 36px;
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-
-    .btn-view-custom {
-        border-color: #1e90ff;
-        background-color: #1e90ff;
-        color: #fff;
-    }
-
-    .btn-view-custom:hover {
-        background-color: #0d7ddd;
-        border-color: #0d7ddd;
-        color: #fff !important;
-    }
-
-    .btn-edit-custom {
-        border-color: #e53e3e;
-        background-color: #e53e3e;
-        color: #fff;
-    }
-
-    .btn-edit-custom:hover {
-        background-color: #c53030;
-        border-color: #c53030;
-        color: #fff !important;
-    }
-
-    .btn-access-custom {
-        border-color: #28a745;
-        background-color: #28a745;
-        color: #fff;
-    }
-
-    .btn-access-custom:hover {
-        background-color: #218838;
-        border-color: #1e7e34;
-        color: #fff !important;
-    }
-
-    .btn-access-custom i {
-        color: white;
-    }
-
-    .btn-access-custom:hover i {
-        color: white;
-    }
-
-    .btn-group .btn {
-        border-radius: 0;
-    }
-    .btn-group .btn:first-child {
-        border-top-left-radius: 0.375rem;
-        border-bottom-left-radius: 0.375rem;
-    }
-    .btn-group .btn:last-child {
-        border-top-right-radius: 0.375rem;
-        border-bottom-right-radius: 0.375rem;
-    }
-    .btn-group .btn.active {
-        background-color: #0d6efd;
-        border-color: #0d6efd;
-        color: white;
-    }
-
-    .custom-dropdown {
-        appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        padding-right: 2rem;
-    }
-
-    .align-label-select {
-        display: flex;
-        align-items: center;
-    }
-
-    .align-label-select label {
-        margin-bottom: 0;
-        margin-right: 10px;
         line-height: 1.5;
     }
 
-    .btn-custom i {
-        font-size: 16px;
+    .users-add-btn {
+        min-height: 42px;
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 15px;
+        background: #16a34a;
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 900;
+        box-shadow: 0 14px 30px rgba(22, 163, 74, .22);
     }
 
-    .action-buttons {
-        display: flex;
-        gap: 5px;
-        justify-content: center;
+    .users-add-btn:hover {
+        background: #15803d;
+        color: #fff;
     }
 
-    .btn-add-admin {
-        color: white;
-        padding: 8px 16px;
-        border-radius: 4px;
-        font-size: 14px;
-        font-weight: 500;
-        margin-left: 15px;
+    .users-table-card {
+        border: 1px solid #e2edf4;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 18px 45px rgba(19, 47, 69, .07);
+        overflow: hidden;
     }
 
-    .btn-add-admin i {
-        margin-right: 5px;
-    }
-
-    .users-header {
+    .users-toolbar {
         display: flex;
         align-items: center;
-        margin-bottom: 20px;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 18px 20px;
+        border-bottom: 1px solid #e8eef4;
     }
 
-    .users-header h5 {
+    .users-toolbar-title {
         margin: 0;
+        color: #0f172a;
+        font-size: 17px;
+        font-weight: 900;
     }
 
-    .custom-dropdown {
-        appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        background-color: #fff;
-        padding-right: 30px;
-        background-image: none;
-        position: relative;
+    .users-toolbar-copy {
+        margin: 4px 0 0;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .role-filter {
+        min-width: 230px;
+    }
+
+    .role-filter label {
+        display: block;
+        margin: 0 0 6px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .04em;
+        text-transform: uppercase;
     }
 
     .custom-select-container {
         position: relative;
-        display: inline-block;
-        width: 200px;
     }
 
     .custom-select-container::after {
-        content: "▼";
-        font-size: 12px;
-        color: #333;
+        content: "";
         position: absolute;
-        right: 10px;
+        right: 14px;
         top: 50%;
-        transform: translateY(-50%);
+        width: 8px;
+        height: 8px;
+        border-right: 2px solid #64748b;
+        border-bottom: 2px solid #64748b;
+        transform: translateY(-65%) rotate(45deg);
         pointer-events: none;
+    }
+
+    .custom-dropdown {
+        height: 42px;
+        border: 1px solid #dbe7ef;
+        border-radius: 8px;
+        padding: 0 38px 0 13px;
+        background: #fff;
+        color: #0f172a;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        font-size: 13px;
+        font-weight: 800;
+        box-shadow: none;
+    }
+
+    .custom-dropdown:focus {
+        border-color: #2f9bd7;
+        box-shadow: 0 0 0 3px rgba(47, 155, 215, .14);
+    }
+
+    .users-table-wrap {
+        padding: 0 18px 18px;
+    }
+
+    .users-table {
+        margin-bottom: 0;
+        color: #1f2937;
+        font-size: 12px;
+    }
+
+    .users-table thead th {
+        border-top: 0;
+        border-bottom: 1px solid #dbe7ef;
+        color: #475569;
+        background: #f8fafc;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .users-table tbody td {
+        vertical-align: middle;
+        border-color: #edf2f7;
+    }
+
+    .users-table tbody tr:hover {
+        background: #f8fbff;
+    }
+
+    .user-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .02em;
+        white-space: nowrap;
+    }
+
+    .user-pill.is-admin {
+        color: #075985;
+        background: #e0f2fe;
+    }
+
+    .user-pill.is-client {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .user-pill.is-dealer {
+        color: #6d28d9;
+        background: #ede9fe;
+    }
+
+    .user-pill.is-distributor {
+        color: #92400e;
+        background: #fef3c7;
+    }
+
+    .user-pill.is-active {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .user-pill.is-inactive {
+        color: #991b1b;
+        background: #fee2e2;
+    }
+
+    .user-pill.is-muted {
+        color: #475569;
+        background: #e2e8f0;
+    }
+
+    .users-table td:nth-child(6) {
+        white-space: nowrap;
+        text-align: center;
+    }
+
+    .action-buttons {
+        display: inline-flex;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .btn-custom {
+        width: 34px;
+        height: 34px;
+        border: 1px solid #dbe2ea;
+        border-radius: 8px;
+        padding: 0;
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+    }
+
+    .btn-view-custom {
+        color: #2563eb;
+    }
+
+    .btn-view-custom:hover {
+        border-color: #2563eb;
+        background: #eff6ff;
+        color: #1d4ed8 !important;
+    }
+
+    .btn-edit-custom {
+        color: #dc2626;
+    }
+
+    .btn-edit-custom:hover {
+        border-color: #dc2626;
+        background: #fef2f2;
+        color: #b91c1c !important;
+    }
+
+    .btn-access-custom {
+        color: #16a34a;
+    }
+
+    .btn-access-custom:hover {
+        border-color: #16a34a;
+        background: #f0fdf4;
+        color: #15803d !important;
+    }
+
+    .dataTables_wrapper {
+        padding-top: 14px;
+    }
+
+    .dataTables_wrapper .row:first-child {
+        align-items: center;
+    }
+
+    .dataTables_filter,
+    .dataTables_length {
+        margin-bottom: 12px;
+    }
+
+    .dataTables_filter label,
+    .dataTables_length label,
+    .dataTables_info {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .dataTables_filter input,
+    .dataTables_length select {
+        border: 1px solid #dbe7ef;
+        border-radius: 8px;
+        color: #0f172a;
+        font-size: 13px;
+        outline: none;
+        box-shadow: none;
+    }
+
+    .dataTables_filter input:focus,
+    .dataTables_length select:focus {
+        border-color: #2f9bd7;
+        box-shadow: 0 0 0 3px rgba(47, 155, 215, .14);
+    }
+
+    .dataTables_paginate .pagination {
+        gap: 5px;
+        margin: 0;
+    }
+
+    .dataTables_paginate .page-link {
+        border: 1px solid #dbe7ef;
+        border-radius: 8px !important;
+        color: #1678b4;
+        font-size: 12px;
+        font-weight: 900;
+    }
+
+    .dataTables_paginate .page-item.active .page-link {
+        border-color: #2f9bd7;
+        background: #2f9bd7;
+        color: #fff;
+    }
+
+    @media (max-width: 768px) {
+        .users-toolbar {
+            display: block;
+        }
+
+        .role-filter {
+            min-width: 0;
+            margin-top: 14px;
+        }
+
+        .users-hero .d-flex {
+            align-items: flex-start !important;
+        }
     }
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
-<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
-<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap4.min.css">
+<link rel="stylesheet" href="{{ asset('design/vendors/datatables.net-bs4/dataTables.bootstrap4.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
 @endsection
 @section('content')
-<section class="welcome">
-    <div class="row">
-        <div class="col-lg-12 col-xl-12 d-flex align-items-stretch">
-            <div class="card w-100">
-                <div class="card-body users">
-                    <div class="users-header">
-                        <div class="d-flex justify-content-between align-items-center w-100">
-                            <div class="d-flex align-items-center">
-                                <h5 class="mb-0">Users</h5>
-                                @php
-                                    $currentUser = auth()->user();
-                                    $canShowAddAdmin = false;
-                                    
-                                    // Check if current user can add (has can_add permission)
-                                    if ($currentUser && $currentUser->role === 'Admin' && $currentUser->can_add === 'on') {
-                                        $canShowAddAdmin = true;
-                                    }
-                                @endphp
-                                
-                                @if($canShowAddAdmin)
-                                {{-- <button type="button" class="btn btn-add-admin btn-success btn" data-bs-toggle="modal" data-bs-target="#add-admin-modal">
-                                    <i class="fas fa-plus"></i>Add Users
-                                    
-                                </button> --}}
-                                <button class="btn-success btn-add-admin btn" data-bs-toggle="modal" data-bs-target="#new_users"><i class="fas fa-plus"></i>&nbsp;Add Users</button>
-                                @endif
-                            </div>
-                            
-                            <div class="align-label-select custom-select-wrapper">
-                                <label for="roleFilter" class="mb-0 mr-2">Role Filter:</label>
-                                <div class="custom-select-container">
-                                    <select id="roleFilter" class="form-control custom-dropdown">
-                                        <option value="">All Roles</option>
-                                        <option value="Admin">Admin</option>
-                                        <option value="Dealer">Dealer</option>
-                                        <option value="Client">Client</option>
-                                        <option value="Area Distributor">Area Distributor</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                    <table id="example" class="table table-bordered table-striped" style="width:100%">
+@php
+    $currentUser = auth()->user();
+    $canShowAddAdmin = $currentUser && $currentUser->role === 'Admin' && $currentUser->can_add === 'on';
+@endphp
+
+<section class="users-page">
+    <div class="users-hero">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
+            <div>
+                <div class="users-eyebrow">Access Management</div>
+                <h4 class="users-title">Users</h4>
+                <p class="users-subtitle">Manage admin access, distributors, dealers, clients, permissions, and role-based visibility.</p>
+            </div>
+
+            @if($canShowAddAdmin)
+                <button class="users-add-btn mt-3 mt-lg-0" type="button" data-bs-toggle="modal" data-bs-target="#new_users">
+                    <i class="fas fa-plus"></i>
+                    <span>Add Users</span>
+                </button>
+            @endif
+        </div>
+    </div>
+
+    <div class="users-table-card">
+        <div class="users-toolbar">
+            <div>
+                <h5 class="users-toolbar-title">User Directory</h5>
+                <p class="users-toolbar-copy">Filter by role, search records, and open profile or access controls.</p>
+            </div>
+
+            <div class="role-filter">
+                <label for="roleFilter">Role Filter</label>
+                <div class="custom-select-container">
+                    <select id="roleFilter" class="form-control custom-dropdown">
+                        <option value="">All Roles</option>
+                        <option value="Admin">Admin</option>
+                        <option value="Dealer">Dealer</option>
+                        <option value="Client">Client</option>
+                        <option value="Provincial Distributor">Provincial Distributor</option>
+                        <option value="Area Distributor">Area Distributor</option>
+                        <option value="Mega Dealer">Mega Dealer</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="users-table-wrap">
+            <div class="table-responsive">
+                <table id="example" class="table users-table" style="width:100%">
                         <thead>
                             <tr>
                                 <th scope="col" width="20%">Name</th>
@@ -255,125 +410,8 @@
                                 <th scope="col" width="10%">Actions</th>
                             </tr>
                         </thead>
-                        {{-- <tbody id="userBody">
-                            @foreach($users as $user)
-                            <tr>
-                                 <td scope="col">
-                                    @if($user->role == 'Dealer' && $user->dealer)
-                                        <span>{{$user->name}}</span>
-                                    @elseif($user->role == 'Client' && $user->client)
-                                        <span>{{$user->name}}</span>
-                                    @else
-                                        {{$user->name}}
-                                    @endif
-                                </td>
-                                <td scope="col">{{$user->email}}</td>
-                                <td scope="col">
-                                    @if($user->role == 'Dealer' && $user->dealer)
-                                        {{$user->dealer->address}}
-                                    @elseif($user->role == 'Client' && $user->client)
-                                        {{$user->client->address ?? 'N/A'}}
-                                    @elseif($user->role == 'Admin')
-                                        {{$user->address ?? ''}}
-                                    @else
-                                        N/A
-                                    @endif
-                                </td>
-                                <td scope="col">
-                                    @php
-                                        $status = '';
-                                        
-                                        if($user->role == 'Dealer' && $user->dealer) {
-                                            $status = $user->dealer->status;
-                                        } elseif($user->role == 'Client' && $user->client) {
-                                            $status = $user->client->status ?? '';
-                                        }
-                                    @endphp
-                                    <span>
-                                        {{$status}}
-                                    </span>
-                                </td>
-                                <td scope="col">
-                                    @php
-                                        $role = $user->role ?? 'N/A';
-                                        $roleClass = 'badge-default';
-                                        
-                                        switch(strtolower($role)) {
-                                            case 'dealer':
-                                                $roleClass = 'badge-dealer';
-                                                break;
-                                            case 'client':
-                                                $roleClass = 'badge-client';
-                                                break;
-                                            case 'admin':
-                                                $roleClass = 'badge-admin';
-                                                break;
-                                            default:
-                                                $roleClass = 'badge-default';
-                                        }
-                                    @endphp
-                                    <span class="badge-custom {{$roleClass}}">
-                                        {{$role}}
-                                    </span>
-                                </td>
-                                <td scope="col">
-                                    @php
-                                        $status = 'N/A';
-                                        
-                                        if($user->role == 'Dealer' && $user->dealer) {
-                                            $status = $user->dealer->status;
-                                        } elseif($user->role == 'Client' && $user->client) {
-                                            $status = $user->client->status ?? '';
-                                        }
-                                        
-                                        // Check current user permissions
-                                        $currentUser = auth()->user();
-                                        $canEdit = $currentUser && $currentUser->role === 'Admin' && $currentUser->can_edit === 'on';
-                                        $canAdd = $currentUser && $currentUser->role === 'Admin' && $currentUser->can_add === 'on';
-                                    @endphp
-
-                                    <div class="action-buttons">
-                                        @if($status !== 'Inactive')
-                                            @if($user->role == 'Dealer' && $user->dealer)
-                                                <a href='view-dealer/{{$user->dealer->id}}' class="btn-custom btn-view-custom" title="View Details">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                            @elseif($user->role == 'Client' && $user->client)
-                                                <a href='view-client/{{$user->client->id}}' class="btn-custom btn-view-custom" title="View Details">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                            @endif
-                                        @endif
-
-                                        @if($user->role == 'Admin')
-                                            @if($canEdit)
-                                                <button class="btn-custom btn-edit-custom" data-bs-toggle="modal" data-bs-target="#edit-users-{{ $user->id }}" title="Edit Admin">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                            @endif
-                                            
-                                            @if($canEdit || $canAdd)
-                                                <button class="btn-custom btn-access-custom" data-bs-toggle="modal" data-bs-target="#access-admin-{{ $user->id }}" title="Access Control">
-                                                    <i class="fas fa-key"></i>
-                                                </button>
-                                            @endif
-                                        @else
-                                        
-                                            @if($canEdit)
-                                                <button class="btn-custom btn-edit-custom" data-bs-toggle="modal" data-bs-target="#edit-users-{{ $user->id }}" title="Edit User">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                            @endif
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody> --}}
                         <tbody></tbody>
-                    </table>
-                  </div>
-                </div>
+                </table>
             </div>
         </div>
     </div>
@@ -387,32 +425,83 @@
 
 
 @section('javascript')
-<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
-
-
-
 <script>
-    $(document).ready(function () {
+    $(document).ready(async function () {
+        function loadScript(src) {
+            return new Promise(function (resolve, reject) {
+                var script = document.createElement('script');
+                script.src = src;
+                script.async = false;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        async function ensureDataTables() {
+            if ($.fn && $.fn.DataTable) {
+                return true;
+            }
+
+            var dataTableSources = [
+                "{{ asset('design/assets/libs/datatables.net/js/jquery.dataTables.min.js') }}",
+                "{{ asset('design/vendors/datatables.net/jquery.dataTables.js') }}",
+                "https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"
+            ];
+
+            for (var i = 0; i < dataTableSources.length; i++) {
+                try {
+                    await loadScript(dataTableSources[i]);
+
+                    if ($.fn && $.fn.DataTable) {
+                        break;
+                    }
+                } catch (error) {
+                    console.warn('Unable to load DataTables from:', dataTableSources[i]);
+                }
+            }
+
+            if (!$.fn || !$.fn.DataTable) {
+                return false;
+            }
+
+            try {
+                await loadScript("{{ asset('design/vendors/datatables.net-bs4/dataTables.bootstrap4.js') }}");
+            } catch (error) {
+                console.warn('DataTables Bootstrap styling script did not load. Continuing with core DataTables.');
+            }
+
+            return true;
+        }
 
         $.ajaxSetup({
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             }
         });
+
+        if (!await ensureDataTables()) {
+            console.error('DataTables failed to load from local assets and CDN fallback.');
+            return;
+        }
+
         if ($.fn.DataTable.isDataTable('#example')) {
             $('#example').DataTable().destroy();
         }
         var table = $('#example').DataTable({
             processing: true,
             serverSide: true,
+            pageLength: 10,
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            autoWidth: false,
+            order: [[0, 'asc']],
             ajax: {
                 url: "{{ route('users.data') }}",
                 data: function (d) {
                     d.role = $('#roleFilter').val();
                 },
                 error: function (xhr) {
-                    console.log(xhr.responseText); // 🔥 shows real error
+                    console.log(xhr.responseText);
                 }
             },
             columns: [
@@ -422,13 +511,50 @@
                 { data: 'status', searchable: true },
                 { data: 'role', searchable: true },
                 { data: 'actions', orderable: false, searchable: false }
-            ]
+            ],
+            language: {
+                search: 'Search users:',
+                lengthMenu: 'Show _MENU_ records',
+                info: 'Showing _START_ to _END_ of _TOTAL_ users',
+                infoEmpty: 'No users to show',
+                zeroRecords: 'No matching users found.',
+                processing: 'Loading users...'
+            }
         });
 
-        // ✅ SINGLE FILTER ONLY
         $('#roleFilter').on('change', function () {
             table.ajax.reload();
         });
+
+        function showModal(selector) {
+            const element = document.querySelector(selector);
+
+            if (!element) {
+                return;
+            }
+
+            if (window.bootstrap && bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance(element).show();
+                return;
+            }
+
+            $(selector).modal('show');
+        }
+
+        function hideModal(selector) {
+            const element = document.querySelector(selector);
+
+            if (!element) {
+                return;
+            }
+
+            if (window.bootstrap && bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance(element).hide();
+                return;
+            }
+
+            $(selector).modal('hide');
+        }
 
         $(document).on('click', '.btn-edit-user', function () {
 
@@ -439,8 +565,9 @@
                 $('#edit_user_id').val(res.id);
                 $('#edit_name').val(res.name);
                 $('#edit_email').val(res.email);
+                $('#edit_address').val(res.address);
 
-                $('#editUserModal').modal('show');
+                showModal('#editUserModal');
             });
         });
 
@@ -449,11 +576,12 @@
             $.post('/users/update', {
                 id: $('#edit_user_id').val(),
                 name: $('#edit_name').val(),
-                email: $('#edit_email').val()
+                email: $('#edit_email').val(),
+                address: $('#edit_address').val()
             }, function (res) {
 
                 if (res.success) {
-                    $('#editUserModal').modal('hide');
+                    hideModal('#editUserModal');
                     $('#example').DataTable().ajax.reload(null, false);
                 } else {
                     alert(res.message);
@@ -469,7 +597,6 @@
 
                 $('#access_user_id').val(res.id);
 
-                // ✅ FIX: CHECKBOX (not select anymore)
                 $('#can_edit').prop('checked', res.can_edit === 'on');
                 $('#can_add').prop('checked', res.can_add === 'on');
                 $('#can_delete').prop('checked', res.can_delete === 'on');
@@ -478,7 +605,7 @@
                 $('#can_add_rewards').prop('checked', res.can_add_rewards === 'on');
                 $('#can_delete_rewards').prop('checked', res.can_delete_rewards === 'on');
 
-                $('#accessUserModal').modal('show');
+                showModal('#accessUserModal');
             });
         });
 
@@ -498,7 +625,7 @@
             }, function (res) {
 
                 if (res.success) {
-                    $('#accessUserModal').modal('hide');
+                    hideModal('#accessUserModal');
                     $('#example').DataTable().ajax.reload(null, false);
                 } else {
                     alert(res.message);
@@ -519,7 +646,7 @@
         const hasContact = contact.value.trim() !== "";
         const hasFacebook = facebook.value.trim() !== "";
 
-        // Contact → Facebook not required
+        // Contact entered: Facebook is not required.
         if (hasContact) {
             facebook.removeAttribute("required");
             if (facebookMark) facebookMark.style.display = "none";
@@ -528,7 +655,7 @@
             if (facebookMark) facebookMark.style.display = "inline";
         }
 
-        // Facebook → Contact not required
+        // Facebook entered: contact number is not required.
         if (hasFacebook) {
             contact.removeAttribute("required");
             if (contactMark) contactMark.style.display = "none";
@@ -545,6 +672,7 @@
         const roleFilter = $('#roleFilter2');
 
         const businessFields = $('.business-fields');
+        const projectTagFields = $('.project-tag-fields');
         const attachmentFields = $('.attachment-field');
         const adminFields = $('.admin-fields');
         const adminRequiredFields = $('.admin-required');
@@ -564,47 +692,27 @@
 
         const dynamicAreaWrapper = $('#dynamic-area-wrapper');
         const projectRows = $('#projectRows');
+        const areaRoles = ['Provincial Distributor', 'Area Distributor', 'Mega Dealer'];
 
-        function getSelectedProjects() {
-            let selected = [];
+        function canHaveAwardedAreas(role) {
+            return areaRoles.includes(role);
+        }
 
-            $('input[name="type[]"]:checked').each(function () {
-                const val = $(this).val();
-                if (val !== 'Regular') {
-                    selected.push(val);
-                }
-            });
+        function hasSelectedProjectTag() {
+            return $('input[name="type[]"]:checked').length > 0;
+        }
 
-            return selected;
+        function clearProjectAreas() {
+            projectRows.find('select').prop('required', false).val(null).trigger('change');
+            projectRows.find('input[name="joining_date[]"]').prop('required', false).val('');
+            projectRows.html('');
+            dynamicAreaWrapper.hide();
         }
 
         function toggleProjectAreas() {
-            const selected = getSelectedProjects();
-
-            const isRise = selected.includes('Project Rise');
-            const isGenesis = selected.includes('Project Genesis');
-
             $('.project-row').each(function () {
-
-                const riseCol = $(this).find('.project-rise-area');
-                const genesisCol = $(this).find('.project-genesis-area');
-
-                // Show/Hide columns
-                riseCol.toggle(isRise);
-                genesisCol.toggle(isGenesis);
-
-                // Required rules
-                riseCol.find('select').prop('required', isRise);
-                genesisCol.find('select').prop('required', isGenesis);
-
-                // Clear hidden values
-                if (!isRise) {
-                    riseCol.find('select').val(null).trigger('change');
-                }
-
-                if (!isGenesis) {
-                    genesisCol.find('select').val(null).trigger('change');
-                }
+                $(this).find('.project-area').show();
+                $(this).find('select[name="area_name[]"]').prop('required', true);
             });
         }
 
@@ -612,10 +720,12 @@
             const template = document.querySelector('#project-row-template');
             const clone = template.content.cloneNode(true);
 
-            const $row = $(clone);
+            const $row = $(clone).children('.project-row');
             projectRows.append($row);
 
-            initSelect2($row);
+            if (typeof initSelect2 === 'function') {
+                initSelect2($row);
+            }
 
             toggleProjectAreas();
         }
@@ -635,15 +745,11 @@
         function refreshProjectVisibility() {
 
             const role = roleFilter.val();
-            const isAdmin = role === 'Admin';
+            const canShowAreas = canHaveAwardedAreas(role);
+            const hasProjectTag = hasSelectedProjectTag();
 
-            const selectedProjects = getSelectedProjects();
-            const hasProject = selectedProjects.length > 0;
-            const onlyRegular = selectedProjects.length === 1 && $('input[name="type[]"]:checked').val() === 'Regular';
-
-            if (!role || isAdmin || !hasProject || onlyRegular) {
-                dynamicAreaWrapper.hide();
-                projectRows.html('');
+            if (!canShowAreas || !hasProjectTag) {
+                clearProjectAreas();
                 return;
             }
 
@@ -653,6 +759,7 @@
                 addProjectRow();
             }
 
+            projectRows.find('input[name="joining_date[]"]').prop('required', true);
             toggleProjectAreas();
         }
 
@@ -690,18 +797,17 @@
             const isAdmin = selectedRole === 'Admin';
             const isProvincialDistributor = selectedRole === 'Provincial Distributor';
             const isAreaDistributor = selectedRole === 'Area Distributor';
+            const canShowAreas = canHaveAwardedAreas(selectedRole);
             const needsDeliveryAddress = isProvincialDistributor || isAreaDistributor;
 
-            const selectedProjects = getSelectedProjects();
-            const showArea = selectedProjects.includes('Project Rise') && !isAdmin;
-
             businessFields.toggle(!isAdmin);
+            projectTagFields.toggle(canShowAreas);
             attachmentFields.toggle(isProvincialDistributor || isAreaDistributor);
             adminFields.toggle(isAdmin);
             nonAdminPersonalFields.toggle(!isAdmin);
             locationFields.toggle(!isAdmin);
             distributorDeliveryFields.toggle(needsDeliveryAddress);
-            areaField.toggle(showArea);
+            areaField.toggle(canShowAreas);
 
             businessName.prop('required', !isAdmin);
             businessType.prop('required', !isAdmin);
@@ -711,13 +817,15 @@
             locationInputs.prop('disabled', isAdmin);
             distributorDeliveryRequiredFields.prop('required', needsDeliveryAddress);
 
-            areaSelect.prop('required', showArea);
-            areaSelect.prop('disabled', !showArea);
+            areaSelect.prop('required', canShowAreas);
+            areaSelect.prop('disabled', !canShowAreas);
 
             attachment.prop('required', isProvincialDistributor || isAreaDistributor);
 
-            if (!showArea) {
+            if (!canShowAreas) {
+                $('input[name="type[]"]').prop('checked', false);
                 areaSelect.val(null).trigger('change');
+                clearProjectAreas();
             }
 
             if (!isAdmin) {

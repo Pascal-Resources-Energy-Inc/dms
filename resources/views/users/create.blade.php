@@ -22,8 +22,8 @@
                                 <option value="Area Distributor">Area Distributor</option>
                                 <option value="Mega Dealer">Mega Dealer</option>
                             </select>
-                            <label class="form-label fw-semibold business-fields">Project Tag</label>
-                            <div class="border rounded p-2 bg-light business-fields">
+                            <label class="form-label fw-semibold business-fields project-tag-fields">Project Tag</label>
+                            <div class="border rounded p-2 bg-light business-fields project-tag-fields">
                                 <label class="project-card">
                                     <input type="checkbox" name="type[]" value="Project Rise">
                                     <span><i class="bi bi-graph-up text-success"></i> Project Rise</span>
@@ -191,29 +191,30 @@
                         </div>
                         <div class="col-md-6 mb-2 location-fields">
                             <label class="form-label">Region <span class="text-danger">*</span></label>
-                            <select class="form-control" id="location_region" name="location_region" required onclick="event.stopPropagation();">
+                            <select class="form-control select2" id="location_region" name="location_region" data-placeholder="Select Region" required onclick="event.stopPropagation();">
                                 <option value="">-- Select Region --</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-2 location-fields">
                             <label class="form-label">Province <span class="text-danger">*</span></label>
-                            <select class="form-control" id="location_province" name="location_province" required onclick="event.stopPropagation();" disabled>
+                            <select class="form-control select2" id="location_province" name="location_province" data-placeholder="Select Province" required onclick="event.stopPropagation();" disabled>
                                 <option value="">-- Select Region First --</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-2 location-fields">
                             <label class="form-label">City/Municipality <span class="text-danger">*</span></label>
-                            <select class="form-control" id="location_city" name="location_city" required onclick="event.stopPropagation();" disabled>
+                            <select class="form-control select2" id="location_city" name="location_city" data-placeholder="Select City/Municipality" required onclick="event.stopPropagation();" disabled>
                                 <option value="">-- Select Province First --</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-2 location-fields">
                             <label class="form-label">Barangay <span class="text-danger">*</span></label>
-                            <select class="form-control" 
-                                    name="location_barangay" 
-                                    id="location_barangay" 
-                                    required 
-                                    onclick="event.stopPropagation();" 
+                            <select class="form-control select2"
+                                    name="location_barangay"
+                                    id="location_barangay"
+                                    data-placeholder="Select Barangay"
+                                    required
+                                    onclick="event.stopPropagation();"
                                     disabled>
                                 <option value="">-- Select City First --</option>
                             </select>
@@ -311,10 +312,11 @@
                         </div>
                         <div class="col-md-6 mb-2 project-area-field">
                             <label class="form-label">Awarded Area&nbsp;<span class="text-danger">*</span></label>
-                            <select class="form-control area_name" 
-                                    id="area_name" 
-                                    name="area_name[]" 
-                                    multiple 
+                            <select class="form-control area_name select2"
+                                    id="area_name"
+                                    name="area_name[]"
+                                    data-placeholder="Select Awarded Area"
+                                    multiple
                                     required>
                                 @foreach($centers as $center)
                                     <option value="{{ $center->name }}">{{ $center->name }}</option>
@@ -327,7 +329,7 @@
                                 <div class="card-body" style="padding: 10px 10px">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <h6 class="mb-0 fw-bold">
-                                            <i class="bi bi-map me-2"></i>Awarded Areas Per Project
+                                            <i class="bi bi-map me-2"></i>Awarded Areas
                                         </h6>
                                         <button type="button" class="btn btn-sm btn-primary" id="addProjectRow">
                                             <i class="bi bi-plus-lg"></i> Add Row
@@ -345,24 +347,12 @@
                                     </label>
                                     <input type="date" name="joining_date[]" class="form-control" required>
                                 </div>
-                                <div class="col-md-4 project-rise-area" style="display:none;">
+                                <div class="col-md-8 project-area">
                                     <label class="form-label fw-semibold">
-                                        Awarded Area (Project Rise)&nbsp;<span class="text-danger">*</span>
+                                        Awarded Area&nbsp;<span class="text-danger">*</span>
                                     </label>
-                                    {{-- <select class="form-control area_name shadow-sm select2"> --}}
-                                    <select name="area_name_rise[]" class="form-control area_name shadow-sm select2" data-placeholder="Select Area" required>
-                                        @foreach($areas as $area)
-                                            <option value="{{ $area->name }}">
-                                                {{ $area->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-md-4 project-genesis-area" style="display:none;">
-                                    <label class="form-label fw-semibold">
-                                        Awarded Area (Project Genesis)&nbsp;<span class="text-danger">*</span>
-                                    </label>
-                                    <select class="form-control area_name shadow-sm select2" name="area_name_genesis[]">
+                                    <select name="area_name[]" class="form-control area_name shadow-sm select2" data-placeholder="Select Area" required>
+                                        <option value=""></option>
                                         @foreach($areas as $area)
                                             <option value="{{ $area->name }}">
                                                 {{ $area->name }}
@@ -436,23 +426,6 @@
         height: 100%;
         object-fit: cover;
     }
-    /* Avatar */
-    .avatar-img {
-        width: 90px;
-        height: 90px;
-        border-radius: 50%;
-        object-fit: cover;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-
-    /* Project Box */
-    .project-box {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    /* Project Card */
     .project-card {
         display: flex;
         align-items: flex-start;
@@ -585,7 +558,6 @@
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
@@ -926,6 +898,30 @@
             return text;
         }
 
+        function getSelectedCode(selectElement) {
+            const selectedOption = selectElement.options[selectElement.selectedIndex];
+
+            return selectedOption ? (selectedOption.getAttribute('data-code') || selectElement.value) : '';
+        }
+
+        function refreshSelect2Element(selectElement) {
+            if (!selectElement) {
+                return;
+            }
+
+            const $select = $(selectElement);
+
+            if (!$select.hasClass('select2')) {
+                return;
+            }
+
+            if (typeof initSelect2 === 'function') {
+                initSelect2(selectElement);
+            }
+
+            $select.trigger('change.select2');
+        }
+
         function syncDeliveryAddress() {
             if (!sameAsDeliveryAddressInput || !deliveryAddressInput || !sameAsDeliveryAddressInput.checked) {
                 return;
@@ -1102,6 +1098,7 @@
                     option.textContent = region.name;
                     regionSelect.appendChild(option);
                 });
+                refreshSelect2Element(regionSelect);
             } catch (error) {
                 console.error('Error loading regions:', error);
                 alert('Failed to load regions. Please refresh the page.');
@@ -1116,7 +1113,7 @@
 
 
         document.getElementById('location_region').addEventListener('change', async function() {
-            const regionCode = this.value;
+            const regionCode = getSelectedCode(this);
             currentRegionCode = regionCode;
             currentRegionName = this.options[this.selectedIndex]?.text || '';
 
@@ -1128,6 +1125,8 @@
             barangaySelect.innerHTML = '<option value="">-- Select City First --</option>';
             citySelect.disabled = true;
             barangaySelect.disabled = true;
+            refreshSelect2Element(citySelect);
+            refreshSelect2Element(barangaySelect);
 
             if (regionCode) {
 
@@ -1136,6 +1135,7 @@
                     provinceSelect.innerHTML = '<option value="NCR" selected>Metro Manila</option>';
                     provinceSelect.disabled = true;
                     currentProvinceName = 'Metro Manila';
+                    refreshSelect2Element(provinceSelect);
 
                     updateFullAddress();
 
@@ -1145,9 +1145,12 @@
 
                     provinceSelect.innerHTML = '<option value="">-- Select Province --</option>';
                     provinceSelect.disabled = false;
+                    refreshSelect2Element(provinceSelect);
 
                     try {
                         provinceSelect.innerHTML = '<option value="">Loading...</option>';
+                        refreshSelect2Element(provinceSelect);
+
                         const response = await fetch(`${BASE_URL}/regions/${regionCode}/provinces`);
                         const provinces = await response.json();
 
@@ -1161,16 +1164,19 @@
                             option.textContent = province.name;
                             provinceSelect.appendChild(option);
                         });
+                        refreshSelect2Element(provinceSelect);
 
                     } catch (error) {
                         console.error('Error loading provinces:', error);
                         provinceSelect.innerHTML = '<option value="">-- Error loading --</option>';
+                        refreshSelect2Element(provinceSelect);
                     }
                 }
 
             } else {
                 provinceSelect.innerHTML = '<option value="">-- Select Region First --</option>';
                 provinceSelect.disabled = true;
+                refreshSelect2Element(provinceSelect);
             }
 
             updateFullAddress();
@@ -1181,6 +1187,7 @@
             
             try {
                 citySelect.innerHTML = '<option value="">Loading...</option>';
+                refreshSelect2Element(citySelect);
                 
                 const response = await fetch(`${BASE_URL}/regions/${regionCode}/cities-municipalities`);
                 const cities = await response.json();
@@ -1198,16 +1205,18 @@
                     option.textContent = city.name;
                     citySelect.appendChild(option);
                 });
+                refreshSelect2Element(citySelect);
                 
             } catch (error) {
                 console.error('Error loading NCR cities:', error);
                 citySelect.innerHTML = '<option value="">-- Error loading --</option>';
+                refreshSelect2Element(citySelect);
                 alert('Failed to load cities.');
             }
         }
 
         document.getElementById('location_province').addEventListener('change', async function() {
-            const provinceCode = this.value;
+            const provinceCode = getSelectedCode(this);
             currentProvinceName = this.options[this.selectedIndex]?.text || '';
             
             const citySelect = document.getElementById('location_city');
@@ -1216,10 +1225,13 @@
             citySelect.innerHTML = '<option value="">-- Select City --</option>';
             barangaySelect.innerHTML = '<option value="">-- Select City First --</option>';
             barangaySelect.disabled = true;
+            refreshSelect2Element(citySelect);
+            refreshSelect2Element(barangaySelect);
 
             if (provinceCode && provinceCode !== 'NCR') {
                 try {
                     citySelect.innerHTML = '<option value="">Loading...</option>';
+                    refreshSelect2Element(citySelect);
                     
                     const [citiesResponse, municipalitiesResponse] = await Promise.all([
                         fetch(`${BASE_URL}/provinces/${provinceCode}/cities`),
@@ -1244,29 +1256,34 @@
                         option.textContent = city.name;
                         citySelect.appendChild(option);
                     });
+                    refreshSelect2Element(citySelect);
                 } catch (error) {
                     console.error('Error loading cities:', error);
                     citySelect.innerHTML = '<option value="">-- Error loading --</option>';
+                    refreshSelect2Element(citySelect);
                     alert('Failed to load cities. Please try again.');
                 }
             } else {
                 citySelect.disabled = true;
+                refreshSelect2Element(citySelect);
             }
             updateFullAddress();
         });
 
         document.getElementById('location_city').addEventListener('change', async function() {
-            const cityCode = this.value;
+            const cityCode = getSelectedCode(this);
             currentCityName = this.options[this.selectedIndex]?.text || '';
             
             const barangaySelect = document.getElementById('location_barangay');
 
             barangaySelect.innerHTML = '<option value="">-- Select Barangay --</option>';
+            refreshSelect2Element(barangaySelect);
 
             if (cityCode) {
                 try {
                     barangaySelect.innerHTML = '<option value="">Loading...</option>';
                     barangaySelect.disabled = false;
+                    refreshSelect2Element(barangaySelect);
                     
                     const response = await fetch(`${BASE_URL}/cities-municipalities/${cityCode}/barangays`);
                     const barangays = await response.json();
@@ -1283,16 +1300,19 @@
                         option.textContent = barangay.name;
                         barangaySelect.appendChild(option);
                     });
+                    refreshSelect2Element(barangaySelect);
                     
                     updateMapForCity(currentCityName);
                     
                 } catch (error) {
                     console.error('Error loading barangays:', error);
                     barangaySelect.innerHTML = '<option value="">-- Error loading --</option>';
+                    refreshSelect2Element(barangaySelect);
                     alert('Failed to load barangays. Please try again.');
                 }
             } else {
                 barangaySelect.disabled = true;
+                refreshSelect2Element(barangaySelect);
             }
             updateFullAddress();
         });

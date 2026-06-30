@@ -1,3 +1,108 @@
+<style>
+    #editDealerModal .edit-dealer-type-picker {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    #editDealerModal .edit-dealer-type-option {
+        position: relative;
+        margin: 0;
+        cursor: pointer;
+    }
+
+    #editDealerModal .edit-dealer-type-option input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    #editDealerModal .edit-dealer-type-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 88px;
+        padding: 15px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        background: #fff;
+        transition: .18s ease;
+    }
+
+    #editDealerModal .edit-dealer-type-option:hover .edit-dealer-type-card {
+        border-color: #93c5fd;
+        transform: translateY(-1px);
+    }
+
+    #editDealerModal .edit-dealer-type-option input:checked + .edit-dealer-type-card {
+        border-color: #2563eb;
+        background: #eff6ff;
+        box-shadow: 0 8px 20px rgba(37, 99, 235, .12);
+    }
+
+    #editDealerModal .edit-dealer-type-icon {
+        width: 44px;
+        height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 44px;
+        border-radius: 10px;
+        color: #1d4ed8;
+        background: #dbeafe;
+        font-size: 21px;
+    }
+
+    #editDealerModal .is-regular .edit-dealer-type-icon {
+        color: #047857;
+        background: #d1fae5;
+    }
+
+    #editDealerModal .edit-dealer-type-content {
+        min-width: 0;
+        flex: 1;
+    }
+
+    #editDealerModal .edit-dealer-type-title {
+        display: block;
+        color: #111827;
+        font-size: 14px;
+        font-weight: 800;
+    }
+
+    #editDealerModal .edit-dealer-type-copy {
+        display: block;
+        margin-top: 3px;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    #editDealerModal .edit-dealer-type-check {
+        width: 22px;
+        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 22px;
+        border: 2px solid #cbd5e1;
+        border-radius: 50%;
+        color: transparent;
+        background: #fff;
+    }
+
+    #editDealerModal .edit-dealer-type-option input:checked + .edit-dealer-type-card .edit-dealer-type-check {
+        color: #fff;
+        border-color: #2563eb;
+        background: #2563eb;
+    }
+
+    @media (max-width: 575px) {
+        #editDealerModal .edit-dealer-type-picker {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
 <div class="modal fade modal-select2" id="editDealerModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -42,6 +147,42 @@
                             <input type="text" name="facebook" placeholder="Enter Facebook" class="form-control" value="{{ old('facebook', $dealer->facebook) }}" data-uppercase>
                         </div>
                         <div class="fs-6 fw-bold col-md-12 mb-3"><i class="bi bi-building-fill"></i> Business Information</div>
+                        @php
+                            $currentDealerType = old('dealer_type', $dealer->dealer_type ?: 'Project');
+                        @endphp
+                        @if(auth()->user()->role === 'Admin')
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label d-block">Dealer Type <span class="text-danger">*</span></label>
+                                <div class="edit-dealer-type-picker">
+                                    <label class="edit-dealer-type-option">
+                                        <input type="radio" name="dealer_type" value="Project"
+                                            {{ $currentDealerType === 'Project' ? 'checked' : '' }} required>
+                                        <span class="edit-dealer-type-card">
+                                            <span class="edit-dealer-type-icon"><i class="bi bi-building-gear"></i></span>
+                                            <span class="edit-dealer-type-content">
+                                                <span class="edit-dealer-type-title">Project Dealer</span>
+                                                <span class="edit-dealer-type-copy">Requires an SPO and Center assignment.</span>
+                                            </span>
+                                            <span class="edit-dealer-type-check"><i class="bi bi-check"></i></span>
+                                        </span>
+                                    </label>
+                                    <label class="edit-dealer-type-option is-regular">
+                                        <input type="radio" name="dealer_type" value="Regular"
+                                            {{ $currentDealerType === 'Regular' ? 'checked' : '' }} required>
+                                        <span class="edit-dealer-type-card">
+                                            <span class="edit-dealer-type-icon"><i class="bi bi-shop"></i></span>
+                                            <span class="edit-dealer-type-content">
+                                                <span class="edit-dealer-type-title">Regular Dealer</span>
+                                                <span class="edit-dealer-type-copy">Does not require an SPO or Center.</span>
+                                            </span>
+                                            <span class="edit-dealer-type-check"><i class="bi bi-check"></i></span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        @else
+                            <input type="hidden" name="dealer_type" value="{{ $currentDealerType }}">
+                        @endif
                         <div class="col-md-6 mb-2">
                             <label>Store Name</label>
                             <input type="text" name="store_name" class="form-control" placeholder="Enter Store Name" value="{{ old('store_name', $dealer->store_name) }}" data-uppercase>
@@ -50,17 +191,17 @@
                             <label>Store Type</label>
                             <input type="text" name="store_type" class="form-control" placeholder="Enter Store Type" value="{{ old('store_type', $dealer->store_type) }}" data-uppercase>
                         </div>
-                        <div class="col-md-6 mb-2">
+                        <div class="col-md-6 mb-2" id="editDealerSpoWrap">
                             <label>SPO</label>
-                            <input type="text" name="spo" class="form-control" placeholder="Enter SPO" value="{{ old('spo', $dealer->spo) }}" data-uppercase>
+                            <input type="text" id="editDealerSpo" name="spo" class="form-control" placeholder="Enter SPO" value="{{ old('spo', $dealer->spo) }}" data-uppercase>
                         </div>
-                        <div class="col-md-6 mb-2">
+                        <div class="col-md-6 mb-2" id="editDealerCenterWrap">
                             <label class="form-label" for="center">Center</label>
-                            <select class="form-control select2" id="center" name="center" required>
+                            <select class="form-control select2" id="editDealerCenter" name="center" required>
                                 <option value="">Select Center</option>
                                 @foreach($centers as $center)
                                     <option value="{{ $center->name }}"
-                                        {{ (isset($dealer) && $dealer->center == $center->name) ? 'selected' : '' }}>
+                                        {{ old('center', $dealer->center) == $center->name ? 'selected' : '' }}>
                                         {{ $center->name }}
                                     </option>
                                 @endforeach
@@ -77,7 +218,7 @@
                                     </option>
                                 @endforeach
                             </select> --}}
-                            <select class="form-control select2-area" id="area" name="area" required data-placeholder="Select Area">
+                            <select class="form-select select2 select2-area" id="area" name="area" required data-placeholder="Select Area" data-select2-theme="bootstrap-5">
                                 <option></option>
                                 @foreach($areas as $area)
                                     <option value="{{ $area->name }}"
@@ -177,6 +318,30 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     $(document).ready(function() {
+        const $editDealerType = $('#editDealerModal input[name="dealer_type"]');
+        const $editDealerSpoWrap = $('#editDealerSpoWrap');
+        const $editDealerCenterWrap = $('#editDealerCenterWrap');
+        const $editDealerSpo = $('#editDealerSpo');
+        const $editDealerCenter = $('#editDealerCenter');
+
+        function updateEditDealerTypeFields() {
+            const selectedType = $editDealerType.filter(':checked').val() || $editDealerType.val() || 'Project';
+            const isRegular = String(selectedType).toLowerCase() === 'regular';
+
+            $editDealerSpoWrap.toggleClass('d-none', isRegular);
+            $editDealerCenterWrap.toggleClass('d-none', isRegular);
+            $editDealerSpo.prop('disabled', isRegular).prop('required', !isRegular);
+            $editDealerCenter.prop('disabled', isRegular).prop('required', !isRegular);
+
+            if (isRegular) {
+                $editDealerSpo.val('');
+                $editDealerCenter.val('').trigger('change');
+            }
+        }
+
+        $editDealerType.on('change', updateEditDealerTypeFields);
+        updateEditDealerTypeFields();
+
         // LOAD REGIONS
         // $.get('/api/regions')
         // .done(function(data) {
@@ -594,6 +759,26 @@
             </div>
         `);
     }
+
+    $(document).on('shown.bs.modal', '#editDealerModal', function () {
+        if (typeof window.initSelect2 === 'function') {
+            window.initSelect2(this);
+            return;
+        }
+
+        if ($.fn.select2) {
+            $(this).find('select.select2-area').select2({
+                width: '100%',
+                dropdownParent: $(this),
+                placeholder: 'Select Area',
+                allowClear: true,
+                theme: 'bootstrap-5',
+                templateResult: formatArea,
+                templateSelection: formatArea,
+                escapeMarkup: markup => markup
+            });
+        }
+    });
 
     function initMap() {
 

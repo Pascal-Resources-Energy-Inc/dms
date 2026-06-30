@@ -1,114 +1,346 @@
 @extends('layouts.header')
 @section('css')
-{{-- <style>
-    /* Custom styling */
-    .transaction-table th {
-        text-align: center;
-    }
-    .btn-view {
-        width: 100px;
-        font-size: 14px;
-    }
-    .dashboard-stats {
-        display: flex;
-        justify-content: space-around;
-    }
-    .dashboard-stats div {
-        text-align: center;
-        padding: 20px;
-        background-color: #f8f9fa;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        width: 30%;
-    }
-    /* Welcome section styling */
-    .welcome {
-        margin-top: 20px;
-    }
-    .card-header {
-        font-size: 1.25rem;
-        font-weight: bold;
-    }
-    .card-body {
-        padding: 20px;
-    }
-    .filter-container {
-        margin-bottom: 20px;
-    }
-    
-</style> --}}
-
 <style>
-  .profile-card {
-    border-radius: 16px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-    border: none;
+  .dealer-view {
+    padding: 18px 0 34px;
+    color: #132f45;
   }
 
-  .profile-avatar {
-    width: 120px;
-    height: 120px;
-    object-fit: cover;
-    border-radius: 50%;
-    border: 4px solid #f1f3f5;
-  }
-
-  .profile-name {
-    font-size: 18px;
-    font-weight: 600;
-    margin-top: 10px;
-    color: #5BC2E7;
-  }
-
-  .profile-info p {
-    font-size: 15px;
-    margin-bottom: 10px;
-    color: #555;
-  }
-
-  .profile-info .bi {
-    margin-right: 10px;
-    color: #5BC2E7;
-  }
-
-  .info-card {
-    border-radius: 14px;
-    border: none;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.05);
-    height: 100%;
-  }
-
-  .info-card .card-body {
-    padding: 18px;
-  }
-
-  .icon-box {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+  .dealer-view-header {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f1f3f5;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
   }
 
-  .section-title {
-    font-weight: 600;
+  .dealer-view-kicker {
+    margin: 0 0 6px;
+    color: #2f9bd7;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .dealer-view-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1.15;
+  }
+
+  .dealer-view-subtitle {
+    margin: 7px 0 0;
+    color: #64748b;
     font-size: 14px;
   }
 
-  .table-modern {
-    border-radius: 12px;
+  .dealer-back-link {
+    min-height: 38px;
+    border: 1px solid #dbe7ef;
+    border-radius: 8px;
+    padding: 8px 13px;
+    color: #1678b4;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .dealer-back-link:hover {
+    color: #0f5f90;
+    border-color: #9ed4ee;
+    text-decoration: none;
+  }
+
+  .dealer-profile-card,
+  .dealer-panel,
+  .dealer-doc-card,
+  .dealer-stat {
+    border: 1px solid #e2edf4;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 18px 45px rgba(19, 47, 69, .07);
+  }
+
+  .dealer-profile-card {
     overflow: hidden;
   }
 
-  .table-modern thead {
-    background: #f8f9fa;
+  .dealer-profile-cover {
+    min-height: 92px;
+    background:
+      linear-gradient(135deg, rgba(47, 155, 215, .95), rgba(22, 120, 180, .9)),
+      url("{{ asset('images/gazlite.png') }}") center / cover no-repeat;
   }
 
-  .table-modern tbody tr:hover {
-    background: #f5f7fa;
-    transition: 0.2s;
+  .dealer-profile-body {
+    padding: 0 20px 20px;
+  }
+
+  .profile-avatar {
+    width: 118px;
+    height: 118px;
+    margin-top: -52px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 5px solid #fff;
+    background: #f8fafc;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, .12);
+  }
+
+  .dealer-profile-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 12px 0 18px;
+  }
+
+  .dealer-icon-btn {
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .profile-name {
+    margin: 12px 0 4px;
+    color: #0f172a;
+    font-size: 20px;
+    font-weight: 900;
+    line-height: 1.2;
+  }
+
+  .profile-store {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .dealer-status-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    margin-top: 12px;
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .dealer-status-pill.is-active {
+    color: #166534;
+    background: #dcfce7;
+  }
+
+  .dealer-status-pill.is-inactive {
+    color: #991b1b;
+    background: #fee2e2;
+  }
+
+  .profile-info {
+    display: grid;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .profile-info-item {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 11px;
+    border: 1px solid #edf2f7;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+
+  .profile-info-item i {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: #e8f6fc;
+    color: #1678b4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .profile-info-label {
+    display: block;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  .profile-info-value {
+    display: block;
+    margin-top: 2px;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 800;
+    word-break: break-word;
+  }
+
+  .dealer-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .dealer-stat {
+    padding: 15px;
+  }
+
+  .dealer-stat span {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .dealer-stat strong {
+    display: block;
+    margin-top: 5px;
+    color: #0f172a;
+    font-size: 22px;
+    font-weight: 900;
+  }
+
+  .dealer-panel {
+    margin-bottom: 14px;
+  }
+
+  .dealer-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid #e8eef4;
+  }
+
+  .dealer-panel-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 900;
+  }
+
+  .dealer-panel-subtitle {
+    margin: 3px 0 0;
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  .dealer-panel-body {
+    padding: 18px;
+  }
+
+  .dealer-doc-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .dealer-doc-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .dealer-doc-main {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    min-width: 0;
+  }
+
+  .dealer-doc-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    background: #e8f6fc;
+    color: #1678b4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    font-size: 18px;
+  }
+
+  .dealer-doc-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 900;
+  }
+
+  .dealer-doc-copy {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .dealer-table {
+    margin-bottom: 0;
+    font-size: 12px;
+  }
+
+  .dealer-table thead th {
+    border-top: 0;
+    border-bottom: 1px solid #dbe7ef;
+    color: #475569;
+    background: #f8fafc;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .dealer-table tbody td {
+    vertical-align: middle;
+    border-color: #edf2f7;
+  }
+
+  .dealer-table tbody tr:hover {
+    background: #f8fbff;
+  }
+
+  .dealer-empty {
+    padding: 34px 16px;
+    color: #64748b;
+    text-align: center;
+    font-size: 13px;
+  }
+
+  @media (max-width: 991px) {
+    .dealer-view-header {
+      display: block;
+    }
+
+    .dealer-back-link {
+      display: inline-flex;
+      margin-top: 12px;
+    }
+
+    .dealer-stat-grid,
+    .dealer-doc-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
 
@@ -117,145 +349,236 @@
 @endsection
 
 @section('content')
-<section class="welcome">
+@php
+  $isRemoteDealer = $isRemoteDealer ?? false;
+  $firstName = strtoupper($dealer->user->first_name ?? '');
+  $lastName = strtoupper($dealer->user->last_name ?? '');
+  $profileName = trim($firstName . ' ' . $lastName);
+  $profileName = $profileName ?: strtoupper($dealer->name ?? '-');
+  $storeName = strtoupper($dealer->store_name ?? '-');
+  $dealerReference = strtoupper($dealer->dealer_reference ?? '-');
+  $sourceLabel = $dealer->source_label ?? 'Local Database';
+  $avatar = $dealer->avatar ?? null;
+  $avatarUrl = $avatar
+      ? (preg_match('/^https?:\/\//i', $avatar) ? $avatar : asset($avatar))
+      : asset('design/assets/images/profile/user-1.png');
+  $status = $dealer->status ?: 'Active';
+  $isActive = strcasecmp($status, 'Active') === 0;
+  $totalQty = $transactions->sum('qty');
+  $totalAmount = $transactions->sum(function ($transaction) {
+      return (float) $transaction->qty * (float) $transaction->price;
+  });
+  $totalPoints = $transactions->sum('points_client');
+@endphp
+
+<section class="dealer-view">
+  <div class="dealer-view-header">
+    <div>
+      <p class="dealer-view-kicker">{{ $isRemoteDealer ? $sourceLabel : (auth()->user()->role == 'Admin' ? 'Admin Dealer Profile' : 'Dealer Profile') }}</p>
+      <h1 class="dealer-view-title">Dealer Information</h1>
+      <p class="dealer-view-subtitle">{{ $profileName }} / {{ $storeName }} / {{ $dealerReference }}</p>
+    </div>
+    @if(auth()->user()->role == 'Admin')
+      <a href="{{ url('/dealers') }}" class="dealer-back-link">
+        <i class="bi bi-arrow-left"></i> Back to Dealers
+      </a>
+    @endif
+  </div>
+
   <div class="row">
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header" style="padding-bottom: 0px">
-          <h5>Dealer Information</h5>
-        </div>
-        <div class="card-body">
-          <div class='text-center'>
-            {{-- <img src="{{$dealer->avatar ? asset($dealer->avatar) : asset('design/assets/images/profile/user-1.png')}}" alt="Avatar Image" class="img-fluid rounded-circle" style="width: 100px; height: 100px;"> --}}
-            <img src="{{$dealer->avatar ? asset($dealer->avatar) : asset('design/assets/images/profile/user-1.png')}}" class="profile-avatar mx-auto">
-            <div class="profile-name">{{ trim(strtoupper($dealer->user->first_name ?? '')) . ' ' . strtoupper(($dealer->user->last_name ?? '')) ?: ( strtoupper($dealer->name ?? '')) }}</div>
-            <div class="text-muted small">{{ strtoupper($dealer->store_name) }}</div>
-          </div>  
-          <br>
-          <div class='text-center mb-3'>
-            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadAvatarModal" title="Upload Avatar">
-              <i class="fas fa-camera"></i>
-              <span class="sr-only">Upload Avatar</span>
-            </button>
-            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editDealerModal">
-              <i class="fas fa-edit"></i>
-            </button>
+    <div class="col-xl-4 col-lg-5 mb-3">
+      <div class="dealer-profile-card">
+        <div class="dealer-profile-cover"></div>
+        <div class="dealer-profile-body">
+          <div class="text-center">
+            <img src="{{ $avatarUrl }}" class="profile-avatar mx-auto" alt="Dealer avatar">
+            <div class="profile-name">{{ $profileName }}</div>
+            <div class="profile-store">{{ $storeName }}</div>
+            <span class="dealer-status-pill {{ $isActive ? 'is-active' : 'is-inactive' }}">{{ strtoupper($status) }}</span>
           </div>
-          <hr>
-          <!-- Customer Personal Details -->
-          <div class="profile-info text-start">
-            <p><i class="bi bi-telephone"></i> {{ strtoupper($dealer->number) }}</p>
-            <p><i class="bi bi-geo-alt"></i> {{ strtoupper($dealer->address) }}</p>
-            <p><i class="bi bi-shop"></i> {{ strtoupper($dealer->store_type) }}</p>
-            <p><i class="bi bi-facebook"></i> {{ strtoupper($dealer->facebook) }}</p>
-            <p><i class="bi bi-envelope"></i> {{ strtoupper($dealer->email_address) }}</p>
-            <p><i class="bi bi-map"></i> {{ strtoupper($dealer->area) }}</p>
+
+          @unless($isRemoteDealer)
+            <div class="dealer-profile-actions">
+              <button type="button" class="btn btn-primary dealer-icon-btn" data-toggle="modal" data-target="#uploadAvatarModal" data-bs-toggle="modal" data-bs-target="#uploadAvatarModal" title="Upload Avatar">
+                <i class="fas fa-camera"></i>
+                <span class="sr-only">Upload Avatar</span>
+              </button>
+              <button type="button" class="btn btn-warning dealer-icon-btn" data-toggle="modal" data-target="#editDealerModal" data-bs-toggle="modal" data-bs-target="#editDealerModal" title="Edit Dealer">
+                <i class="fas fa-edit"></i>
+                <span class="sr-only">Edit Dealer</span>
+              </button>
+            </div>
+          @endunless
+
+          <div class="profile-info">
+            @if($isRemoteDealer)
+              <div class="profile-info-item">
+                <i class="bi bi-database"></i>
+                <div>
+                  <span class="profile-info-label">Data Source</span>
+                  <span class="profile-info-value">{{ strtoupper($sourceLabel) }}</span>
+                </div>
+              </div>
+            @endif
+            <div class="profile-info-item">
+              <i class="bi bi-telephone"></i>
+              <div>
+                <span class="profile-info-label">Contact Number</span>
+                <span class="profile-info-value">{{ strtoupper($dealer->number ?? '-') }}</span>
+              </div>
+            </div>
+            <div class="profile-info-item">
+              <i class="bi bi-geo-alt"></i>
+              <div>
+                <span class="profile-info-label">Address</span>
+                <span class="profile-info-value">{{ strtoupper($dealer->address ?? '-') }}</span>
+              </div>
+            </div>
+            <div class="profile-info-item">
+              <i class="bi bi-shop"></i>
+              <div>
+                <span class="profile-info-label">Store Type</span>
+                <span class="profile-info-value">{{ strtoupper($dealer->store_type ?? '-') }}</span>
+              </div>
+            </div>
+            <div class="profile-info-item">
+              <i class="bi bi-facebook"></i>
+              <div>
+                <span class="profile-info-label">Facebook</span>
+                <span class="profile-info-value">{{ strtoupper($dealer->facebook ?? '-') }}</span>
+              </div>
+            </div>
+            <div class="profile-info-item">
+              <i class="bi bi-envelope"></i>
+              <div>
+                <span class="profile-info-label">Email Address</span>
+                <span class="profile-info-value">{{ strtoupper($dealer->email_address ?? '-') }}</span>
+              </div>
+            </div>
+            <div class="profile-info-item">
+              <i class="bi bi-map"></i>
+              <div>
+                <span class="profile-info-label">Sales Territory</span>
+                <span class="profile-info-value">{{ strtoupper($dealer->area ?? '-') }}</span>
+              </div>
+            </div>
           </div>
-          <!-- QR Code Generation -->
           <div id="qrcode" class="mt-4 text-center"></div>
         </div>
       </div>
     </div>
-    
-    <div class="col-xl-8 col-lg-8 col-md-12 col-sm-12 col-xs-12">
-      <div class='row'>
-        <div class="col-6">
-          <div class="card shadow-sm stretch">
-            @if($dealer->valid_id)
-              <div class="card-body">
-                <h5 class="card-title">
-                  <i class="bi bi-person-vcard-fill me-2"></i> Valid ID Information  &nbsp;
-                  <button type="button" data-bs-toggle="modal"  data-bs-target="#viewValidId" class="btn btn-primary btn-sm btn-radius">
-                    <i class="bi bi-file-earmark"></i>
-                  </button>
-                </h5>
-                <hr>
-                <p class="mb-2">
-                  <strong><i class="bi bi-card-text me-2"></i>ID Type:</strong> {{$dealer->valid_id}}
-                </p>
-                <p class="mb-0">
-                  <strong><i class="bi bi-hash me-2"></i>ID Number:</strong> {{$dealer->valid_id_number}}
-                </p>
-              </div>
-            @else
-              <div class="card-body text-center">
-                <h5 class="card-title"><i class="bi bi-person-vcard"></i> Upload Valid ID</h5>
-                <p class="card-text">Submit a valid government-issued ID.</p>
-                <button class="btn btn-danger" type='button' data-bs-toggle="modal"  data-bs-target="#uploadIdModal">
-                  <i class="bi bi-upload"></i> Upload ID
-                </button>
-              </div>
-            @endif
+
+    <div class="col-xl-8 col-lg-7">
+      <div class="dealer-stat-grid">
+        <div class="dealer-stat">
+          <span>Total Transactions</span>
+          <strong>{{ number_format($transactions->count()) }}</strong>
+        </div>
+        <div class="dealer-stat">
+          <span>Total Quantity</span>
+          <strong>{{ number_format($totalQty) }}</strong>
+        </div>
+        <div class="dealer-stat">
+          <span>Total Amount</span>
+          <strong>{{ number_format($totalAmount, 2) }}</strong>
+        </div>
+      </div>
+
+      <div class="dealer-panel">
+        <div class="dealer-panel-header">
+          <div>
+            <h2 class="dealer-panel-title">Dealer Requirements</h2>
+            <p class="dealer-panel-subtitle">{{ $isRemoteDealer ? 'Read-only records from the selected CRM database.' : 'Valid ID and contract records for this dealer.' }}</p>
           </div>
         </div>
-
-        <div class="col-6">
-          @if($dealer->signature)
-            <div class="card shadow-sm stretch" >
-              <div class="card-body text-center">
-                <h6 class="card-title"><i class="mdi mdi-file-document-check-outline"></i> Signed Contract</h6>
-                @if($dealer->signature)
-                  <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#contractView">
-                    <i class="bi bi-file-text"></i> View Signed Contract
-                  </button>
-                @else
-                  <p class="text-muted"><i class="mdi mdi-close-circle-outline"></i> No contract uploaded.</p>
-                @endif
+        <div class="dealer-panel-body">
+          <div class="dealer-doc-grid">
+            <div class="dealer-doc-card">
+              <div class="dealer-doc-main">
+                <span class="dealer-doc-icon"><i class="bi bi-person-vcard"></i></span>
+                <div>
+                  <h3 class="dealer-doc-title">{{ $dealer->valid_id ? 'Valid ID Information' : 'Upload Valid ID' }}</h3>
+                  @if($dealer->valid_id)
+                    <p class="dealer-doc-copy">ID Type: {{ $dealer->valid_id }}<br>ID Number: {{ $dealer->valid_id_number ?: '-' }}</p>
+                  @else
+                    <p class="dealer-doc-copy">Submit a valid government-issued ID.</p>
+                  @endif
+                </div>
               </div>
-            </div>
-          @else
-            <div class="card shadow-sm">
-              <div class="card-body text-center">
-                <h5 class="card-title"><i class="bi bi-file-earmark-text"></i> Contract Signing</h5>
-                <p class="card-text">Review and sign the contract.</p>
-                <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#contractModal">
-                  <i class="bi bi-pencil-square"></i> Sign Contract
+              @if($isRemoteDealer)
+                <span class="btn btn-outline-secondary btn-sm disabled">{{ $dealer->valid_id ? 'Available' : 'Missing' }}</span>
+              @elseif($dealer->valid_id)
+                <button type="button" data-toggle="modal" data-target="#viewValidId" data-bs-toggle="modal" data-bs-target="#viewValidId" class="btn btn-primary btn-sm">
+                  View
                 </button>
-              </div>
+              @else
+                <button class="btn btn-danger btn-sm" type="button" data-toggle="modal" data-target="#uploadIdModal" data-bs-toggle="modal" data-bs-target="#uploadIdModal">
+                  Upload
+                </button>
+              @endif
             </div>
-          @endif
-        </div>
 
-        <div class="col-md-12">
-          <div class="card">
-            <div class="card-header">
-                <h5>Transactions</h5>
+            <div class="dealer-doc-card">
+              <div class="dealer-doc-main">
+                <span class="dealer-doc-icon"><i class="bi bi-file-earmark-text"></i></span>
+                <div>
+                  <h3 class="dealer-doc-title">{{ $dealer->signature ? 'Signed Contract' : 'Contract Signing' }}</h3>
+                  <p class="dealer-doc-copy">{{ $dealer->signature ? 'Contract has been signed and saved.' : 'Review and sign the contract.' }}</p>
+                </div>
+              </div>
+              @if($isRemoteDealer)
+                <span class="btn btn-outline-secondary btn-sm disabled">{{ $dealer->signature ? 'Available' : 'Missing' }}</span>
+              @elseif($dealer->signature)
+                <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#contractView" data-bs-toggle="modal" data-bs-target="#contractView">
+                  View
+                </button>
+              @else
+                <button class="btn btn-danger btn-sm" type="button" data-toggle="modal" data-target="#contractModal" data-bs-toggle="modal" data-bs-target="#contractModal">
+                  Sign
+                </button>
+              @endif
             </div>
-            <div class="card-body">
-              <!-- Purchase History Table -->
-              <table class="table table-bordered" style='font-size:12px;'>
-                <thead>
+          </div>
+        </div>
+      </div>
+
+      <div class="dealer-panel">
+        <div class="dealer-panel-header">
+          <div>
+            <h2 class="dealer-panel-title">Transactions</h2>
+            <p class="dealer-panel-subtitle">{{ number_format($totalPoints) }} total points earned from this dealer.</p>
+          </div>
+        </div>
+        <div class="dealer-panel-body p-0">
+          <div class="table-responsive">
+            <table class="table dealer-table">
+              <thead>
+                <tr>
+                  <th>Transaction No.</th>
+                  <th>Product</th>
+                  <th>Quantity</th>
+                  <th>Points Earned</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                @forelse($transactions as $transaction)
                   <tr>
-                    <th>Transaction No.</th>
-                    <th>Product</th>
-                    <th>Quantity</th>
-                    <th>Points Earned</th>
-                    <th>Amount</th>
-                    <th>Date</th>
+                    <td>{{ $transaction->id }}</td>
+                    <td>{{ $transaction->item ?: '-' }}</td>
+                    <td>{{ number_format($transaction->qty) }}</td>
+                    <td><span class="text-success font-weight-bold">{{ number_format($transaction->points_client) }}</span></td>
+                    <td>{{ number_format($transaction->qty * $transaction->price, 2) }}</td>
+                    <td>{{ date('M d, Y', strtotime($transaction->created_at)) }}</td>
                   </tr>
-                </thead>
-                <tbody>
-                    @foreach($transactions as $transaction)
-                    <tr>
-                        <td>{{$transaction->id}}</td>
-                        <td>{{$transaction->item}}</td>
-                        <td>{{$transaction->qty}}</td>
-                        <td><span class='text-success'>{{$transaction->points_client}}</span></td>
-                        <td>{{number_format($transaction->qty*$transaction->price,2)}}</td>
-                        <td>{{date('M d, Y',strtotime($transaction->created_at))}}</td>
-                    </tr>
-                    @endforeach
-                    <!-- Sample Purchase 1 -->
-                    {{-- <tr>
-                        <td>123</td>
-                        <td>330g LPG Cylinder</td>
-                        <td>5</td>
-                        <td>PHP XXX.00</td>
-                        <td>March 1, 2025</td>
-                    </tr> --}}
-                </tbody>
-              </table>
-            </div>
+                @empty
+                  <tr>
+                    <td colspan="6" class="dealer-empty">No transactions found for this dealer.</td>
+                  </tr>
+                @endforelse
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -263,16 +586,19 @@
   </div>
 </section>
 
-@include('change_avatar_dealer')
-@include('upload_valid_id_dealer')
-@include('viewValidIdDealer')
-@include('sign_contract_dealer')
-@include('view_contract_signed_dealer')
-@include('edit_dealer')
+@unless($isRemoteDealer)
+  @include('change_avatar_dealer')
+  @include('upload_valid_id_dealer')
+  @include('viewValidIdDealer')
+  @include('sign_contract_dealer')
+  @include('view_contract_signed_dealer')
+  @include('edit_dealer')
+@endunless
 @endsection
 
 @section('javascript')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@unless($isRemoteDealer)
 <script>
   const canvas = document.getElementById('signatureCanvas');
   const ctx = canvas.getContext('2d');
@@ -425,6 +751,7 @@
   }
 });
 </script>
+@endunless
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script>
     // Valid data for QR code generation
@@ -444,6 +771,7 @@
         }
     });
 
+  @unless($isRemoteDealer)
   $('#editDealerModal').on('shown.bs.modal', function () {
     initSelect2(this);
     initSelect3(this);
@@ -491,6 +819,7 @@
         geocodeAddressToMap();
     }
   });
+  @endunless
 </script>
 
 @endsection

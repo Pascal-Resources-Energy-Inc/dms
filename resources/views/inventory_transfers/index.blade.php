@@ -176,11 +176,11 @@
                             <label class="form-label">Movement Type</label>
                             @php $oldMovementType = old('movement_type', 'out'); @endphp
                             <div class="movement-type-grid" id="movementTypeGrid">
-                                {{-- <label class="movement-type-option {{ $oldMovementType == 'in' ? 'active' : '' }}">
+                                <label class="movement-type-option {{ $oldMovementType == 'in' ? 'active' : '' }}">
                                     <input type="radio" name="movement_type" value="in" {{ $oldMovementType == 'in' ? 'checked' : '' }}>
                                     <div class="fw-bold text-success">IN</div>
                                     <div class="small text-muted">Add stock to an area</div>
-                                </label> --}}
+                                </label>
                                 <label class="movement-type-option {{ $oldMovementType == 'out' ? 'active' : '' }}">
                                     <input type="radio" name="movement_type" value="out" {{ $oldMovementType == 'out' ? 'checked' : '' }}>
                                     <div class="fw-bold text-danger">OUT</div>
@@ -196,14 +196,14 @@
 
                         <div class="mb-3">
                             <label class="form-label">LPG SKU / Product</label>
-                            <select name="product_id" id="productSelect" class="form-control select2" required>
+                            <select name="product_id" id="productSelect" class="form-control select2" data-selected-value="{{ old('product_id') }}" required>
                                 <option value="">Select product</option>
                                 @forelse($stockProducts as $product)
                                     <option value="{{ $product->id }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>
                                         {{ $product->sku ? $product->sku . ' - ' : '' }}{{ $product->product_name }}
                                     </option>
                                 @empty
-                                    <option value="" disabled>No completed AD purchase order items available</option>
+                                    <option value="" disabled>No stock products available</option>
                                 @endforelse
                             </select>
                         </div>
@@ -368,7 +368,10 @@
                     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
                         <div>
                             <h5 class="mb-0">Movement History</h5>
-                            <div class="small text-muted">{{ $movements->count() }} record{{ $movements->count() == 1 ? '' : 's' }} found</div>
+                            <div class="small text-muted">
+                                Showing {{ number_format($movements->firstItem() ?? 0) }}-{{ number_format($movements->lastItem() ?? 0) }}
+                                of {{ number_format($movements->total()) }} record{{ $movements->total() == 1 ? '' : 's' }}
+                            </div>
                         </div>
                         <a href="{{ route('inventory-transfers.index') }}" class="btn btn-sm btn-outline-secondary mt-2 mt-lg-0">Reset Filters</a>
                     </div>
@@ -467,6 +470,11 @@
                             </tbody>
                         </table>
                     </div>
+                    @if($movements->hasPages())
+                        <div class="inventory-pagination border-top px-3 py-3">
+                            {{ $movements->links() }}
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -827,7 +835,8 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const balanceLookup = @json($balanceLookup ?? []);
-        const products = @json($productOptions ?? []);
+        const stockProducts = @json($productOptions ?? []);
+        const adProducts = @json($adProductOptions ?? $productOptions ?? []);
         const movementInputs = document.querySelectorAll('input[name="movement_type"]');
         const movementOptions = document.querySelectorAll('.movement-type-option');
         const productSelect = document.getElementById('productSelect');
@@ -844,8 +853,9 @@
         const balanceSearch = document.getElementById('balanceSearch');
         const balanceStatusFilter = document.getElementById('balanceStatusFilter');
         let stockBalanceTable = null;
-        let movementHistoryTable = null;
         let syncingMovementFields = false;
+        let activeProducts = [];
+        let renderedProductType = null;
 
         if (window.jQuery && window.jQuery.fn.DataTable) {
             stockBalanceTable = window.jQuery('#stockBalanceTable').DataTable({
@@ -859,19 +869,6 @@
                 }
             });
 
-            movementHistoryTable = window.jQuery('#movementHistoryTable').DataTable({
-                pageLength: 10,
-                order: [[0, 'desc']],
-                autoWidth: false,
-                columnDefs: [
-                    { orderable: false, targets: -1 }
-                ],
-                language: {
-                    search: 'Search history:',
-                    lengthMenu: 'Show _MENU_ movements',
-                    emptyTable: 'No inventory movements yet.'
-                }
-            });
         }
 
         function selectedType() {
@@ -881,9 +878,64 @@
 
         function selectedProduct() {
             const productId = parseInt(productSelect.value || 0);
-            return products.find(function (product) {
+            return activeProducts.find(function (product) {
                 return product.id === productId;
             });
+        }
+
+        function optionText(product) {
+            return (product.sku ? product.sku + ' - ' : '') + product.name;
+        }
+
+        function productOptionsForType(type) {
+            return type === 'in' ? stockProducts : adProducts;
+        }
+
+        function renderProductOptions() {
+            const type = selectedType();
+
+            if (renderedProductType === type) {
+                return;
+            }
+
+            const options = productOptionsForType(type);
+            const selectedValue = productSelect.value || productSelect.dataset.selectedValue || '';
+            const currentValueExists = options.some(function (product) {
+                return String(product.id) === String(selectedValue);
+            });
+
+            activeProducts = options;
+            productSelect.innerHTML = '<option value="">Select product</option>';
+
+            options.forEach(function (product) {
+                const option = document.createElement('option');
+                option.value = product.id;
+                option.textContent = optionText(product);
+
+                if (currentValueExists && String(product.id) === String(selectedValue)) {
+                    option.selected = true;
+                }
+
+                productSelect.appendChild(option);
+            });
+
+            if (!options.length) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.disabled = true;
+                option.textContent = type === 'in'
+                    ? 'No stock products available'
+                    : 'No completed AD purchase order items available';
+                productSelect.appendChild(option);
+            }
+
+            if (!currentValueExists) {
+                productSelect.value = '';
+            }
+
+            productSelect.dataset.selectedValue = '';
+            renderedProductType = type;
+            syncSelect2(productSelect);
         }
 
         function sourceAvailableQty() {
@@ -978,6 +1030,8 @@
 
             syncingMovementFields = true;
             const type = selectedType();
+
+            renderProductOptions();
 
             const needsFromArea = type === 'out' || type === 'transfer';
             const needsToArea = type === 'in' || type === 'transfer';

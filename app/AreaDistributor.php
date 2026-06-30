@@ -47,6 +47,11 @@ class AreaDistributor extends Model implements Auditable
         return $this->hasMany(AreaAd::class, 'ad_id');
     }
 
+    public function trashedAreas()
+    {
+        return $this->hasMany(AreaAd::class, 'ad_id')->onlyTrashed();
+    }
+
     public function userAds()
     {
         return $this->belongsTo(User::class, 'user_id', 'id');

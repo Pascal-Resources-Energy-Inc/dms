@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\OrderDetail;
+use App\OtherCharge;
 use App\Product;
 use App\InventoryTransfer;
 use App\AdPurchaseOrder;
@@ -26,8 +27,17 @@ class ReportController extends Controller
         $from = $request->from ?? Carbon::now()->startOfMonth()->format('Y-m-d');
         $to = $request->to ?? Carbon::now()->format('Y-m-d');
 
+        if ($from > $to) {
+            [$from, $to] = [$to, $from];
+        }
+
         $orders = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'ad'])
             ->whereBetween(DB::raw('DATE(COALESCE(submitted_at, created_at))'), [$from, $to])
+            ->whereNotNull('so_number')
+            ->whereRaw("TRIM(so_number) <> ''")
+            ->when($request->filled('so_number'), function ($query) use ($request) {
+                $query->where('so_number', 'like', '%' . trim((string) $request->so_number) . '%');
+            })
             ->when($request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->status);
             })
@@ -47,104 +57,145 @@ class ReportController extends Controller
             ->when(auth()->user()->role !== 'Admin', function ($query) {
                 $query->where('ad_user_id', auth()->id());
             })
-            ->orderBy('id', 'desc')
+            ->orderByRaw('CASE WHEN so_number IS NULL OR so_number = "" THEN 1 ELSE 0 END')
+            ->orderBy('so_number')
+            ->orderByDesc('id')
             ->get();
 
-        $rows = collect();
-
-        foreach ($orders as $order) {
-            if ($order->partialReceipts->isNotEmpty()) {
-                foreach ($order->partialReceipts as $receipt) {
-                    $rows->push((object) [
-                        'order' => $order,
-                        'date' => $receipt->delivery_date ?: $order->delivery_date ?: $order->submitted_at ?: $order->created_at,
-                        'adpo_ref' => $order->po_number,
-                        'so_number' => $order->so_number,
-                        'dr_number' => $receipt->dr_number,
-                        'si_number' => $order->si_number,
-                        'status' => $receipt->status,
-                        'order_status' => $order->status,
-                        'business_name' => $order->business_name,
-                        'product_name' => optional($receipt->item)->product_name,
-                        'qty' => (int) $receipt->received_qty,
-                        'confirmed_qty' => (int) $receipt->confirmed_qty,
-                        'total_amount' => (float) $order->total_amount,
-                        'is_partial_receipt' => true,
-                        'order_id' => $order->id,
-                    ]);
-                }
-            } else {
-                $rows->push((object) [
-                    'order' => $order,
-                    'date' => $order->delivery_date ?: $order->submitted_at ?: $order->created_at,
-                    'adpo_ref' => $order->po_number,
+        $buildOrderHistory = function ($order) {
+            $orderedTotal = (int) $order->items->sum('qty');
+            $receivedTotal = (int) $order->items->sum(function ($item) {
+                return min(
+                    (int) $item->qty,
+                    max(
+                        (int) ($item->partial_received_qty ?? 0),
+                        (int) $item->partialReceipts->sum('received_qty')
+                    )
+                );
+            });
+            $confirmedTotal = (int) $order->items->sum(function ($item) {
+                return min((int) $item->qty, (int) $item->partialReceipts->sum('confirmed_qty'));
+            });
+            $documentHistory = collect([
+                [
+                    'date' => optional($order->delivery_date ?: $order->submitted_at ?: $order->created_at)->format('M d, Y'),
                     'so_number' => $order->so_number,
                     'dr_number' => $order->dr_number,
                     'si_number' => $order->si_number,
+                    'product_name' => 'All products',
+                    'received_qty' => $receivedTotal,
+                    'confirmed_qty' => $confirmedTotal,
+                    'pending_qty' => max($orderedTotal - max($receivedTotal, $confirmedTotal), 0),
                     'status' => $order->status,
-                    'order_status' => $order->status,
-                    'business_name' => $order->business_name,
-                    'product_name' => null,
-                    'qty' => (int) $order->total_qty,
-                    'confirmed_qty' => in_array($order->status, ['Completed', 'Partial Received']) ? (int) $order->total_qty : 0,
-                    'total_amount' => (float) $order->total_amount,
-                    'is_partial_receipt' => false,
-                    'order_id' => $order->id,
-                ]);
-            }
-        }
+                    'type' => 'DPO Document',
+                ],
+            ])->merge($order->partialReceipts->sortBy('id')->map(function ($receipt) use ($order) {
+                return [
+                    'date' => optional($receipt->delivery_date ?: $order->delivery_date)->format('M d, Y'),
+                    'so_number' => $order->so_number,
+                    'dr_number' => $receipt->dr_number ?: $order->dr_number,
+                    'si_number' => $order->si_number,
+                    'product_name' => optional($receipt->item)->product_name ?: 'Product',
+                    'received_qty' => (int) $receipt->received_qty,
+                    'confirmed_qty' => (int) $receipt->confirmed_qty,
+                    'pending_qty' => max((int) $receipt->received_qty - (int) $receipt->confirmed_qty, 0),
+                    'status' => $receipt->status,
+                    'type' => 'Partial DR Receipt',
+                ];
+            }))->values();
 
-        if ($request->filled('dr_number')) {
-            $rows = $rows->filter(function ($row) use ($request) {
-                return stripos((string) $row->dr_number, (string) $request->dr_number) !== false;
-            })->values();
-        }
+            return [
+                'id' => $order->id,
+                'po_number' => $order->po_number,
+                'so_number' => strtoupper(trim((string) $order->so_number)),
+                'dr_number' => $order->dr_number,
+                'si_number' => $order->si_number,
+                'business_name' => $order->business_name,
+                'status' => $order->status,
+                'date' => optional($order->submitted_at ?: $order->created_at)->format('M d, Y'),
+                'total_qty' => (int) $order->total_qty,
+                'total_amount' => (float) $order->total_amount,
+                'document_history' => $documentHistory,
+                'items' => $order->items->map(function ($item) {
+                    $receivedQty = min(max((int) ($item->partial_received_qty ?? 0), 0), (int) $item->qty);
+                    $confirmedQty = min((int) $item->qty, (int) $item->partialReceipts->sum('confirmed_qty'));
 
-        $rows = $rows->sortByDesc(function ($row) {
-            return optional($row->date)->timestamp ?: 0;
+                    return [
+                        'name' => $item->product_name,
+                        'sku' => $item->sku,
+                        'ordered_qty' => (int) $item->qty,
+                        'received_qty' => $receivedQty,
+                        'confirmed_qty' => $confirmedQty,
+                        'pending_qty' => max((int) $item->qty - max($receivedQty, $confirmedQty), 0),
+                        'unit_price' => (float) $item->unit_price,
+                        'line_total' => (float) $item->line_total,
+                        'receipts' => $item->partialReceipts->map(function ($receipt) {
+                            return [
+                                'delivery_date' => optional($receipt->delivery_date)->format('M d, Y'),
+                                'dr_number' => $receipt->dr_number,
+                                'received_qty' => (int) $receipt->received_qty,
+                                'confirmed_qty' => (int) $receipt->confirmed_qty,
+                                'pending_qty' => max((int) $receipt->received_qty - (int) $receipt->confirmed_qty, 0),
+                                'status' => $receipt->status,
+                            ];
+                        })->values(),
+                    ];
+                })->values(),
+            ];
+        };
+
+        $ordersBySo = $orders->groupBy(function ($order) {
+            return strtoupper(trim((string) $order->so_number));
+        });
+
+        $rows = $ordersBySo->map(function ($soOrders, $soNumber) {
+            $latestOrder = $soOrders->sortByDesc(function ($order) {
+                return optional($order->submitted_at ?: $order->created_at)->timestamp ?: 0;
+            })->first();
+
+            return (object) [
+                'so_key' => $soNumber,
+                'so_number' => $soNumber,
+                'latest_date' => $latestOrder->submitted_at ?: $latestOrder->created_at,
+                'business_name' => $soOrders->pluck('business_name')->filter()->unique()->implode(', '),
+                'order_count' => $soOrders->count(),
+                'document_count' => $soOrders->sum(function ($order) {
+                    return 1 + $order->partialReceipts->count();
+                }),
+                'total_qty' => (int) $soOrders->sum('total_qty'),
+                'total_amount' => (float) $soOrders->sum('total_amount'),
+                'status' => $latestOrder->status,
+                'statuses' => $soOrders->pluck('status')->filter()->unique()->implode(', '),
+            ];
+        })->sortByDesc(function ($row) {
+            return optional($row->latest_date)->timestamp ?: 0;
         })->values();
 
-        $statusOptions = ['Pending', 'For Delivery', 'SO Created', 'Partial Received', 'Completed', 'Cancelled'];
-        $summary = [
-            'adpo_count' => $orders->count(),
-            'document_count' => $rows->count(),
-            'total_qty' => $rows->sum('qty'),
-            'total_amount' => $orders->sum('total_amount'),
-        ];
-        $itemHistories = $orders->mapWithKeys(function ($order) {
-            return [
-                $order->id => [
-                    'po_number' => $order->po_number,
-                    'business_name' => $order->business_name,
-                    'status' => $order->status,
-                    'items' => $order->items->map(function ($item) {
-                        $receivedQty = min(max((int) ($item->partial_received_qty ?? 0), 0), (int) $item->qty);
-                        $confirmedQty = (int) $item->partialReceipts->sum('confirmed_qty');
+        $itemHistories = $ordersBySo->mapWithKeys(function ($soOrders, $soNumber) use ($buildOrderHistory) {
+            $sortedOrders = $soOrders->sortBy(function ($order) {
+                return optional($order->submitted_at ?: $order->created_at)->timestamp ?: 0;
+            })->values();
 
-                        return [
-                            'name' => $item->product_name,
-                            'sku' => $item->sku,
-                            'ordered_qty' => (int) $item->qty,
-                            'received_qty' => $receivedQty,
-                            'confirmed_qty' => $confirmedQty,
-                            'pending_qty' => max((int) $item->qty - max($receivedQty, $confirmedQty), 0),
-                            'unit_price' => (float) $item->unit_price,
-                            'line_total' => (float) $item->line_total,
-                            'receipts' => $item->partialReceipts->map(function ($receipt) {
-                                return [
-                                    'delivery_date' => optional($receipt->delivery_date)->format('M d, Y'),
-                                    'dr_number' => $receipt->dr_number,
-                                    'received_qty' => (int) $receipt->received_qty,
-                                    'confirmed_qty' => (int) $receipt->confirmed_qty,
-                                    'pending_qty' => max((int) $receipt->received_qty - (int) $receipt->confirmed_qty, 0),
-                                    'status' => $receipt->status,
-                                ];
-                            })->values(),
-                        ];
-                    })->values(),
+            return [
+                $soNumber => [
+                    'so_number' => $soNumber,
+                    'business_name' => $soOrders->pluck('business_name')->filter()->unique()->implode(', '),
+                    'order_count' => $soOrders->count(),
+                    'total_qty' => (int) $soOrders->sum('total_qty'),
+                    'total_amount' => (float) $soOrders->sum('total_amount'),
+                    'orders' => $sortedOrders->map($buildOrderHistory)->values(),
                 ],
             ];
         });
+
+        $statusOptions = ['Pending', 'For Delivery', 'SO Created', 'Partial Received', 'Completed', 'Cancelled'];
+        $summary = [
+            'so_count' => $rows->count(),
+            'adpo_count' => $orders->count(),
+            'document_count' => $rows->sum('document_count'),
+            'total_qty' => $orders->sum('total_qty'),
+            'total_amount' => $orders->sum('total_amount'),
+        ];
 
         return view('reports.dpo_report', compact('orders', 'rows', 'from', 'to', 'statusOptions', 'summary', 'itemHistories'));
     }
@@ -176,6 +227,8 @@ class ReportController extends Controller
             ->orderBy('product_name')
             ->get();
 
+        $otherCharges = $this->dailySalesOtherCharges($user);
+
         $grandTotal = OrderDetail::whereBetween(
                 DB::raw('DATE(date)'),
                 [$from, $to]
@@ -183,9 +236,12 @@ class ReportController extends Controller
             ->where('ad_id', $user->ad->id)
             ->where('status', 'Completed')
             ->get()
-            ->sum(function ($r) {
+            ->sum(function ($r) use ($otherCharges) {
+                $lineSubtotal = (float) $r->qty * (float) $r->price;
+                $deliveryFee = (float) ($r->delivery_fee ?? 0);
+                $otherChargeTotal = $this->calculateDailySalesOtherCharges($lineSubtotal, $r, $otherCharges);
 
-                return $r->qty * $r->price;
+                return $lineSubtotal + $deliveryFee + $otherChargeTotal;
 
             });
 
@@ -196,7 +252,8 @@ class ReportController extends Controller
                 'items',
                 'from',
                 'to',
-                'grandTotal'
+                'grandTotal',
+                'otherCharges'
             )
         );
     }
@@ -212,6 +269,33 @@ class ReportController extends Controller
             new DailySalesExport($from, $to, $user),
             'daily-sales-report.xlsx'
         );
+    }
+
+    private function dailySalesOtherCharges($user)
+    {
+        if (!$user || !Schema::hasTable('other_charges')) {
+            return collect();
+        }
+
+        return OtherCharge::where('ad_user_id', $user->id)
+            ->where('is_active', 1)
+            ->whereIn('applies_to', ['order', 'delivery', 'dealer', 'customer'])
+            ->get();
+    }
+
+    private function calculateDailySalesOtherCharges($lineSubtotal, $order, $otherCharges)
+    {
+        return $otherCharges->sum(function ($charge) use ($lineSubtotal, $order) {
+            if ($charge->applies_to === 'delivery' && $order->delivery_type !== 'delivery') {
+                return 0;
+            }
+
+            if ($charge->charge_type === 'percentage') {
+                return (float) $lineSubtotal * ((float) $charge->amount / 100);
+            }
+
+            return (float) $charge->amount;
+        });
     }
 
     public function inventoryStockLevelReport(Request $request)
@@ -282,12 +366,41 @@ class ReportController extends Controller
     public function agingReport(Request $request)
     {
         $user = auth()->user();
-        $ad = $user ? $user->ad : null;
-        $adId = $ad ? $ad->id : null;
+        $isAdmin = $user && $user->role === 'Admin';
         $asOf = $request->filled('as_of')
             ? Carbon::parse($request->as_of)->endOfDay()
             : Carbon::today()->endOfDay();
 
+        $distributorQuery = AreaDistributor::query()
+            ->whereHas('userAds', function ($query) {
+                $query->where('role', 'Area Distributor');
+            });
+
+        if (!$isAdmin) {
+            $distributorQuery->where('user_id', $user->id);
+        }
+
+        $distributors = $distributorQuery
+            ->orderBy('business_name')
+            ->get(['id', 'user_id', 'business_name', 'name', 'store_code']);
+        $distributorOptions = $distributors;
+
+        $selectedDistributorId = $isAdmin && $request->filled('distributor')
+            ? (int) $request->distributor
+            : null;
+
+        if ($selectedDistributorId) {
+            $distributors = $distributors->where('id', $selectedDistributorId)->values();
+        }
+
+        $adIds = $distributors->pluck('id')->map(function ($id) {
+            return (int) $id;
+        })->values();
+        $adUserIds = $distributors->pluck('user_id')->filter()->map(function ($id) {
+            return (int) $id;
+        })->values();
+        $distributorById = $distributors->keyBy('id');
+        $distributorByUserId = $distributors->keyBy('user_id');
         $ledger = collect();
 
         $purchaseRows = AdPurchaseOrderItem::join('ad_purchase_orders', 'ad_purchase_order_items.ad_purchase_order_id', '=', 'ad_purchase_orders.id')
@@ -297,11 +410,14 @@ class ReportController extends Controller
                 'ad_purchase_order_items.product_name',
                 'ad_purchase_order_items.sku',
                 'ad_purchase_order_items.qty',
+                'ad_purchase_orders.ad_id',
+                'ad_purchase_orders.ad_user_id',
+                'ad_purchase_orders.business_name',
                 'ad_purchase_orders.authorized_territory',
                 'adpo_areas.area_name as ad_area',
                 DB::raw('COALESCE(ad_purchase_orders.submitted_at, ad_purchase_orders.created_at) as stock_date')
             )
-            ->where('ad_purchase_orders.ad_user_id', $user->id)
+            ->whereIn('ad_purchase_orders.ad_user_id', $adUserIds)
             ->where('ad_purchase_orders.status', 'Completed')
             ->where(function ($query) use ($asOf) {
                 $query->whereDate('ad_purchase_orders.submitted_at', '<=', $asOf->toDateString())
@@ -313,9 +429,16 @@ class ReportController extends Controller
             ->get();
 
         foreach ($purchaseRows as $row) {
+            $distributor = $distributorById->get((int) $row->ad_id)
+                ?: $distributorByUserId->get((int) $row->ad_user_id);
             $ledger->push((object) [
                 'date' => $row->stock_date ? Carbon::parse($row->stock_date) : $asOf->copy(),
                 'area' => $row->authorized_territory ?: $row->ad_area,
+                'distributor_id' => $distributor ? (int) $distributor->id : (int) $row->ad_id,
+                'distributor_name' => $row->business_name
+                    ?: optional($distributor)->business_name
+                    ?: optional($distributor)->name
+                    ?: 'Area Distributor',
                 'product_id' => $row->product_id,
                 'sku' => $row->sku,
                 'product_name' => $row->product_name,
@@ -324,7 +447,7 @@ class ReportController extends Controller
             ]);
         }
 
-        $movements = InventoryTransfer::where('ad_user_id', $user->id)
+        $movements = InventoryTransfer::whereIn('ad_user_id', $adUserIds)
             ->whereDate('transfer_date', '<=', $asOf->toDateString())
             ->orderBy('transfer_date')
             ->orderBy('id')
@@ -332,42 +455,54 @@ class ReportController extends Controller
 
         foreach ($movements as $movement) {
             $date = $movement->transfer_date ? $movement->transfer_date->copy() : Carbon::parse($movement->created_at);
+            $distributor = $distributorById->get((int) $movement->ad_id)
+                ?: $distributorByUserId->get((int) $movement->ad_user_id);
+            $distributorId = $distributor ? (int) $distributor->id : (int) $movement->ad_id;
+            $distributorName = optional($distributor)->business_name
+                ?: optional($distributor)->name
+                ?: 'Area Distributor';
 
             if ($movement->movement_type === 'in') {
-                $ledger->push($this->agingLedgerRow($date, $movement->to_area, $movement, (float) $movement->qty, 'Inventory IN'));
+                $ledger->push($this->agingLedgerRow($date, $movement->to_area, $movement, (float) $movement->qty, 'Inventory IN', $distributorId, $distributorName));
             }
 
             if ($movement->movement_type === 'out') {
-                $ledger->push($this->agingLedgerRow($date, $movement->from_area, $movement, -1 * (float) $movement->qty, 'Inventory OUT'));
+                $ledger->push($this->agingLedgerRow($date, $movement->from_area, $movement, -1 * (float) $movement->qty, 'Inventory OUT', $distributorId, $distributorName));
             }
 
             if ($movement->movement_type === 'transfer') {
-                $ledger->push($this->agingLedgerRow($date, $movement->from_area, $movement, -1 * (float) $movement->qty, 'Transfer OUT'));
-                $ledger->push($this->agingLedgerRow($date, $movement->to_area, $movement, (float) $movement->qty, 'Transfer IN'));
+                $ledger->push($this->agingLedgerRow($date, $movement->from_area, $movement, -1 * (float) $movement->qty, 'Transfer OUT', $distributorId, $distributorName));
+                $ledger->push($this->agingLedgerRow($date, $movement->to_area, $movement, (float) $movement->qty, 'Transfer IN', $distributorId, $distributorName));
             }
         }
 
-        if ($adId) {
+        if ($adIds->isNotEmpty()) {
             $orderRows = OrderDetail::leftJoin('dealers', 'order_details.dealer_id', '=', 'dealers.user_id')
                 ->leftJoin('area_distributors as ordering_ads', 'order_details.dealer_id', '=', 'ordering_ads.user_id')
                 ->leftJoin(DB::raw('(select ad_id, min(area_name) as area_name from ad_areas where deleted_at is null group by ad_id) as ordering_ad_areas'), 'ordering_ads.id', '=', 'ordering_ad_areas.ad_id')
                 ->select(
                     'dealers.area as dealer_area',
                     'ordering_ad_areas.area_name as ad_area',
+                    'order_details.ad_id',
                     'order_details.item',
                     DB::raw('SUM(order_details.qty) as qty'),
                     DB::raw('MAX(order_details.date) as order_date')
                 )
-                ->where('order_details.ad_id', $adId)
+                ->whereIn('order_details.ad_id', $adIds)
                 ->where('order_details.status', 'Completed')
                 ->whereDate('order_details.date', '<=', $asOf->toDateString())
-                ->groupBy('dealers.area', 'ordering_ad_areas.area_name', 'order_details.item')
+                ->groupBy('dealers.area', 'ordering_ad_areas.area_name', 'order_details.ad_id', 'order_details.item')
                 ->get();
 
             foreach ($orderRows as $row) {
+                $distributor = $distributorById->get((int) $row->ad_id);
                 $ledger->push((object) [
                     'date' => $row->order_date ? Carbon::parse($row->order_date) : $asOf->copy(),
                     'area' => $row->dealer_area ?: $row->ad_area,
+                    'distributor_id' => (int) $row->ad_id,
+                    'distributor_name' => optional($distributor)->business_name
+                        ?: optional($distributor)->name
+                        ?: 'Area Distributor',
                     'product_id' => null,
                     'sku' => null,
                     'product_name' => $row->item,
@@ -397,6 +532,7 @@ class ReportController extends Controller
             'total_qty' => $batches->sum('qty'),
             'sku_count' => $batches->pluck('product_name')->unique()->count(),
             'area_count' => $batches->pluck('area')->filter()->unique()->count(),
+            'distributor_count' => $batches->pluck('distributor_id')->filter()->unique()->count(),
             'oldest_days' => $batches->max('age_days') ?: 0,
         ];
 
@@ -410,15 +546,20 @@ class ReportController extends Controller
             'products',
             'summary',
             'bucketTotals',
-            'asOf'
+            'asOf',
+            'distributors',
+            'distributorOptions',
+            'isAdmin'
         ));
     }
 
-    private function agingLedgerRow($date, $area, $movement, $qty, $source)
+    private function agingLedgerRow($date, $area, $movement, $qty, $source, $distributorId = null, $distributorName = null)
     {
         return (object) [
             'date' => $date,
             'area' => $area,
+            'distributor_id' => $distributorId,
+            'distributor_name' => $distributorName ?: 'Area Distributor',
             'product_id' => $movement->product_id,
             'sku' => $movement->sku,
             'product_name' => $movement->item_name,
@@ -436,7 +577,7 @@ class ReportController extends Controller
                 continue;
             }
 
-            $key = $entry->area . '|' . $this->normalizeProductName($entry->product_name);
+            $key = ($entry->distributor_id ?: 'unknown') . '|' . $entry->area . '|' . $this->normalizeProductName($entry->product_name);
 
             if (!isset($openBatches[$key])) {
                 $openBatches[$key] = [];
@@ -446,6 +587,8 @@ class ReportController extends Controller
                 $openBatches[$key][] = [
                     'date' => $entry->date,
                     'area' => $entry->area,
+                    'distributor_id' => $entry->distributor_id,
+                    'distributor_name' => $entry->distributor_name,
                     'product_id' => $entry->product_id,
                     'sku' => $entry->sku,
                     'product_name' => $entry->product_name,
@@ -481,6 +624,8 @@ class ReportController extends Controller
                 return (object) [
                     'date' => $batch['date'],
                     'area' => $batch['area'],
+                    'distributor_id' => $batch['distributor_id'],
+                    'distributor_name' => $batch['distributor_name'],
                     'product_id' => $batch['product_id'],
                     'sku' => $batch['sku'],
                     'product_name' => $batch['product_name'],

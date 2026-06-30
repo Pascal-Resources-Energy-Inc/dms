@@ -44,6 +44,10 @@ Route::get('/items', 'ItemController@index')->name('items');
 Route::post('/items', 'ItemController@store')->name('items.store');
 Route::put('/items/{item}', 'ItemController@update')->name('items.update');
 Route::delete('/items/{item}', 'ItemController@destroy')->name('items.destroy');
+Route::get('/areas', 'AreaController@index')->name('areas');
+Route::post('/areas', 'AreaController@store')->name('areas.store');
+Route::put('/areas/{area}', 'AreaController@update')->name('areas.update');
+Route::delete('/areas/{area}', 'AreaController@destroy')->name('areas.destroy');
 Route::get('/products', 'ProductController@index')->name('products');
 Route::get('/products/create', 'ProductController@create')->name('products.create');
 Route::post('/products', 'ProductController@store')->name('products.store');
@@ -100,6 +104,10 @@ Route::get('/pds','ProvincialDistributorController@index')->name('pds');
 
 // Dealers Area Distributor
 Route::get('/dealer-ads','AreaDistributorController@myDealer')->name('dealer-ads');
+Route::get('/charges', 'OtherChargeController@index')->name('charges');
+Route::post('/charges', 'OtherChargeController@store')->name('charges.store');
+Route::put('/charges/{charge}', 'OtherChargeController@update')->name('charges.update');
+Route::delete('/charges/{charge}', 'OtherChargeController@destroy')->name('charges.destroy');
 
 // Orders
 Route::get('/orders','OrderController@index')->name('orders');
@@ -124,6 +132,7 @@ Route::get('/dealers','DealerController@index')->name('dealers');
 Route::get('/mds','AreaDistributorController@megaDealers')->name('mds');
 Route::post('/new-dealer','DealerController@newDealer');
 Route::post('/check-dealer-duplicate', 'DealerController@checkDuplicate')->name('check.dealer.duplicate');
+Route::get('admin-crm-dealer/{source}/{id}', 'DealerController@viewAdminCrmDealer')->name('admin.crm.dealer.view');
 Route::get('view-dealer/{id}', 'DealerController@view')->name('dealer.view');
 Route::post('/change-avatar-dealer/{id}', 'DealerController@changeAvatar')->name('dealer.view');
 Route::post('valid-id-dealer/{id}', 'DealerController@uploadValidId')->name('dealer.view');
@@ -136,6 +145,7 @@ Route::get('/customers','CustomerController@index')->name('customers');
 Route::get('/customer','CustomerController@view')->name('customer');
 Route::get('/dashboard-customer','CustomerController@show')->name('customer');
 Route::get('/new-customer','CustomerController@newCustomer')->name('newcustomer');
+Route::get('admin-crm-customer/{source}/{id}', 'CustomerController@viewAdminCrmCustomer')->name('admin.crm.customer.view');
 Route::get('view-client/{id}', 'CustomerController@view')->name('client.view');
 Route::post('new-customer','CustomerController@saveCustomer')->name('saveCustomer');
 Route::post('/customer/update/{id}', 'CustomerController@update')->name('customer.update');

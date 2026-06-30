@@ -1,43 +1,45 @@
-<div class="modal fade" id="manageAreaModal-{{ $ad->id }}"  tabindex="-1" aria-hidden="true">
+<div class="modal fade manage-area-modal" id="manageAreaModal-{{ $ad->id }}"  tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        {{-- <form method="POST" action="{{ url('ad/'.$ad->id.'/areas/update') }}"> --}}
         <form id="areaForm-{{ $ad->id }}" data-ad="{{ $ad->id }}" method="POST" action="{{ url('ad/'.$ad->id.'/areas/update') }}">
             @csrf
 
-            <div class="modal-content border-0 shadow-lg">
+            <div class="modal-content manage-area-shell border-0 shadow-lg">
 
-                <div class="modal-header bg-primary">
-                    <div>
-                        <h4 class="modal-title mb-0 text-white">
-                            <i class="ti ti-map-pin me-2"></i>
-                            Manage Awarded Areas
-                        </h4>
+                <div class="modal-header manage-area-header">
+                    <div class="manage-area-title-wrap">
+                        <span class="manage-area-icon">
+                            <i class="ti ti-map-pin"></i>
+                        </span>
+                        <div>
+                            <h4 class="modal-title manage-area-title">
+                                Manage Awarded Areas
+                            </h4>
 
-                        <small class="text-white">
-                            {{ $ad->name }}
-                        </small>
+                            <small class="manage-area-subtitle">
+                                {{ strtoupper($ad->name) }}
+                            </small>
+                        </div>
                     </div>
 
                     <button type="button"
-                            class="close text-white border-0 bg-transparent"
+                            class="btn-close"
                             data-bs-dismiss="modal">
-                        &times;
                     </button>
                 </div>
 
-                <div class="modal-body bg-light">
+                <div class="modal-body manage-area-body">
 
-                    <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="manage-area-toolbar">
                         <div>
-                            <h5 class="mb-1">Awarded Area(s)</h5>
+                            <h5 class="manage-area-section-title">Awarded Area(s)</h5>
 
-                            <small class="text-muted">
-                                Add or update project assigned areas
+                            <small class="manage-area-help">
+                                Add or update assigned areas
                             </small>
                         </div>
 
                         <button type="button"
-                                class="btn btn-primary add-area-btn"
+                                class="btn btn-primary manage-area-add-btn"
                                 data-ad="{{ $ad->id }}" onclick="addAreaRow({{ $ad->id }})">
 
                             <i class="ti ti-plus"></i>
@@ -45,7 +47,7 @@
                         </button>
                     </div>
 
-                    <div id="areaRows-{{ $ad->id }}">
+                    <div class="manage-area-rows" id="areaRows-{{ $ad->id }}">
                         @php
                             $areaOptionNames = $areas->pluck('name')->map(function ($name) {
                                 return trim((string) $name);
@@ -54,117 +56,24 @@
 
                         @forelse($ad->areas as $index => $area)
                             @php
-                                $projectType = trim((string) $area->project_type);
-                                $projectTypeKey = strtolower($projectType);
                                 $areaName = trim((string) $area->area_name);
                             @endphp
 
-                            <div class="card border-0 shadow-sm mb-3 area-row">
+                            <div class="card manage-area-row border-0 shadow-sm area-row">
 
-                                <div class="card-body">
+                                <div class="card-body manage-area-row-body">
 
                                     <input type="hidden"
                                            name="rows[{{ $index }}][id]"
                                            value="{{ $area->id }}">
 
-                                    <div class="row">
+                                    <div class="row g-3 align-items-end">
 
-                                        {{-- <div class="col-md-3 mb-3">
-                                            <label>Project Type</label>
-
-                                            <select class="form-control select2"
-                                                    name="rows[{{ $index }}][project_type]"
-                                                    required>
-                                                 @php
-                                                    $selectedProjectType = trim((string) $area->project_type);
-                                                    // $selectedAreaName = trim((string) $area->area_name);
-                                                @endphp
-                                                <option value="" {{ $selectedProjectType === '' ? 'selected' : '' }}>
-                                                    Select Project
-                                                </option>
-                                               
-                                                <option value="Project Rise"
-                                                    {{ $selectedProjectType === 'Project Rise' ? 'selected' : '' }}>
-                                                    Project Rise
-                                                </option>
-
-                                                <option value="Project Genesis"
-                                                    {{ $selectedProjectType === 'Project Genesis' ? 'selected' : '' }}>
-                                                    Project Genesis
-                                                </option>
-
-                                            </select>
-                                        </div> --}}
-                                        @php
-                                            $projectType = trim((string) ($area->project_type ?? ''));
-                                        @endphp
-
-                                        <div class="col-md-3 mb-3">
-
-                                            <label class="form-label">
-                                                Project Type
-                                            </label>
-
-                                            <select class="form-control"
-                                                    name="rows[{{ $index }}][project_type]"
-                                                    required>
-
-                                                <option value="">
-                                                    Select Project
-                                                </option>
-
-                                                <option value="Project Rise"
-                                                    {{ $projectType === 'Project Rise' ? 'selected' : '' }}>
-                                                    Project Rise
-                                                </option>
-
-                                                <option value="Project Genesis"
-                                                    {{ $projectType === 'Project Genesis' ? 'selected' : '' }}>
-                                                    Project Genesis
-                                                </option>
-
-                                            </select>
-
-                                        </div>
-                                            
-                                        {{-- <div class="col-md-5 mb-3">
-
-                                            <label>Area Name</label>
-
-                                            <select class="form-control select2"
-                                                    name="rows[{{ $index }}][area_name]"
-                                                    required>
-
-                                                <option value="">
-                                                    Select Area
-                                                </option>
-
-                                                @if($selectedAreaName !== '' && ! $areaOptionNames->contains($selectedAreaName))
-                                                    <option value="{{ $selectedAreaName }}" selected>
-                                                        {{ $selectedAreaName }}
-                                                    </option>
-                                                @endif
-                                                
-                                                @foreach($areas as $a)
-                                                    @php
-                                                        $optionAreaName = trim((string) $a->name);
-                                                    @endphp
-
-                                                    <option value="{{ $optionAreaName }}"
-                                                        {{ $selectedAreaName === $optionAreaName ? 'selected' : '' }}>
-
-                                                        {{ $optionAreaName }}
-
-                                                    </option>
-
-                                                @endforeach
-
-                                            </select>
-
-                                        </div> --}}
-                                        <div class="col-md-5 mb-3">
-                                            <label>Area Name</label>
-                                            <select class="form-control area-select"
+                                        <div class="col-md-7 mb-3">
+                                            <label class="form-label manage-area-label">Area Name</label>
+                                            <select class="form-select select2 select2-area"
+                                                    data-select2-theme="bootstrap-5"
+                                                    data-placeholder="Select Area"
                                                     name="rows[{{ $index }}][area_name]"
                                                     required>
 
@@ -175,6 +84,12 @@
                                                 @php
                                                     $selectedAreaName = trim((string) $area->area_name);
                                                 @endphp
+
+                                                @if($selectedAreaName !== '' && ! $areaOptionNames->contains($selectedAreaName))
+                                                    <option value="{{ $selectedAreaName }}" selected>
+                                                        {{ $selectedAreaName }}
+                                                    </option>
+                                                @endif
 
                                                 @foreach($areas as $a)
 
@@ -195,9 +110,9 @@
 
                                         </div>
 
-                                        <div class="col-md-3 mb-3">
+                                        <div class="col-md-4 mb-3">
 
-                                            <label>Joining Date</label>
+                                            <label class="form-label manage-area-label">Joining Date</label>
 
                                             <input type="date"
                                                    class="form-control"
@@ -209,7 +124,8 @@
                                         <div class="col-md-1 mb-3 d-flex align-items-end">
 
                                             <button type="button"
-                                                    class="btn btn-danger remove-row">
+                                                    class="btn btn-outline-danger manage-area-remove-btn remove-row"
+                                                    title="Remove area">
 
                                                 <i class="ti ti-trash"></i>
 
@@ -225,13 +141,13 @@
 
                         @empty
 
-                            <div class="empty-area text-center py-5 text-muted">
+                            <div class="empty-area manage-area-empty">
 
-                                <i class="ti ti-map-pin-off fa-3x"></i>
+                                <i class="ti ti-map-pin-off"></i>
 
-                                <p class="mt-2 mb-0">
-                                    No awarded areas yet
-                                </p>
+                                <strong>No awarded areas yet</strong>
+
+                                <p>Click Add Area to assign the first territory.</p>
 
                             </div>
 
@@ -241,10 +157,10 @@
 
                 </div>
 
-                <div class="modal-footer bg-white">
+                <div class="modal-footer manage-area-footer">
 
                     <button type="button"
-                            class="btn btn-light border"
+                            class="btn btn-light border manage-area-cancel-btn"
                             data-bs-dismiss="modal">
 
                         Cancel
@@ -252,7 +168,7 @@
                     </button>
 
                     <button type="submit"
-                            class="btn btn-success px-4">
+                            class="btn btn-success px-4 manage-area-save-btn">
 
                         <i class="ti ti-device-floppy me-1"></i>
                         Save Areas
@@ -286,23 +202,52 @@
 
             window.AreaModalManager = true;
 
-            /**
-             * Initialize Select2
-             */
-            function initializeSelect2(scope) {
-                if (!$.fn.select2) {
+            function ensureSelect2Ready(callback) {
+                if ($.fn.select2) {
+                    callback();
                     return;
                 }
 
-                $(scope).find('.select2').each(function () {
+                if (window.manageAreaSelect2Loading) {
+                    setTimeout(function () {
+                        ensureSelect2Ready(callback);
+                    }, 50);
+                    return;
+                }
 
-                    if ($(this).hasClass('select2-hidden-accessible')) return;
+                window.manageAreaSelect2Loading = true;
 
-                    $(this).select2({
-                        width: '100%',
-                        dropdownParent: $(this).closest('.modal')
+                var script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
+                script.onload = function () {
+                    window.manageAreaSelect2Loading = false;
+                    callback();
+                };
+                document.head.appendChild(script);
+            }
+
+            function initAreaSelect2(scope) {
+                ensureSelect2Ready(function () {
+                    var $scope = $(scope);
+                    var $selects = $scope.is('select.select2-area')
+                        ? $scope
+                        : $scope.find('select.select2-area');
+
+                    $selects.each(function () {
+                        var $select = $(this);
+
+                        if ($select.hasClass('select2-hidden-accessible')) {
+                            return;
+                        }
+
+                        $select.select2({
+                            width: '100%',
+                            dropdownParent: $select.closest('.modal'),
+                            placeholder: $select.data('placeholder') || 'Select Area',
+                            allowClear: true,
+                            theme: $select.data('select2-theme') || 'bootstrap-5'
+                        });
                     });
-
                 });
             }
 
@@ -330,37 +275,30 @@
                     .join('');
 
                 let html = `
-                    <div class="card border-0 shadow-sm mb-3 area-row">
-                        <div class="card-body">
-                            <div class="row">
+                    <div class="card manage-area-row border-0 shadow-sm area-row">
+                        <div class="card-body manage-area-row-body">
+                            <div class="row g-3 align-items-end">
 
                                 <input type="hidden" name="rows[${index}][id]" value="">
 
-                                <div class="col-md-3">
-                                    <select class="form-control select2"
-                                            name="rows[${index}][project_type]" required>
-                                        <option value="" disabled>Select Project</option>
-                                        <option value="Project Rise">Project Rise</option>
-                                        <option value="Project Genesis">Project Genesis</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-md-5">
-                                    <select class="form-control select2"
+                                <div class="col-md-7 mb-3">
+                                    <label class="form-label manage-area-label">Area Name</label>
+                                    <select class="form-select select2 select2-area" data-select2-theme="bootstrap-5" data-placeholder="Select Area"
                                             name="rows[${index}][area_name]" required>
                                         <option value="">Select Area</option>
                                         ${areaOptions}
                                     </select>
                                 </div>
 
-                                <div class="col-md-3">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label manage-area-label">Joining Date</label>
                                     <input type="date"
                                         class="form-control"
                                         name="rows[${index}][joining_date]">
                                 </div>
 
-                                <div class="col-md-1 d-flex align-items-center">
-                                    <button type="button" class="btn btn-danger remove-row">
+                                <div class="col-md-1 mb-3 d-flex align-items-end">
+                                    <button type="button" class="btn btn-outline-danger manage-area-remove-btn remove-row" title="Remove area">
                                         <i class="ti ti-trash"></i>
                                     </button>
                                 </div>
@@ -373,7 +311,7 @@
                 let row = $(html);
                 container.append(row);
 
-                initializeSelect2(row);
+                initAreaSelect2(row);
             };
 
             /**
@@ -395,26 +333,21 @@
 
                 if (container.find('.area-row').length === 0) {
                     container.html(`
-                        <div class="empty-area text-center py-5 text-muted">
-                            <i class="ti ti-map-pin-off fa-3x"></i>
-                            <p class="mt-2 mb-0">No awarded areas yet</p>
+                        <div class="empty-area manage-area-empty">
+                            <i class="ti ti-map-pin-off"></i>
+                            <strong>No awarded areas yet</strong>
+                            <p>Click Add Area to assign the first territory.</p>
                         </div>
                     `);
                 }
             });
 
-            /**
-             * Init on modal open (IMPORTANT FIX)
-             */
-            $(document).on('shown.bs.modal', '.modal', function () {
-                initializeSelect2(this);
+            $(document).on('shown.bs.modal', '.manage-area-modal', function () {
+                initAreaSelect2(this);
             });
-                
-            /**
-             * Initial page load
-             */
+
             $(document).ready(function () {
-                initializeSelect2(document);
+                initAreaSelect2(document);
             });
 
             $(document).on('submit', 'form[id^="areaForm-"]', function (e) {
@@ -425,7 +358,7 @@
                 let url = form.attr('action');
                 let btn = form.find('button[type="submit"]');
 
-                btn.prop('disabled', true).html('Saving...');
+                btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Saving...');
 
                 $.ajax({
                     url: url,
@@ -473,25 +406,265 @@
 <?php $GLOBALS['manageAreaStyleRendered'] = true; ?>
 <style>
 
-.select2-container {
-    width: 100% !important;
-}
+    .manage-area-modal {
+        --manage-blue: #0d6efd;
+        --manage-blue-soft: #eef5ff;
+        --manage-text: #172033;
+        --manage-muted: #667085;
+        --manage-border: #e6eaf0;
+    }
 
-.select2-dropdown {
-    z-index: 999999 !important;
-}
+    .manage-area-shell {
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+    }
 
-.modal {
-    overflow: visible !important;
-}
+    .manage-area-header {
+        padding: 18px 22px;
+        background: linear-gradient(135deg, #f8fbff, #ffffff);
+        border-bottom: 1px solid var(--manage-border);
+    }
 
-.modal-dialog {
-    overflow: visible !important;
-}
+    .manage-area-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
 
-.modal-content {
-    overflow: visible !important;
-}
+    .manage-area-icon {
+        width: 42px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        color: var(--manage-blue);
+        font-size: 22px;
+        background: var(--manage-blue-soft);
+        border: 1px solid #d8e8ff;
+        border-radius: 10px;
+    }
+
+    .manage-area-title {
+        margin: 0;
+        color: var(--manage-text);
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+
+    .manage-area-subtitle {
+        display: block;
+        margin-top: 3px;
+        color: var(--manage-muted);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .02em;
+    }
+
+    .manage-area-body {
+        padding: 18px 22px;
+        background: #f6f8fb;
+    }
+
+    .manage-area-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        padding: 14px;
+        background: #fff;
+        border: 1px solid var(--manage-border);
+        border-radius: 10px;
+    }
+
+    .manage-area-section-title {
+        margin: 0;
+        color: var(--manage-text);
+        font-size: 15px;
+        font-weight: 800;
+    }
+
+    .manage-area-help {
+        display: block;
+        margin-top: 2px;
+        color: var(--manage-muted);
+        font-size: 12px;
+    }
+
+    .manage-area-add-btn,
+    .manage-area-save-btn,
+    .manage-area-cancel-btn {
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 800;
+        border-radius: 8px;
+        white-space: nowrap;
+    }
+
+    .manage-area-rows {
+        display: grid;
+        gap: 12px;
+    }
+
+    .manage-area-row {
+        margin-bottom: 0 !important;
+        border: 1px solid var(--manage-border) !important;
+        border-radius: 10px;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, .05) !important;
+    }
+
+    .manage-area-row-body {
+        padding: 14px;
+    }
+
+    .manage-area-label {
+        margin-bottom: 6px;
+        color: #344054;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .manage-area-row .form-control,
+    .manage-area-row .form-select {
+        min-height: 42px;
+        font-size: 13px;
+        border-color: #d9e1ea;
+        border-radius: 8px;
+    }
+
+    .manage-area-row .form-control:focus,
+    .manage-area-row .form-select:focus {
+        border-color: var(--manage-blue);
+        box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .12);
+    }
+
+    .manage-area-remove-btn {
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        border-radius: 8px;
+    }
+
+    .manage-area-empty {
+        padding: 42px 16px;
+        color: var(--manage-muted);
+        text-align: center;
+        background: #fff;
+        border: 1px dashed #cfd8e3;
+        border-radius: 10px;
+    }
+
+    .manage-area-empty i {
+        display: block;
+        margin-bottom: 9px;
+        color: #a9b4c2;
+        font-size: 38px;
+    }
+
+    .manage-area-empty strong {
+        display: block;
+        color: #344054;
+        font-size: 14px;
+    }
+
+    .manage-area-empty p {
+        margin: 4px 0 0;
+        font-size: 13px;
+    }
+
+    .manage-area-footer {
+        padding: 14px 22px;
+        background: #fff;
+        border-top: 1px solid var(--manage-border);
+    }
+
+    .manage-area-modal .select2-container {
+        width: 100% !important;
+    }
+
+    .manage-area-modal .select2-container--bootstrap-5 .select2-selection,
+    .manage-area-modal .select2-container--default .select2-selection--single {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        border-color: #d9e1ea;
+        border-radius: 8px;
+    }
+
+    .manage-area-modal .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered,
+    .manage-area-modal .select2-container--default .select2-selection--single .select2-selection__rendered {
+        padding-left: 12px;
+        color: #344054;
+        font-size: 13px;
+        line-height: 40px;
+    }
+
+    .manage-area-modal .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow,
+    .manage-area-modal .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 40px;
+        right: 8px;
+    }
+
+    .manage-area-modal .select2-container--open .select2-selection {
+        border-color: var(--manage-blue);
+        box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .12);
+    }
+
+    .select2-container--open {
+        z-index: 999999 !important;
+    }
+
+    .select2-dropdown {
+        border-color: #d9e1ea;
+        border-radius: 8px;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, .14);
+        z-index: 999999 !important;
+    }
+
+    .select2-search--dropdown {
+        padding: 8px;
+    }
+
+    .select2-search--dropdown .select2-search__field {
+        min-height: 36px;
+        border-color: #d9e1ea !important;
+        border-radius: 7px;
+        outline: none;
+    }
+
+    .select2-results__option {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+
+    .select2-results__option--highlighted {
+        background: var(--manage-blue) !important;
+    }
+
+    @media (max-width: 767px) {
+        .manage-area-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .manage-area-add-btn {
+            width: 100%;
+        }
+
+        .manage-area-remove-btn {
+            width: 100%;
+        }
+    }
 
 </style>
 <?php endif; ?>

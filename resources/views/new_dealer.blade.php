@@ -57,6 +57,7 @@
               </div>
             </div>
             <div class="fs-6 fw-bold col-md-12 mb-3"><i class="bi bi-building-fill"></i> Business Information</div>
+            <input type="hidden" name="dealer_type" value="Regular">
             <div class="col-md-6 mb-2">
               <label class="form-label" for="store_name">Store Name &nbsp;<span class="text-danger">*</span></label>
               <input type="text" class="form-control required" name='store_name' id="store_name" placeholder="Enter Store Name" data-uppercase>
@@ -73,16 +74,16 @@
                 <option value="Grocery">Grocery</option>
               </select>
             </div>
-            <div class="col-md-6 mb-2">
+            <div class="col-md-6 mb-2" id="dealerSpoWrap">
               <label class="form-label" for="spo">SPO&nbsp;<span class="text-danger">*</span></label>
-              <input type="text" class="form-control required" id="spo" name="spo" placeholder="Enter SPO" data-uppercase required/>
+              <input type="text" class="form-control required" id="spo" name="spo" value="{{ old('spo') }}" placeholder="Enter SPO" data-uppercase required/>
             </div>
-            <div class="col-md-6 mb-2">
+            <div class="col-md-6 mb-2" id="dealerCenterWrap">
               <label class="form-label" for="center">Center&nbsp;<span class="text-danger">*</span></label>
               <select class="form-control select2" id="center" name="center" required data-placeholder="Select Center">
                 <option value="">Select Center</option>
                 @foreach($centers ?? [] as $center)
-                    <option value="{{ $center->name }}">{{ $center->name }}</option>
+                    <option value="{{ $center->name }}" {{ old('center') === $center->name ? 'selected' : '' }}>{{ $center->name }}</option>
                 @endforeach
               </select>
             </div>
@@ -95,7 +96,7 @@
                 @endforeach
               </select> --}}
 
-              <select class="form-control select2 select2-area" id="area" name="area" required data-placeholder="Select Area">
+              <select class="form-select select2 select2-area" id="area" name="area" required data-placeholder="Select Area" data-select2-theme="bootstrap-5">
                 <option value="">Select Area</option>
                 @foreach($areas ?? [] as $area)
                   <option value="{{ $area->name }}"
@@ -143,25 +144,28 @@
                 <i class="bi bi-map"></i> Pin Location (Drag the marker)
               </label>
 
-              <div id="map" style="
-                  height: 300px;
-                  border-radius: 10px;
-                  overflow: hidden;
-                  border: 1px solid #ddd;
-              "></div>
-              <div id="map-coords" style="
-                  position:absolute;
-                  top: 40px;
-                  right: 20px;
-                  background:#000;
-                  color:#fff;
-                  padding:4px 8px;
-                  font-size:10px;
-                  z-index: 999;
-                  border-radius:6px;
-                  opacity:0.8;
-              ">
-                  Lat: --, Lng: --
+              <div class="position-relative">
+                <div id="map" style="
+                    height: 300px;
+                    border-radius: 10px;
+                    overflow: hidden;
+                    border: 1px solid #ddd;
+                "></div>
+                <div id="map-coords" style="
+                    position:absolute;
+                    top: 12px;
+                    right: 12px;
+                    background:#000;
+                    color:#fff;
+                    padding:4px 8px;
+                    font-size:10px;
+                    z-index: 1000;
+                    border-radius:6px;
+                    opacity:0.8;
+                    pointer-events:none;
+                ">
+                    Lat: --, Lng: --
+                </div>
               </div>
               <div class="mt-2 small text-muted">
                 Drag the pin to your exact store location
@@ -223,6 +227,11 @@
     });
 
     const $dealerForm = $('#newDealerForm');
+    const $dealerType = $('#new_dealer input[name="dealer_type"]');
+    const $dealerSpoWrap = $('#dealerSpoWrap');
+    const $dealerCenterWrap = $('#dealerCenterWrap');
+    const $spo = $('#new_dealer #spo');
+    const $center = $('#new_dealer #center');
     const $firstName = $('#new_dealer #first_name');
     const $lastName = $('#new_dealer #last_name');
     const $mothersName = $('#new_dealer #mothers_name');
@@ -232,6 +241,24 @@
 
     let duplicateDealerTimeout = null;
     let duplicateDealerRequestId = 0;
+
+    function updateDealerTypeFields() {
+      const selectedDealerType = $dealerType.filter(':checked').val() || $dealerType.val() || 'Regular';
+      const isRegular = String(selectedDealerType).toLowerCase() === 'regular';
+
+      $dealerSpoWrap.toggleClass('d-none', isRegular);
+      $dealerCenterWrap.toggleClass('d-none', isRegular);
+      $spo.prop('disabled', isRegular).prop('required', !isRegular);
+      $center.prop('disabled', isRegular).prop('required', !isRegular);
+
+      if (isRegular) {
+        $spo.val('');
+        $center.val('').trigger('change');
+      }
+    }
+
+    $dealerType.on('change', updateDealerTypeFields);
+    updateDealerTypeFields();
 
     function setDuplicateDealerValidation(isDuplicate, message = duplicateDealerMessage) {
       $firstName.add($lastName).add($mothersName).toggleClass('is-invalid', isDuplicate);
@@ -527,18 +554,51 @@
         </div>
     `;
   }
+
+  $(document).on('shown.bs.modal', '#new_dealer', function () {
+    if (typeof window.initSelect2 === 'function') {
+      window.initSelect2(this);
+      return;
+    }
+
+    if ($.fn.select2) {
+      $(this).find('select.select2-area').select2({
+        width: '100%',
+        dropdownParent: $(this),
+        placeholder: 'Select Area',
+        allowClear: true,
+        theme: 'bootstrap-5',
+        templateResult: formatArea,
+        templateSelection: formatArea,
+        escapeMarkup: markup => markup
+      });
+    }
+  });
 </script>
 
 <script>
   let map, marker;
+  const defaultLat = 14.5995;
+  const defaultLng = 120.9842;
 
   function initMap() {
 
-    // Default: Philippines
-    const defaultLat = 14.5995;
-    const defaultLng = 120.9842;
+    const mapElement = document.getElementById('map');
 
-    map = L.map('map').setView([defaultLat, defaultLng], 13);
+    if (!mapElement || typeof L === 'undefined') {
+      return;
+    }
+
+    if (map) {
+      setTimeout(function () {
+        map.invalidateSize();
+      }, 150);
+      return;
+    }
+
+    map = L.map(mapElement, {
+      scrollWheelZoom: false
+    }).setView([defaultLat, defaultLng], 13);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap'
@@ -551,23 +611,39 @@
     // Set initial hidden values
     updateLatLng(defaultLat, defaultLng);
 
+    marker.on('drag', function () {
+      const position = marker.getLatLng();
+      updateLatLng(position.lat, position.lng);
+    });
+
     // Drag event
-    marker.on('dragend', function (e) {
-        const position = marker.getLatLng();
-        updateLatLng(position.lat, position.lng);
-        reverseGeocode(position.lat, position.lng);
+    marker.on('dragend', function () {
+      const position = marker.getLatLng();
+      updateLatLng(position.lat, position.lng);
+      reverseGeocode(position.lat, position.lng);
     });
 
     // Click map to move pin
     map.on('click', function (e) {
-        marker.setLatLng(e.latlng);
-        updateLatLng(e.latlng.lat, e.latlng.lng);
-        reverseGeocode(e.latlng.lat, e.latlng.lng);
+      marker.setLatLng(e.latlng);
+      updateLatLng(e.latlng.lat, e.latlng.lng);
+      reverseGeocode(e.latlng.lat, e.latlng.lng);
     });
+
+    setTimeout(function () {
+      map.invalidateSize();
+    }, 250);
   }
 
   // Update hidden inputs
   function updateLatLng(lat, lng) {
+    lat = parseFloat(lat);
+    lng = parseFloat(lng);
+
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      return;
+    }
+
     $('#hidden_latitude').val(lat);
     $('#hidden_longitude').val(lng);
 
@@ -629,7 +705,11 @@
   if (!address) return;
 
   // ✅ SAFETY CHECK (FIXES YOUR ERROR)
-  if (typeof map === 'undefined' || !map || typeof map.flyTo !== 'function') {
+  if (!map) {
+      initMap();
+  }
+
+  if (!map || !marker || typeof map.flyTo !== 'function') {
       console.warn('Map not initialized yet');
       return;
   }
@@ -659,4 +739,29 @@
 
     $('#map').css('opacity', '1');
   }
+
+  $('#new_dealer')
+    .off('shown.bs.modal.pinLocation')
+    .on('shown.bs.modal.pinLocation', function () {
+      initMap();
+
+      setTimeout(function () {
+        if (!map) {
+          return;
+        }
+
+        map.invalidateSize();
+
+        const lat = parseFloat($('#hidden_latitude').val()) || defaultLat;
+        const lng = parseFloat($('#hidden_longitude').val()) || defaultLng;
+
+        map.setView([lat, lng], map.getZoom() || 13);
+
+        if (marker) {
+          marker.setLatLng([lat, lng]);
+        }
+
+        updateLatLng(lat, lng);
+      }, 250);
+    });
 </script>

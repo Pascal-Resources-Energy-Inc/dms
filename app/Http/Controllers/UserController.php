@@ -11,6 +11,7 @@ use App\AreaDistributor;
 use App\AreaAd;
 use RealRashid\SweetAlert\Facades\Alert;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use OwenIt\Auditing\Facades\Auditor;
 use Illuminate\Http\Request;
@@ -62,6 +63,8 @@ class UserController extends Controller
             'designation' => 'required_if:role,Admin|nullable|string|max:255',
             'employee_number' => 'required_if:role,Admin|nullable|string|max:255',
             'department' => 'required_if:role,Admin|nullable|string|max:255',
+            'type' => 'nullable|array',
+            'type.*' => 'in:Project Rise,Project Genesis,Regular',
         ]);
 
        $duplicate = false;
@@ -81,8 +84,14 @@ class UserController extends Controller
 
         }
 
-        $types = $request->input('type', []);
-        $types = array_values(array_filter($types, fn($t) => $t !== 'Regular'));
+        $projectTags = collect((array) $request->input('type', []))
+            ->map(function ($type) {
+                return trim((string) $type);
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
 
 
         $imagePath = null;
@@ -111,7 +120,15 @@ class UserController extends Controller
             ? ($request->has('same_as_address') ? $request->address : $request->delivery_address)
             : null;
         $user->role = $request->role;
-        $user->type = json_encode($types);
+
+        if (Schema::hasColumn('users', 'type')) {
+            $user->type = json_encode($projectTags);
+        }
+
+        if (Schema::hasColumn('users', 'project_tag')) {
+            $user->project_tag = implode(', ', $projectTags);
+        }
+
         $user->birthdate = $isAdmin ? null : $request->birthdate;
         $user->age = $isAdmin ? null : $request->age;
         $user->mothers_name = $isAdmin ? null : $request->mothers_name;
@@ -189,40 +206,30 @@ class UserController extends Controller
 
 
         $joiningDates = $request->input('joining_date', []);
-        $riseAreas = $request->input('area_name_rise', []);
-        $genesisAreas = $request->input('area_name_genesis', []);
-
-        $maxRows = max(
-            count($joiningDates),
-            count($riseAreas),
-            count($genesisAreas)
-        );
+        $awardedAreas = $request->input('area_name', []);
+        $maxRows = max(count($joiningDates), count($awardedAreas));
 
         for ($i = 0; $i < $maxRows; $i++) {
-
-            $rise = $riseAreas[$i] ?? null;
-            $genesis = $genesisAreas[$i] ?? null;
+            $areaName = $awardedAreas[$i] ?? null;
             $date = $joiningDates[$i] ?? null;
 
-            // Save Rise
-            if ($rise) {
+            if ($areaName && !empty($projectTags)) {
+                foreach ($projectTags as $projectTag) {
+                    AreaAd::create([
+                        'ad_id' => $areaDistributor->id,
+                        'ad_user_id' => $user->id,
+                        'area_name' => $areaName,
+                        'project_type' => $projectTag,
+                        'joining_date' => $date,
+                        'user_role' => $request->role,
+                    ]);
+                }
+            } elseif ($areaName) {
                 AreaAd::create([
                     'ad_id' => $areaDistributor->id,
                     'ad_user_id' => $user->id,
-                    'area_name' => $rise,
-                    'project_type' => 'Project Rise',
-                    'joining_date' => $date,
-                    'user_role' => $request->role,
-                ]);
-            }
-
-            // Save Genesis
-            if ($genesis) {
-                AreaAd::create([
-                    'ad_id' => $areaDistributor->id,
-                    'ad_user_id' => $user->id,
-                    'area_name' => $genesis,
-                    'project_type' => 'Project Genesis',
+                    'area_name' => $areaName,
+                    'project_type' => null,
                     'joining_date' => $date,
                     'user_role' => $request->role,
                 ]);
@@ -622,8 +629,10 @@ class UserController extends Controller
         return \Yajra\DataTables\Facades\DataTables::of($query)
 
             ->addColumn('name', function ($user) {
-                return trim(strtoupper(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')))
-                    ?: strtoupper(($user->name ?? ''));
+                $name = $user->name
+                    ?: trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
+
+                return strtoupper($name);
             })
 
             ->addColumn('email', function ($user) {
@@ -631,7 +640,20 @@ class UserController extends Controller
             })
 
             ->addColumn('role', function ($user) {
-                return strtoupper($user->role ?? '');
+                $role = strtoupper($user->role ?? 'N/A');
+                $roleClass = 'is-muted';
+
+                if ($user->role === 'Admin') {
+                    $roleClass = 'is-admin';
+                } elseif ($user->role === 'Client') {
+                    $roleClass = 'is-client';
+                } elseif ($user->role === 'Dealer') {
+                    $roleClass = 'is-dealer';
+                } elseif (in_array($user->role, ['Area Distributor', 'Provincial Distributor', 'Mega Dealer'], true)) {
+                    $roleClass = 'is-distributor';
+                }
+
+                return '<span class="user-pill '.$roleClass.'">'.$role.'</span>';
             })
 
             // ->addColumn('address', function ($user) {
@@ -657,17 +679,47 @@ class UserController extends Controller
                     ?? optional($user->ad)->status
                     ?? 'N/A';
 
-                return strtoupper($status);
+                $statusText = strtoupper($status);
+                $statusClass = strcasecmp($status, 'Active') === 0
+                    ? 'is-active'
+                    : (strcasecmp($status, 'Inactive') === 0 ? 'is-inactive' : 'is-muted');
+
+                return '<span class="user-pill '.$statusClass.'">'.$statusText.'</span>';
             })
 
             ->addColumn('actions', function ($user) {
-                return '
-                    <button class="btn btn-sm btn-primary btn-edit-user" data-id="'.$user->id.'">Edit</button>
-                    <button class="btn btn-sm btn-warning btn-access-user" data-id="'.$user->id.'">Access</button>
-                ';
+                $currentUser = auth()->user();
+                $canEdit = $currentUser && $currentUser->role === 'Admin' && $currentUser->can_edit === 'on';
+                $canAdd = $currentUser && $currentUser->role === 'Admin' && $currentUser->can_add === 'on';
+
+                $status = optional($user->dealer)->status
+                    ?? optional($user->client)->status
+                    ?? optional($user->ad)->status
+                    ?? 'N/A';
+
+                $buttons = [];
+
+                if ($status !== 'Inactive') {
+                    if ($user->role === 'Dealer' && $user->dealer) {
+                        $buttons[] = '<a href="'.url('view-dealer/'.$user->dealer->id).'" class="btn-custom btn-view-custom" title="View Details"><i class="fas fa-eye"></i></a>';
+                    } elseif ($user->role === 'Client' && $user->client) {
+                        $buttons[] = '<a href="'.url('view-client/'.$user->client->id).'" class="btn-custom btn-view-custom" title="View Details"><i class="fas fa-eye"></i></a>';
+                    } elseif (in_array($user->role, ['Area Distributor', 'Provincial Distributor', 'Mega Dealer'], true) && $user->ad) {
+                        $buttons[] = '<a href="'.url('view-ad/'.$user->ad->id).'" class="btn-custom btn-view-custom" title="View Details"><i class="fas fa-eye"></i></a>';
+                    }
+                }
+
+                if ($canEdit) {
+                    $buttons[] = '<button type="button" class="btn-custom btn-edit-custom btn-edit-user" data-id="'.$user->id.'" title="Edit User"><i class="fas fa-edit"></i></button>';
+                }
+
+                if ($user->role === 'Admin' && ($canEdit || $canAdd)) {
+                    $buttons[] = '<button type="button" class="btn-custom btn-access-custom btn-access-user" data-id="'.$user->id.'" title="Access Control"><i class="fas fa-key"></i></button>';
+                }
+
+                return '<div class="action-buttons">'.implode('', $buttons).'</div>';
             })
 
-            // 🔥 IMPORTANT: ENABLE SEARCH HERE
             ->filter(function ($query) use ($request) {
 
                 if ($request->has('search') && $request->search['value']) {
@@ -680,11 +732,11 @@ class UserController extends Controller
                             "CONCAT(users.first_name, ' ', users.last_name) LIKE ?",
                             ["%{$search}%"]
                         )
+                        ->orWhere('users.name', 'LIKE', "%{$search}%")
                         ->orWhere('users.email', 'LIKE', "%{$search}%")
                         ->orWhere('users.role', 'LIKE', "%{$search}%")
                         ->orWhere('users.address', 'LIKE', "%{$search}%");
 
-                        // 🔥 include relations
                         $q->orWhereHas('dealer', function ($q2) use ($search) {
                             $q2->where('address', 'LIKE', "%{$search}%")
                             ->orWhere('status', 'LIKE', "%{$search}%");
@@ -699,7 +751,7 @@ class UserController extends Controller
                 }
             })
 
-            ->rawColumns(['actions'])
+            ->rawColumns(['status', 'role', 'actions'])
             ->make(true);
     }
 }

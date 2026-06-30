@@ -88,7 +88,7 @@
         <div class="pricing-actions">
             <input type="search" id="productSearch" class="form-control pricing-search" placeholder="Search product or SKU">
             <button class="btn btn-success px-4" type="submit">
-                <i class="bi bi-check2-circle"></i> Save Prices
+                <i class="bi bi-check2-circle"></i> Save
             </button>
         </div>
     </div>
@@ -221,7 +221,7 @@
 
     <div class="save-bar">
         <button class="btn btn-success px-4" type="submit">
-            <i class="bi bi-check2-circle"></i> Save Prices
+            <i class="bi bi-check2-circle"></i> Save
         </button>
     </div>
 </form>

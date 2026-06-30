@@ -64,6 +64,17 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 @endsection
 @section('content')
+@php
+    $isRemoteCustomer = $isRemoteCustomer ?? false;
+    $sourceLabel = $customer->source_label ?? 'Local Database';
+    $profileName = trim(strtoupper($customer->user->first_name ?? '') . ' ' . strtoupper($customer->user->last_name ?? ''));
+    $profileName = $profileName ?: strtoupper($customer->name ?? '-');
+    $serialNumber = $customer->serial_number ?? ($customer->serial->serial_number ?? '-');
+    $avatar = $customer->avatar ?? null;
+    $avatarUrl = $avatar
+        ? (preg_match('/^https?:\/\//i', $avatar) ? $avatar : asset($avatar))
+        : asset('design/assets/images/profile/user-1.png');
+@endphp
 <section class="welcome">
      <!-- Customer Info Section -->
      <div class="row">
@@ -75,28 +86,33 @@
                 <div class="card-body">
                     <div class='text-center'>
                         {{-- <img src="{{$customer->avatar ? asset($customer->avatar) : asset('design/assets/images/profile/user-1.png')}}" alt="Avatar Image" class="img-fluid rounded-circle" style="width: 100px; height: 100px;"> --}}
-                        <img src="{{$customer->avatar ? asset($customer->avatar) : asset('design/assets/images/profile/user-1.png')}}" class="profile-avatar mx-auto">
-                        <div class="profile-name">{{ trim(strtoupper($customer->user->first_name ?? '')) . ' ' . strtoupper(($customer->user->last_name ?? '')) ?: ( strtoupper($customer->name ?? '')) }}</div>
+                        <img src="{{ $avatarUrl }}" class="profile-avatar mx-auto">
+                        <div class="profile-name">{{ $profileName }}</div>
                         <div class="text-muted small">{{ strtoupper($customer->client_reference) }}</div>
                     </div>  
                     <br>
-                   <div class='text-center'>
-                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"  data-bs-target="#uploadAvatarModal" title="Upload Avatar">
-                        <i class="fas fa-camera"></i>
-                        <span class="sr-only">Upload Avatar</span>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editCustomerModal" title="Edit Customer">
-                        <i class="fas fa-edit"></i>
-                        <span class="sr-only">Edit Customer</span>
-                        </button>
-                    </div>
+                    @unless($isRemoteCustomer)
+                        <div class='text-center'>
+                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"  data-bs-target="#uploadAvatarModal" title="Upload Avatar">
+                            <i class="fas fa-camera"></i>
+                            <span class="sr-only">Upload Avatar</span>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editCustomerModal" title="Edit Customer">
+                            <i class="fas fa-edit"></i>
+                            <span class="sr-only">Edit Customer</span>
+                            </button>
+                        </div>
+                    @endunless
                     <hr>
                     <div class="profile-info text-start">
-                        <p><i class="bi bi-telephone"></i> {{ strtoupper($customer->number) }}</p>
-                        <p><i class="bi bi-geo-alt"></i> {{ strtoupper($customer->address) }}</p>
-                        <p><i class="bi bi-facebook"></i> {{ strtoupper($customer->facebook) }}</p>
-                        <p><i class="bi bi-envelope"></i> {{ strtoupper($customer->email_address) }}</p>
-                        <p><i class="bi bi-upc"></i> {{ strtoupper($customer->serial_number) }}</p>
+                        @if($isRemoteCustomer)
+                            <p><i class="bi bi-database"></i> {{ strtoupper($sourceLabel) }}</p>
+                        @endif
+                        <p><i class="bi bi-telephone"></i> {{ strtoupper($customer->number ?? '-') }}</p>
+                        <p><i class="bi bi-geo-alt"></i> {{ strtoupper($customer->address ?? '-') }}</p>
+                        <p><i class="bi bi-facebook"></i> {{ strtoupper($customer->facebook ?? '-') }}</p>
+                        <p><i class="bi bi-envelope"></i> {{ strtoupper($customer->email_address ?? '-') }}</p>
+                        <p><i class="bi bi-upc"></i> {{ strtoupper($serialNumber ?: '-') }}</p>
                     </div>
                     <!-- Customer Personal Details -->
                     {{-- <p><strong>Name:</strong> {{$customer->name}}</p>
@@ -126,9 +142,11 @@
                             <div class="card-body">
                             <h5 class="card-title">
                                 <i class="bi bi-person-vcard-fill me-2"></i> Valid ID Information  &nbsp;
-                                <button type="button" data-bs-toggle="modal"  data-bs-target="#viewValidId" class="btn btn-primary btn-sm btn-radius">
-                                    <i class="bi bi-file-earmark"></i>
-                                </button>
+                                @unless($isRemoteCustomer)
+                                    <button type="button" data-bs-toggle="modal"  data-bs-target="#viewValidId" class="btn btn-primary btn-sm btn-radius">
+                                        <i class="bi bi-file-earmark"></i>
+                                    </button>
+                                @endunless
                             </h5>
                             <hr>
                             <p class="mb-2">
@@ -142,9 +160,13 @@
                         <div class="card-body text-center">
                         <h5 class="card-title"><i class="bi bi-person-vcard"></i> Upload Valid ID</h5>
                         <p class="card-text">Submit a valid government-issued ID.</p>
-                        <button class="btn btn-danger" type='button' data-bs-toggle="modal"  data-bs-target="#uploadIdModal">
-                            <i class="bi bi-upload"></i> Upload ID
-                        </button>
+                        @if($isRemoteCustomer)
+                            <span class="btn btn-outline-secondary btn-sm disabled">Missing</span>
+                        @else
+                            <button class="btn btn-danger" type='button' data-bs-toggle="modal"  data-bs-target="#uploadIdModal">
+                                <i class="bi bi-upload"></i> Upload ID
+                            </button>
+                        @endif
                         </div>
                         @endif
                     </div>
@@ -156,9 +178,13 @@
                             <h6 class="card-title"><i class="mdi mdi-file-document-check-outline"></i> Signed Contract</h6>
 
                             @if($customer->signature)
-                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#contractView">
-                            <i class="bi bi-file-text"></i> View Signed Contract
-                            </button>
+                                @if($isRemoteCustomer)
+                                    <span class="btn btn-outline-secondary btn-sm disabled">Available</span>
+                                @else
+                                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#contractView">
+                                    <i class="bi bi-file-text"></i> View Signed Contract
+                                    </button>
+                                @endif
                             @else
                             <p class="text-muted"><i class="mdi mdi-close-circle-outline"></i> No contract uploaded.</p>
                             @endif
@@ -169,9 +195,13 @@
                             <div class="card-body text-center">
                             <h5 class="card-title"><i class="bi bi-file-earmark-text"></i> Contract Signing</h5>
                             <p class="card-text">Review and sign the contract.</p>
-                            <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#contractModal">
-                                <i class="bi bi-pencil-square"></i> Sign Contract
-                            </button>
+                            @if($isRemoteCustomer)
+                                <span class="btn btn-outline-secondary btn-sm disabled">Missing</span>
+                            @else
+                                <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#contractModal">
+                                    <i class="bi bi-pencil-square"></i> Sign Contract
+                                </button>
+                            @endif
                             </div>
                         </div>
                     @endif
@@ -198,24 +228,20 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($transactions as $transaction)
+                                    @forelse($transactions as $transaction)
                                     <tr>
-                                        <td>{{$transaction->id}}</td>
-                                        <td>{{$transaction->item}}</td>
-                                        <td>{{$transaction->qty}}</td>
-                                        <td><span class='text-success'>{{$transaction->points_client}}</span></td>
-                                        <td>{{number_format($transaction->qty*$transaction->price,2)}}</td>
-                                        <td>{{date('M d, Y',strtotime($transaction->created_at))}}</td>
+                                        <td>{{ $transaction->id }}</td>
+                                        <td>{{ $transaction->item ?: '-' }}</td>
+                                        <td>{{ number_format($transaction->qty) }}</td>
+                                        <td><span class='text-success'>{{ number_format($transaction->points_client) }}</span></td>
+                                        <td>{{ number_format($transaction->qty * $transaction->price, 2) }}</td>
+                                        <td>{{ date('M d, Y', strtotime($transaction->created_at)) }}</td>
                                     </tr>
-                                    @endforeach
-                                    <!-- Sample Purchase 1 -->
-                                    {{-- <tr>
-                                        <td>123</td>
-                                        <td>330g LPG Cylinder</td>
-                                        <td>5</td>
-                                        <td>PHP XXX.00</td>
-                                        <td>March 1, 2025</td>
-                                    </tr> --}}
+                                    @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">No transactions found for this customer.</td>
+                                    </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
@@ -227,28 +253,33 @@
     
 
 </section>
-@include('change_avatar')
-@include('upload_valid_id')
-@include('sign_contract')
-@include('viewValidId')
-@include('view_contract_signed')
-@include('edit_customer')
+@unless($isRemoteCustomer)
+    @include('change_avatar')
+    @include('upload_valid_id')
+    @include('sign_contract')
+    @include('viewValidId')
+    @include('view_contract_signed')
+    @include('edit_customer')
+@endunless
 @endsection
 
 @section('javascript')
+@unless($isRemoteCustomer)
 <script>
   const canvas = document.getElementById('signatureCanvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas ? canvas.getContext('2d') : null;
   let drawing = false;
 
-  canvas.addEventListener('mousedown', () => drawing = true);
-  canvas.addEventListener('mouseup', () => {
-    drawing = false;
-    ctx.beginPath();
-    saveSignatureAsFile(); // Save after drawing
-  });
-  canvas.addEventListener('mouseout', () => drawing = false);
-  canvas.addEventListener('mousemove', draw);
+  if (canvas && ctx) {
+    canvas.addEventListener('mousedown', () => drawing = true);
+    canvas.addEventListener('mouseup', () => {
+      drawing = false;
+      ctx.beginPath();
+      saveSignatureAsFile();
+    });
+    canvas.addEventListener('mouseout', () => drawing = false);
+    canvas.addEventListener('mousemove', draw);
+  }
 
   function draw(e) {
     if (!drawing) return;
@@ -388,6 +419,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 </script>
+@endunless
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script>
     // Valid data for QR code generation

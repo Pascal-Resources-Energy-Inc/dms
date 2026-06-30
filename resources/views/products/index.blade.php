@@ -1,32 +1,70 @@
 @extends('layouts.header')
 
-<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css" rel="stylesheet">
+@section('css')
+<link rel="stylesheet" href="{{ asset('design/assets/libs/datatables.net-bs5/css/dataTables.bootstrap5.min.css') }}">
 <link rel="stylesheet" href="{{ asset('design/assets/css/forms.css') }}">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-
-@section('head')
-<meta name="csrf-token" content="{{ csrf_token() }}">
 @endsection
+
 @section('content')
-<section class="welcome">
-    <div class="row">
-        <div class="col-lg-12 col-xl-12 d-flex align-items-stretch">
-            <div class="card w-100">  
-                <div class="card-body">
-                    <h5>Product List</h5>
-                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addProductModal">
-                        + Add Product
-                    </button>
-                    <a href="{{ route('products.create') }}" class="btn btn-sm btn-outline-primary">
-                        Price Matrix
-                    </a>
-                    {{-- <button class="btn-sm btn-success btn" data-bs-toggle="modal" data-bs-target="#new_products">+ Add</button> --}}
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-striped" id="example">
+@php
+    $totalProducts = $products->count();
+    $activeProducts = $products->where('status', 'Activate')->count();
+    $bundleProducts = $products->filter(function ($product) {
+        return (($product->item_type ?? optional($product->item)->item_type) === 'bundle')
+            || collect($product->bundle_product_ids ?? [])->filter()->isNotEmpty();
+    })->count();
+@endphp
+<section class="welcome product-page">
+    <div class="product-head">
+        <div>
+            <h4 class="product-title">Products</h4>
+            <p class="product-copy">Manage product catalog, prices, bundle composition, and availability.</p>
+        </div>
+        <div class="product-actions">
+            <a href="{{ route('products.create') }}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-grid-3x3-gap"></i>
+                Price Matrix
+            </a>
+            <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                <i class="bi bi-plus-lg"></i>
+                Add Product
+            </button>
+        </div>
+    </div>
+
+    <div class="product-summary" aria-label="Product summary">
+        <div class="product-tile is-total">
+            <span class="product-tile-icon"><i class="bi bi-box-seam"></i></span>
+            <div>
+                <span>Total Products</span>
+                <strong>{{ number_format($totalProducts) }}</strong>
+            </div>
+        </div>
+        <div class="product-tile is-active">
+            <span class="product-tile-icon active"><i class="bi bi-check2-circle"></i></span>
+            <div>
+                <span>Active</span>
+                <strong>{{ number_format($activeProducts) }}</strong>
+            </div>
+        </div>
+        <div class="product-tile is-bundle">
+            <span class="product-tile-icon bundle"><i class="bi bi-boxes"></i></span>
+            <div>
+                <span>Bundles</span>
+                <strong>{{ number_format($bundleProducts) }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="product-panel">
+        <div class="product-panel-head">
+            <div>
+                <div class="fw-bold text-dark">Product List</div>
+                <div class="text-muted small">{{ number_format($totalProducts) }} product(s) found</div>
+            </div>
+        </div>
+        <div class="table-responsive product-table-wrap">
+                        <table class="table align-middle product-table" id="example">
                             <thead>
                                 <tr>
                                     <th>Product Image</th>
@@ -97,9 +135,9 @@
                                         </div>
                                     </td>
 
-                                    <td>{{ strtoupper($product->product_name) }}</td>
-                                    <td>{{ strtoupper($product->description) ?? '-' }}</td>
-                                    <td>{{ strtoupper($product->sku) }}</td>
+                                    <td class="fw-semibold text-dark">{{ strtoupper($product->product_name) }}</td>
+                                    <td class="text-muted">{{ strtoupper($product->description) ?? '-' }}</td>
+                                    <td><span class="product-sku">{{ strtoupper($product->sku) }}</span></td>
                                     <td>₱{{ number_format($product->price, 2) }}</td>
                                     <td>₱{{ number_format($product->mega_dealer_price ?? $product->price, 2) }}</td>
                                     <td>₱{{ number_format($product->dealer_price ?? $product->price, 2) }}</td>
@@ -108,15 +146,15 @@
 
                                     <td>
                                         @if($product->status == 'Activate')
-                                            <span class="badge bg-success">Activate</span>
+                                            <span class="product-status active"><i class="bi bi-circle-fill"></i> Activate</span>
                                         @else
-                                            <span class="badge bg-danger">Deactivate</span>
+                                            <span class="product-status inactive"><i class="bi bi-circle-fill"></i> Deactivate</span>
                                         @endif
                                     </td>
 
                                     <td>
                                         @if($product->is_new === 1)
-                                            <button class="btn btn-sm btn-primary edit-btn"
+                                            <button class="btn btn-sm btn-outline-primary product-icon-btn edit-btn"
                                                 data-id="{{ $product->id }}"
                                                 data-name="{{ $product->product_name }}"
                                                 data-description="{{ $product->description }}"
@@ -130,7 +168,7 @@
                                                 data-item-type="{{ $isBundle ? 'bundle' : 'product' }}"
                                                 data-bundle-product-ids='@json($bundleProductIds->values())'
                                                 data-image="{{ asset('uploads/products/'.$product->product_image) }}">
-                                                Edit
+                                                <i class="bi bi-pencil"></i>
                                             </button>
                                         @endif
                                     </td>
@@ -138,9 +176,6 @@
                                 @endforeach
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </section>
@@ -527,6 +562,151 @@
 </div>
 
 <style>
+    .product-page { display: grid; gap: 16px; padding: 8px 0 24px; }
+    .product-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+    .product-title { margin: 0; color: #101828; font-size: 24px; font-weight: 900; }
+    .product-copy { margin: 4px 0 0; color: #667085; font-size: 13px; }
+    .product-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .product-actions .btn,
+    .edit-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+    .product-summary { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 12px; }
+    .product-tile {
+        position: relative;
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        align-items: center;
+        gap: 13px;
+        min-height: 92px;
+        padding: 16px;
+        overflow: hidden;
+        border: 1px solid #e6e9ef;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .04);
+    }
+    .product-tile::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: #1d4ed8; }
+    .product-tile.is-active::before { background: #027a48; }
+    .product-tile.is-bundle::before { background: #c2410c; }
+    .product-tile-icon { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: #eff6ff; color: #1d4ed8; font-size: 20px; }
+    .product-tile-icon.active { background: #ecfdf3; color: #027a48; }
+    .product-tile-icon.bundle { background: #fff7ed; color: #c2410c; }
+    .product-tile span:not(.product-tile-icon) { display: block; color: #667085; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .product-tile strong { display: block; margin-top: 4px; color: #101828; font-size: 22px; font-weight: 900; line-height: 1.15; }
+    .product-panel {
+        overflow: hidden;
+        border: 1px solid #e6e9ef;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, .06);
+    }
+    .product-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-bottom: 1px solid #edf0f5; background: #fcfcfd; }
+    .product-table-wrap { width: 100%; }
+    .product-table { width: 100% !important; margin: 0 !important; color: #344054; }
+    .product-table thead th {
+        padding: 12px 14px;
+        border-bottom: 1px solid #edf0f5;
+        background: #f8fafc;
+        color: #667085;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+    .product-table tbody td {
+        padding: 14px;
+        border-color: #f1f3f6;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+    .product-table tbody tr:hover { background: #fafafa; }
+    .product-sku {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 3px 8px;
+        border: 1px solid #dbe4ef;
+        border-radius: 8px;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 800;
+    }
+    .product-status { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .product-status i { font-size: 7px; }
+    .product-status.active { background: #dcfce7; color: #166534; }
+    .product-status.inactive { background: #fee2e2; color: #991b1b; }
+    .product-icon-btn { width: 34px; height: 34px; padding: 0; }
+    .dataTables_wrapper .dataTables_length label,
+    .dataTables_wrapper .dataTables_filter label,
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    .product-table-controls,
+    .product-table-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .product-table-controls { padding: 12px 14px 0; }
+    .product-table-footer { padding: 12px 14px; border-top: 1px solid #f1f3f6; }
+    .dataTables_wrapper .dataTables_filter input,
+    .dataTables_wrapper .dataTables_length select,
+    .dataTables_wrapper .form-select,
+    .dataTables_wrapper .form-control {
+        border-color: #dbe4ef;
+        border-radius: 8px;
+        box-shadow: none;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        min-width: min(280px, 70vw);
+        min-height: 38px;
+        margin-left: 0;
+        padding: 8px 12px;
+    }
+    .dataTables_wrapper .dataTables_length select {
+        min-height: 36px;
+        margin: 0 4px;
+        padding: 6px 30px 6px 10px;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        min-width: 36px;
+        min-height: 36px;
+        margin-left: 4px;
+        padding: 7px 11px;
+        border: 1px solid #dbe4ef !important;
+        border-radius: 8px;
+        color: #2563eb !important;
+        background: #fff !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+        border-color: #2563eb !important;
+        color: #fff !important;
+        background: #2563eb !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+        color: #94a3b8 !important;
+        opacity: .7;
+    }
+    .dataTables_wrapper .page-link { border-radius: 8px; color: #2563eb; }
+    .dataTables_wrapper .page-item.active .page-link {
+        border-color: #2563eb;
+        background: #2563eb;
+    }
     .product-image-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 70px; }
     .product-image-frame { position: relative; width: 58px; height: 58px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background: #f8fafc; }
     .product-image-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -578,10 +758,19 @@
     .bundle-summary-savings strong { color: #15803d; }
     .bundle-empty-selection { margin-top: 12px; padding: 10px; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 12px; text-align: center; }
     @media (max-width: 991.98px) {
+        .product-head { align-items: stretch; flex-direction: column; }
+        .product-summary { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+        .product-panel { overflow-x: auto; }
+        .product-table { min-width: 1180px; }
         .bundle-builder-layout { grid-template-columns: 1fr; }
         .bundle-summary-panel { position: static; }
     }
     @media (max-width: 575.98px) {
+        .product-summary { grid-template-columns: 1fr; }
+        .product-actions { width: 100%; justify-content: stretch; }
+        .product-actions .btn { flex: 1 1 150px; }
+        .product-table-controls, .product-table-footer { align-items: stretch; flex-direction: column; }
+        .dataTables_wrapper .dataTables_filter input { width: 100%; min-width: 0; }
         .bundle-switch-panel, .bundle-products-head { align-items: flex-start; flex-direction: column; }
         .bundle-product-row { align-items: flex-start; }
         .bundle-product-price { margin-left: auto; }
@@ -589,20 +778,32 @@
 </style>
 
 @section('javascript')
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
-    <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap4.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ asset('design/assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 
     <script>
         $(document).ready(function () {
 
-            $('#example').DataTable();
+            if ($.fn.DataTable) {
+                $('#example').DataTable({
+                    pageLength: 10,
+                    responsive: true,
+                    order: [[1, 'asc']],
+                    columnDefs: [
+                        { orderable: false, targets: [0, 10] }
+                    ],
+                    dom: '<"product-table-controls"lf>rt<"product-table-footer"ip>',
+                    language: {
+                        search: '',
+                        searchPlaceholder: 'Search products...',
+                        lengthMenu: 'Show _MENU_ products',
+                        info: 'Showing _START_ to _END_ of _TOTAL_ products',
+                        paginate: {
+                            previous: 'Previous',
+                            next: 'Next'
+                        }
+                    }
+                });
+            }
 
             const editModal = new bootstrap.Modal(
                 document.getElementById('editProductModal')

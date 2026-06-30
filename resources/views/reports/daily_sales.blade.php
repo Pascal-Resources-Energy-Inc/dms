@@ -175,9 +175,9 @@
                                         </small>
                                     </th>
                                 @endforeach
-                                <th rowspan="2" class="text-center" style="vertical-align: middle">
-                                    Total Amount
-                                </th>
+                                <th rowspan="2" class="text-center" style="vertical-align: middle">Delivery Fee</th>
+                                <th rowspan="2" class="text-center" style="vertical-align: middle">Other Charges</th>
+                                <th rowspan="2" class="text-center" style="vertical-align: middle">Total Amount</th>
                                 <th colspan="4" class="text-center">
                                     Payment Methods
                                 </th>
@@ -197,6 +197,8 @@
                             @forelse($reports as $date => $transactions)
                                 @php
                                     $dailySubtotal = 0;
+                                    $dailyDeliveryFeeTotal = 0;
+                                    $dailyOtherChargeTotal = 0;
                                     $paymentTotals = [
                                         'cash' => 0,
                                         'gcash' => 0,
@@ -216,7 +218,7 @@
 
                                 {{-- DATE GROUP --}}
                                 <tr class="date-group-row">
-                                    <td colspan="{{ (count($items) * 2) + 8 }}">
+                                    <td colspan="{{ (count($items) * 2) + 10 }}">
                                         <i class="ti ti-calendar-event me-2"></i>
                                         {{ \Carbon\Carbon::parse($date)->format('F d, Y') }}
                                     </td>
@@ -224,13 +226,26 @@
 
                                 @foreach($transactions as $r)
                                     @php
-                                        $lineTotal = $r->qty * $r->price;
+                                        $lineSubtotal = $r->qty * $r->price;
+                                        $deliveryFee = (float) ($r->delivery_fee ?? 0);
+                                        $otherChargeTotal = $otherCharges->sum(function ($charge) use ($lineSubtotal, $r) {
+                                            if ($charge->applies_to === 'delivery' && $r->delivery_type !== 'delivery') {
+                                                return 0;
+                                            }
+
+                                            return $charge->charge_type === 'percentage'
+                                                ? $lineSubtotal * ((float) $charge->amount / 100)
+                                                : (float) $charge->amount;
+                                        });
+                                        $lineTotal = $lineSubtotal + $deliveryFee + $otherChargeTotal;
 
                                         $dailySubtotal += $lineTotal;
+                                        $dailyDeliveryFeeTotal += $deliveryFee;
+                                        $dailyOtherChargeTotal += $otherChargeTotal;
 
                                         if(isset($productSubtotals[$r->item])){
                                             $productSubtotals[$r->item]['qty'] += $r->qty;
-                                            $productSubtotals[$r->item]['amount'] += $lineTotal;
+                                            $productSubtotals[$r->item]['amount'] += $lineSubtotal;
 
                                         }
 
@@ -255,10 +270,16 @@
                                             </td>
                                             <td class="text-end">
                                                 {{ $r->item == $item->product_name
-                                                    ? '₱'.number_format($lineTotal,2)
+                                                    ? '₱'.number_format($lineSubtotal,2)
                                                     : '₱0.00' }}
                                             </td>
                                         @endforeach
+                                        <td class="text-end">
+                                            {{ $deliveryFee > 0 ? '₱'.number_format($deliveryFee, 2) : '-' }}
+                                        </td>
+                                        <td class="text-end">
+                                            {{ $otherChargeTotal > 0 ? '₱'.number_format($otherChargeTotal, 2) : '-' }}
+                                        </td>
                                         <td class="fw-bold text-success text-end">
                                             ₱{{ number_format($lineTotal, 2) }}
                                         </td>
@@ -298,6 +319,12 @@
                                         </td>
                                     @endforeach
                                     <td class="fw-bold text-end text-success">
+                                        ₱{{ number_format($dailyDeliveryFeeTotal, 2) }}
+                                    </td>
+                                    <td class="fw-bold text-end text-success">
+                                        ₱{{ number_format($dailyOtherChargeTotal, 2) }}
+                                    </td>
+                                    <td class="fw-bold text-end text-success">
                                         ₱{{ number_format($dailySubtotal, 2) }}
                                     </td>
                                     <td class="fw-bold text-end text-primary">
@@ -315,7 +342,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ (count($items) * 2) + 8 }}"
+                                    <td colspan="{{ (count($items) * 2) + 10 }}"
                                         class="text-center py-5 text-muted">
                                         <i class="ti ti-database-off fs-1 d-block mb-2"></i>
                                         No report found

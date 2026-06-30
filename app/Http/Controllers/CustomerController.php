@@ -9,29 +9,281 @@ use App\Client;
 use App\Center;
 use RealRashid\SweetAlert\Facades\Alert;
 use GuzzleHttp\Client as GuzzleClient;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class CustomerController extends Controller
 {
     //
     public function index(Request $request)
-    {   
-        $activeCustomers = Client::where('status', 'Active')->count();
-        $inactiveCustomers = Client::where('status', 'Inactive')->count();
-
+    {
+        $isAdmin = auth()->user()->role === 'Admin';
         $centers = Center::get();
         $stoves = Stove::where('client_id',null)->get();
-        $customers = Client::with(['transactions', 'serial'])->get();
+        $adminCrmCustomers = collect();
+        $adminCrm2Customers = collect();
+        $regularCustomers = collect();
+
+        if ($isAdmin) {
+            $adminCrmCustomers = $this->crmClients('admin_crms', 'Project Rise');
+            $adminCrm2Customers = $this->crmClients('admin_crms2', 'Project Genesis');
+            $regularCustomers = Client::with(['transactions', 'serial'])
+                ->get()
+                ->map(function ($customer) {
+                    $customer->source = 'Regular';
+                    $customer->source_label = 'Regular';
+
+                    return $customer;
+                });
+
+            $customers = $adminCrmCustomers
+                ->merge($adminCrm2Customers)
+                ->merge($regularCustomers)
+                ->values();
+        } else {
+            $customers = Client::with(['transactions', 'serial'])->get();
+        }
+        
+        $activeCustomers = $customers->filter(function ($customer) {
+            return strcasecmp((string) $customer->status, 'Active') === 0;
+        })->count();
+
+        $inactiveCustomers = $customers->filter(function ($customer) {
+            return strcasecmp((string) $customer->status, 'Inactive') === 0;
+        })->count();
+
         return view('customers',
             array(
                 'stoves' => $stoves,
                 'customers' => $customers,
+                'adminCrmCustomers' => $adminCrmCustomers,
+                'adminCrm2Customers' => $adminCrm2Customers,
+                'regularCustomers' => $regularCustomers,
                 'centers' => $centers,
                 'activeCustomers' => $activeCustomers,
                 'inactiveCustomers' => $inactiveCustomers
             )
         );
     }
+
+    private function crmClients($connection, $label)
+    {
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+            $table = $this->crmClientTable($connection);
+
+            if (! $table) {
+                return collect();
+            }
+
+            $query = DB::connection($connection)->table($table)
+                ->select($table . '.*');
+
+            if (
+                $schema->hasTable('stoves') &&
+                $schema->hasColumn($table, 'serial_number') &&
+                $schema->hasColumn('stoves', 'id') &&
+                $schema->hasColumn('stoves', 'serial_number')
+            ) {
+                $stoveSelects = [
+                    'stoves.serial_number as stove_serial_number',
+                ];
+
+                if ($schema->hasColumn('stoves', 'remarks')) {
+                    $stoveSelects[] = 'stoves.remarks as stove_remarks';
+                }
+
+                $query->leftJoin('stoves', $table . '.serial_number', '=', 'stoves.id')
+                    ->addSelect($stoveSelects);
+            }
+
+            if ($schema->hasColumn($table, 'deleted_at')) {
+                $query->whereNull('deleted_at');
+            }
+
+            if ($schema->hasColumn($table, 'id')) {
+                $query->orderByDesc('id');
+            } elseif ($schema->hasColumn($table, 'created_at')) {
+                $query->orderByDesc('created_at');
+            }
+
+            return $query->get()->map(function ($client) use ($connection, $label) {
+                return $this->normalizeCrmClient($client, $connection, $label);
+            });
+        } catch (\Exception $exception) {
+            return collect();
+        }
+    }
+
+    private function crmClientTable($connection)
+    {
+        $schema = DB::connection($connection)->getSchemaBuilder();
+
+        if ($schema->hasTable('clients')) {
+            return 'clients';
+        }
+
+        if ($schema->hasTable('customers')) {
+            return 'customers';
+        }
+
+        return null;
+    }
+
+    private function normalizeCrmClient($client, $connection, $label)
+    {
+        $location = collect([
+            $client->street_address ?? null,
+            $client->location_barangay ?? null,
+            $client->location_city ?? null,
+            $client->location_province ?? null,
+            $client->location_region ?? null,
+        ])->filter()->implode(', ');
+
+        $client->source = $connection;
+        $client->source_label = $label;
+        $client->client_reference = $client->client_reference ?? ($client->customer_reference ?? ('CRM-' . ($client->id ?? '')));
+        $client->name = $client->name ?? trim(collect([
+            $client->first_name ?? null,
+            $client->middle_name ?? null,
+            $client->last_name ?? null,
+        ])->filter()->implode(' '));
+        $client->name = $client->name ?: '-';
+        $client->number = $client->number ?? ($client->phone_number ?? ($client->contact_number ?? '-'));
+        $client->email_address = $client->email_address ?? ($client->email ?? '-');
+        $client->facebook = $client->facebook ?? '-';
+        $client->avatar = $client->avatar ?? null;
+        $client->street_address = $client->street_address ?? null;
+        $client->location_region = $client->location_region ?? null;
+        $client->location_province = $client->location_province ?? null;
+        $client->location_city = $client->location_city ?? null;
+        $client->location_barangay = $client->location_barangay ?? null;
+        $client->postal_code = $client->postal_code ?? null;
+        $client->address = $client->address ?? ($location ?: '-');
+        $client->center = $client->center ?? '-';
+        $client->spo = $client->spo ?? '-';
+        $client->status = ucfirst(strtolower((string) ($client->status ?? 'Active')));
+        $client->valid_id = $client->valid_id ?? null;
+        $client->valid_id_number = $client->valid_id_number ?? null;
+        $client->valid_file = $client->valid_file ?? null;
+        $client->signature = $client->signature ?? null;
+        $client->user = null;
+        $client->transactions = collect();
+        $client->serial = (object) [
+            'serial_number' => $client->stove_serial_number ?? ($client->serial_number ?? ($client->serial ?? null)),
+            'remarks' => $client->stove_remarks ?? null,
+        ];
+        $client->serial_number = $client->serial->serial_number ?: '-';
+
+        return $client;
+    }
+
+    private function crmClientTransactions($connection, $customer)
+    {
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (! $schema->hasTable('transaction_details')) {
+                return collect();
+            }
+
+            $query = DB::connection($connection)->table('transaction_details');
+            $customerIds = collect([$customer->id ?? null, $customer->user_id ?? null])
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($schema->hasColumn('transaction_details', 'client_id')) {
+                $query->whereIn('client_id', $customerIds);
+            } elseif ($schema->hasColumn('transaction_details', 'customer_id')) {
+                $query->whereIn('customer_id', $customerIds);
+            } elseif ($schema->hasColumn('transaction_details', 'user_id')) {
+                $query->whereIn('user_id', $customerIds);
+            } else {
+                return collect();
+            }
+
+            if ($schema->hasColumn('transaction_details', 'id')) {
+                $query->orderByDesc('id');
+            } elseif ($schema->hasColumn('transaction_details', 'created_at')) {
+                $query->orderByDesc('created_at');
+            }
+
+            return $query->get()->map(function ($transaction) {
+                $qty = (float) ($transaction->qty ?? $transaction->quantity ?? 0);
+                $amount = (float) ($transaction->amount ?? $transaction->total_amount ?? 0);
+                $price = $transaction->price ?? ($qty > 0 && $amount > 0 ? $amount / $qty : 0);
+
+                $transaction->item = $transaction->item ?? ($transaction->product ?? ($transaction->product_name ?? '-'));
+                $transaction->qty = $qty;
+                $transaction->points_client = $transaction->points_client ?? ($transaction->points ?? 0);
+                $transaction->price = $price;
+                $transaction->created_at = $transaction->created_at ?? ($transaction->date ?? now());
+
+                return $transaction;
+            });
+        } catch (\Exception $exception) {
+            return collect();
+        }
+    }
+
+    public function viewAdminCrmCustomer(Request $request, $source, $id)
+    {
+        abort_unless(auth()->user()->role === 'Admin', 403);
+
+        $connections = [
+            'admin_crms' => 'Project Rise',
+            'admin_crms2' => 'Project Genesis',
+        ];
+
+        abort_unless(array_key_exists($source, $connections), 404);
+
+        $table = $this->crmClientTable($source);
+        abort_unless($table, 404);
+
+        $schema = DB::connection($source)->getSchemaBuilder();
+        $query = DB::connection($source)->table($table)
+            ->select($table . '.*')
+            ->where($table . '.id', $id);
+
+        if (
+            $schema->hasTable('stoves') &&
+            $schema->hasColumn($table, 'serial_number') &&
+            $schema->hasColumn('stoves', 'id') &&
+            $schema->hasColumn('stoves', 'serial_number')
+        ) {
+            $stoveSelects = [
+                'stoves.serial_number as stove_serial_number',
+            ];
+
+            if ($schema->hasColumn('stoves', 'remarks')) {
+                $stoveSelects[] = 'stoves.remarks as stove_remarks';
+            }
+
+            $query->leftJoin('stoves', $table . '.serial_number', '=', 'stoves.id')
+                ->addSelect($stoveSelects);
+        }
+
+        if ($schema->hasColumn($table, 'deleted_at')) {
+            $query->whereNull('deleted_at');
+        }
+
+        $customer = $query->first();
+        abort_unless($customer, 404);
+
+        $customer = $this->normalizeCrmClient($customer, $source, $connections[$source]);
+        $transactions = $this->crmClientTransactions($source, $customer);
+
+        return view('customer', [
+            'customer' => $customer,
+            'transactions' => $transactions,
+            'centers' => collect(),
+            'stoves' => collect(),
+            'isRemoteCustomer' => true,
+        ]);
+    }
+
     public function view(Request $request,$id)
     {
         $transactions = TransactionDetail::where('client_id',$id)->orderBy('id','desc')->get();
@@ -47,6 +299,7 @@ class CustomerController extends Controller
                 'transactions' => $transactions,
                 'centers' => $centers,
                 'stoves' => $stoves,
+                'isRemoteCustomer' => false,
                 
             )
         );

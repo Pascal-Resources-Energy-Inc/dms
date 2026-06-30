@@ -86,6 +86,11 @@
     .ad-empty { padding: 58px 16px; text-align: center; color: var(--muted); }
     .ad-empty strong { display: block; margin-bottom: 4px; color: #344054; }
     .ad-empty i { display: block; margin-bottom: 8px; color: #d0d5dd; font-size: 36px; }
+    .ad-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 16px; border-top: 1px solid #edf0f5; }
+    .ad-pagination-summary { color: var(--muted); font-size: 12px; font-weight: 800; }
+    .ad-pagination .pagination { gap: 3px; margin: 0; }
+    .ad-pagination .page-link { min-width: 31px; color: #475467; font-size: 12px; text-align: center; border-color: var(--border); border-radius: 6px !important; }
+    .ad-pagination .page-item.active .page-link { color: #fff; background: #5BC2E7; border-color: #5BC2E7; }
     .dataTables_wrapper { padding: 12px 14px 14px; }
     .dataTables_length label, .dataTables_info { color: var(--muted); font-size: 12px; }
     .dataTables_length select { width: 62px !important; }
@@ -164,7 +169,7 @@
     </div>
 
     <div class="ad-panel">
-        <div class="ad-panel-head"><div><h5>{{ $distributorTitle }} Directory</h5><p>{{ number_format($ads->count()) }} distributor(s) and {{ number_format($filteredAwardedAreas) }} awarded area(s) in the current results.</p></div><span class="ad-result-badge"><i class="ti ti-list"></i> {{ number_format($ads->count()) }} Results</span></div>
+        <div class="ad-panel-head"><div><h5>{{ $distributorTitle }} Directory</h5><p>Showing {{ number_format($ads->firstItem() ?? 0) }}-{{ number_format($ads->lastItem() ?? 0) }} of {{ number_format($ads->total()) }} distributor(s), with {{ number_format($filteredAwardedAreas) }} awarded area(s) on this page.</p></div><span class="ad-result-badge"><i class="ti ti-list"></i> {{ number_format($ads->total()) }} Results</span></div>
         @if($ads->count())
             <div class="ad-table-wrap">
                 <table class="table ad-table align-middle" id="example">
@@ -180,7 +185,8 @@
                             <td><span class="ad-muted"><i class="ti ti-map-pin"></i> {{ strtoupper($ad->location_region ?: '-') }}</span></td>
                             <td class="ad-area-cell">
                                 @if($ad->areas->count())
-                                    <div class="ad-area-list">@foreach($ad->areas->take(4) as $area)<span class="ad-area-badge"><i class="ti ti-map-pin"></i>{{ strtoupper(($area->project_type ? $area->project_type . ': ' : '') . $area->area_name) }}</span>@endforeach @if($ad->areas->count() > 4)<span class="ad-area-badge ad-area-more">+{{ $ad->areas->count() - 4 }} more</span>@endif</div>
+                                    {{-- <div class="ad-area-list">@foreach($ad->areas->take(4) as $area)<span class="ad-area-badge"><i class="ti ti-map-pin"></i>{{ strtoupper(($area->project_type ? $area->project_type . ': ' : '') . $area->area_name) }}</span>@endforeach @if($ad->areas->count() > 4)<span class="ad-area-badge ad-area-more">+{{ $ad->areas->count() - 4 }} more</span>@endif</div> --}}
+                                    <div class="ad-area-list">@foreach($ad->areas->take(4) as $area)<span class="ad-area-badge"><i class="ti ti-map-pin"></i>{{ strtoupper($area->area_name) }}</span>@endforeach @if($ad->areas->count() > 4)<span class="ad-area-badge ad-area-more">+{{ $ad->areas->count() - 4 }} more</span>@endif</div>
                                 @else
                                     <span class="ad-no-area"><i class="ti ti-map-off"></i>No awarded areas</span>
                                 @endif
@@ -196,6 +202,14 @@
                 @include('area_distributor.manage_areas')
                 @include('area_distributor.edit')
             @endforeach
+            @if($ads->hasPages())
+                <div class="ad-pagination">
+                    <div class="ad-pagination-summary">
+                        Showing {{ number_format($ads->firstItem() ?? 0) }} to {{ number_format($ads->lastItem() ?? 0) }} of {{ number_format($ads->total()) }} results
+                    </div>
+                    {{ $ads->links() }}
+                </div>
+            @endif
         @else
             <div class="ad-empty"><i class="ti ti-user-search"></i><strong>No area distributors found</strong><div>Adjust the filters or clear them to view all records.</div></div>
         @endif
@@ -219,10 +233,6 @@
         @if(session('error'))
             Swal.fire({ icon: 'error', title: 'Error', text: @json(session('error')), confirmButtonText: 'OK' });
         @endif
-
-        if ($('#example').length && !$.fn.DataTable.isDataTable('#example')) {
-            $('#example').DataTable({ pageLength: 10, searching: false, ordering: true, order: [], columnDefs: [{ orderable: false, targets: [0, 6] }] });
-        }
     });
 </script>
 @endsection

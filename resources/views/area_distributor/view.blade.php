@@ -100,6 +100,14 @@
                         <p><i class="bi bi-envelope"></i>{{ strtoupper($ad->email_address ?? optional($ad->userAds)->email ?? '-') }}</p>
                         <p><i class="bi bi-facebook"></i>{{ strtoupper($ad->facebook ?? '-') }}</p>
                         <p><i class="bi bi-geo-alt"></i>{{ strtoupper($ad->address ?? '-') }}</p>
+                        @if(!empty($ad->attachment))
+                            <p>
+                                <i class="bi bi-paperclip"></i>
+                                <a href="{{ asset($ad->attachment) }}" target="_blank" rel="noopener noreferrer">
+                                    View attachment
+                                </a>
+                            </p>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -148,7 +156,8 @@
                     @forelse($ad->areas as $area)
                         <span class="area-badge">
                             <i class="bi bi-map"></i>
-                            {{ $area->project_type ?? 'Area' }}: {{ $area->area_name }}
+                            {{-- {{ $area->project_type ?? 'Area' }}: {{ $area->area_name }} --}}
+                            {{ $area->area_name }}
                             @if($area->joining_date)
                                 ({{ date('M d, Y', strtotime($area->joining_date)) }})
                             @endif

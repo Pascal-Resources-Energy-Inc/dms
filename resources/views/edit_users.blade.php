@@ -142,7 +142,8 @@
         <input type="hidden" id="edit_user_id">
 
         <input type="text" id="edit_name" class="form-control mb-2" placeholder="Name">
-        <input type="email" id="edit_email" class="form-control" placeholder="Email">
+        <input type="email" id="edit_email" class="form-control mb-2" placeholder="Email">
+        <textarea id="edit_address" class="form-control" rows="3" placeholder="Address"></textarea>
       </div>
 
       <div class="modal-footer">

@@ -3,9 +3,11 @@
 namespace App\Exports;
 
 use App\OrderDetail;
+use App\OtherCharge;
 use App\Product;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 
@@ -28,6 +30,7 @@ class DailySalesExport implements FromCollection, WithHeadings
 
         $reports = OrderDetail::with('dealer')
             ->where('ad_id', $user->ad->id)
+            ->where('status', 'Completed')
             ->whereBetween(
                 DB::raw('DATE(date)'),
                 [$this->from, $this->to]
@@ -39,6 +42,7 @@ class DailySalesExport implements FromCollection, WithHeadings
             ->where('status', 'Activate')
             ->orderBy('product_name')
             ->get();
+        $otherCharges = $this->otherCharges();
 
         $rows = collect();
 
@@ -51,6 +55,8 @@ class DailySalesExport implements FromCollection, WithHeadings
         foreach ($grouped as $date => $transactions) {
 
             $dailySubtotal = 0;
+            $dailyDeliveryFeeTotal = 0;
+            $dailyOtherChargeTotal = 0;
 
             $paymentTotals = [
                 'cash' => 0,
@@ -72,15 +78,20 @@ class DailySalesExport implements FromCollection, WithHeadings
 
             foreach ($transactions as $r) {
 
-                $lineTotal = $r->qty * $r->price;
+                $lineSubtotal = (float) $r->qty * (float) $r->price;
+                $deliveryFee = (float) ($r->delivery_fee ?? 0);
+                $otherChargeTotal = $this->calculateOtherCharges($lineSubtotal, $r, $otherCharges);
+                $lineTotal = $lineSubtotal + $deliveryFee + $otherChargeTotal;
 
                 $dailySubtotal += $lineTotal;
+                $dailyDeliveryFeeTotal += $deliveryFee;
+                $dailyOtherChargeTotal += $otherChargeTotal;
 
                 if (isset($productSubtotals[$r->item])) {
 
                     $productSubtotals[$r->item]['qty'] += $r->qty;
 
-                    $productSubtotals[$r->item]['amount'] += $lineTotal;
+                    $productSubtotals[$r->item]['amount'] += $lineSubtotal;
 
                 }
 
@@ -102,7 +113,7 @@ class DailySalesExport implements FromCollection, WithHeadings
 
                         $row[$item->product_name . ' Qty'] = $r->qty;
 
-                        $row[$item->product_name . ' Amount'] = $lineTotal;
+                        $row[$item->product_name . ' Amount'] = $lineSubtotal;
 
                     } else {
 
@@ -114,6 +125,8 @@ class DailySalesExport implements FromCollection, WithHeadings
 
                 }
 
+                $row['Delivery Fee'] = $deliveryFee;
+                $row['Other Charges'] = $otherChargeTotal;
                 $row['Total Amount'] = $lineTotal;
                 $row['Cash'] = $r->payment_method == 'cash' ? $lineTotal : 0;
                 $row['GCash'] = $r->payment_method == 'gcash' ? $lineTotal : 0;
@@ -146,6 +159,8 @@ class DailySalesExport implements FromCollection, WithHeadings
 
             }
 
+            $subtotalRow['Delivery Fee'] = $dailyDeliveryFeeTotal;
+            $subtotalRow['Other Charges'] = $dailyOtherChargeTotal;
             $subtotalRow['Total Amount'] = $dailySubtotal;
             $subtotalRow['Cash'] = $paymentTotals['cash'];
             $subtotalRow['GCash'] = $paymentTotals['gcash'];
@@ -179,6 +194,8 @@ class DailySalesExport implements FromCollection, WithHeadings
 
         }
 
+        $headers[] = 'Delivery Fee';
+        $headers[] = 'Other Charges';
         $headers[] = 'Total Amount';
         $headers[] = 'Cash';
         $headers[] = 'GCash';
@@ -186,5 +203,32 @@ class DailySalesExport implements FromCollection, WithHeadings
         $headers[] = 'Credit';
 
         return $headers;
+    }
+
+    private function otherCharges()
+    {
+        if (!Schema::hasTable('other_charges')) {
+            return collect();
+        }
+
+        return OtherCharge::where('ad_user_id', $this->user->id)
+            ->where('is_active', 1)
+            ->whereIn('applies_to', ['order', 'delivery', 'dealer', 'customer'])
+            ->get();
+    }
+
+    private function calculateOtherCharges($lineSubtotal, $order, $otherCharges)
+    {
+        return $otherCharges->sum(function ($charge) use ($lineSubtotal, $order) {
+            if ($charge->applies_to === 'delivery' && $order->delivery_type !== 'delivery') {
+                return 0;
+            }
+
+            if ($charge->charge_type === 'percentage') {
+                return (float) $lineSubtotal * ((float) $charge->amount / 100);
+            }
+
+            return (float) $charge->amount;
+        });
     }
 }

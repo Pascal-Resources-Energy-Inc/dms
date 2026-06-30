@@ -125,13 +125,50 @@
     .voucher-required-note span { color: #dc2626; font-weight: 900; }
     .voucher-cancel-btn, .voucher-submit-btn { min-height: 40px; padding-right: 18px; padding-left: 18px; font-weight: 800; }
     .voucher-form-modal .select2-container { width: 100% !important; }
-    .voucher-form-modal .select2-container .select2-selection--single { height: 42px; border-color: #dfe4ea; border-radius: .375rem; }
-    .voucher-form-modal .select2-container .select2-selection--single .select2-selection__rendered { padding-left: 12px; line-height: 40px; }
-    .voucher-form-modal .select2-container .select2-selection--single .select2-selection__arrow { height: 40px; }
-    .voucher-form-modal .select2-container .select2-selection--multiple { min-height: 42px; padding: 3px 7px; border-color: #dfe4ea; border-radius: .375rem; }
-    .voucher-form-modal .select2-container--default.select2-container--focus .select2-selection--multiple, .voucher-form-modal .select2-container--default.select2-container--open .select2-selection--single { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, .11); }
-    .voucher-form-modal .select2-container--default .select2-selection--multiple .select2-selection__choice { color: #991b1b; background: #fee2e2; border-color: #fecaca; border-radius: 999px; }
-    .voucher-form-modal .select2-container--disabled .select2-selection { background: #f2f4f7; }
+    .voucher-form-modal .select2-container--bootstrap-5 .select2-selection {
+        min-height: 42px;
+        border-color: #dfe4ea;
+        border-radius: .375rem;
+        font-size: 14px;
+    }
+    .voucher-form-modal .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+        padding-left: 0;
+        line-height: 40px;
+        color: #1f2937;
+    }
+    .voucher-form-modal .select2-container--bootstrap-5 .select2-selection--single .select2-selection__placeholder {
+        color: #98a2b3;
+    }
+    .voucher-form-modal .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+    .voucher-form-modal .select2-container--bootstrap-5.select2-container--open .select2-selection {
+        border-color: #ef4444;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, .11);
+    }
+    .voucher-form-modal .select2-container--bootstrap-5 .select2-selection--multiple {
+        padding-top: 3px;
+        padding-bottom: 3px;
+    }
+    .voucher-form-modal .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+        color: #991b1b;
+        background: #fee2e2;
+        border-color: #fecaca;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+    }
+    .voucher-form-modal .select2-container--bootstrap-5.select2-container--disabled .select2-selection {
+        background: #f2f4f7;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown {
+        z-index: 2000;
+        border-color: #dfe4ea;
+        border-radius: 8px;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, .16);
+    }
+    .select2-container--bootstrap-5 .select2-results__option--highlighted {
+        background: #ef4444;
+        color: #fff;
+    }
     @media (max-width: 768px) {
         .voucher-head { align-items: stretch; flex-direction: column; }
         .voucher-actions-top { justify-content: stretch; }
@@ -313,6 +350,7 @@
                     <tr>
                         <th>Voucher</th>
                         <th>Description</th>
+                        <th>Areas</th>
                         <th>Discount</th>
                         <th>Minimum Order</th>
                         <th>Usage</th>
@@ -338,6 +376,7 @@
                                 @endif --}}
                             </td>
                             <td>{{ strtoupper($voucher->description ?? 'NO DESCRIPTION') }}</td>
+                            <td>{{ implode(', ', $voucher->area_names) }}</td>
                             <td>
                                 <div class="voucher-discount">
                                     @if($voucher->discount_type === 'percent')
@@ -467,7 +506,10 @@
                     width: '100%',
                     dropdownParent: jQuery(modal),
                     placeholder: $select.data('placeholder') || 'Select option',
-                    allowClear: !$select.prop('multiple')
+                    allowClear: !$select.prop('multiple'),
+                    theme: 'bootstrap-5',
+                    selectionCssClass: 'form-select',
+                    dropdownCssClass: 'voucher-select2-dropdown'
                 });
             });
         }

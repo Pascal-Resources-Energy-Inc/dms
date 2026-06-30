@@ -21,6 +21,29 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class AdPurchaseOrderController extends Controller
 {
+    private function normalizePartialDrNumber($drNumber)
+    {
+        $drNumber = strtoupper(trim((string) $drNumber));
+        $drNumber = preg_replace('/\s*-\s*(\d+)\s*$/', '-$1', $drNumber);
+
+        if ($drNumber !== '' && strpos($drNumber, 'DR') !== 0) {
+            $drNumber = 'DR' . $drNumber;
+        }
+
+        return $drNumber;
+    }
+
+    private function incrementPartialDrNumber($drNumber)
+    {
+        $drNumber = $this->normalizePartialDrNumber($drNumber);
+
+        if (preg_match('/^(.*)-(\d+)$/', $drNumber, $matches)) {
+            return $matches[1] . '-' . ((int) $matches[2] + 1);
+        }
+
+        return $drNumber !== '' ? $drNumber . '-1' : '';
+    }
+
     public function index(Request $request)
     {
         $orders = $this->adpoIndexQuery($request)->get();
@@ -533,7 +556,7 @@ class AdPurchaseOrderController extends Controller
         $request->validate([
             'status' => 'required|in:Pending,For Delivery,SO Created,Partial Received,For Verification,Completed,Cancelled',
             'payment_method' => 'sometimes|required|in:voucher,cash,gcash,bank_transfer,credit',
-            'proof_of_payment' => ($order->proof_of_payment ? 'nullable' : 'required') . '|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'proof_of_payment' => (auth()->user()->role === 'Area Distributor' || $order->proof_of_payment ? 'nullable' : 'required') . '|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'so_number' => 'nullable|required_if:status,SO Created|string|max:255',
             'delivery_date' => 'nullable|required_if:status,For Delivery|date',
             'dr_number' => 'nullable|required_if:status,For Delivery|string|max:255',
@@ -550,12 +573,103 @@ class AdPurchaseOrderController extends Controller
             'partial_receipts.*.confirmed_qty' => 'required_with:partial_receipts|integer|min:0',
         ]);
 
+        if (auth()->user()->role === 'Area Distributor' && !in_array($request->status, ['Pending', 'Partial Received', 'Completed', 'Cancelled'])) {
+            throw ValidationException::withMessages([
+                'status' => 'Area Distributors may only select Pending, Partial Received, Completed, or Cancelled.',
+            ]);
+        }
+
+        if (
+            $request->status === 'Partial Received'
+            && auth()->user()->role === 'Admin'
+            && filled(auth()->user()->warehouse)
+            && !$request->filled('dr_number')
+            && !filled(
+                $order->partialReceipts()->latest('id')->value('dr_number')
+                    ?: $order->dr_number
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'dr_number' => 'DR number is required and will be used for all received products.',
+            ]);
+        }
+
+        if ($request->status === 'Cancelled' && !in_array($order->status, ['Pending', 'SO Created'])) {
+            throw ValidationException::withMessages([
+                'status' => 'Only Pending or SO Created orders may be cancelled.',
+            ]);
+        }
+
+        if ($order->status === 'Pending' && !in_array($request->status, ['Pending', 'SO Created', 'Cancelled'])) {
+            throw ValidationException::withMessages([
+                'status' => 'The status must be changed to SO Created before selecting a later status.',
+            ]);
+        }
+
         $postedPartialItems = collect($request->input('partial_items', []));
         $postedPartialReceipts = collect($request->input('partial_receipts', []));
+        $previousWarehouseDrNumber = null;
+
+        if (
+            $request->status === 'Partial Received'
+            && auth()->user()->role === 'Admin'
+            && filled(auth()->user()->warehouse)
+        ) {
+            $previousWarehouseDrNumber = $order->partialReceipts()
+                ->latest('id')
+                ->value('dr_number')
+                ?: $order->dr_number;
+
+            if (filled($previousWarehouseDrNumber)) {
+                $request->merge([
+                    'dr_number' => $this->incrementPartialDrNumber($previousWarehouseDrNumber),
+                ]);
+            } elseif ($request->filled('dr_number')) {
+                $request->merge([
+                    'dr_number' => $this->normalizePartialDrNumber($request->dr_number),
+                ]);
+            }
+        }
+
+        $allReceivingConfirmed = $order->items()->get()->isNotEmpty()
+            && $order->items()->get()->every(function ($item) {
+                $confirmedQty = max(
+                    (int) ($item->partial_received_qty ?? 0),
+                    (int) $item->partialReceipts()->sum('confirmed_qty')
+                );
+
+                return $confirmedQty >= (int) $item->qty;
+            })
+            && !$order->partialReceipts()->get()->contains(function ($receipt) {
+                return (int) $receipt->confirmed_qty < (int) $receipt->received_qty;
+            });
 
         if ($request->status === 'Partial Received' && $postedPartialItems->isEmpty() && $request->has('items')) {
             $postedPartialItems = collect($request->items)->map(function ($item) {
                 return ['received_qty' => data_get($item, 'qty', 0)];
+            });
+        }
+
+        if ($request->status === 'Partial Received' && $request->filled('delivery_date')) {
+            $postedPartialItems = $postedPartialItems->map(function ($item) use ($request) {
+                $item['delivery_date'] = $request->delivery_date;
+
+                return $item;
+            });
+        }
+
+        if (
+            $request->status === 'Partial Received'
+            && auth()->user()->role === 'Admin'
+            && filled(auth()->user()->warehouse)
+            && $request->filled('dr_number')
+        ) {
+            $postedPartialItems = $postedPartialItems->map(function ($item) use ($request) {
+                if ((int) data_get($item, 'received_qty', 0) > 0) {
+                    $item['dr_number'] = strtoupper(trim((string) $request->dr_number));
+                }
+
+                return $item;
             });
         }
 
@@ -566,9 +680,11 @@ class AdPurchaseOrderController extends Controller
         }
 
         if ($request->status === 'Completed' && $order->status === 'Partial Received' && auth()->user()->role === 'Area Distributor' && $postedPartialItems->isEmpty() && $postedPartialReceipts->isEmpty()) {
-            throw ValidationException::withMessages([
-                'partial_items' => 'Please confirm all received products before completing this DPO.',
-            ]);
+            if (!$allReceivingConfirmed) {
+                throw ValidationException::withMessages([
+                    'partial_items' => 'Please confirm all received products before completing this DPO.',
+                ]);
+            }
         }
 
         if ($request->has('items') || $postedPartialItems->isNotEmpty() || $postedPartialReceipts->isNotEmpty()) {
@@ -610,7 +726,7 @@ class AdPurchaseOrderController extends Controller
                     $remainingQty = max($orderedQty - $currentReceivedQty, 0);
                     $isAdConfirmation = auth()->user()->role === 'Area Distributor';
 
-                    if ($isAdConfirmation && $postedReceivedQty > $currentReceivedQty) {
+                    if ($isAdConfirmation && !$isIncrementReceive && $postedReceivedQty > $currentReceivedQty) {
                         throw ValidationException::withMessages([
                             'partial_items' => 'AD confirmed quantity cannot be greater than the For Receiving quantity.',
                         ]);
@@ -635,6 +751,26 @@ class AdPurchaseOrderController extends Controller
                             ($isIncrementReceive && $postedReceivedQty > 0)
                             || (!$isIncrementReceive && $isNotFullyReceived)
                         );
+                    $previousPartialDrNumber = $orderedItem->partialReceipts()
+                        ->latest('id')
+                        ->value('dr_number')
+                        ?: $orderedItem->partial_dr_number
+                        ?: $order->partialReceipts()
+                            ->latest('id')
+                            ->value('dr_number')
+                        ?: $order->dr_number;
+
+                    if (
+                        $needsPartialDocs
+                        && $isIncrementReceive
+                        && $postedReceivedQty > 0
+                        && $currentReceivedQty > 0
+                        && blank(data_get($item, 'dr_number'))
+                        && filled($previousPartialDrNumber)
+                    ) {
+                        $item['dr_number'] = $this->incrementPartialDrNumber($previousPartialDrNumber);
+                        $postedPartialItems->put($itemId, $item);
+                    }
 
                     if ($needsPartialDocs && blank(data_get($item, 'delivery_date'))) {
                         throw ValidationException::withMessages([
@@ -708,15 +844,19 @@ class AdPurchaseOrderController extends Controller
                     $orderedQty = (int) $orderedItem->qty;
                     $currentReceivedQty = min(max((int) ($orderedItem->partial_received_qty ?? 0), 0), $orderedQty);
                     $postedReceivedQty = (int) data_get($postedPartialItem, 'received_qty', $currentReceivedQty);
+                    $isIncrementReceive = data_get($postedPartialItem, 'receive_mode') === 'increment';
+                    $finalReceivedQty = $isIncrementReceive
+                        ? min($currentReceivedQty + $postedReceivedQty, $orderedQty)
+                        : $postedReceivedQty;
                     $confirmedFromReceiptsQty = $orderedItem->partialReceipts()->sum('confirmed_qty') + ($postedConfirmedByItem[$orderedItem->id] ?? 0);
 
-                    if ($postedPartialItems->isNotEmpty() && $postedReceivedQty > $currentReceivedQty) {
+                    if ($postedPartialItems->isNotEmpty() && !$isIncrementReceive && $postedReceivedQty > $currentReceivedQty) {
                         throw ValidationException::withMessages([
                             'partial_items' => 'AD confirmed quantity cannot be greater than the For Receiving quantity.',
                         ]);
                     }
 
-                    if (max($postedReceivedQty, $confirmedFromReceiptsQty) < $orderedQty) {
+                    if (max($finalReceivedQty, $confirmedFromReceiptsQty) < $orderedQty) {
                         throw ValidationException::withMessages([
                             'partial_items' => 'All products must be confirmed received before completing this DPO.',
                         ]);
@@ -727,7 +867,7 @@ class AdPurchaseOrderController extends Controller
 
         $oldStatus = $order->status;
 
-        DB::transaction(function () use ($request, $order, $postedPartialItems, $postedPartialReceipts) {
+        DB::transaction(function () use ($request, $order, $oldStatus, $postedPartialItems, $postedPartialReceipts) {
             $order->status = $request->status;
 
             if ($request->has('payment_method')) {
@@ -755,7 +895,7 @@ class AdPurchaseOrderController extends Controller
                 $order->delivery_date = $request->delivery_date;
             }
 
-            if ($request->has('dr_number')) {
+            if ($request->filled('dr_number') && blank($order->dr_number)) {
                 $order->dr_number = $request->dr_number;
             }
 
@@ -765,6 +905,13 @@ class AdPurchaseOrderController extends Controller
 
             if ($request->has('remarks')) {
                 $order->remarks = $request->remarks;
+            }
+
+            if ($request->status === 'For Delivery' && $request->filled('delivery_date')) {
+                $order->items()->get()->each(function ($item) use ($request) {
+                    $item->partial_delivery_date = $request->delivery_date;
+                    $item->save();
+                });
             }
 
             if (in_array($request->status, ['Partial Received', 'Completed']) && $postedPartialItems->isNotEmpty()) {
@@ -802,7 +949,7 @@ class AdPurchaseOrderController extends Controller
 
                     $item->save();
                 }
-            } elseif ($request->has('items')) {
+            } elseif ($request->has('items') && auth()->user()->role === 'Admin' && in_array($oldStatus, ['Pending', 'SO Created'])) {
                 $items = $order->items()->whereIn('id', array_keys($request->items))->get();
 
                 foreach ($items as $item) {
@@ -841,6 +988,32 @@ class AdPurchaseOrderController extends Controller
                     $receipt->confirmed_at = now();
                     $receipt->save();
                 }
+
+            }
+
+            if (
+                auth()->user()->role === 'Area Distributor'
+                && $oldStatus === 'Partial Received'
+                && in_array($request->status, ['Partial Received', 'Completed'])
+            ) {
+                $items = $order->items()->with('partialReceipts')->get();
+                $orderedTotal = $items->sum(function ($item) {
+                    return (int) $item->qty;
+                });
+                $confirmedTotal = $items->sum(function ($item) {
+                    return min(
+                        (int) $item->qty,
+                        max(
+                            (int) ($item->partial_received_qty ?? 0),
+                            (int) $item->partialReceipts->sum('confirmed_qty')
+                        )
+                    );
+                });
+                $pendingTotal = max($orderedTotal - $confirmedTotal, 0);
+
+                $order->status = $orderedTotal > 0 && $pendingTotal === 0
+                    ? 'Completed'
+                    : 'Partial Received';
             }
 
             $order->save();

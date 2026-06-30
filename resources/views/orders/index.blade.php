@@ -227,6 +227,147 @@ table.dataTable {
     color: #b02a37;
 }
 
+.order-source-shell {
+    border: 1px solid #e6eaf0;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 12px;
+}
+
+.order-source-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 10px;
+    border-bottom: 0;
+}
+
+.order-source-tabs .nav-link {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid #dfe5ec;
+    border-radius: 8px;
+    color: #344054;
+    background: #fff;
+    padding: 12px 14px;
+    text-align: left;
+}
+
+.order-source-tabs .nav-link.active {
+    border-color: #1f7a4d;
+    color: #14532d;
+    background: #edf8f1;
+    box-shadow: 0 8px 18px rgba(20, 83, 45, 0.08);
+}
+
+.order-source-tab-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.order-source-tab-icon {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: #eef2f7;
+    color: #475467;
+    flex: 0 0 auto;
+}
+
+.order-source-tabs .nav-link.active .order-source-tab-icon {
+    background: #d1e7dd;
+    color: #146c43;
+}
+
+.order-source-tab-title {
+    display: block;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.order-source-tab-subtitle {
+    display: block;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 3px;
+    text-transform: uppercase;
+}
+
+.order-source-count {
+    border-radius: 999px;
+    background: #eef2f7;
+    color: #344054;
+    font-weight: 800;
+    padding: 5px 9px;
+    flex: 0 0 auto;
+}
+
+.order-source-tabs .nav-link.active .order-source-count {
+    background: #146c43;
+    color: #fff;
+}
+
+.order-tab-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin: 14px 0;
+}
+
+.order-tab-metric {
+    border: 1px solid #e6eaf0;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px 14px;
+}
+
+.order-tab-metric small {
+    display: block;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.order-tab-metric strong {
+    display: block;
+    color: #1d2939;
+    font-size: 18px;
+    margin-top: 4px;
+}
+
+.remote-order-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid #d0d5dd;
+    border-radius: 999px;
+    background: #f9fafb;
+    color: #475467;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+@media (max-width: 576px) {
+    .order-source-shell {
+        padding: 8px;
+    }
+
+    .order-source-tabs {
+        grid-template-columns: 1fr;
+    }
+}
+
 
 </style>
 <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
@@ -317,14 +458,83 @@ table.dataTable {
                             <i class="bi bi-plus-circle me-1"></i> New Purchase Order
                         </a> --}}
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-striped transaction-table" id="example" style="width:100%">
+                    @php
+                        $orderTabs = collect($orderTabs ?? [[
+                            'key' => 'regular',
+                            'label' => 'Regular',
+                            'database' => 'dms_prei',
+                            'icon' => 'bi bi-building',
+                            'orders' => $orders ?? collect(),
+                        ]]);
+                    @endphp
+
+                    <div class="order-source-shell mb-3">
+                        <ul class="nav order-source-tabs" id="orderSourceTabs" role="tablist">
+                            @foreach($orderTabs as $tabIndex => $orderTab)
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link {{ $tabIndex === 0 ? 'active' : '' }}"
+                                        id="orders-{{ $orderTab['key'] }}-tab"
+                                        data-bs-toggle="tab"
+                                        data-bs-target="#orders-{{ $orderTab['key'] }}"
+                                        type="button"
+                                        role="tab"
+                                        aria-controls="orders-{{ $orderTab['key'] }}"
+                                        aria-selected="{{ $tabIndex === 0 ? 'true' : 'false' }}">
+                                        <span class="order-source-tab-main">
+                                            <span class="order-source-tab-icon"><i class="{{ $orderTab['icon'] ?? 'bi bi-database' }}"></i></span>
+                                            <span>
+                                                <span class="order-source-tab-title">{{ $orderTab['label'] }}</span>
+                                                <span class="order-source-tab-subtitle">{{ $orderTab['database'] ?? '-' }}</span>
+                                            </span>
+                                        </span>
+                                        <span class="order-source-count">{{ collect($orderTab['orders'])->count() }}</span>
+                                    </button>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+
+                    <div class="tab-content" id="orderSourceTabContent">
+                        @foreach($orderTabs as $tabIndex => $orderTab)
+                            @php
+                                $tabOrders = collect($orderTab['orders']);
+                                $tabSales = $tabOrders->sum(function ($order) {
+                                    return ((float) $order->price * (float) $order->qty) + (float) ($order->delivery_fee ?? 0);
+                                });
+                                $tabPending = $tabOrders->filter(function ($order) {
+                                    return strcasecmp((string) $order->status, 'Pending') === 0;
+                                })->count();
+                            @endphp
+                            <div class="tab-pane fade {{ $tabIndex === 0 ? 'show active' : '' }}"
+                                id="orders-{{ $orderTab['key'] }}"
+                                role="tabpanel"
+                                aria-labelledby="orders-{{ $orderTab['key'] }}-tab">
+                                <div class="order-tab-summary">
+                                    <div class="order-tab-metric">
+                                        <small>Total Sales</small>
+                                        <strong>{{ number_format($tabSales, 2) }}</strong>
+                                    </div>
+                                    <div class="order-tab-metric">
+                                        <small>Orders</small>
+                                        <strong>{{ number_format($tabOrders->count()) }}</strong>
+                                    </div>
+                                    <div class="order-tab-metric">
+                                        <small>Quantity</small>
+                                        <strong>{{ number_format($tabOrders->sum('qty'), 2) }}</strong>
+                                    </div>
+                                    <div class="order-tab-metric">
+                                        <small>Pending</small>
+                                        <strong>{{ number_format($tabPending) }}</strong>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                        <table class="table table-bordered table-striped transaction-table orders-data-table" id="ordersTable-{{ $orderTab['key'] }}" style="width:100%">
                             <thead>
                                 <tr>
                                     @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
                                         <th scope="col" style="width: 50px; text-align: center;">
                                             <div class="d-flex align-items-center justify-content-center">
-                                                <input type="checkbox" id="selectAll" title="Select All" style="cursor: pointer;">
+                                                <input type="checkbox" class="select-all" title="Select All" style="cursor: pointer;">
                                             </div>
                                         </th>
                                     @endif
@@ -346,12 +556,16 @@ table.dataTable {
                                     @endif
                                 </tr>
                             </thead>
-                            <tbody id="transactionBody">
-                                @foreach($orders as $order)
-                                    <tr id="transaction-row-{{$order->id}}">
+                            <tbody id="transactionBody-{{ $orderTab['key'] }}">
+                                @foreach($tabOrders as $order)
+                                    <tr id="transaction-row-{{ $orderTab['key'] }}-{{$order->id}}">
                                         @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
                                             <td style="text-align: center;">
-                                                <input type="checkbox" class="checkbox-item" data-id="{{$order->id}}" style="cursor: pointer;">
+                                                @if(empty($order->is_remote))
+                                                    <input type="checkbox" class="checkbox-item" data-id="{{$order->id}}" style="cursor: pointer;">
+                                                @else
+                                                    <input type="checkbox" disabled title="Remote CRM order" style="cursor: not-allowed;">
+                                                @endif
                                             </td>
                                         @endif
                                         <td>{{ $order->transaction_id }}</td>
@@ -494,12 +708,15 @@ table.dataTable {
                                             <button type="button" 
                                                 class="btn btn-primary edit-btn"
                                                 data-id="{{ $order->id }}"
+                                                data-row-id="transaction-row-{{ $orderTab['key'] }}-{{$order->id}}"
+                                                data-source="{{ $order->source_database ?? 'dms_prei' }}"
                                                 data-qty="{{ $order->qty }}"
                                                 data-price="{{ $order->price }}"
                                                 data-payment="{{ $order->payment_method }}"
                                                 data-delivery="{{ $order->delivery_type }}"
                                                 data-delivery-fee="{{ $order->delivery_fee }}"
-                                                @if(auth()->user()->role !== 'Admin')
+                                                data-dealer-type="{{ optional($order->adDealer)->dealer_type ?: 'Project' }}"
+                                                @if(empty($order->is_remote) && auth()->user()->role !== 'Admin')
                                                     data-track-stock="1"
                                                     data-stock="{{ $rowStock ?? 0 }}"
                                                     data-editable-stock="{{ ($rowStock ?? 0) + (float) $order->qty }}"
@@ -522,18 +739,25 @@ table.dataTable {
                                         </td>
                                         @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
                                             <td style="text-align: center;">
-                                                <button type="button" class="btn btn-danger btn-sm delete-single" 
-                                                        data-id="{{ $order->id }}" 
-                                                        title="Delete"
-                                                        style="cursor: pointer;">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
+                                                @if(empty($order->is_remote))
+                                                    <button type="button" class="btn btn-danger btn-sm delete-single" 
+                                                            data-id="{{ $order->id }}" 
+                                                            title="Delete"
+                                                            style="cursor: pointer;">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                @else
+                                                    <span class="remote-order-pill"><i class="bi bi-shield-lock"></i> CRM</span>
+                                                @endif
                                             </td>
                                         @endif
                                     </tr>
                                 @endforeach
                             </tbody>
                         </table>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -586,41 +810,47 @@ $(document).ready(function() {
         }
     });
 
-    const table = $('#example').DataTable({
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-             '<"row"<"col-sm-12"tr>>' +
-             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        buttons: [
-            {
-                extend: 'excelHtml5',
-                text: 'Export Excel',
-                className: 'btn btn-sm btn-success export-btn-custom',
-                title: 'Transactions'
-            }
-        ],
-        columnDefs: [
-            { 
-                orderable: false, 
-                targets: [0, -1] // Disable sorting on first column (checkbox) and last column (actions)
-            },
-            {
-                className: 'text-center', // Center align the checkbox column
-                targets: [0]
-            }
-        ],
-        destroy: true,
-        order: [[1, 'desc']] // Default sort by ID column (index 1) in descending order
+    $('.orders-data-table').each(function () {
+        const table = $(this).DataTable({
+            dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                 '<"row"<"col-sm-12"tr>>' +
+                 '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+            buttons: [
+                {
+                    extend: 'excelHtml5',
+                    text: 'Export Excel',
+                    className: 'btn btn-sm btn-success export-btn-custom',
+                    title: 'Transactions'
+                }
+            ],
+            columnDefs: [
+                { 
+                    orderable: false, 
+                    targets: [0, -1]
+                },
+                {
+                    className: 'text-center',
+                    targets: [0]
+                }
+            ],
+            destroy: true,
+            order: [[1, 'desc']]
+        });
+
+        table.buttons().container().appendTo('#exportExcelContainer');
     });
 
-    table.buttons().container().appendTo('#exportExcelContainer');
+    $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function () {
+        $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
+    });
 
     $(document).on('change', '.checkbox-item', function() {
         updateUI();
     });
 
-    $(document).on('change', '#selectAll', function() {
+    $(document).on('change', '.select-all', function() {
         const isChecked = $(this).prop('checked');
-        $('.checkbox-item').prop('checked', isChecked);
+        $(this).closest('table').find('.checkbox-item').prop('checked', isChecked);
         updateUI();
     });
 
@@ -649,17 +879,23 @@ $(document).ready(function() {
             $('#deleteSelectedBtn').hide();
         }
         
-        const $selectAll = $('#selectAll');
-        if (checkedCount === totalCount && totalCount > 0) {
-            $selectAll.prop('checked', true);
-            $selectAll.prop('indeterminate', false);
-        } else if (checkedCount > 0) {
-            $selectAll.prop('checked', false);
-            $selectAll.prop('indeterminate', true);
-        } else {
-            $selectAll.prop('checked', false);
-            $selectAll.prop('indeterminate', false);
-        }
+        $('.orders-data-table').each(function () {
+            const $table = $(this);
+            const $selectAll = $table.find('.select-all');
+            const $tableCheckboxes = $table.find('.checkbox-item');
+            const $tableChecked = $table.find('.checkbox-item:checked');
+
+            if ($tableChecked.length === $tableCheckboxes.length && $tableCheckboxes.length > 0) {
+                $selectAll.prop('checked', true);
+                $selectAll.prop('indeterminate', false);
+            } else if ($tableChecked.length > 0) {
+                $selectAll.prop('checked', false);
+                $selectAll.prop('indeterminate', true);
+            } else {
+                $selectAll.prop('checked', false);
+                $selectAll.prop('indeterminate', false);
+            }
+        });
     }
 
     function performSingleDelete(transactionId) {
@@ -1088,13 +1324,20 @@ document.addEventListener('DOMContentLoaded', function () {
     let editSalesOrders = 0;
     let editInventoryStatus = 'No stock';
     let editDealerArea = '';
+    let editDealerType = 'Project';
+    let editOrderSource = 'dms_prei';
+    let editRowId = '';
 
     function toggleDeliveryFee() {
         const isDelivery = deliverySelect.value === 'delivery';
-        deliveryFeeWrapper.classList.toggle('d-none', !isDelivery);
-        deliveryFeeInput.required = isDelivery;
+        const isRegularDealer = String(editDealerType || '').toLowerCase() === 'regular';
+        const shouldShowDeliveryFee = isDelivery && isRegularDealer;
 
-        if (!isDelivery) {
+        deliveryFeeWrapper.classList.toggle('d-none', !shouldShowDeliveryFee);
+        deliveryFeeInput.required = shouldShowDeliveryFee;
+        deliveryFeeInput.disabled = !shouldShowDeliveryFee;
+
+        if (!shouldShowDeliveryFee) {
             deliveryFeeInput.value = '';
         }
     }
@@ -1243,6 +1486,9 @@ document.addEventListener('DOMContentLoaded', function () {
             editSalesOrders = editTracksStock ? parseFloat(this.dataset.salesOrders || 0) : 0;
             editInventoryStatus = this.dataset.inventoryStatus || (editAvailableStock <= 0 ? 'No stock' : 'Good');
             editDealerArea = this.dataset.area || '';
+            editDealerType = this.dataset.dealerType || 'Project';
+            editOrderSource = this.dataset.source || 'dms_prei';
+            editRowId = this.dataset.rowId || ('transaction-row-' + this.dataset.id);
             toggleDeliveryFee();
             refreshEditStockState();
 
@@ -1267,8 +1513,9 @@ document.addEventListener('DOMContentLoaded', function () {
         formData.append('qty', qtyInput.value);
         formData.append('payment_method', document.getElementById('edit-payment').value);
         formData.append('delivery_type', deliverySelect.value);
-        formData.append('delivery_fee', deliveryFeeInput.value);
+        formData.append('delivery_fee', deliveryFeeInput.disabled ? '' : deliveryFeeInput.value);
         formData.append('status', statusSelect.value);
+        formData.append('order_source', editOrderSource);
         formData.append('_method', 'PUT');
 
         const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -1287,7 +1534,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!response.ok) throw new Error(data.message);
 
-            const row = document.querySelector(`#transaction-row-${id}`);
+            const row = document.getElementById(editRowId);
             const editButton = row.querySelector('.edit-btn');
             const qty = parseFloat(data.qty || 0);
             const price = parseFloat(editButton.dataset.price || 0);

@@ -11,7 +11,7 @@ class Dealer extends Model implements Auditable
     
     protected $fillable = [
         'user_id', 'name', 'email_address', 'number', 'facebook', 
-        'address', 'store_name', 'store_type', 'status', 'center', 'area', 'spo',
+        'address', 'store_name', 'store_type', 'dealer_type', 'status', 'center', 'area', 'spo',
         'location_region', 'location_province', 'location_city', 'location_barangay',
         'postal_code', 'street_address', 'latitude', 'longitude'
     ];

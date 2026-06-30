@@ -31,6 +31,7 @@
     <!-- Core Css -->
     <link rel="stylesheet" href="{{asset('design/assets/css/styles.css')}}" />
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="{{asset('design/assets/libs/jvectormap/jquery-jvectormap.css')}}">
     <link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css"/>
     <link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick-theme.css"/>
@@ -39,14 +40,22 @@
         :root {
             --primary-color: #2563eb;
             --primary-light: #3b82f6;
-            --sidebar-width: 260px;
-            --sidebar-collapsed-width: 70px;
+            --sidebar-width: 280px;
+            --sidebar-collapsed-width: 78px;
             --topbar-height: 80px;
             --bg-light: #f8fafc;
             --text-muted: #64748b;
             --border-color: #e2e8f0;
             --transition-duration: 0.3s;
             --content-padding: 32px;
+            --sidebar-bg: #ffffff;
+            --sidebar-bg-soft: #f0f8ff;
+            --sidebar-border: #e2e8f0;
+            --sidebar-text: #334155;
+            --sidebar-muted: #94a3b8;
+            --sidebar-hover: #f0f8ff;
+            --sidebar-active: #5dade2;
+            --sidebar-active-soft: rgba(93, 173, 226, .16);
         }
 
         /* Layout Reset - Higher specificity to prevent conflicts */
@@ -113,8 +122,8 @@
             width: var(--sidebar-width) !important;
             display: flex !important;
             flex-direction: column !important;
-            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%) !important;
-            border-right: 1px solid #dce6f1 !important;
+            background: var(--sidebar-bg) !important;
+            border-right: 1px solid var(--sidebar-border) !important;
             box-shadow: 10px 0 30px rgba(15, 23, 42, .06) !important;
             transition: width var(--transition-duration) cubic-bezier(.4, 0, .2, 1),
                         transform var(--transition-duration) cubic-bezier(.4, 0, .2, 1) !important;
@@ -130,8 +139,8 @@
         .main-layout .sidebar-header {
             flex: 0 0 var(--topbar-height) !important;
             min-height: var(--topbar-height) !important;
-            padding: 14px 18px !important;
-            border-bottom: 1px solid #e8eef5 !important;
+            padding: 14px 20px !important;
+            border-bottom: 1px solid var(--sidebar-border) !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
@@ -355,20 +364,21 @@
             width: 100% !important;
             min-width: 0 !important;
             text-decoration: none !important;
+            filter: drop-shadow(0 8px 16px rgba(15, 23, 42, .08));
         }
 
         .main-layout .sidebar .logo-full {
             display: block;
             width: auto !important;
-            max-width: 190px !important;
+            max-width: 204px !important;
             height: 46px !important;
             object-fit: contain;
         }
 
         .main-layout .sidebar .logo-mini {
             display: none;
-            width: 42px !important;
-            height: 42px !important;
+            width: 44px !important;
+            height: 44px !important;
             object-fit: contain;
         }
 
@@ -383,12 +393,12 @@
         .main-layout .sidebar-nav {
             flex: 1 1 auto;
             min-height: 0;
-            padding: 18px 10px 24px;
+            padding: 18px 14px 24px;
             overflow-x: hidden;
             overflow-y: auto;
             overscroll-behavior: contain;
             scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 transparent;
+            scrollbar-color: rgba(148, 163, 184, .48) transparent;
         }
 
         .main-layout .sidebar-nav::-webkit-scrollbar {
@@ -396,7 +406,7 @@
         }
 
         .main-layout .sidebar-nav::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
+            background: rgba(148, 163, 184, .48);
             border-radius: 999px;
         }
 
@@ -405,12 +415,12 @@
         }
 
         .main-layout .sidebar .nav-section-title {
-            padding: 0 12px 10px;
-            color: #94a3b8;
+            padding: 0 12px 12px;
+            color: var(--sidebar-muted);
             font-size: 10px;
             font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 1.4px;
+            letter-spacing: 1.2px;
             transition: opacity .2s ease;
         }
 
@@ -419,47 +429,80 @@
         }
 
         .main-layout .sidebar .nav-item {
-            margin: 3px 0;
+            margin: 4px 0;
         }
 
         .main-layout .sidebar .nav-link {
             display: flex;
             align-items: center;
-            gap: 11px;
+            gap: 12px;
             width: 100%;
-            min-height: 44px;
+            min-height: 46px;
             padding: 10px 12px;
-            color: #475569;
+            color: var(--sidebar-text);
             text-decoration: none;
-            border-radius: 10px;
-            transition: color .18s ease, background-color .18s ease, box-shadow .18s ease;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            transition: color .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             position: relative;
         }
 
         .main-layout .sidebar .nav-link:hover,
         .main-layout .sidebar .nav-link:focus-visible {
-            background: #eaf7fc;
-            color: #0f6f95;
+            background: var(--sidebar-hover);
+            border-color: rgba(93, 173, 226, .28);
+            color: #1d4f73;
             outline: none;
+            transform: translateX(2px);
         }
 
         .main-layout .sidebar .nav-link.active {
-            color: #075d80;
-            background: linear-gradient(135deg, #dff5fc 0%, #edf9fd 100%);
-            box-shadow: inset 3px 0 0 #25a9d6;
+            color: #1d4f73;
+            background: linear-gradient(135deg, rgba(93, 173, 226, .18) 0%, rgba(240, 248, 255, .95) 100%);
+            border-color: rgba(93, 173, 226, .38);
+            box-shadow: inset 3px 0 0 var(--sidebar-active), 0 10px 24px rgba(93, 173, 226, .12);
+        }
+
+        .main-layout .sidebar .nav-link[aria-expanded="true"] {
+            color: #1d4f73;
+            background: #f8fbff;
+            border-color: rgba(93, 173, 226, .22);
+        }
+
+        .main-layout .sidebar .nav-link > .bi-chevron-down {
+            color: var(--sidebar-muted);
+            font-size: 12px;
+            transition: transform .2s ease, color .2s ease, opacity .2s ease;
+        }
+
+        .main-layout .sidebar .nav-link[aria-expanded="true"] > .bi-chevron-down {
+            color: var(--sidebar-active);
+            transform: rotate(180deg);
         }
 
         .main-layout .sidebar .nav-icon {
-            width: 24px;
-            height: 24px;
+            width: 30px;
+            height: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
             color: #64748b;
             font-size: 17px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            transition: color .18s ease, background-color .18s ease, border-color .18s ease;
+        }
+
+        .main-layout .sidebar .nav-link:hover .nav-icon,
+        .main-layout .sidebar .nav-link.active .nav-icon,
+        .main-layout .sidebar .nav-link[aria-expanded="true"] .nav-icon {
+            color: #1d4f73;
+            background: rgba(93, 173, 226, .18);
+            border-color: rgba(93, 173, 226, .32);
         }
 
         .main-layout .sidebar .nav-text {
@@ -481,6 +524,7 @@
             justify-content: center;
             gap: 0;
             padding-inline: 10px;
+            transform: none;
         }
 
         .main-layout .sidebar.collapsed .collapse {
@@ -488,24 +532,57 @@
         }
 
         .main-layout .sidebar .collapse .nav {
-            margin: 3px 0 7px 35px !important;
-            padding: 4px 0 4px 10px;
-            border-left: 1px solid #d8e6ef;
+            margin: 6px 0 8px 15px !important;
+            padding: 6px 0 6px 17px;
+            border-left: 1px solid rgba(93, 173, 226, .28);
         }
 
         .main-layout .sidebar .collapse .nav-link {
             min-height: 36px;
-            padding: 8px 10px;
+            padding: 8px 11px;
             font-size: 12px !important;
+            color: #64748b;
             border-radius: 8px;
+            font-weight: 650;
+        }
+
+        .main-layout .sidebar .collapse .nav-link::before {
+            width: 5px;
+            height: 5px;
+            content: "";
+            flex: 0 0 auto;
+            border-radius: 999px;
+            background: rgba(100, 116, 139, .45);
+        }
+
+        .main-layout .sidebar .collapse .nav-link:hover,
+        .main-layout .sidebar .collapse .nav-link.active {
+            color: #1d4f73;
+            background: rgba(93, 173, 226, .13);
+            box-shadow: none;
+        }
+
+        .main-layout .sidebar .collapse .nav-link.active::before {
+            background: var(--sidebar-active);
+        }
+
+        .main-layout .sidebar .badge {
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--sidebar-bg);
+            box-shadow: 0 8px 18px rgba(220, 38, 38, .35);
         }
 
         .main-layout .sidebar-footer {
             position: static;
             flex: 0 0 auto;
-            padding: 12px;
-            border-top: 1px solid #e8eef5;
-            background: rgba(255, 255, 255, .96);
+            padding: 14px;
+            border-top: 1px solid var(--sidebar-border);
+            background: var(--sidebar-bg);
         }
 
         .main-layout .sidebar .user-profile {
@@ -513,10 +590,10 @@
             align-items: center;
             gap: 10px;
             min-width: 0;
-            padding: 10px;
-            border: 1px solid #e4edf4;
-            border-radius: 12px;
-            background: #f8fbfd;
+            padding: 11px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8fbff;
             transition: padding .2s ease;
             position: relative;
         }
@@ -527,8 +604,8 @@
             border-radius: 50%;
             flex-shrink: 0;
             object-fit: cover;
-            border: 2px solid #fff;
-            box-shadow: 0 0 0 2px #bae6f5;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 2px rgba(93, 173, 226, .35);
         }
 
         .main-layout .sidebar .user-info {
@@ -565,7 +642,7 @@
             height: 10px;
             content: "";
             background: #22c55e;
-            border: 2px solid #fff;
+            border: 2px solid #ffffff;
             border-radius: 50%;
         }
 
@@ -591,11 +668,12 @@
             padding-top: 80px; /* Add top padding to account for fixed topbar */
         }
 
-        .sidebar.collapsed + .main-content {
+        .sidebar.collapsed ~ .main-content {
             margin-left: var(--sidebar-collapsed-width);
         }
         .main-layout .topbar {
-            background: #5BC2E7 !important;
+            /* background: #5BC2E7 !important; */
+            background: linear-gradient(135deg, rgba(3, 58, 128, .94), rgba(7, 95, 195, .9)), linear-gradient(135deg, #063f8b, #0a74d7);
             border-bottom: 1px solid var(--border-color) !important;
             padding: 0 30px !important;
             height: 80px !important;
@@ -1183,9 +1261,10 @@
         <div class="sidebar-header">
             <a href="{{url('/')}}" class="logo" aria-label="Go to dashboard">
                 <!-- Full logo (for expanded sidebar) -->
-                <img src="{{asset('images/logo_mo.png')}}"
+                {{-- <img src="{{asset('images/logo_mo.png')}}"
                     class="logo-full"
-                    alt="Logo-Full" />
+                    alt="Logo-Full" /> --}}
+                <img src="{{asset('images/gazlite.png')}}" class="logo-full" alt="Logo-Full" />
 
                 <!-- Mini logo (for collapsed sidebar) -->
                 <img src="{{asset('images/logo_nya.png')}}"
@@ -1245,13 +1324,37 @@
                         </div>
                     </div>
                     <div class="nav-item">
+                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#partnersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['dealer-ads','my-customers','charges']) ? 'true' : 'false' }}">
+                            <div class="nav-icon">
+                                <i class="bi bi-person-workspace"></i>
+                            </div>
+                            <span class="nav-text">Partners</span>
+                            <i class="bi bi-chevron-down ms-auto"></i>
+                        </a>
+
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['dealer-ads','my-customers','charges'])) show @endif"
+                            id="partnersMenu">
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif" style="font-size: 14px">My Dealers</a>
+                                </li>
+                                {{-- <li class="nav-item">
+                                    <a href="{{url('/my-customers')}}" class="nav-link @if(Route::currentRouteName() == 'my-customers')active @endif" style="font-size: 14px">My Customers</a>
+                                </li> --}}
+                                <li class="nav-item">
+                                    <a href="{{ route('charges') }}" class="nav-link @if(Route::currentRouteName() == 'charges')active @endif" style="font-size: 14px">Other Charges</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    {{-- <div class="nav-item">
                         <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif">
                             <div class="nav-icon">
                                 <i class="bi bi-person-workspace"></i>
                             </div>
                             <span class="nav-text">My Dealers</span>
                         </a>
-                    </div>
+                    </div> --}}
                     {{-- <div class="nav-item">
                         <a href="{{url('/orders')}}" class="nav-link @if(Route::currentRouteName() == 'orders')active @endif">
                             <div class="nav-icon">
@@ -1500,7 +1603,7 @@
                             <i class="bi bi-chevron-down ms-auto"></i>
                         </a>
 
-                        <div class="collapse @if(in_array(Route::currentRouteName(), ['vouchers','rewards', 'items', 'raffles'])) show @endif"
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['vouchers','rewards', 'items', 'raffles', 'areas'])) show @endif"
                             id="settingsMenu">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
@@ -1514,6 +1617,9 @@
                                 </li>
                                 <li class="nav-item">
                                     <a href="{{url('/raffles')}}" class="nav-link @if(Route::currentRouteName() == 'raffles') active @endif" style="font-size: 14px">Raffles</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{url('/areas')}}" class="nav-link @if(Route::currentRouteName() == 'areas') active @endif" style="font-size: 14px">Areas</a>
                                 </li>
                             </ul>
                         </div>
@@ -1619,7 +1725,7 @@
                         <span>Scan Loyalty</span>
                     </button>
                 @endif
-                <li class="nav-item d-none d-md-block me-2 mt-3 search-container">
+                <li class="nav-item d-none d-md-block me-2 search-container">
                     <form action="{{ url('/search') }}" method="GET" class="position-relative">
                         <input 
                         type="search" 
@@ -1989,6 +2095,7 @@
     <script src="{{asset('design/assets/js/theme/app.min.js')}}"></script>
     <script src="{{asset('design/assets/js/theme/sidebarmenu.js')}}"></script>
     <script src="{{asset('design/assets/js/theme/feather.min.js')}}"></script>
+    {{-- <script src="{{ asset('design/vendors/select2/select2.min.js') }}"></script> --}}
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <!-- solar icons -->
     <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
@@ -2000,21 +2107,22 @@
     @endphp
     @include('sweetalert::alert')
 
-    @yield('javascript')
-
     <script>
-        function logout() {
-            event.preventDefault();
-            document.getElementById('logout-form').submit();
-        }
-        
         function initSelect2(parent = document) {
-            if (!$.fn.select2) return;
+            if (!window.jQuery || !$.fn || !$.fn.select2) {
+                return;
+            }
 
-            $(parent).find('select.select2').each(function () {
+            const $parent = $(parent);
+            const $selects = $parent.is('select.select2')
+                ? $parent
+                : $parent.find('select.select2');
+
+            $selects.each(function () {
                 const $this = $(this);
                 const $modal = $this.closest('.modal');
                 const isArea = $this.hasClass('select2-area');
+                const hasAreaFormatter = isArea && typeof window.formatArea === 'function';
 
                 // ✅ Destroy ONLY if already initialized (prevents duplication bug)
                 if ($this.hasClass('select2-hidden-accessible')) {
@@ -2026,9 +2134,12 @@
                     dropdownParent: $modal.length ? $modal : $(document.body),
                     placeholder: $this.data('placeholder') || 'Select Option',
                     allowClear: true,
+                    theme: $this.data('select2-theme') || 'bootstrap-5',
+                    selectionCssClass: $this.data('selection-css-class') || ':all:',
+                    dropdownCssClass: $this.data('dropdown-css-class') || '',
 
-                    templateResult: isArea ? formatArea : undefined,
-                    templateSelection: isArea ? formatArea : undefined,
+                    templateResult: hasAreaFormatter ? window.formatArea : undefined,
+                    templateSelection: hasAreaFormatter ? window.formatArea : undefined,
 
                     escapeMarkup: markup => markup
                 });
@@ -2052,7 +2163,77 @@
         });
         // Re-init ONLY inside modal when opened
         $(document).on('shown.bs.modal', '.modal', function () {
-            initSelect2(this);
+            const modal = this;
+
+            setTimeout(function () {
+                initSelect2(modal);
+            }, 0);
+        });
+    </script>
+
+    @yield('javascript')
+
+    <script>
+        function logout() {
+            event.preventDefault();
+            document.getElementById('logout-form').submit();
+        }
+        
+        function initSelect2Legacy(parent = document) {
+            if (!$.fn.select2) return;
+
+            const $parent = $(parent);
+            const $selects = $parent.is('select.select2') ? $parent : $parent.find('select.select2');
+
+            $selects.each(function () {
+                const $this = $(this);
+                const $modal = $this.closest('.modal');
+                const isArea = $this.hasClass('select2-area');
+
+                // ✅ Destroy ONLY if already initialized (prevents duplication bug)
+                if ($this.hasClass('select2-hidden-accessible')) {
+                    return;
+                }
+
+                $this.select2({
+                    width: '100%',
+                    dropdownParent: $modal.length ? $modal : $(document.body),
+                    placeholder: $this.data('placeholder') || 'Select Option',
+                    allowClear: true,
+                    theme: $this.data('select2-theme') || 'bootstrap-5',
+                    selectionCssClass: $this.data('selection-css-class') || ':all:',
+                    dropdownCssClass: $this.data('dropdown-css-class') || '',
+
+                    templateResult: isArea && typeof formatArea === 'function' ? formatArea : undefined,
+                    templateSelection: isArea && typeof formatArea === 'function' ? formatArea : undefined,
+
+                    escapeMarkup: markup => markup
+                });
+
+                // ✅ Fix selected value rendering
+                if ($this.val()) {
+                    $this.trigger('change.select2');
+                }
+
+                // ✅ Autofocus search field
+                $this.off('select2:open.codexFocus').on('select2:open.codexFocus', function () {
+                    setTimeout(() => {
+                        const search = document.querySelector('.select2-container--open .select2-search__field');
+                        if (search) search.focus();
+                    }, 0);
+                });
+            });
+        }
+        $(document).ready(function () {
+            initSelect2();
+        });
+        // Re-init ONLY inside modal when opened
+        $(document).on('shown.bs.modal', '.modal', function () {
+            const modal = this;
+
+            setTimeout(function () {
+                initSelect2(modal);
+            }, 0);
         });
 
         document.addEventListener('focusin', function (e) {

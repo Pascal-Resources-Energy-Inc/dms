@@ -1,10 +1,14 @@
-<div id="edit_area_distributor-{{ $ad->id }}" class="modal fade modal-select2" tabindex="-1" aria-labelledby="bs-example-modal-md" aria-hidden="true" style="display: none;">
+<div id="edit_area_distributor-{{ $ad->id }}" class="modal fade modal-select2 ad-edit-modal" tabindex="-1" aria-labelledby="editAreaDistributorTitle-{{ $ad->id }}" aria-hidden="true" style="display: none;">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header d-flex align-items-center">
-                <h4 class="modal-title" id="myModalLabel">
-                    Edit Partner Information
-                </h4>
+                <div class="ad-modal-heading">
+                    <span class="ad-modal-icon"><i class="ti ti-building-store"></i></span>
+                    <div>
+                        <h4 class="modal-title" id="editAreaDistributorTitle-{{ $ad->id }}">Edit Partner Information</h4>
+                        <small>{{ $ad->store_code }} - {{ $ad->business_name ?: 'Partner profile' }}</small>
+                    </div>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="POST" action="{{ url('edit-ads/'.$ad->id) }}" enctype="multipart/form-data">
@@ -18,91 +22,119 @@
                             $selectedTypes = is_array($ad->userAds->type)
                                 ? $ad->userAds->type
                                 : json_decode($ad->userAds->type, true);
+                            $selectedTypes = is_array($selectedTypes) ? $selectedTypes : [];
+                            $awardedAreaOptions = collect($areas ?? []);
+
+                            if ($awardedAreaOptions->isEmpty()) {
+                                $awardedAreaOptions = collect($centers ?? []);
+                            }
+
+                            $existingAwardedAreaNames = $ad->areas->pluck('area_name');
+                            $awardedAreaOptions = $awardedAreaOptions
+                                ->pluck('name')
+                                ->merge($existingAwardedAreaNames)
+                                ->filter()
+                                ->map(function ($name) {
+                                    return trim((string) $name);
+                                })
+                                ->unique()
+                                ->sort()
+                                ->values();
+
+                            $deletedAwardedAreas = $ad->relationLoaded('trashedAreas')
+                                ? $ad->trashedAreas->whereIn('project_type', ['Project Rise', 'Project Genesis'])
+                                : collect();
                         @endphp
 
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Store Code</label>
-                            <input type="text" class="form-control mb-2" id="store_code" name="store_code" placeholder="Enter Store Code" value="{{ $ad->store_code }}" readonly>
-                            {{-- <label class="form-label fw-semibold">Project Tag</label>
-                            <div class="border rounded p-2 bg-light">
-                                <label class="project-card">
-                                    <input type="checkbox"
-                                        class="project-type"
-                                        name="type[]"
-                                        value="Project Rise"
-                                        {{ in_array('Project Rise', $selectedTypes ?? []) ? 'checked' : '' }}>
-                                    <span><i class="bi bi-graph-up text-success"></i> Project Rise</span>
-                                </label>
-                                <label class="project-card">
-                                    <input type="checkbox"
-                                        class="project-type"
-                                        name="type[]"
-                                        value="Project Genesis"
-                                        {{ in_array('Project Genesis', $selectedTypes ?? []) ? 'checked' : '' }}>
-                                    <span><i class="bi bi-lightning text-primary"></i> Project Genesis</span>
-                                </label>
-                                <label class="project-card">
-                                    <input type="checkbox"
-                                        class="project-type"
-                                        name="type[]"
-                                        value="Regular"
-                                        {{ in_array('Regular', $selectedTypes ?? []) ? 'checked' : '' }}>
-                                    <span><i class="bi bi-person-badge text-warning"></i> Regular</span>
-                                </label>
-                            </div> --}}
+                            <div class="ad-section-card h-100">
+                                <div class="ad-section-title"><i class="ti ti-id"></i><span>Partner Tags</span></div>
+                                <label class="form-label" for="store_code_{{ $ad->id }}">Store Code</label>
+                                <input type="text" class="form-control mb-3" id="store_code_{{ $ad->id }}" name="store_code" placeholder="Enter Store Code" value="{{ $ad->store_code }}" readonly>
+                                <label class="form-label fw-semibold">Project Tag</label>
+                                <div class="ad-project-list">
+                                    <label class="project-card">
+                                        <input type="checkbox"
+                                            class="project-type"
+                                            name="type[]"
+                                            value="Project Rise"
+                                            {{ in_array('Project Rise', $selectedTypes ?? []) ? 'checked' : '' }}>
+                                        <span><i class="bi bi-graph-up text-success"></i> Project Rise</span>
+                                    </label>
+                                    <label class="project-card">
+                                        <input type="checkbox"
+                                            class="project-type"
+                                            name="type[]"
+                                            value="Project Genesis"
+                                            {{ in_array('Project Genesis', $selectedTypes ?? []) ? 'checked' : '' }}>
+                                        <span><i class="bi bi-lightning text-primary"></i> Project Genesis</span>
+                                    </label>
+                                    <label class="project-card">
+                                        <input type="checkbox"
+                                            class="project-type"
+                                            name="type[]"
+                                            value="Regular"
+                                            {{ in_array('Regular', $selectedTypes ?? []) ? 'checked' : '' }}>
+                                        <span><i class="bi bi-person-badge text-warning"></i> Regular</span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="col-md-6 text-center">
-                            <div class="avatar-wrapper mx-auto mb-2">
-                                <img id="avatar-{{ $ad->id }}" 
-                                    src="{{ $ad->avatar ? asset($ad->avatar) : asset('design/assets/images/profile/user-1.png') }}">
+                            <div class="ad-section-card ad-profile-card h-100">
+                                <div class="avatar-wrapper mx-auto mb-2">
+                                    <img id="avatar-{{ $ad->id }}" 
+                                        src="{{ $ad->avatar ? asset($ad->avatar) : asset('design/assets/images/profile/user-1.png') }}"
+                                        alt="Partner photo">
+                                </div>
+                                <label for="inputImage-{{ $ad->id }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="ti ti-upload"></i> Upload Image
+                                </label>
+
+                                <input type="file" 
+                                    name="avatar"
+                                    id="inputImage-{{ $ad->id }}"
+                                    hidden
+                                    accept="image/*"
+                                    onchange="uploadAdImage(this, {{ $ad->id }})">
+
+                                <small class="d-block text-muted mt-1">
+                                    JPG, PNG (Max: 2MB)
+                                </small>
                             </div>
-                            <label for="inputImage-{{ $ad->id }}" class="btn btn-outline-primary btn-sm">
-                                <i class="ti ti-upload"></i> Upload Image
-                            </label>
-
-                            <input type="file" 
-                                name="avatar"
-                                id="inputImage-{{ $ad->id }}"
-                                hidden
-                                accept="image/*"
-                                onchange="uploadImage(this, {{ $ad->id }})">
-
-                            <small class="d-block text-muted mt-1">
-                                JPG, PNG (Max: 2MB)
-                            </small>
                         </div>
                         {{-- <div class="col-md-12 mb-2">
                             <label class="form-label" for="name">Full Name&nbsp;<span class="text-danger">*</span></label>
                             <input type="text" class="form-control required" id="name" name="name" placeholder="Enter Full Name" value="{{ $ad->name }}" required/>
                         </div> --}}
                         <div class="col-md-4 mb-2">
-                            <label class="form-label" for="first_name">First Name&nbsp;<span class="text-danger">*</span></label>
-                            <input type="text" class="form-control required" id="first_name" name="first_name" placeholder="Enter First Name" data-uppercase value="{{ $ad->userAds->first_name }}" required/>
+                            <label class="form-label" for="first_name_{{ $ad->id }}">First Name&nbsp;<span class="text-danger">*</span></label>
+                            <input type="text" class="form-control required" id="first_name_{{ $ad->id }}" name="first_name" placeholder="Enter First Name" data-uppercase value="{{ $ad->userAds->first_name }}" required/>
                         </div>
                         <div class="col-md-4 mb-2">
-                            <label class="form-label" for="middle_name">Middle Name</label>
-                            <input type="text" class="form-control required" id="middle_name" name="middle_name" placeholder="Enter Middle Name" data-uppercase value="{{ $ad->userAds->middle_name }}">
+                            <label class="form-label" for="middle_name_{{ $ad->id }}">Middle Name</label>
+                            <input type="text" class="form-control required" id="middle_name_{{ $ad->id }}" name="middle_name" placeholder="Enter Middle Name" data-uppercase value="{{ $ad->userAds->middle_name }}">
                         </div>
                         <div class="col-md-4 mb-2">
-                            <label class="form-label" for="last_name">Last Name&nbsp;<span class="text-danger">*</span></label>
-                            <input type="text" class="form-control required" id="last_name" name="last_name" placeholder="Enter Last Name" data-uppercase value="{{ $ad->userAds->last_name }}" required/>
+                            <label class="form-label" for="last_name_{{ $ad->id }}">Last Name&nbsp;<span class="text-danger">*</span></label>
+                            <input type="text" class="form-control required" id="last_name_{{ $ad->id }}" name="last_name" placeholder="Enter Last Name" data-uppercase value="{{ $ad->userAds->last_name }}" required/>
                         </div>
                         <div class="col-md-6 mb-2">
-                            <label class="form-label" for="email_address">Email Address&nbsp;<span class="text-danger">*</span></label>
-                            <input type="email" class="form-control required" id="email_address" name="email_address" placeholder="Enter Email Address" value="{{ $ad->email_address }}" required/>
+                            <label class="form-label" for="email_address_{{ $ad->id }}">Email Address&nbsp;<span class="text-danger">*</span></label>
+                            <input type="email" class="form-control required" id="email_address_{{ $ad->id }}" name="email_address" placeholder="Enter Email Address" value="{{ $ad->email_address }}" required/>
                         </div>
                         <div class="col-md-6 mb-2">
-                            <label class="form-label" for="contact_number">Contact Number&nbsp;<span class="text-danger">*</span></label>
-                            <input type="number" class="form-control required" id="contact_number" name="contact_number" placeholder="Enter Contact Number" step="0.01" value="{{ $ad->contact_number }}" maxlength="11" required>
+                            <label class="form-label" for="contact_number_{{ $ad->id }}">Contact Number&nbsp;<span class="text-danger">*</span></label>
+                            <input type="text" class="form-control required" id="contact_number_{{ $ad->id }}" name="contact_number" placeholder="Enter Contact Number" value="{{ $ad->contact_number }}" maxlength="11" pattern="09[0-9]{9}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
                         </div>
                         <div class="col-md-6 mb-2">
-                            <label class="form-label" for="birthdate">Birthdate&nbsp;<span class="text-danger">*</span></label>
-                            <input type="date" class="form-control required" id="birthdate" name='birthdate' placeholder="Enter Birthdate" value="{{ $ad->userAds->birthdate }}">
+                            <label class="form-label" for="birthdate_{{ $ad->id }}">Birthdate&nbsp;<span class="text-danger">*</span></label>
+                            <input type="date" class="form-control required" id="birthdate_{{ $ad->id }}" name='birthdate' placeholder="Enter Birthdate" value="{{ $ad->userAds->birthdate }}">
                         </div>
                         <div class="col-md-6 mb-2">
-                            <label class="form-label" for="facebook">Facebook</label>
-                            <input type="text" class="form-control required" id="facebook" name='facebook' placeholder="Enter Facebook" data-uppercase value="{{ $ad->facebook }}"/>
+                            <label class="form-label" for="facebook_{{ $ad->id }}">Facebook</label>
+                            <input type="text" class="form-control required" id="facebook_{{ $ad->id }}" name='facebook' placeholder="Enter Facebook" data-uppercase value="{{ $ad->facebook }}"/>
                         </div>
                         <div class="col-md-12 mt-2">
                             <div class="ad-location-panel">
@@ -187,13 +219,13 @@
                             </div>
                         </div>
                         <div class="col-md-6 mb-2">
-                            <label class="form-label" for="business_name">Business Name&nbsp;<span class="text-danger">*</span></label>
-                            <input type="text" class="form-control required" id="business_name" name="business_name" placeholder="Enter Business Name" data-uppercase value="{{ $ad->business_name }}" required/>
+                            <label class="form-label" for="business_name_{{ $ad->id }}">Business Name&nbsp;<span class="text-danger">*</span></label>
+                            <input type="text" class="form-control required" id="business_name_{{ $ad->id }}" name="business_name" placeholder="Enter Business Name" data-uppercase value="{{ $ad->business_name }}" required/>
                         </div>
                         <div class="col-md-6 mb-2">
-                            <label class="form-label" for="business_type">Business Type&nbsp;<span class="text-danger">*</span></label>
+                            <label class="form-label" for="business_type_{{ $ad->id }}">Business Type&nbsp;<span class="text-danger">*</span></label>
                             {{-- <input type="text" class="form-control required" id="business_type" name="business_type" placeholder="Enter Business Type" value="{{ $ad->business_type }}" required/> --}}
-                            <select name="business_type" class="form-control" data-placeholder="Select Business Type" required>
+                            <select id="business_type_{{ $ad->id }}" name="business_type" class="form-select" data-placeholder="Select Business Type" required>
                                 <option value="">Select Business Type</option>
                                 <option value="Sari Sari Store" @if($ad->business_type == 'Sari Sari Store') selected @endif>Sari Sari Store</option>
                                 <option value="Mini Mart" @if($ad->business_type == 'Mini Mart') selected @endif>Mini Mart</option>
@@ -223,31 +255,87 @@
                             <input type="date" class="form-control required" id="joining_date" name="joining_date" placeholder="Enter Joining Date" value="{{ $ad->joining_date }}">
                         </div> --}}
                         <div class="col-md-6">
-                            <label for="status" class="form-label">Status</label>
-                            <select id="status" name="status" class="form-control">
+                            <label for="status_{{ $ad->id }}" class="form-label">Status</label>
+                            <select id="status_{{ $ad->id }}" name="status" class="form-select">
                                 <option value="Active" @if($ad->status == 'Active') selected @endif>Active</option>
                                 <option value="Inactive" @if($ad->status == 'Inactive') selected @endif>Inactive</option>
                             </select>
                         </div>
-                        {{-- <div id="dynamic-area-wrapper-{{ $ad->id }}" class="col-md-12 business-fields">
-                            <div class="card border-0 shadow-sm rounded-4">
-                                <div class="card-body" style="padding: 10px 10px">
-
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 class="mb-0 fw-bold">
-                                            <i class="bi bi-map me-2"></i>Awarded Areas Per Project
-                                        </h6>
-
-                                        <button type="button"
-                                                class="btn btn-sm btn-primary"
-                                                onclick="addProjectRow({{ $ad->id }})">
-                                            <i class="bi bi-plus-lg"></i> Add Row
-                                        </button>
+                        <input type="hidden" name="sync_project_areas" value="1">
+                        <div id="dynamic-area-wrapper-{{ $ad->id }}" class="col-md-12 business-fields ad-awarded-area-wrapper">
+                            <div class="ad-awarded-area-card">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                                    <div class="ad-awarded-area-title">
+                                        <i class="ti ti-map-pin"></i>
+                                        <div>
+                                            <span>Awarded Areas Per Project</span>
+                                            <small>Select Project Rise or Project Genesis above to assign areas.</small>
+                                        </div>
                                     </div>
-                                    <div id="projectRows-{{ $ad->id }}"></div>
+                                    <button type="button"
+                                            class="btn btn-sm btn-primary ad-add-project-row"
+                                            data-ad-id="{{ $ad->id }}">
+                                        <i class="ti ti-plus"></i> Add Row
+                                    </button>
                                 </div>
+                                <div id="projectRows-{{ $ad->id }}" class="ad-project-rows">
+                                    @foreach($ad->areas->whereIn('project_type', ['Project Rise', 'Project Genesis'])->values() as $areaIndex => $area)
+                                        <div class="ad-project-row" data-project-row>
+                                            <input type="hidden" name="rows[{{ $areaIndex }}][id]" value="{{ $area->id }}">
+                                            <div class="row align-items-end">
+                                                <div class="col-md-3 mb-2">
+                                                    <label class="form-label">Project Type <span class="text-danger">*</span></label>
+                                                    <select class="form-select ad-row-project-type" name="rows[{{ $areaIndex }}][project_type]" required>
+                                                        <option value="">Select Project</option>
+                                                        <option value="Project Rise" {{ $area->project_type === 'Project Rise' ? 'selected' : '' }}>Project Rise</option>
+                                                        <option value="Project Genesis" {{ $area->project_type === 'Project Genesis' ? 'selected' : '' }}>Project Genesis</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-5 mb-2">
+                                                    <label class="form-label">Awarded Area <span class="text-danger">*</span></label>
+                                                    <select class="form-select ad-row-area-name" name="rows[{{ $areaIndex }}][area_name]" required>
+                                                        <option value="">Select Area</option>
+                                                        @foreach($awardedAreaOptions as $areaOption)
+                                                            <option value="{{ $areaOption }}" {{ $area->area_name === $areaOption ? 'selected' : '' }}>{{ $areaOption }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    @if($awardedAreaOptions->isEmpty())
+                                                        <small class="text-danger d-block mt-1">No awarded area options found.</small>
+                                                    @endif
+                                                </div>
+                                                <div class="col-md-3 mb-2">
+                                                    <label class="form-label">Joining Date</label>
+                                                    <input type="date" class="form-control" name="rows[{{ $areaIndex }}][joining_date]" value="{{ $area->joining_date }}">
+                                                </div>
+                                                <div class="col-md-1 mb-2">
+                                                    <button type="button" class="btn btn-outline-danger ad-remove-project-row" title="Remove area">
+                                                        <i class="ti ti-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <div id="projectRowsEmpty-{{ $ad->id }}" class="ad-project-empty">
+                                    <i class="ti ti-map-pin-off"></i>
+                                    <span>No awarded area rows yet.</span>
+                                </div>
+                                @if($deletedAwardedAreas->isNotEmpty())
+                                    <div class="ad-deleted-area-log">
+                                        <div class="ad-deleted-area-title">
+                                            <i class="ti ti-history"></i>
+                                            <span>Deleted Awarded Areas</span>
+                                        </div>
+                                        @foreach($deletedAwardedAreas as $deletedArea)
+                                            <div class="ad-deleted-area-item">
+                                                <span>{{ $deletedArea->project_type }} - {{ $deletedArea->area_name }}</span>
+                                                <small>Deleted: {{ optional($deletedArea->deleted_at)->format('M d, Y h:i A') ?? 'No timestamp' }}</small>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
-                        </div> --}}
+                        </div>
 
                         {{-- <template id="project-row-template">
                             <div class="row align-items-end project-row mb-3 border rounded-3 p-3 bg-white">
@@ -378,8 +466,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn bg-danger-subtle text-danger  waves-effect"data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn bg-info-subtle text-info  waves-effect">Submit</button>
+                    <button type="button" class="btn btn-light waves-effect" data-bs-dismiss="modal"><i class="ti ti-x me-1"></i> Close</button>
+                    <button type="submit" class="btn btn-primary waves-effect"><i class="ti ti-device-floppy me-1"></i> Save Changes</button>
                 </div>
             </form>
         </div>
@@ -391,12 +479,71 @@
         height: 400px;
         width: 100%;
     }
+    #edit_area_distributor-{{ $ad->id }} .modal-content {
+        border: 0;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+    }
+    #edit_area_distributor-{{ $ad->id }} .modal-header {
+        background: #ffffff;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 18px 22px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-modal-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-modal-heading h4 {
+        color: #111827;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-modal-heading small {
+        color: #6b7280;
+        display: block;
+        margin-top: 3px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-modal-icon {
+        align-items: center;
+        background: #eaf4ff;
+        border-radius: 10px;
+        color: #0d6efd;
+        display: inline-flex;
+        flex: 0 0 42px;
+        font-size: 22px;
+        height: 42px;
+        justify-content: center;
+        width: 42px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .modal-body {
+        background: #f6f8fb;
+        max-height: calc(100vh - 180px);
+        overflow-y: auto;
+        padding: 20px 22px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .modal-body > .row {
+        row-gap: 10px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-section-card,
     #edit_area_distributor-{{ $ad->id }} .ad-location-panel {
         border: 1px solid #d9e2ec;
         border-radius: 8px;
-        background: #f8fbfd;
+        background: #ffffff;
         padding: 16px;
         margin-bottom: 14px;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-section-title {
+        align-items: center;
+        color: #1f2937;
+        display: flex;
+        font-weight: 700;
+        gap: 8px;
+        margin-bottom: 12px;
     }
     #edit_area_distributor-{{ $ad->id }} .ad-location-title {
         display: flex;
@@ -405,6 +552,133 @@
         font-weight: 700;
         color: #1f2937;
         margin-bottom: 12px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-project-list {
+        display: grid;
+        gap: 8px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .project-card {
+        align-items: center;
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        gap: 9px;
+        margin: 0;
+        padding: 10px 12px;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+    #edit_area_distributor-{{ $ad->id }} .project-card:hover {
+        background: #ffffff;
+        border-color: #b6d4fe;
+        box-shadow: 0 6px 16px rgba(13, 110, 253, 0.08);
+    }
+    #edit_area_distributor-{{ $ad->id }} .project-card input {
+        flex: 0 0 auto;
+    }
+    #edit_area_distributor-{{ $ad->id }} .project-card span {
+        align-items: center;
+        display: flex;
+        font-weight: 600;
+        gap: 8px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-awarded-area-wrapper {
+        display: none;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-awarded-area-card {
+        background: #ffffff;
+        border: 1px solid #d9e2ec;
+        border-radius: 8px;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+        padding: 16px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-awarded-area-title {
+        align-items: flex-start;
+        display: flex;
+        gap: 10px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-awarded-area-title > i {
+        align-items: center;
+        background: #eaf4ff;
+        border-radius: 8px;
+        color: #0d6efd;
+        display: inline-flex;
+        flex: 0 0 36px;
+        height: 36px;
+        justify-content: center;
+        width: 36px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-awarded-area-title span {
+        color: #1f2937;
+        display: block;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-awarded-area-title small {
+        color: #6b7280;
+        display: block;
+        line-height: 1.35;
+        margin-top: 2px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-project-row {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        padding: 12px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-remove-project-row {
+        align-items: center;
+        display: inline-flex;
+        height: 38px;
+        justify-content: center;
+        width: 38px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-project-empty {
+        align-items: center;
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 8px;
+        color: #6b7280;
+        display: none;
+        gap: 8px;
+        justify-content: center;
+        min-height: 64px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-deleted-area-log {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 8px;
+        margin-top: 14px;
+        padding: 12px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-deleted-area-title {
+        align-items: center;
+        color: #9a3412;
+        display: flex;
+        font-weight: 700;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-deleted-area-item {
+        align-items: center;
+        border-top: 1px solid #fed7aa;
+        display: flex;
+        gap: 8px;
+        justify-content: space-between;
+        padding: 8px 0;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-deleted-area-item:first-of-type {
+        border-top: 0;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-deleted-area-item span {
+        color: #7c2d12;
+        font-weight: 600;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-deleted-area-item small {
+        color: #9a3412;
+        white-space: nowrap;
     }
     #edit_area_distributor-{{ $ad->id }} .ad-location-select:disabled {
         background-color: #eef2f6;
@@ -467,19 +741,26 @@
         font-weight: 600;
         color: #374151;
     }
-    .avatar-wrapper {
-        width: 100px;
-        height: 100px;
+    #edit_area_distributor-{{ $ad->id }} .ad-profile-card {
+        align-items: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    #edit_area_distributor-{{ $ad->id }} .avatar-wrapper {
+        width: 116px;
+        height: 116px;
         border-radius: 50%;
         overflow: hidden;
-        border: 3px solid #dee2e6;
+        border: 4px solid #ffffff;
         display: flex;
         align-items: center;
         justify-content: center;
         background: #f8f9fa;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.16);
     }
 
-    .avatar-wrapper img {
+    #edit_area_distributor-{{ $ad->id }} .avatar-wrapper img {
         width: 100%;
         height: 100%;
         object-fit: cover;
@@ -491,18 +772,41 @@
         flex-direction: column;
         gap: 10px;
     }
-
-    #edit_area_distributor-{{ $ad->id }} .modal-body {
-        max-height: calc(100vh - 180px);
-        overflow-y: auto;
+    #edit_area_distributor-{{ $ad->id }} .location-map {
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+    }
+    #edit_area_distributor-{{ $ad->id }} .modal-footer {
+        background: #ffffff;
+        border-top: 1px solid #e5e7eb;
+        padding: 14px 22px;
+    }
+    @media (max-width: 767.98px) {
+        #edit_area_distributor-{{ $ad->id }} .modal-header,
+        #edit_area_distributor-{{ $ad->id }} .modal-body,
+        #edit_area_distributor-{{ $ad->id }} .modal-footer {
+            padding-left: 14px;
+            padding-right: 14px;
+        }
+        #edit_area_distributor-{{ $ad->id }} .ad-modal-heading h4 {
+            font-size: 16px;
+        }
     }
 </style>
+@php
+    static $adEditAssetsLoaded = false;
+@endphp
+@if(!$adEditAssetsLoaded)
+@php
+    $adEditAssetsLoaded = true;
+@endphp
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    function uploadImage(input, id) {
+    function uploadAdImage(input, id) {
         const file = input.files[0];
 
         if (!file) return;
@@ -526,6 +830,7 @@
         reader.readAsDataURL(file);
     }
 </script>
+@endif
 
 <script>
     (function () {
@@ -535,7 +840,9 @@
         if (!modal) return;
 
         const BASE_URL = 'https://psgc.cloud/api';
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+        const areaOptions = @json($awardedAreaOptions);
         const saved = {
             region: @json($ad->location_region ?? ''),
             province: @json($ad->location_province ?? ''),
@@ -566,6 +873,10 @@
             sameAsDeliveryAddress: document.getElementById(`same_as_delivery_address_${adId}`),
         };
 
+        if (!fields.street || !fields.region || !fields.province || !fields.city || !fields.barangay || !fields.zipcode || !fields.addressPreview || !fields.addressInput) {
+            return;
+        }
+
         let initialized = false;
         let map = null;
         let marker = null;
@@ -573,17 +884,19 @@
         let currentLng = saved.lng;
         let geocodeTimeout = null;
         let zipTimeout = null;
+        let areaRowIndex = Date.now();
 
         function normalize(value) {
             return String(value || '').trim().toLowerCase();
         }
 
         function selectedOption(select) {
-            return select?.options?.[select.selectedIndex] || null;
+            return select && select.options ? select.options[select.selectedIndex] : null;
         }
 
         function selectedText(select) {
-            const text = selectedOption(select)?.text?.trim() || '';
+            const option = selectedOption(select);
+            const text = option && option.text ? option.text.trim() : '';
 
             if (!text || text.includes('Select') || text.includes('Loading') || text.includes('Error')) {
                 return '';
@@ -594,7 +907,7 @@
 
         function selectedCode(select) {
             const option = selectedOption(select);
-            return option?.dataset?.code || option?.value || '';
+            return (option && option.dataset && option.dataset.code) || (option && option.value) || '';
         }
 
         function setOptions(select, placeholder, items, selectedValue = '') {
@@ -629,6 +942,161 @@
             select.disabled = disabled;
         }
 
+        function escapeHtml(value) {
+            return String(value === null || typeof value === 'undefined' ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function selectedProjectTags() {
+            return Array.from(modal.querySelectorAll('.project-type:checked'))
+                .map(input => input.value)
+                .filter(value => ['Project Rise', 'Project Genesis'].includes(value));
+        }
+
+        function setRowInputsDisabled(row, disabled) {
+            row.querySelectorAll('input, select').forEach(input => {
+                input.disabled = disabled;
+            });
+        }
+
+        function refreshRowProjectOptions(row, projects) {
+            const select = row.querySelector('.ad-row-project-type');
+            if (!select) return;
+
+            const current = select.value;
+            select.innerHTML = '<option value="">Select Project</option>';
+
+            if (current && !projects.includes(current)) {
+                const currentOption = document.createElement('option');
+                currentOption.value = current;
+                currentOption.textContent = current;
+                select.appendChild(currentOption);
+            }
+
+            projects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project;
+                option.textContent = project;
+                select.appendChild(option);
+            });
+
+            select.value = current || (projects[0] || '');
+        }
+
+        function syncProjectAreaVisibility(autoAddRow = false) {
+            const projects = selectedProjectTags();
+            const wrapper = document.getElementById(`dynamic-area-wrapper-${adId}`);
+            const empty = document.getElementById(`projectRowsEmpty-${adId}`);
+            const rows = Array.from(modal.querySelectorAll('[data-project-row]'));
+
+            if (!wrapper) return;
+
+            const shouldShow = projects.length > 0;
+            wrapper.style.display = shouldShow ? 'block' : 'none';
+
+            let visibleRows = 0;
+
+            rows.forEach(row => {
+                refreshRowProjectOptions(row, projects);
+
+                const projectSelect = row.querySelector('.ad-row-project-type');
+                const project = projectSelect ? projectSelect.value : '';
+                const rowVisible = shouldShow && projects.includes(project);
+
+                row.style.display = rowVisible ? 'block' : 'none';
+                setRowInputsDisabled(row, !rowVisible);
+
+                if (rowVisible) {
+                    visibleRows++;
+                }
+            });
+
+            if (empty) {
+                empty.style.display = shouldShow && visibleRows === 0 ? 'flex' : 'none';
+            }
+
+            if (shouldShow) {
+                initializeDynamicSelects(wrapper);
+            }
+
+            if (autoAddRow && shouldShow && visibleRows === 0) {
+                addProjectAreaRow();
+            }
+        }
+
+        function initializeDynamicSelects(scope) {
+            if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                window.jQuery(scope).find('select.select2').each(function () {
+                    const $select = window.jQuery(this);
+
+                    if ($select.hasClass('select2-hidden-accessible')) return;
+
+                    $select.select2({
+                        width: '100%',
+                        dropdownParent: $select.closest('.modal'),
+                        placeholder: $select.data('placeholder') || 'Select Option',
+                        allowClear: true,
+                    });
+                });
+            }
+        }
+
+        function addProjectAreaRow() {
+            const projects = selectedProjectTags();
+            const container = document.getElementById(`projectRows-${adId}`);
+
+            if (!container || projects.length === 0) return;
+
+            const index = areaRowIndex++;
+            const projectOptions = projects
+                .map(project => `<option value="${escapeHtml(project)}">${escapeHtml(project)}</option>`)
+                .join('');
+            const areaOptionsHtml = areaOptions
+                .map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+                .join('');
+
+            const template = document.createElement('div');
+            template.className = 'ad-project-row';
+            template.dataset.projectRow = 'true';
+            template.innerHTML = `
+                <input type="hidden" name="rows[${index}][id]" value="">
+                <div class="row align-items-end">
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label">Project Type <span class="text-danger">*</span></label>
+                        <select class="form-select ad-row-project-type" name="rows[${index}][project_type]" required>
+                            <option value="">Select Project</option>
+                            ${projectOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-5 mb-2">
+                        <label class="form-label">Awarded Area <span class="text-danger">*</span></label>
+                        <select class="form-select ad-row-area-name" name="rows[${index}][area_name]" required>
+                            <option value="">Select Area</option>
+                            ${areaOptionsHtml}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label">Joining Date</label>
+                        <input type="date" class="form-control" name="rows[${index}][joining_date]">
+                    </div>
+                    <div class="col-md-1 mb-2">
+                        <button type="button" class="btn btn-outline-danger ad-remove-project-row" title="Remove area">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            template.querySelector('.ad-row-project-type').value = projects[0];
+            container.appendChild(template);
+            initializeDynamicSelects(template);
+            syncProjectAreaVisibility();
+        }
+
         function isNCR(regionCode, regionName) {
             return String(regionCode || '').startsWith('13') ||
                 normalize(regionName).includes('ncr') ||
@@ -636,18 +1104,18 @@
         }
 
         function syncDeliveryAddress() {
-            if (!fields.sameAsDeliveryAddress?.checked || !fields.deliveryAddress) return;
+            if (!fields.sameAsDeliveryAddress || !fields.sameAsDeliveryAddress.checked || !fields.deliveryAddress) return;
 
-            fields.deliveryAddress.value = fields.addressInput.value || fields.addressPreview.value || '';
+            fields.deliveryAddress.value = (fields.addressInput && fields.addressInput.value) || (fields.addressPreview && fields.addressPreview.value) || '';
         }
 
         function updateFullAddress() {
-            const street = fields.street.value.trim();
+            const street = fields.street && fields.street.value ? fields.street.value.trim() : '';
             const barangay = selectedText(fields.barangay);
             const city = selectedText(fields.city);
             const province = selectedText(fields.province);
             const region = selectedText(fields.region);
-            const zipcode = fields.zipcode.value.trim();
+            const zipcode = fields.zipcode && fields.zipcode.value ? fields.zipcode.value.trim() : '';
 
             const parts = [];
 
@@ -675,10 +1143,10 @@
             currentLat = Number(lat);
             currentLng = Number(lng);
 
-            fields.latText.textContent = currentLat.toFixed(6);
-            fields.lngText.textContent = currentLng.toFixed(6);
-            fields.latInput.value = currentLat;
-            fields.lngInput.value = currentLng;
+            if (fields.latText) fields.latText.textContent = currentLat.toFixed(6);
+            if (fields.lngText) fields.lngText.textContent = currentLng.toFixed(6);
+            if (fields.latInput) fields.latInput.value = currentLat;
+            if (fields.lngInput) fields.lngInput.value = currentLng;
 
             if (fetchZip) {
                 updateZipCode(currentLat, currentLng);
@@ -903,9 +1371,9 @@
 
             initialized = true;
 
-            fields.zipcode.value = saved.zipcode || fields.zipcode.value;
-            fields.addressPreview.value = saved.address;
-            fields.addressInput.value = saved.address;
+            fields.zipcode.value = saved.zipcode || fields.zipcode.value || '';
+            fields.addressPreview.value = saved.address || '';
+            fields.addressInput.value = saved.address || '';
 
             if (fields.deliveryAddress && fields.sameAsDeliveryAddress) {
                 const deliveryMatchesAddress = normalize(fields.deliveryAddress.value) !== '' &&
@@ -933,50 +1401,109 @@
             updateFullAddress();
         }
 
-        fields.region.addEventListener('change', async function () {
-            fields.zipcode.value = '';
-            await loadProvinces();
-            updateFullAddress();
+        if (fields.region) {
+            fields.region.addEventListener('change', async function () {
+                fields.zipcode.value = '';
+                await loadProvinces();
+                updateFullAddress();
+            });
+        }
+
+        if (fields.province) {
+            fields.province.addEventListener('change', async function () {
+                fields.zipcode.value = '';
+                await loadCities();
+                updateFullAddress();
+            });
+        }
+
+        if (fields.city) {
+            fields.city.addEventListener('change', async function () {
+                fields.zipcode.value = '';
+                await loadBarangays();
+                updateFullAddress();
+            });
+        }
+
+        if (fields.barangay) {
+            fields.barangay.addEventListener('change', function () {
+                clearTimeout(geocodeTimeout);
+                geocodeTimeout = setTimeout(geocodeSelectedBarangay, 300);
+                updateFullAddress();
+            });
+        }
+
+        if (fields.street) {
+            fields.street.addEventListener('input', updateFullAddress);
+        }
+
+        modal.querySelectorAll('.project-type').forEach(input => {
+            input.addEventListener('change', function () {
+                syncProjectAreaVisibility(true);
+            });
         });
 
-        fields.province.addEventListener('change', async function () {
-            fields.zipcode.value = '';
-            await loadCities();
-            updateFullAddress();
-        });
+        const addProjectRowButton = modal.querySelector('.ad-add-project-row');
 
-        fields.city.addEventListener('change', async function () {
-            fields.zipcode.value = '';
-            await loadBarangays();
-            updateFullAddress();
-        });
+        if (addProjectRowButton) {
+            addProjectRowButton.addEventListener('click', addProjectAreaRow);
+        }
 
-        fields.barangay.addEventListener('change', function () {
-            clearTimeout(geocodeTimeout);
-            geocodeTimeout = setTimeout(geocodeSelectedBarangay, 300);
-            updateFullAddress();
-        });
-
-        fields.street.addEventListener('input', updateFullAddress);
-
-        fields.sameAsDeliveryAddress?.addEventListener('change', function () {
-            fields.deliveryAddress.readOnly = this.checked;
-            syncDeliveryAddress();
-
-            if (!this.checked) {
-                fields.deliveryAddress.focus();
+        modal.addEventListener('change', function (event) {
+            if (event.target.classList.contains('ad-row-project-type')) {
+                syncProjectAreaVisibility();
             }
         });
+
+        modal.addEventListener('click', function (event) {
+            const button = event.target.closest('.ad-remove-project-row');
+
+            if (!button) return;
+
+            const row = button.closest('[data-project-row]');
+
+            if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                window.jQuery(row).find('select.select2').each(function () {
+                    const $select = window.jQuery(this);
+
+                    if ($select.hasClass('select2-hidden-accessible')) {
+                        $select.select2('destroy');
+                    }
+                });
+            }
+
+            if (row) {
+                row.remove();
+            }
+            syncProjectAreaVisibility();
+        });
+
+        if (fields.sameAsDeliveryAddress) {
+            fields.sameAsDeliveryAddress.addEventListener('change', function () {
+                fields.deliveryAddress.readOnly = this.checked;
+                syncDeliveryAddress();
+
+                if (!this.checked) {
+                    fields.deliveryAddress.focus();
+                }
+            });
+        }
 
         modal.addEventListener('shown.bs.modal', async function () {
             await initializeLocationFields();
             initMap();
+            syncProjectAreaVisibility(true);
+            initializeDynamicSelects(modal);
         });
 
-        modal.querySelector('form')?.addEventListener('submit', function () {
-            updateFullAddress();
-            syncDeliveryAddress();
-        });
+        const form = modal.querySelector('form');
+
+        if (form) {
+            form.addEventListener('submit', function () {
+                syncProjectAreaVisibility();
+                updateFullAddress();
+                syncDeliveryAddress();
+            });
+        }
     })();
 </script>
-

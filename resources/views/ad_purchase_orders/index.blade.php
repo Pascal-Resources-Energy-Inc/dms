@@ -177,7 +177,9 @@
     $clearRoute = $clearRoute ?? route('ad-purchase-orders.index');
     $exportRoute = $exportRoute ?? route('ad-purchase-orders.export', request()->query());
     $viewRouteName = $viewRouteName ?? 'ad-purchase-orders.show';
-    $statusOptions = ['Pending', 'For Delivery', 'SO Created', 'Partial Received', 'Completed', 'Cancelled'];
+    $statusOptions = auth()->user()->role === 'Area Distributor'
+        ? ['Pending', 'Partial Received', 'Completed', 'Cancelled']
+        : ['Pending', 'For Delivery', 'SO Created', 'Partial Received', 'Completed', 'Cancelled'];
     $shippingOptions = [
         'delivered' => 'Delivered',
         'pickup_lubao' => 'Pick Up Lubao',
@@ -207,7 +209,7 @@
         'Partial Received' => 'Partial',
         'Completed' => 'Completed',
     ];
-    $editableAdpoStatuses = ['For Delivery', 'SO Created', 'Partial Received'];
+    $editableAdpoStatuses = ['Pending', 'For Delivery', 'SO Created', 'Partial Received'];
     $canUpdateAdpoStatus = auth()->user()->role === 'Area Distributor';
     $isWarehouseTaskView = auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse);
     $taskColumns = [
@@ -223,7 +225,7 @@
             return [
                 strval($order->id) => $order->partialReceipts->filter(function ($receipt) {
                     return (int) $receipt->received_qty > (int) $receipt->confirmed_qty;
-                })->map(function ($receipt) {
+                })->map(function ($receipt) use ($order) {
                     $item = $receipt->item;
                     $confirmedBeforeQty = $item
                         ? $item->partialReceipts->sum(function ($itemReceipt) {
@@ -239,7 +241,7 @@
                         'confirmed_before_qty' => $confirmedBeforeQty,
                         'received_qty' => max((int) $receipt->received_qty - (int) $receipt->confirmed_qty, 0),
                         'delivery_date' => optional($receipt->delivery_date)->format('Y-m-d'),
-                        'dr_number' => $receipt->dr_number,
+                        'dr_number' => $receipt->dr_number ?: $order->dr_number,
                     ];
                 })->values(),
             ];
@@ -248,15 +250,18 @@
         return [
             strval($order->id) => $order->items->filter(function ($item) {
                 return (int) ($item->partial_received_qty ?? 0) !== (int) $item->qty;
-            })->map(function ($item) {
+            })->map(function ($item) use ($order) {
+                $receivedQty = min(max((int) ($item->partial_received_qty ?? 0), 0), (int) $item->qty);
+
                 return [
                     'id' => $item->id,
                     'name' => $item->product_name,
                     'qty' => (int) $item->qty,
-                    'confirmed_before_qty' => 0,
-                    'received_qty' => (int) ($item->partial_received_qty ?? 0),
+                    'confirmed_before_qty' => $receivedQty,
+                    'received_qty' => 0,
+                    'receive_mode' => 'increment',
                     'delivery_date' => optional($item->partial_delivery_date)->format('Y-m-d'),
-                    'dr_number' => $item->partial_dr_number,
+                    'dr_number' => $item->partial_dr_number ?: $order->dr_number,
                 ];
             })->values(),
         ];
@@ -470,6 +475,13 @@
                             @php
                                 $statusClass = 'status-' . strtolower(str_replace(' ', '-', $order->status));
                                 $submittedAt = $order->submitted_at ?: $order->created_at;
+                                $canAutoCompleteReceiving = $order->items->isNotEmpty()
+                                    && $order->items->every(function ($item) {
+                                        return $item->partialReceipts->sum('confirmed_qty') >= (int) $item->qty;
+                                    })
+                                    && $order->partialReceipts->every(function ($receipt) {
+                                        return (int) $receipt->confirmed_qty >= (int) $receipt->received_qty;
+                                    });
                             @endphp
                             <tr>
                                 <td>
@@ -510,9 +522,11 @@
                                                 data-po="{{ $order->po_number }}"
                                                 data-business="{{ $order->business_name ?: 'Area Distributor' }}"
                                                 data-current-status="{{ $order->status }}"
+                                                data-can-complete-receiving="{{ $canAutoCompleteReceiving ? '1' : '0' }}"
                                                 data-payment-method="{{ $order->payment_method }}"
                                                 data-reference-no="{{ $order->reference_no }}"
                                                 data-has-proof="{{ $order->proof_of_payment ? '1' : '0' }}"
+                                                data-proof-url="{{ $order->proof_of_payment ? asset($order->proof_of_payment) : '' }}"
                                                 data-delivery-date="{{ optional($order->delivery_date)->format('Y-m-d') }}"
                                                 data-so-number="{{ $order->so_number }}"
                                                 data-dr-number="{{ $order->dr_number }}"
@@ -579,24 +593,36 @@
                                 <span>Current Status</span>
                                 <strong id="statusModalCurrent">N/A</strong>
                             </div>
+                            <div class="status-modal-item d-none" id="statusModalSoWrap">
+                                <span>SO Number</span>
+                                <strong id="statusModalSo">N/A</strong>
+                            </div>
+                            <div class="status-modal-item d-none" id="statusModalSiWrap">
+                                <span>SI Number</span>
+                                <strong id="statusModalSi">N/A</strong>
+                            </div>
                         </div>
 
                         <input type="hidden" name="payment_method" id="statusPaymentMethod">
                         <input type="hidden" name="reference_no" id="statusReferenceNo">
 
                         <div class="mb-3">
-                            <label class="form-label small fw-bold text-uppercase text-muted">
-                                Proof of Payment <span class="text-danger" id="statusProofRequired">*</span>
-                            </label>
-                            <input type="file" name="proof_of_payment" id="statusProofOfPayment" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.pdf">
-                            <div class="form-text" id="statusProofHelp">JPG, PNG, or PDF. Maximum size: 5 MB.</div>
+                            <label class="form-label small fw-bold text-uppercase text-muted">Proof of Payment</label>
+                            <div class="d-none" id="statusCurrentProof">
+                                <a href="#" id="statusCurrentProofLink" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">
+                                    <i class="bi bi-paperclip"></i> View Current Attachment
+                                </a>
+                            </div>
+                            <div class="form-text d-none" id="statusNoCurrentProof">No proof of payment attachment is available.</div>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label small fw-bold text-uppercase text-muted">New Status</label>
+                            <label class="form-label small fw-bold text-uppercase text-muted">Status</label>
                             <select name="status" id="statusModalSelect" class="form-select" required>
                                 @foreach($statusOptions as $status)
-                                    <option value="{{ $status }}">{{ $status }}</option>
+                                    <option value="{{ $status }}">
+                                        {{ auth()->user()->role === 'Area Distributor' && $status === 'Partial Received' ? 'Incomplete' : $status }}
+                                    </option>
                                 @endforeach
                             </select>
                         </div>
@@ -615,6 +641,7 @@
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold text-uppercase text-muted">DR Number</label>
                                     <input type="text" name="dr_number" id="statusDrNumber" class="form-control form-control-sm" placeholder="Enter DR number" data-uppercase disabled>
+                                    <div class="form-text d-none" id="statusDrLockedHelp">The first DR number is saved and cannot be changed.</div>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold text-uppercase text-muted">SI Number</label>
@@ -699,6 +726,7 @@
                 const statusDeliveryWrap = document.getElementById('statusDeliveryWrap');
                 const statusDeliveryDate = document.getElementById('statusDeliveryDate');
                 const statusDrNumber = document.getElementById('statusDrNumber');
+                const statusDrLockedHelp = document.getElementById('statusDrLockedHelp');
                 const statusSiNumber = document.getElementById('statusSiNumber');
 
                 if (!form || !statusSelect || !partialWrap || !partialItems || !statusSoWrap || !statusSoNumber || !statusDeliveryWrap || !statusDeliveryDate || !statusDrNumber || !statusSiNumber) {
@@ -707,7 +735,6 @@
 
                 const statusesNeedingRemarks = ['For Delivery', 'SO Created', 'Partial Received', 'Cancelled'];
                 const canEditPartialDocs = @json(auth()->user()->role === 'Admin');
-                const canConfirmPartialCompletion = @json(auth()->user()->role === 'Area Distributor');
                 let currentItems = [];
 
                 function syncPartialRow(row) {
@@ -755,11 +782,13 @@
                     statusDeliveryDate.required = needsDeliveryDetails;
                     statusDrNumber.disabled = !needsDeliveryDetails;
                     statusDrNumber.required = needsDeliveryDetails;
+                    statusDrNumber.readOnly = needsDeliveryDetails && statusDrNumber.dataset.hasSavedDr === '1';
+                    statusDrLockedHelp.classList.toggle('d-none', !statusDrNumber.readOnly);
                     statusSiNumber.disabled = !needsDeliveryDetails;
                     statusSiNumber.required = needsDeliveryDetails;
 
                     partialWrap.classList.toggle('is-visible', needsPartialItems);
-                    partialItems.querySelectorAll('.partial-received-qty, .partial-delivery-date, .partial-dr-number').forEach(function (input) {
+                    partialItems.querySelectorAll('.partial-received-qty, .partial-receive-mode, .partial-delivery-date, .partial-dr-number').forEach(function (input) {
                         input.disabled = !needsPartialItems;
                     });
                     partialItems.querySelectorAll('.partial-item-row').forEach(syncPartialRow);
@@ -794,12 +823,19 @@
                         const qty = Math.max(Number(item.qty || 0), 0);
                         const confirmedBeforeQty = Math.min(Math.max(Number(item.confirmed_before_qty || 0), 0), qty);
                         const forReceivingQty = Math.min(Math.max(Number(item.received_qty || 0), 0), qty);
-                        const inputMax = canEditPartialDocs ? qty : forReceivingQty;
-                        const receivedQty = Math.min(forReceivingQty, inputMax);
+                        const receiveMode = item.receive_mode || '';
                         const receiptId = Number(item.receipt_id || 0);
+                        const isDirectAdReceipt = !canEditPartialDocs && !receiptId && receiveMode === 'increment';
+                        const inputMax = canEditPartialDocs
+                            ? qty
+                            : (isDirectAdReceipt ? Math.max(qty - confirmedBeforeQty, 0) : forReceivingQty);
+                        const receivedQty = isDirectAdReceipt ? 0 : Math.min(forReceivingQty, inputMax);
                         const inputName = receiptId
                             ? `partial_receipts[${receiptId}][confirmed_qty]`
                             : `partial_items[${Number(item.id)}][received_qty]`;
+                        const receiveModeInput = isDirectAdReceipt
+                            ? `<input type="hidden" name="partial_items[${Number(item.id)}][receive_mode]" value="increment" class="partial-receive-mode" disabled>`
+                            : '';
                         const deliveryDate = item.delivery_date || '';
                         const drNumber = item.dr_number || '';
                         orderedTotal += receiptId ? 0 : qty;
@@ -831,6 +867,7 @@
                                     data-for-receiving-qty="${forReceivingQty}"
                                     data-dr-number="${escapeHtml(drNumber)}"
                                     disabled>
+                                ${receiveModeInput}
                             </div>
                             ${canEditPartialDocs ? `
                                 <div>
@@ -952,6 +989,7 @@
                     const rows = Array.from(partialItems.querySelectorAll('.partial-item-row'));
                     const itemTotals = {};
                     const receivedRows = [];
+                    let allForReceivingConfirmed = rows.length > 0;
 
                     rows.forEach(function (row) {
                         const qtyInput = row.querySelector('.partial-received-qty');
@@ -962,6 +1000,10 @@
                         const forReceivingQty = Number(qtyInput ? qtyInput.dataset.forReceivingQty || 0 : 0);
                         const drNumber = qtyInput ? qtyInput.dataset.drNumber || 'N/A' : 'N/A';
                         const receivedQty = Number(qtyInput ? qtyInput.value || 0 : 0);
+
+                        if (receivedQty !== forReceivingQty) {
+                            allForReceivingConfirmed = false;
+                        }
 
                         if (!itemTotals[itemId]) {
                             itemTotals[itemId] = {
@@ -995,7 +1037,9 @@
                         ordered: totals.ordered,
                         received: totals.received,
                         pending: Math.max(totals.ordered - totals.received, 0),
-                        completesOrder: totals.ordered > 0 && totals.received >= totals.ordered,
+                        completesOrder: totals.ordered > 0
+                            && allForReceivingConfirmed
+                            && Math.max(totals.ordered - totals.received, 0) === 0,
                         rows: receivedRows
                     };
                 }
@@ -1022,25 +1066,66 @@
                         document.getElementById('statusModalTotal').textContent = button.dataset.total || 'N/A';
                         document.getElementById('statusModalBusiness').textContent = button.dataset.business || 'N/A';
                         document.getElementById('statusModalCurrent').textContent = button.dataset.currentStatus || 'N/A';
+                        const modalSoWrap = document.getElementById('statusModalSoWrap');
+                        const modalSiWrap = document.getElementById('statusModalSiWrap');
+                        const savedSoNumber = (button.dataset.soNumber || '').trim();
+                        const savedSiNumber = (button.dataset.siNumber || '').trim();
+                        document.getElementById('statusModalSo').textContent = savedSoNumber || 'N/A';
+                        document.getElementById('statusModalSi').textContent = savedSiNumber || 'N/A';
+                        modalSoWrap.classList.toggle('d-none', savedSoNumber === '');
+                        modalSiWrap.classList.toggle('d-none', savedSiNumber === '');
                         document.getElementById('statusPaymentMethod').value = button.dataset.paymentMethod || 'cash';
                         document.getElementById('statusReferenceNo').value = button.dataset.referenceNo || '';
                         const proofInput = document.getElementById('statusProofOfPayment');
                         const hasProof = button.dataset.hasProof === '1';
-                        proofInput.value = '';
-                        proofInput.required = !hasProof;
-                        document.getElementById('statusProofRequired').classList.toggle('d-none', hasProof);
-                        document.getElementById('statusProofHelp').textContent = hasProof
-                            ? 'A proof is already saved. Select a file only to replace it.'
-                            : 'Required. JPG, PNG, or PDF. Maximum size: 5 MB.';
+                        const currentProof = document.getElementById('statusCurrentProof');
+                        const currentProofLink = document.getElementById('statusCurrentProofLink');
+                        const noCurrentProof = document.getElementById('statusNoCurrentProof');
+
+                        if (proofInput) {
+                            proofInput.value = '';
+                            proofInput.required = !hasProof;
+                            document.getElementById('statusProofHelp').textContent = hasProof
+                                ? 'A proof is already saved. Select a file only to replace it.'
+                                : 'Required. JPG, PNG, or PDF. Maximum size: 5 MB.';
+                        }
+
+                        currentProof.classList.toggle('d-none', !hasProof);
+                        currentProofLink.href = hasProof ? button.dataset.proofUrl : '#';
+                        noCurrentProof.classList.toggle('d-none', hasProof);
                         statusDeliveryDate.value = button.dataset.deliveryDate || '';
                         statusSoNumber.value = button.dataset.soNumber || '';
                         statusDrNumber.value = button.dataset.drNumber || '';
+                        statusDrNumber.dataset.hasSavedDr = statusDrNumber.value.trim() !== '' ? '1' : '0';
                         statusSiNumber.value = button.dataset.siNumber || '';
                         currentItems = orderItemsById[button.dataset.orderId] || [];
                         renderPartialItems(currentItems);
-                        statusSelect.value = button.dataset.currentStatus || 'Pending';
+                        const requestedStatus = button.dataset.currentStatus || '';
+                        const hasNoReceivingProducts = currentItems.length === 0;
+                        const canCompleteReceiving = button.dataset.canCompleteReceiving === '1';
+                        const cancelledOption = Array.from(statusSelect.options).find(function (option) {
+                            return option.value === 'Cancelled';
+                        });
+
+                        if (cancelledOption) {
+                            const canCancel = ['Pending', 'SO Created'].includes(requestedStatus);
+                            cancelledOption.hidden = !canCancel;
+                            cancelledOption.disabled = !canCancel;
+                        }
+
+                        const selectableOptions = Array.from(statusSelect.options).filter(function (option) {
+                            return !option.disabled;
+                        });
+                        statusSelect.value = requestedStatus === 'Partial Received'
+                            && hasNoReceivingProducts
+                            && canCompleteReceiving
+                            ? 'Completed'
+                            : (selectableOptions.some(function (option) {
+                            return option.value === requestedStatus;
+                        }) ? requestedStatus : (selectableOptions[0] ? selectableOptions[0].value : ''));
                         remarks.value = button.dataset.remarks || '';
                         form.dataset.confirmed = '';
+                        form.dataset.willComplete = '';
                         toggleRemarks();
                     });
                 });
@@ -1053,6 +1138,16 @@
                     }
 
                     event.preventDefault();
+
+                    if (statusSelect.value === 'Partial Received' && !canEditPartialDocs) {
+                        const confirmation = partialConfirmationData();
+                        const hasNoReceivingProducts = partialItems.querySelectorAll('.partial-received-qty').length === 0;
+
+                        form.dataset.willComplete = (
+                            hasNoReceivingProducts
+                            || (confirmation.ordered > 0 && confirmation.pending === 0)
+                        ) ? 'true' : 'false';
+                    }
 
                     if (statusesNeedingRemarks.includes(statusSelect.value) && remarks.value.trim() === '') {
                         Swal.fire({
@@ -1145,7 +1240,7 @@
 
                     if (statusSelect.value === 'Partial Received' && !canEditPartialDocs) {
                         const confirmation = partialConfirmationData();
-                        const saveStatus = confirmation.completesOrder ? 'Completed' : 'Partial Received';
+                        const willComplete = form.dataset.willComplete === 'true' || confirmation.completesOrder;
                         const rowsHtml = confirmation.rows.map(function (row) {
                             return `
                                 <tr>
@@ -1160,11 +1255,11 @@
                         }).join('');
 
                         Swal.fire({
-                            icon: confirmation.completesOrder ? 'success' : 'question',
-                            title: confirmation.completesOrder ? 'Complete this DPO?' : 'Confirm partial received?',
+                            icon: willComplete ? 'success' : 'question',
+                            title: willComplete ? 'Complete this DPO?' : 'Confirm partial received?',
                             html: `
                                 <div style="text-align:left">
-                                    <p class="mb-2">${confirmation.completesOrder
+                                    <p class="mb-2">${willComplete
                                         ? 'All products are confirmed received. Saving will mark this DPO as Completed.'
                                         : 'Please review the AD confirmed quantities before saving. Confirmed quantity cannot be higher than For Receiving.'}</p>
                                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
@@ -1190,16 +1285,13 @@
                                 </div>
                             `,
                             showCancelButton: true,
-                            confirmButtonText: confirmation.completesOrder ? 'Confirm and complete' : 'Confirm received qty',
+                            confirmButtonText: willComplete ? 'Confirm and complete' : 'Confirm received qty',
                             cancelButtonText: 'Review again',
                             confirmButtonColor: '#0d6efd',
                             reverseButtons: true,
                             width: 680
                         }).then(function (result) {
                             if (result.isConfirmed) {
-                                if (canConfirmPartialCompletion) {
-                                    statusSelect.value = saveStatus;
-                                }
                                 submitConfirmedForm();
                             }
                         });

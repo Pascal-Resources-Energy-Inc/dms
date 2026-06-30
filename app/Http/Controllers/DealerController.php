@@ -9,6 +9,7 @@ use App\TransactionDetail;
 use App\Item;
 use App\Area;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class DealerController extends Controller
@@ -16,17 +17,52 @@ class DealerController extends Controller
     //
     public function index(Request $request)
     {
-        $activeDealers = Dealer::where('status', 'Active')->count();
-        $inactiveDealers = Dealer::where('status', 'Inactive')->count();
+        $isAdmin = auth()->user()->role === 'Admin';
         $items = Item::select('item')->get(); // master list of items
-        
         $centers = Center::get();
-        $dealers = Dealer::with('user')->get();
-
         $areas = Area::with('areaAd.distributor')->get();
+
+        $adminCrmDealers = collect();
+        $adminCrm2Dealers = collect();
+        $adminRegularDealers = collect();
+
+        if ($isAdmin) {
+            $adminCrmDealers = $this->crmDealers('admin_crms', 'Admin CRM 1');
+            $adminCrm2Dealers = $this->crmDealers('admin_crms2', 'Admin CRM 2');
+            $adminRegularDealers = Dealer::with(['user', 'orders', 'sales'])
+                ->where(function ($query) {
+                    $query->where('dealer_type', 'Regular')
+                        ->orWhere('dealer_type', 'regular');
+                })
+                ->get()
+                ->map(function ($dealer) {
+                    $dealer->source = 'Regular';
+                    $dealer->source_label = 'Regular';
+
+                    return $dealer;
+                });
+            $dealers = $adminCrmDealers
+                ->merge($adminCrm2Dealers)
+                ->merge($adminRegularDealers)
+                ->values();
+        } else {
+            $dealers = Dealer::with('user')->get();
+        }
+
+        $activeDealers = $dealers->filter(function ($dealer) {
+            return strcasecmp((string) $dealer->status, 'Active') === 0;
+        })->count();
+
+        $inactiveDealers = $dealers->filter(function ($dealer) {
+            return strcasecmp((string) $dealer->status, 'Inactive') === 0;
+        })->count();
+
         return view('dealers',
             array(
                 'dealers' => $dealers,
+                'adminCrmDealers' => $adminCrmDealers,
+                'adminCrm2Dealers' => $adminCrm2Dealers,
+                'adminRegularDealers' => $adminRegularDealers,
                 'activeDealers' => $activeDealers,
                 'inactiveDealers' => $inactiveDealers,
                 'items' => $items,
@@ -35,6 +71,152 @@ class DealerController extends Controller
 
             )
         );
+    }
+
+    private function crmDealers($connection, $label)
+    {
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (! $schema->hasTable('dealers')) {
+                return collect();
+            }
+
+            $query = DB::connection($connection)->table('dealers');
+
+            if ($schema->hasColumn('dealers', 'deleted_at')) {
+                $query->whereNull('deleted_at');
+            }
+
+            if ($schema->hasColumn('dealers', 'id')) {
+                $query->orderByDesc('id');
+            } elseif ($schema->hasColumn('dealers', 'created_at')) {
+                $query->orderByDesc('created_at');
+            }
+
+            return $query->get()
+                ->map(function ($dealer) use ($connection, $label) {
+                    return $this->normalizeCrmDealer($dealer, $connection, $label);
+                });
+        } catch (\Exception $exception) {
+            return collect();
+        }
+    }
+
+    private function normalizeCrmDealer($dealer, $connection, $label)
+    {
+        $location = collect([
+            $dealer->street_address ?? null,
+            $dealer->location_barangay ?? null,
+            $dealer->location_city ?? null,
+            $dealer->location_province ?? null,
+            $dealer->location_region ?? null,
+        ])->filter()->implode(', ');
+
+        $dealer->source = $connection;
+        $dealer->source_label = $label;
+        $dealer->dealer_reference = $dealer->dealer_reference ?? ('CRM-' . ($dealer->id ?? ''));
+        $dealer->dealer_type = $dealer->dealer_type ?? 'Project';
+        $dealer->name = $dealer->name ?? '-';
+        $dealer->avatar = $dealer->avatar ?? null;
+        $dealer->store_name = $dealer->store_name ?? '-';
+        $dealer->store_type = $dealer->store_type ?? '-';
+        $dealer->email_address = $dealer->email_address ?? ($dealer->email ?? '-');
+        $dealer->facebook = $dealer->facebook ?? '-';
+        $dealer->location_region = $dealer->location_region ?? '-';
+        $dealer->location_province = $dealer->location_province ?? '-';
+        $dealer->location_city = $dealer->location_city ?? '-';
+        $dealer->location_barangay = $dealer->location_barangay ?? '-';
+        $dealer->number = $dealer->number ?? ($dealer->contact_number ?? '-');
+        $dealer->address = $dealer->address ?? ($location ?: '-');
+        $dealer->area = $dealer->area ?? ($dealer->sales_territory ?? '-');
+        $dealer->status = ucfirst(strtolower((string) ($dealer->status ?? 'Active')));
+        $dealer->valid_id = $dealer->valid_id ?? null;
+        $dealer->valid_id_number = $dealer->valid_id_number ?? null;
+        $dealer->signature = $dealer->signature ?? null;
+        $dealer->orders = collect();
+        $dealer->sales = collect();
+
+        return $dealer;
+    }
+
+    private function crmTransactions($connection, $dealer)
+    {
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (! $schema->hasTable('transaction_details')) {
+                return collect();
+            }
+
+            $query = DB::connection($connection)->table('transaction_details');
+            $dealerIds = collect([$dealer->user_id ?? null, $dealer->id ?? null])->filter()->unique()->values()->all();
+
+            if ($schema->hasColumn('transaction_details', 'dealer_id')) {
+                $query->whereIn('dealer_id', $dealerIds);
+            } elseif ($schema->hasColumn('transaction_details', 'user_id')) {
+                $query->whereIn('user_id', $dealerIds);
+            } else {
+                return collect();
+            }
+
+            if ($schema->hasColumn('transaction_details', 'id')) {
+                $query->orderByDesc('id');
+            } elseif ($schema->hasColumn('transaction_details', 'created_at')) {
+                $query->orderByDesc('created_at');
+            }
+
+            return $query->get()->map(function ($transaction) {
+                $qty = (float) ($transaction->qty ?? $transaction->quantity ?? 0);
+                $amount = (float) ($transaction->amount ?? $transaction->total_amount ?? 0);
+                $price = $transaction->price ?? ($qty > 0 && $amount > 0 ? $amount / $qty : 0);
+
+                $transaction->item = $transaction->item ?? ($transaction->product ?? ($transaction->product_name ?? '-'));
+                $transaction->qty = $qty;
+                $transaction->points_client = $transaction->points_client ?? ($transaction->points ?? 0);
+                $transaction->price = $price;
+                $transaction->created_at = $transaction->created_at ?? now();
+
+                return $transaction;
+            });
+        } catch (\Exception $exception) {
+            return collect();
+        }
+    }
+
+    public function viewAdminCrmDealer(Request $request, $source, $id)
+    {
+        abort_unless(auth()->user()->role === 'Admin', 403);
+
+        $connections = [
+            'admin_crms' => 'Admin CRM 1',
+            'admin_crms2' => 'Admin CRM 2',
+        ];
+
+        abort_unless(array_key_exists($source, $connections), 404);
+
+        $schema = DB::connection($source)->getSchemaBuilder();
+        abort_unless($schema->hasTable('dealers'), 404);
+
+        $query = DB::connection($source)->table('dealers')->where('id', $id);
+
+        if ($schema->hasColumn('dealers', 'deleted_at')) {
+            $query->whereNull('deleted_at');
+        }
+
+        $dealer = $query->first();
+        abort_unless($dealer, 404);
+
+        $dealer = $this->normalizeCrmDealer($dealer, $source, $connections[$source]);
+        $transactions = $this->crmTransactions($source, $dealer);
+
+        return view('dealer', [
+            'dealer' => $dealer,
+            'transactions' => $transactions,
+            'centers' => collect(),
+            'areas' => collect(),
+            'isRemoteDealer' => true,
+        ]);
     }
 
     public function megaDealers(Request $request)
@@ -80,6 +262,14 @@ class DealerController extends Controller
 
     public function newDealer(Request $request)
     {
+        $dealerType = 'Regular';
+
+        $request->validate([
+            'dealer_type' => 'nullable|in:Regular',
+            'spo' => 'nullable',
+            'center' => 'nullable',
+        ]);
+
         if ($this->dealerDuplicateExists(
             $request->first_name,
             $request->last_name,
@@ -113,22 +303,14 @@ class DealerController extends Controller
         $user->password = bcrypt('12345678');
         $user->save();
 
-        // Generate Client Reference
-        $latestDealer = Dealer::orderBy('id', 'desc')->first();
-
-        if ($latestDealer && $latestDealer->dealer_reference) {
-            $number = intval(substr($latestDealer->dealer_reference, 3)) + 1;
-        } else {
-            $number = 1;
-        }
-
-        $dealer_reference = 'PRD' . str_pad($number, 5, '0', STR_PAD_LEFT);
-
         $dealer = new Dealer;
         $dealer->user_id = $user->id;
-        $dealer->dealer_reference = $dealer_reference;
+        $dealer->dealer_reference = $this->nextDealerReference($dealerType);
         $dealer->name = $fullName;
-        $dealer->spo = $request->spo;
+        if (Schema::hasColumn('dealers', 'dealer_type')) {
+            $dealer->dealer_type = $dealerType;
+        }
+        $dealer->spo = $dealerType === 'Project' ? $request->spo : null;
         $dealer->email_address = $request->email_address;
         $dealer->number = $request->number;
         $dealer->facebook = $request->facebook;
@@ -145,7 +327,7 @@ class DealerController extends Controller
         }
         $dealer->store_name = $request->store_name;
         $dealer->store_type = $request->store_type;
-        $dealer->center = $request->center;
+        $dealer->center = $dealerType === 'Project' ? $request->center : null;
         $dealer->area = $request->area;
         $dealer->latitude = $request->latitude;
         $dealer->longitude = $request->longitude;
@@ -305,6 +487,19 @@ class DealerController extends Controller
     public function update(Request $request, $id)
     {
         $dealer = Dealer::findOrFail($id);
+        $isAdmin = auth()->user()->role === 'Admin';
+        $existingDealerType = Schema::hasColumn('dealers', 'dealer_type')
+            ? ($dealer->dealer_type ?: 'Project')
+            : 'Project';
+        $dealerType = $isAdmin
+            ? (strtolower((string) $request->dealer_type) === 'regular' ? 'Regular' : 'Project')
+            : $existingDealerType;
+
+        $request->validate([
+            'dealer_type' => $isAdmin ? 'required|in:Project,Regular' : 'nullable',
+            'spo' => $dealerType === 'Project' ? 'required|string|max:255' : 'nullable',
+            'center' => $dealerType === 'Project' ? 'required|string|max:255' : 'nullable',
+        ]);
 
         $fullName = trim(collect([
             $request->first_name,
@@ -328,6 +523,13 @@ class DealerController extends Controller
         $dealer->street_address = $request->street_address;
         $dealer->store_name = $request->store_name;
         $dealer->store_type = $request->store_type;
+        if ($isAdmin && strcasecmp($existingDealerType, $dealerType) !== 0) {
+            $dealer->dealer_reference = $this->nextDealerReference($dealerType);
+        }
+        if (Schema::hasColumn('dealers', 'dealer_type')) {
+            $dealer->dealer_type = $dealerType;
+        }
+        $dealer->spo = $dealerType === 'Project' ? $request->spo : null;
         $dealer->facebook = $request->facebook;
         $dealer->email_address = $request->email_address;
         $dealer->location_region = $request->location_region;
@@ -335,7 +537,7 @@ class DealerController extends Controller
         $dealer->location_city = $request->location_city;
         $dealer->location_barangay = $request->location_barangay;
         $dealer->postal_code = $request->postal_code;
-        $dealer->center = $request->center;
+        $dealer->center = $dealerType === 'Project' ? $request->center : null;
         $dealer->area = $request->area;
         $dealer->latitude = $request->latitude;
         $dealer->longitude = $request->longitude;
@@ -344,6 +546,29 @@ class DealerController extends Controller
 
         Alert::success('Success', 'Dealer updated successfully!');
         return redirect()->back();
+    }
+
+    private function nextDealerReference($dealerType)
+    {
+        if (strcasecmp((string) $dealerType, 'Regular') === 0) {
+            $year = date('Y');
+            $prefix = 'DL' . $year;
+            $padding = 4;
+        } else {
+            $prefix = 'PRD';
+            $padding = 5;
+        }
+
+        $latestSequence = Dealer::where('dealer_reference', 'like', $prefix . '%')
+            ->pluck('dealer_reference')
+            ->map(function ($reference) use ($prefix) {
+                $suffix = substr(strtoupper(trim((string) $reference)), strlen($prefix));
+
+                return ctype_digit($suffix) ? (int) $suffix : 0;
+            })
+            ->max() ?: 0;
+
+        return $prefix . str_pad($latestSequence + 1, $padding, '0', STR_PAD_LEFT);
     }
 
     public function getZipCode1(Request $request)

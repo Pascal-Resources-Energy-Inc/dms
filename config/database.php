@@ -71,6 +71,36 @@ return [
             'engine' => null,
         ],
 
+        'admin_crms' => [
+            'driver' => env('ADMIN_CRMS_DB_CONNECTION', 'mysql'),
+            'host' => env('ADMIN_CRMS_DB_HOST', '127.0.0.1'),
+            'port' => env('ADMIN_CRMS_DB_PORT', '3306'),
+            'database' => env('ADMIN_CRMS_DB_DATABASE', 'admin_crms'),
+            'username' => env('ADMIN_CRMS_DB_USERNAME', 'root'),
+            'password' => env('ADMIN_CRMS_DB_PASSWORD', ''),
+            'unix_socket' => env('ADMIN_CRMS_DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
+
+        'admin_crms2' => [
+            'driver' => env('ADMIN_CRMS2_DB_CONNECTION', 'mysql'),
+            'host' => env('ADMIN_CRMS2_DB_HOST', '127.0.0.1'),
+            'port' => env('ADMIN_CRMS2_DB_PORT', '3306'),
+            'database' => env('ADMIN_CRMS2_DB_DATABASE', 'admin_crms2'),
+            'username' => env('ADMIN_CRMS2_DB_USERNAME', 'root'),
+            'password' => env('ADMIN_CRMS2_DB_PASSWORD', ''),
+            'unix_socket' => env('ADMIN_CRMS2_DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'host' => env('DB_HOST', '127.0.0.1'),

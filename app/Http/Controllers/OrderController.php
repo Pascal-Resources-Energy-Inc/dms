@@ -63,10 +63,12 @@ class OrderController extends Controller
 
         $pendingOrdersCount = $pendingOrdersQuery->count();
 
-        $orders = $this->orderIndexQuery()->get();
+        $orderTabs = $this->orderTabsForUser($user);
+        $orders = $orderTabs->pluck('orders')->flatten(1);
         // dd($orders);
         return view('orders.index', [
             'orders' => $orders,
+            'orderTabs' => $orderTabs,
             'items' => $items,
             'customers' => $customers,
             'dealers' => $dealers,
@@ -97,6 +99,141 @@ class OrderController extends Controller
                 $query->where('ad_id', optional($user->ad)->id);
             })
             ->orderBy('id', 'desc');
+    }
+
+    private function orderTabsForUser($user)
+    {
+        $adId = optional($user->ad)->id;
+
+        $regularOrders = $this->orderIndexQuery()->get()->map(function ($order) {
+            $order->source_key = 'regular';
+            $order->source_label = 'Regular';
+            $order->source_database = 'dms_prei';
+            $order->is_remote = false;
+
+            return $order;
+        });
+
+        return collect([
+            [
+                'key' => 'regular',
+                'label' => 'Regular',
+                'database' => 'dms_prei',
+                'icon' => 'bi bi-building',
+                'orders' => $regularOrders,
+            ],
+            [
+                'key' => 'project_rise',
+                'label' => 'Project Rise',
+                'database' => 'admin_crms',
+                'icon' => 'bi bi-graph-up-arrow',
+                'orders' => $this->remoteOrderDetails('admin_crms', 'Project Rise', $adId),
+            ],
+            [
+                'key' => 'project_genesis',
+                'label' => 'Project Genesis',
+                'database' => 'admin_crms2',
+                'icon' => 'bi bi-lightning-charge',
+                'orders' => $this->remoteOrderDetails('admin_crms2', 'Project Genesis', $adId),
+            ],
+        ]);
+    }
+
+    private function remoteOrderDetails($connection, $label, $adId)
+    {
+        if (!$adId) {
+            return collect();
+        }
+
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (!$schema->hasTable('order_details') || !$schema->hasColumn('order_details', 'ad_id')) {
+                return collect();
+            }
+
+            $query = DB::connection($connection)->table('order_details as od')
+                ->select('od.*')
+                ->where('od.ad_id', $adId);
+
+            if ($schema->hasTable('dealers') && $schema->hasColumn('order_details', 'dealer_id')) {
+                if ($schema->hasColumn('dealers', 'user_id')) {
+                    $query->leftJoin('dealers as d', 'od.dealer_id', '=', 'd.user_id');
+                } elseif ($schema->hasColumn('dealers', 'id')) {
+                    $query->leftJoin('dealers as d', 'od.dealer_id', '=', 'd.id');
+                }
+
+                $dealerSelects = [];
+
+                foreach (['name', 'area', 'dealer_type'] as $column) {
+                    if ($schema->hasColumn('dealers', $column)) {
+                        $dealerSelects[] = 'd.' . $column . ' as dealer_' . $column;
+                    }
+                }
+
+                if (!empty($dealerSelects)) {
+                    $query->addSelect($dealerSelects);
+                }
+            }
+
+            if ($schema->hasColumn('order_details', 'deleted_at')) {
+                $query->whereNull('od.deleted_at');
+            }
+
+            if ($schema->hasColumn('order_details', 'id')) {
+                $query->orderByDesc('od.id');
+            } elseif ($schema->hasColumn('order_details', 'created_at')) {
+                $query->orderByDesc('od.created_at');
+            }
+
+            return $query->get()->map(function ($order) use ($connection, $label) {
+                $order->source_key = $connection;
+                $order->source_label = $label;
+                $order->source_database = $connection;
+                $order->is_remote = true;
+                $order->id = $order->id ?? uniqid($connection . '-');
+                $order->transaction_id = $order->transaction_id ?? $order->id ?? '-';
+                $order->date = $order->date ?? $order->created_at ?? now();
+                $order->qty = (float) ($order->qty ?? $order->quantity ?? 0);
+
+                $amount = (float) ($order->amount ?? $order->total_amount ?? 0);
+                $order->price = (float) ($order->price ?? ($order->qty > 0 && $amount > 0 ? $amount / $order->qty : $amount));
+                $order->delivery_fee = (float) ($order->delivery_fee ?? 0);
+                $order->item = $order->item ?? $order->product_name ?? $order->product ?? '-';
+                $paymentMethod = strtolower(str_replace(' ', '_', (string) ($order->payment_method ?? 'cash')));
+                $deliveryType = strtolower((string) ($order->delivery_type ?? 'pickup'));
+                $order->payment_method = in_array($paymentMethod, ['voucher', 'cash', 'gcash', 'credit', 'bank_transfer'], true)
+                    ? $paymentMethod
+                    : 'cash';
+                $order->delivery_type = in_array($deliveryType, ['pickup', 'delivery'], true)
+                    ? $deliveryType
+                    : 'pickup';
+                $order->status = $order->status ?? '-';
+                $order->points_dealer = $order->points_dealer ?? $order->points ?? 0;
+                $order->is_guest = $order->is_guest ?? false;
+                $order->guest_name = $order->guest_name ?? null;
+                $order->guest_phone = $order->guest_phone ?? null;
+                $order->guest_email = $order->guest_email ?? null;
+                $order->guest_authorized_territory = $order->guest_authorized_territory ?? null;
+                $order->dealer = (object) [
+                    'name' => $order->dealer_name ?? ($order->dealer ?? ''),
+                    'area' => $order->dealer_area ?? '',
+                ];
+                $order->adDealer = (object) [
+                    'area' => $order->dealer_area ?? '',
+                    'dealer_type' => $order->dealer_type ?? 'Project',
+                ];
+
+                return $order;
+            });
+        } catch (\Exception $exception) {
+            Log::warning('Unable to load remote order details.', [
+                'connection' => $connection,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return collect();
+        }
     }
 
     public function create()
@@ -490,6 +627,11 @@ class OrderController extends Controller
     public function update(Request $request, $id)
     {
         $user = auth()->user();
+        $connection = $this->orderSourceConnection($request->input('order_source'));
+
+        if ($connection) {
+            return $this->updateRemoteOrder($request, $id, $connection);
+        }
 
         $order = OrderDetail::with(['dealer', 'ad'])
             ->when($user->role !== 'Admin', function ($query) use ($user) {
@@ -497,11 +639,15 @@ class OrderController extends Controller
             })
             ->findOrFail($id);
 
+        $isRegularDealer = strtolower((string) optional($order->adDealer)->dealer_type) === 'regular';
+
         $request->validate([
             'qty' => 'required|numeric|min:1',
             'payment_method' => 'required|in:voucher,cash,gcash,credit,bank_transfer',
             'delivery_type' => 'required|in:pickup,delivery',
-            'delivery_fee' => 'nullable|required_if:delivery_type,delivery|numeric|min:0',
+            'delivery_fee' => ($isRegularDealer && $request->delivery_type === 'delivery')
+                ? 'required|numeric|min:0'
+                : 'nullable|numeric|min:0',
             'status' => 'required|in:Pending,For Verification,For Delivery,Completed,Cancelled',
         ]);
 
@@ -529,7 +675,7 @@ class OrderController extends Controller
         $order->status = $request->status;
 
         if (Schema::hasColumn('order_details', 'delivery_fee')) {
-            $order->delivery_fee = $request->delivery_type === 'delivery'
+            $order->delivery_fee = $request->delivery_type === 'delivery' && $isRegularDealer
                 ? $request->delivery_fee
                 : null;
         }
@@ -557,6 +703,102 @@ class OrderController extends Controller
             'delivery_fee' => $order->delivery_fee,
             'status' => $order->status,
             'points_dealer' => $order->points_dealer,
+        ]);
+    }
+
+    private function orderSourceConnection($source)
+    {
+        $source = strtolower(trim((string) $source));
+
+        $connections = [
+            'admin_crms2' => 'admin_crms2',
+            'project_rise' => 'admin_crms2',
+            'admin_crms' => 'admin_crms',
+            'project_genesis' => 'admin_crms',
+        ];
+
+        return $connections[$source] ?? null;
+    }
+
+    private function updateRemoteOrder(Request $request, $id, $connection)
+    {
+        $user = auth()->user();
+        $adId = optional($user->ad)->id;
+        $schema = DB::connection($connection)->getSchemaBuilder();
+
+        if (!$schema->hasTable('order_details')) {
+            return response()->json([
+                'message' => 'Order table was not found in ' . $connection . '.',
+            ], 404);
+        }
+
+        $query = DB::connection($connection)->table('order_details')->where('id', $id);
+
+        if ($user->role !== 'Admin') {
+            $query->where('ad_id', $adId);
+        }
+
+        $order = $query->first();
+
+        if (!$order) {
+            return response()->json([
+                'message' => 'Order was not found in ' . $connection . '.',
+            ], 404);
+        }
+
+        $request->validate([
+            'qty' => 'required|numeric|min:1',
+            'payment_method' => 'required|in:voucher,cash,gcash,credit,bank_transfer',
+            'delivery_type' => 'required|in:pickup,delivery',
+            'delivery_fee' => 'nullable|numeric|min:0',
+            'status' => 'required|in:Pending,For Verification,For Delivery,SO Created,Completed,Cancelled',
+        ]);
+
+        $updates = [];
+
+        foreach ([
+            'qty' => (float) $request->qty,
+            'payment_method' => $request->payment_method,
+            'delivery_type' => $request->delivery_type,
+            'status' => $request->status,
+        ] as $column => $value) {
+            if ($schema->hasColumn('order_details', $column)) {
+                $updates[$column] = $value;
+            }
+        }
+
+        if ($schema->hasColumn('order_details', 'delivery_fee')) {
+            $updates['delivery_fee'] = $request->delivery_type === 'delivery'
+                ? ($request->delivery_fee ?: 0)
+                : null;
+        }
+
+        if ($schema->hasColumn('order_details', 'points_dealer')) {
+            $currentQty = (float) ($order->qty ?? 0);
+            $currentPoints = (float) ($order->points_dealer ?? 0);
+            $pointsPerUnit = $currentQty > 0 ? $currentPoints / $currentQty : 0;
+            $updates['points_dealer'] = $pointsPerUnit * (float) $request->qty;
+        }
+
+        if ($schema->hasColumn('order_details', 'updated_at')) {
+            $updates['updated_at'] = now();
+        }
+
+        DB::connection($connection)
+            ->table('order_details')
+            ->where('id', $id)
+            ->update($updates);
+
+        $updatedOrder = DB::connection($connection)->table('order_details')->where('id', $id)->first();
+
+        return response()->json([
+            'success' => true,
+            'qty' => $updatedOrder->qty ?? $request->qty,
+            'payment_method' => $updatedOrder->payment_method ?? $request->payment_method,
+            'delivery_type' => $updatedOrder->delivery_type ?? $request->delivery_type,
+            'delivery_fee' => $updatedOrder->delivery_fee ?? null,
+            'status' => $updatedOrder->status ?? $request->status,
+            'points_dealer' => $updatedOrder->points_dealer ?? 0,
         ]);
     }
 

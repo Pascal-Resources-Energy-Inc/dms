@@ -51,6 +51,8 @@ class AreaDistributorController extends Controller
 
         $ads = AreaDistributor::with(['areas' => function ($query) {
                 $query->orderBy('project_type')->orderBy('area_name');
+            }, 'trashedAreas' => function ($query) {
+                $query->orderByDesc('deleted_at');
             }, 'userAds'])
             ->whereHas('userAds', function ($q) {
                 $q->where('role', 'Area Distributor');
@@ -87,7 +89,8 @@ class AreaDistributorController extends Controller
                 });
             })
             ->orderBy('name')
-            ->get();
+            ->paginate(10)
+            ->appends($request->query());
 
         return view('area_distributor.index', [
             'ads' => $ads,
@@ -197,7 +200,7 @@ class AreaDistributorController extends Controller
 
     public function view($id)
     {
-        $ad = AreaDistributor::with(['areas', 'userAds'])->findOrFail($id);
+        $ad = AreaDistributor::with(['areas', 'trashedAreas', 'userAds'])->findOrFail($id);
 
         return view('area_distributor.view', compact('ad'));
     }
@@ -235,6 +238,7 @@ class AreaDistributorController extends Controller
             ])->filter()->implode(' '));
 
             if ($ad->user_id) {
+                $selectedTypes = array_values(array_filter($request->input('type', [])));
 
                 User::where('id', $ad->user_id)->update([
                     'name' => $fullName ?: $request->name,
@@ -243,6 +247,7 @@ class AreaDistributorController extends Controller
                     'last_name' => $request->last_name,
                     'email' => $request->email_address,
                     'birthdate' => $request->birthdate,
+                    'type' => json_encode($selectedTypes),
                 ]);
             }
 
@@ -312,6 +317,72 @@ class AreaDistributorController extends Controller
                 'attachment' => $attachmentPath,
                 'withholding_tax' => $request->withholding_tax ? 1 : 0,
             ]);
+
+            if ($request->has('sync_project_areas')) {
+                $selectedProjectTypes = collect($request->input('type', []))
+                    ->filter(function ($type) {
+                        return in_array($type, ['Project Rise', 'Project Genesis'], true);
+                    })
+                    ->values()
+                    ->all();
+
+                $rows = collect($request->input('rows', []))->map(function ($row) {
+                    return [
+                        'id' => isset($row['id']) ? trim($row['id']) : null,
+                        'project_type' => isset($row['project_type']) ? trim($row['project_type']) : null,
+                        'area_name' => isset($row['area_name']) ? trim($row['area_name']) : null,
+                        'joining_date' => isset($row['joining_date']) ? trim($row['joining_date']) : null,
+                    ];
+                })->filter(function ($row) use ($selectedProjectTypes) {
+                    return !empty($row['area_name']) &&
+                        !empty($row['project_type']) &&
+                        in_array($row['project_type'], $selectedProjectTypes, true);
+                });
+
+                $submittedIds = [];
+                $userRole = optional($ad->userAds)->role ?: 'Area Distributor';
+
+                foreach ($rows as $row) {
+                    if (!empty($row['id'])) {
+                        $area = AreaAd::where('ad_id', $ad->id)
+                            ->where('id', $row['id'])
+                            ->first();
+
+                        if ($area) {
+                            $area->update([
+                                'project_type' => $row['project_type'],
+                                'area_name' => $row['area_name'],
+                                'joining_date' => $row['joining_date'] ?: null,
+                                'user_role' => $userRole,
+                            ]);
+
+                            $submittedIds[] = $area->id;
+                        }
+
+                        continue;
+                    }
+
+                    $newArea = AreaAd::create([
+                        'ad_id' => $ad->id,
+                        'ad_user_id' => $ad->user_id,
+                        'project_type' => $row['project_type'],
+                        'area_name' => $row['area_name'],
+                        'joining_date' => $row['joining_date'] ?: null,
+                        'user_role' => $userRole,
+                    ]);
+
+                    $submittedIds[] = $newArea->id;
+                }
+
+                $areaQuery = AreaAd::where('ad_id', $ad->id)
+                    ->whereIn('project_type', ['Project Rise', 'Project Genesis']);
+
+                if (count($submittedIds) > 0) {
+                    $areaQuery->whereNotIn('id', $submittedIds)->delete();
+                } else {
+                    $areaQuery->delete();
+                }
+            }
 
             DB::commit();
 
@@ -530,7 +601,7 @@ class AreaDistributorController extends Controller
                 ->where('status', 'Inactive');
         })->count();
 
-        $ads = AreaDistributor::with(['areas', 'userAds'])
+        $ads = AreaDistributor::with(['areas', 'trashedAreas', 'userAds'])
             ->whereHas('userAds', function ($q) {
                 $q->where('role', 'Mega Dealer');
             })
@@ -552,12 +623,11 @@ class AreaDistributorController extends Controller
         $rows = collect($request->input('rows', []))->map(function ($row) {
             return [
                 'id' => isset($row['id']) ? trim($row['id']) : null,
-                'project_type' => isset($row['project_type']) ? trim($row['project_type']) : null,
                 'area_name' => isset($row['area_name']) ? trim($row['area_name']) : null,
                 'joining_date' => isset($row['joining_date']) ? trim($row['joining_date']) : null,
             ];
         })->filter(function ($row) {
-            return !empty($row['area_name']) && !empty($row['project_type']);
+            return !empty($row['area_name']);
         });
         // dd($rows);
         DB::beginTransaction();
@@ -573,7 +643,7 @@ class AreaDistributorController extends Controller
 
                     if ($area) {
                         $area->update([
-                            'project_type' => $row['project_type'],
+                            'project_type' => null,
                             'area_name' => $row['area_name'],
                             'joining_date' => $row['joining_date'] ?: null,
                         ]);
@@ -587,7 +657,7 @@ class AreaDistributorController extends Controller
                 $new = AreaAd::create([
                     'ad_id' => $ad->id,
                     'ad_user_id' => $ad->user_id,
-                    'project_type' => $row['project_type'],
+                    'project_type' => null,
                     'area_name' => $row['area_name'],
                     'joining_date' => $row['joining_date'] ?: null,
                     'user_role' => 'Area Distributor',

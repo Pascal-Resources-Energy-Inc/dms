@@ -36,7 +36,16 @@ class InventoryTransferController extends Controller
             });
         $products = $inventoryProducts->sortBy('product_name')->values();
 
-        $allMovements = InventoryTransfer::with('product')
+        $allMovements = InventoryTransfer::select(
+                'id',
+                'product_id',
+                'sku',
+                'item_name',
+                'movement_type',
+                'from_area',
+                'to_area',
+                'qty'
+            )
             ->where('ad_user_id', $user->id)
             ->orderBy('transfer_date', 'desc')
             ->orderBy('id', 'desc')
@@ -52,8 +61,21 @@ class InventoryTransferController extends Controller
             $inventoryProducts
         );
         $balances = $this->buildBalances($allMovements, $dealerOrderDeductions, $completedAdPurchaseOrderStock);
-        $stockProducts = $adItems;
+        $stockProducts = Product::where('ad_user_id', $user->id)
+            ->where(function ($query) {
+                $query->where('status', 'Activate')
+                    ->orWhereNull('status');
+            })
+            ->orderBy('product_name')
+            ->get();
         $productOptions = $stockProducts->map(function ($product) {
+            return [
+                'id' => $product->id,
+                'name' => $product->product_name,
+                'sku' => $product->sku,
+            ];
+        })->values();
+        $adProductOptions = $adItems->map(function ($product) {
             return [
                 'id' => $product->id,
                 'name' => $product->product_name,
@@ -138,7 +160,8 @@ class InventoryTransferController extends Controller
         $movements = $movementQuery
             ->orderBy('transfer_date', 'desc')
             ->orderBy('id', 'desc')
-            ->get();
+            ->paginate(25)
+            ->appends($request->query());
 
         $balanceLookup = collect();
         foreach ($balances as $balance) {
@@ -165,6 +188,7 @@ class InventoryTransferController extends Controller
             'areaSummaries',
             'productSummaries',
             'productOptions',
+            'adProductOptions',
             'stockProducts',
             'adItems'
         ));
@@ -191,6 +215,9 @@ class InventoryTransferController extends Controller
         $type = $request->movement_type;
         $adItems = $this->completedAdPurchaseOrderItems($user->id);
         $adItem = $adItems->firstWhere('id', (int) $request->product_id);
+        $stockProduct = Product::where('ad_user_id', $user->id)
+            ->where('id', $request->product_id)
+            ->first();
 
         if ($type === 'in' && !$request->to_area) {
             return back()->withInput()->with('error', 'Please select the receiving area for inventory IN.');
@@ -216,18 +243,22 @@ class InventoryTransferController extends Controller
             }
         }
 
-        if (!$adItem) {
+        if ($type === 'in' && !$stockProduct) {
+            return back()->withInput()->with('error', 'Please select a product from your AD stock product list.');
+        }
+
+        if (in_array($type, ['out', 'transfer']) && !$adItem) {
             return back()->withInput()->with('error', 'Please select a product from completed AD purchase order items.');
         }
 
-        $product = Product::find($request->product_id);
+        $product = $type === 'in' ? $stockProduct : Product::find($request->product_id);
 
-        if (!$product) {
+        if (!$product && $adItem) {
             $product = new Product();
             $product->id = $request->product_id;
             $product->sku = $adItem->sku;
             $product->product_name = $adItem->product_name;
-        } else {
+        } elseif ($adItem) {
             $product->product_name = $adItem->product_name;
             $product->sku = $adItem->sku ?: $product->sku;
         }

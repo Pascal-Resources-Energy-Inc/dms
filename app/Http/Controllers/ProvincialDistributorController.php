@@ -44,6 +44,8 @@ class ProvincialDistributorController extends Controller
 
         $ads = AreaDistributor::with(['areas' => function ($query) {
                 $query->orderBy('project_type')->orderBy('area_name');
+            }, 'trashedAreas' => function ($query) {
+                $query->orderByDesc('deleted_at');
             }, 'userAds'])
             ->whereHas('userAds', function ($query) {
                 $query->where('role', 'Provincial Distributor');
