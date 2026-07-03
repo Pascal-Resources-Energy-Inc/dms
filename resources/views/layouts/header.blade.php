@@ -2137,6 +2137,7 @@
                     theme: $this.data('select2-theme') || 'bootstrap-5',
                     selectionCssClass: $this.data('selection-css-class') || ':all:',
                     dropdownCssClass: $this.data('dropdown-css-class') || '',
+                    minimumResultsForSearch: $this.data('minimum-results-for-search') !== undefined ? Number($this.data('minimum-results-for-search')) : 0,
 
                     templateResult: hasAreaFormatter ? window.formatArea : undefined,
                     templateSelection: hasAreaFormatter ? window.formatArea : undefined,
@@ -2203,6 +2204,7 @@
                     theme: $this.data('select2-theme') || 'bootstrap-5',
                     selectionCssClass: $this.data('selection-css-class') || ':all:',
                     dropdownCssClass: $this.data('dropdown-css-class') || '',
+                    minimumResultsForSearch: $this.data('minimum-results-for-search') !== undefined ? Number($this.data('minimum-results-for-search')) : 0,
 
                     templateResult: isArea && typeof formatArea === 'function' ? formatArea : undefined,
                     templateSelection: isArea && typeof formatArea === 'function' ? formatArea : undefined,

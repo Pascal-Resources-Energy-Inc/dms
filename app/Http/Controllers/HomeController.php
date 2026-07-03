@@ -20,6 +20,8 @@ use App\Voucher;
 
 class HomeController extends Controller
 {
+    private $crmConnections = ['admin_crms', 'admin_crms2'];
+
     /**
      * Create a new controller instance.
      *
@@ -906,17 +908,22 @@ class HomeController extends Controller
         $adId = optional($user->ad)->id; 
         $orderTabs = $this->adOrderTabs($user, $adId);
         $orders = $orderTabs->pluck('orders')->flatten(1);
+        $completedOrders = $orders->filter(function ($order) {
+            return strtolower((string) ($order->status ?? '')) === 'completed';
+        })->values();
 
         $areas = optional($user->ad)
             ->areas
             ? $user->ad->areas->pluck('area_name')->toArray()
             : [];
 
-        $product_sold = OrderDetail::with('ad')
-            ->where('ad_id', $adId)
-            ->where('status', 'Completed')
-            ->get();
-        $products = Product::where('ad_user_id', $user->id)->where('status', 'Activate')->whereNotNull('price')->get();
+        $product_sold = $completedOrders;
+        $products = Product::where('ad_user_id', $user->id)->where('status', 'Activate')->whereNotNull('price')->get()->toBase()
+            ->merge($this->remoteAdProducts($user->id))
+            ->unique(function ($product) {
+                return strtolower(trim((string) ($product->product_name ?? $product->name ?? $product->id ?? '')));
+            })
+            ->values();
         $adVouchers = Voucher::whereIn('name', array_filter([optional($user->ad)->store_code, $user->name]))->get();
         $usedVoucherCount = $adVouchers->filter(function ($voucher) {
             return (int) $voucher->used_count > 0;
@@ -926,9 +933,9 @@ class HomeController extends Controller
         })->count();
         // dd($products);
         $adUser = optional(auth()->user()->ad)->id;
-        $pendingOrdersCount = OrderDetail::where('ad_id', $adUser)
-            ->where('status', 'Pending')
-            ->count();
+        $pendingOrdersCount = $orders->filter(function ($order) {
+            return strtolower((string) ($order->status ?? '')) === 'pending';
+        })->count();
         $dealer = "";
         $customer = "";
         $threeDaysAgo = Carbon::now()->subDays(7)->toDateString();
@@ -940,15 +947,20 @@ class HomeController extends Controller
         $viewType = $selectedMonth ? 'monthly' : 'yearly';
         
         // Monthly Sales Overview
-        $sales = OrderDetail::select(
-                DB::raw("MONTH(created_at) as month"),
-                DB::raw("SUM(price * qty) as total")
-            )
-            ->where('status', 'Completed')
-            ->where('ad_id', $adId)
-            ->whereYear('created_at', $selectedYear)
-            ->groupBy(DB::raw("MONTH(created_at)"))
-            ->pluck('total', 'month');
+        $sales = $completedOrders
+            ->filter(function ($order) use ($selectedYear) {
+                $date = $this->orderDate($order);
+
+                return $date && (int) $date->format('Y') === (int) $selectedYear;
+            })
+            ->groupBy(function ($order) {
+                return (int) $this->orderDate($order)->format('n');
+            })
+            ->map(function ($rows) {
+                return $rows->sum(function ($order) {
+                    return (float) ($order->price ?? 0) * (float) ($order->qty ?? 0);
+                });
+            });
 
         $months = [];
         $totals = [];
@@ -963,7 +975,8 @@ class HomeController extends Controller
 
         // Map
 
-        $dealers = Dealer::whereIn('area', $areas)->get();
+        $dealers = Dealer::whereIn('area', $areas)->get()->toBase()
+            ->merge($this->remoteAdDealers($areas));
 
         $mapDealers = [];
 
@@ -994,11 +1007,10 @@ class HomeController extends Controller
         $customers = Client::whereHas('transactions')->get();
         $transactions = Transaction::orderBy('id','desc')->get();
         
-        $adDealers = Dealer::whereIn('area', $areas)->get();
+        $adDealers = $dealers;
         $transactions_details = TransactionDetail::orderBy('id','desc')->get();
-        $adDealerUserIds = $adDealers->pluck('user_id')->filter()->values();
 
-        $adSalesTransactions = TransactionDetail::whereIn('dealer_id', $adDealerUserIds)->get();
+        $adSalesTransactions = $completedOrders;
         $totalProductsSoldQty = $adSalesTransactions->sum('qty');
         $soldItemCount = $adSalesTransactions->pluck('item')->filter()->unique()->count();
         $avgProductSales = $soldItemCount > 0 ? ($totalProductsSoldQty / $soldItemCount) : 0;
@@ -1006,24 +1018,42 @@ class HomeController extends Controller
             return stripos((string) $transaction->item, 'refill') !== false;
         })->sum('qty');
 
-        $topDealers = TransactionDetail::select(
-                'dealer_id',
-                DB::raw('SUM(qty) as total_qty'),
-                DB::raw('SUM(price * qty) as total_sales'),
-                DB::raw('MAX(date) as latest_transaction')
-            )
-            ->with('dealer')
-            ->whereIn('dealer_id', $adDealerUserIds)
-            ->groupBy('dealer_id')
-            ->orderByDesc('total_sales')
-            ->limit(10)
-            ->get();
+        $topDealers = $completedOrders
+            ->filter(function ($order) {
+                return !empty($order->dealer_id);
+            })
+            ->groupBy(function ($order) {
+                return ($order->source_key ?? 'regular') . ':' . $order->dealer_id;
+            })
+            ->map(function ($rows) {
+                $first = $rows->first();
 
-        $orderedByItem = OrderDetail::select('item', DB::raw('SUM(qty) as ordered_qty'))
-            ->where('ad_id', $adId)
-            ->where('status', 'Completed')
+                return (object) [
+                    'dealer_id' => $first->dealer_id,
+                    'dealer' => $first->dealer ?? null,
+                    'total_qty' => $rows->sum('qty'),
+                    'total_sales' => $rows->sum(function ($order) {
+                        return (float) ($order->price ?? 0) * (float) ($order->qty ?? 0);
+                    }),
+                    'latest_transaction' => optional($rows->map(function ($order) {
+                        return $this->orderDate($order);
+                    })->filter()->sortByDesc(function ($date) {
+                        return $date->timestamp;
+                    })->first())->toDateString(),
+                ];
+            })
+            ->sortByDesc('total_sales')
+            ->take(10)
+            ->values();
+
+        $orderedByItem = $completedOrders
+            ->filter(function ($order) {
+                return !empty($order->item);
+            })
             ->groupBy('item')
-            ->pluck('ordered_qty', 'item');
+            ->map(function ($rows) {
+                return $rows->sum('qty');
+            });
       
         // $inventoryInByItem = InventoryTransfer::select(
         //         'item_name',
@@ -1047,14 +1077,34 @@ class HomeController extends Controller
             })
             ->groupBy('item_name')
             ->get()
+            ->toBase()
+            ->merge($this->remoteAdPurchaseOrderStock($adId))
+            ->groupBy('item_name')
+            ->map(function ($rows) {
+                $first = $rows->first();
+
+                return (object) [
+                    'item_name' => $first->item_name,
+                    'sku' => $rows->pluck('sku')->filter()->first(),
+                    'stock_qty' => $rows->sum('stock_qty'),
+                ];
+            })
             ->keyBy('item_name');   
          
 
-        $outByItem = InventoryTransfer::select('item_name', DB::raw('SUM(qty) as out_qty'))
-            ->where('ad_id', $adId)
-            ->where('movement_type', 'out')
+        $outByItem = collect([$this->localInventoryOutByItem($adId), $this->remoteInventoryOutByItem($adId)])
+            ->flatMap(function ($rows) {
+                return $rows->map(function ($qty, $item) {
+                    return (object) [
+                        'item_name' => $item,
+                        'out_qty' => $qty,
+                    ];
+                })->values();
+            })
             ->groupBy('item_name')
-            ->pluck('out_qty', 'item_name');
+            ->map(function ($rows) {
+                return $rows->sum('out_qty');
+            });
 
         $stockLevels = $orderedByItem->keys()
             ->merge($inventoryInByItem->keys())
@@ -1080,11 +1130,16 @@ class HomeController extends Controller
             ->values();
         // dd($stockLevels);
         $thirtyDaysAgo = Carbon::today()->subDays(29);
-        $last30DaysSoldByItem = OrderDetail::select('item', DB::raw('SUM(qty) as sold_qty'))
-            ->whereIn('dealer_id', $adDealerUserIds)
-            ->whereDate('date', '>=', $thirtyDaysAgo)
+        $last30DaysSoldByItem = $completedOrders
+            ->filter(function ($order) use ($thirtyDaysAgo) {
+                $date = $this->orderDate($order);
+
+                return $date && $date->gte($thirtyDaysAgo);
+            })
             ->groupBy('item')
-            ->pluck('sold_qty', 'item');
+            ->map(function ($rows) {
+                return $rows->sum('qty');
+            });
 
         $stockInventoryRows = $stockLevels->map(function ($stock) use ($last30DaysSoldByItem) {
             $endingInventory = (float) $stock->remaining_qty;
@@ -1280,13 +1335,13 @@ class HomeController extends Controller
                 'key' => 'project_rise',
                 'label' => 'Project Rise',
                 'type' => 'project rise',
-                'connection' => 'admin_crms2',
+                'connection' => 'admin_crms',
             ],
             [
                 'key' => 'project_genesis',
                 'label' => 'Project Genesis',
                 'type' => 'project genesis',
-                'connection' => 'admin_crms',
+                'connection' => 'admin_crms2',
             ],
         ]);
 
@@ -1395,6 +1450,190 @@ class HomeController extends Controller
             });
         } catch (\Exception $exception) {
             return collect();
+        }
+    }
+
+    private function remoteAdProducts($adUserId)
+    {
+        if (!$adUserId) {
+            return collect();
+        }
+
+        return collect($this->crmConnections)->flatMap(function ($connection) use ($adUserId) {
+            try {
+                $schema = DB::connection($connection)->getSchemaBuilder();
+
+                if (!$schema->hasTable('products')) {
+                    return collect();
+                }
+
+                $query = DB::connection($connection)->table('products');
+
+                if ($schema->hasColumn('products', 'ad_user_id')) {
+                    $query->where('ad_user_id', $adUserId);
+                }
+
+                if ($schema->hasColumn('products', 'status')) {
+                    $query->where(function ($query) {
+                        $query->where('status', 'Activate')->orWhereNull('status');
+                    });
+                }
+
+                if ($schema->hasColumn('products', 'price')) {
+                    $query->whereNotNull('price');
+                }
+
+                return $query->get()->map(function ($product) use ($connection) {
+                    $product->source_key = $connection;
+
+                    return $product;
+                });
+            } catch (\Exception $exception) {
+                return collect();
+            }
+        })->values();
+    }
+
+    private function remoteAdDealers(array $areas)
+    {
+        $areas = collect($areas)->filter()->values();
+
+        if ($areas->isEmpty()) {
+            return collect();
+        }
+
+        return collect($this->crmConnections)->flatMap(function ($connection) use ($areas) {
+            try {
+                $schema = DB::connection($connection)->getSchemaBuilder();
+
+                if (!$schema->hasTable('dealers') || !$schema->hasColumn('dealers', 'area')) {
+                    return collect();
+                }
+
+                $query = DB::connection($connection)->table('dealers')
+                    ->whereIn('area', $areas);
+
+                if ($schema->hasColumn('dealers', 'deleted_at')) {
+                    $query->whereNull('deleted_at');
+                }
+
+                return $query->get()->map(function ($dealer) use ($connection) {
+                    $dealer->source_key = $connection;
+                    $dealer->email = $dealer->email ?? $dealer->email_address ?? null;
+                    $dealer->location_region = $dealer->location_region ?? $dealer->region ?? null;
+                    $dealer->latitude = $dealer->latitude ?? null;
+                    $dealer->longitude = $dealer->longitude ?? null;
+                    $dealer->user_id = $dealer->user_id ?? $dealer->id ?? null;
+
+                    return $dealer;
+                });
+            } catch (\Exception $exception) {
+                return collect();
+            }
+        })->values();
+    }
+
+    private function remoteAdPurchaseOrderStock($adId)
+    {
+        if (!$adId) {
+            return collect();
+        }
+
+        return collect($this->crmConnections)->flatMap(function ($connection) use ($adId) {
+            try {
+                $schema = DB::connection($connection)->getSchemaBuilder();
+
+                if (
+                    !$schema->hasTable('ad_purchase_order_items') ||
+                    !$schema->hasTable('ad_purchase_orders') ||
+                    !$schema->hasColumn('ad_purchase_orders', 'ad_id') ||
+                    !$schema->hasColumn('ad_purchase_order_items', 'product_name') ||
+                    !$schema->hasColumn('ad_purchase_order_items', 'qty')
+                ) {
+                    return collect();
+                }
+
+                $query = DB::connection($connection)->table('ad_purchase_order_items')
+                    ->join('ad_purchase_orders', 'ad_purchase_order_items.ad_purchase_order_id', '=', 'ad_purchase_orders.id')
+                    ->where('ad_purchase_orders.ad_id', $adId);
+
+                if ($schema->hasColumn('ad_purchase_orders', 'status')) {
+                    $query->where('ad_purchase_orders.status', 'Completed');
+                }
+
+                return $query
+                    ->select(
+                        'ad_purchase_order_items.product_name as item_name',
+                        $schema->hasColumn('ad_purchase_order_items', 'sku')
+                            ? DB::raw('MAX(ad_purchase_order_items.sku) as sku')
+                            : DB::raw('NULL as sku'),
+                        DB::raw('SUM(ad_purchase_order_items.qty) as stock_qty')
+                    )
+                    ->groupBy('ad_purchase_order_items.product_name')
+                    ->get();
+            } catch (\Exception $exception) {
+                return collect();
+            }
+        })->values();
+    }
+
+    private function localInventoryOutByItem($adId)
+    {
+        return InventoryTransfer::select('item_name', DB::raw('SUM(qty) as out_qty'))
+            ->where('ad_id', $adId)
+            ->where('movement_type', 'out')
+            ->groupBy('item_name')
+            ->pluck('out_qty', 'item_name');
+    }
+
+    private function remoteInventoryOutByItem($adId)
+    {
+        if (!$adId) {
+            return collect();
+        }
+
+        return collect($this->crmConnections)->flatMap(function ($connection) use ($adId) {
+            try {
+                $schema = DB::connection($connection)->getSchemaBuilder();
+
+                if (
+                    !$schema->hasTable('inventory_transfers') ||
+                    !$schema->hasColumn('inventory_transfers', 'ad_id') ||
+                    !$schema->hasColumn('inventory_transfers', 'item_name') ||
+                    !$schema->hasColumn('inventory_transfers', 'qty') ||
+                    !$schema->hasColumn('inventory_transfers', 'movement_type')
+                ) {
+                    return collect();
+                }
+
+                return DB::connection($connection)->table('inventory_transfers')
+                    ->select('item_name', DB::raw('SUM(qty) as out_qty'))
+                    ->where('ad_id', $adId)
+                    ->where('movement_type', 'out')
+                    ->groupBy('item_name')
+                    ->get();
+            } catch (\Exception $exception) {
+                return collect();
+            }
+        })
+        ->groupBy('item_name')
+        ->map(function ($rows) {
+            return $rows->sum('out_qty');
+        });
+    }
+
+    private function orderDate($order)
+    {
+        $date = $order->date ?? $order->created_at ?? null;
+
+        if (!$date) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($date);
+        } catch (\Exception $exception) {
+            return null;
         }
     }
 

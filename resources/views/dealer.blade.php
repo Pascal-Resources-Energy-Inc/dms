@@ -374,7 +374,7 @@
 <section class="dealer-view">
   <div class="dealer-view-header">
     <div>
-      <p class="dealer-view-kicker">{{ $isRemoteDealer ? $sourceLabel : (auth()->user()->role == 'Admin' ? 'Admin Dealer Profile' : 'Dealer Profile') }}</p>
+      <p class="dealer-view-kicker">{{ $isRemoteDealer ? $sourceLabel : (auth()->user()->role == 'Admin' ? 'Dealer Profile' : 'Dealer Profile') }}</p>
       <h1 class="dealer-view-title">Dealer Information</h1>
       <p class="dealer-view-subtitle">{{ $profileName }} / {{ $storeName }} / {{ $dealerReference }}</p>
     </div>

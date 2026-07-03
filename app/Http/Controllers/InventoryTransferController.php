@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\InventoryTransfer;
 use App\AdPurchaseOrderItem;
-use App\OrderDetail;
 use App\Product;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -13,6 +12,8 @@ use Illuminate\Support\Facades\Schema;
 
 class InventoryTransferController extends Controller
 {
+    private $crmConnections = ['admin_crms', 'admin_crms2'];
+
     public function index(Request $request)
     {
         $user = auth()->user();
@@ -347,35 +348,7 @@ class InventoryTransferController extends Controller
             }
         }
 
-        $hasOrderProductId = Schema::hasColumn('order_details', 'product_id');
-        $hasGuestTerritory = Schema::hasColumn('order_details', 'guest_authorized_territory');
-
-        $dealerOrderQty = OrderDetail::leftJoin('dealers', 'order_details.dealer_id', '=', 'dealers.user_id')
-            ->leftJoin('area_distributors as ordering_ads', 'order_details.dealer_id', '=', 'ordering_ads.user_id')
-            ->leftJoin(DB::raw('(select ad_id, min(area_name) as area_name from ad_areas where deleted_at is null group by ad_id) as ordering_ad_areas'), 'ordering_ads.id', '=', 'ordering_ad_areas.ad_id')
-            ->where('order_details.ad_id', $adId)
-            ->where('order_details.status', 'Completed')
-            ->where(function ($query) use ($area, $hasGuestTerritory) {
-                $query->where('dealers.area', $area)
-                    ->orWhere(function ($query) use ($area) {
-                        $query->whereNull('dealers.area')
-                            ->where('ordering_ad_areas.area_name', $area);
-                    });
-
-                if ($hasGuestTerritory) {
-                    $query->orWhere('order_details.guest_authorized_territory', $area);
-                }
-            })
-            ->where(function ($query) use ($product, $hasOrderProductId) {
-                if ($hasOrderProductId) {
-                    $query->where('order_details.product_id', $product->id)
-                        ->orWhereRaw('LOWER(TRIM(order_details.item)) = ?', [$this->normalizeProductName($product->product_name)]);
-                    return;
-                }
-
-                $query->whereRaw('LOWER(TRIM(order_details.item)) = ?', [$this->normalizeProductName($product->product_name)]);
-            })
-            ->sum('order_details.qty');
+        $dealerOrderQty = $this->dealerOrderQtyForAreaProduct($adId, $area, $product);
 
         $adPurchaseOrderQty = AdPurchaseOrderItem::join('ad_purchase_orders', 'ad_purchase_order_items.ad_purchase_order_id', '=', 'ad_purchase_orders.id')
             ->leftJoin(DB::raw('(select ad_id, min(area_name) as area_name from ad_areas where deleted_at is null group by ad_id) as adpo_areas'), 'ad_purchase_orders.ad_id', '=', 'adpo_areas.ad_id')
@@ -467,59 +440,93 @@ class InventoryTransferController extends Controller
             return collect();
         }
 
-        $hasOrderProductId = Schema::hasColumn('order_details', 'product_id');
-        $hasGuestTerritory = Schema::hasColumn('order_details', 'guest_authorized_territory');
+        $deductions = $this->dealerOrderDeductionsForConnection(null, $adId, $products);
+
+        foreach ($this->crmConnections as $connection) {
+            $deductions = $deductions->merge($this->dealerOrderDeductionsForConnection($connection, $adId, $products));
+        }
+
+        return $deductions->values();
+    }
+
+    private function dealerOrderQtyForAreaProduct($adId, $area, Product $product)
+    {
+        if (!$adId || !$area) {
+            return 0;
+        }
+
+        $qty = $this->dealerOrderQtyForConnection(null, $adId, $area, $product);
+
+        foreach ($this->crmConnections as $connection) {
+            $qty += $this->dealerOrderQtyForConnection($connection, $adId, $area, $product);
+        }
+
+        return $qty;
+    }
+
+    private function dealerOrderDeductionsForConnection($connection, $adId, $products)
+    {
+        $queryData = $this->dealerOrderBaseQuery($connection, $adId);
+
+        if (!$queryData) {
+            return collect();
+        }
+
+        [$query, $meta] = $queryData;
+
+        if (!$this->dealerOrderHasAreaSource($meta)) {
+            return collect();
+        }
+
         $productsById = $products->keyBy('id');
         $productsByName = $products->keyBy(function ($product) {
             return $this->normalizeProductName($product->product_name);
         });
 
-        $selects = [
-            'order_details.guest_authorized_territory as guest_area',
-            'dealers.area as dealer_area',
-            'ordering_ad_areas.area_name as ad_area',
-            'order_details.item',
-            DB::raw('SUM(order_details.qty) as qty'),
-        ];
+        $query->where(function ($query) use ($meta) {
+                $hasAreaFilter = false;
 
-        if (!$hasGuestTerritory) {
-            array_shift($selects);
-        }
+                if ($meta['has_dealer_area']) {
+                    $query->whereNotNull('d.area');
+                    $hasAreaFilter = true;
+                }
 
-        if ($hasOrderProductId) {
-            $selects[] = 'order_details.product_id';
-        }
+                if ($meta['has_ad_area']) {
+                    $hasAreaFilter
+                        ? $query->orWhereNotNull('ordering_ad_areas.area_name')
+                        : $query->whereNotNull('ordering_ad_areas.area_name');
+                    $hasAreaFilter = true;
+                }
 
-        $query = OrderDetail::leftJoin('dealers', 'order_details.dealer_id', '=', 'dealers.user_id')
-            ->leftJoin('area_distributors as ordering_ads', 'order_details.dealer_id', '=', 'ordering_ads.user_id')
-            ->leftJoin(DB::raw('(select ad_id, min(area_name) as area_name from ad_areas where deleted_at is null group by ad_id) as ordering_ad_areas'), 'ordering_ads.id', '=', 'ordering_ad_areas.ad_id')
-            ->select($selects)
-            ->where('order_details.ad_id', $adId)
-            ->where('order_details.status', 'Completed')
-            ->where(function ($query) use ($hasGuestTerritory) {
-                $query->whereNotNull('dealers.area')
-                    ->orWhereNotNull('ordering_ad_areas.area_name');
-
-                if ($hasGuestTerritory) {
-                    $query->orWhereNotNull('order_details.guest_authorized_territory');
+                if ($meta['has_guest_territory']) {
+                    $hasAreaFilter
+                        ? $query->orWhereNotNull('od.guest_authorized_territory')
+                        : $query->whereNotNull('od.guest_authorized_territory');
                 }
             })
-            ->groupBy('dealers.area', 'ordering_ad_areas.area_name', 'order_details.item');
+            ->groupBy('od.item');
 
-        if ($hasGuestTerritory) {
-            $query->groupBy('order_details.guest_authorized_territory');
+        if ($meta['has_dealer_area']) {
+            $query->groupBy('d.area');
         }
 
-        if ($hasOrderProductId) {
-            $query->groupBy('order_details.product_id');
+        if ($meta['has_ad_area']) {
+            $query->groupBy('ordering_ad_areas.area_name');
+        }
+
+        if ($meta['has_guest_territory']) {
+            $query->groupBy('od.guest_authorized_territory');
+        }
+
+        if ($meta['has_product_id']) {
+            $query->groupBy('od.product_id');
         }
 
         return $query->get()
-            ->toBase()
-            ->map(function ($order) use ($productsById, $productsByName, $hasOrderProductId, $hasGuestTerritory) {
+            ->map(function ($order) use ($productsById, $productsByName, $meta) {
                 $product = null;
 
-                if ($hasOrderProductId && !empty($order->product_id)) {
+                if ($meta['has_product_id'] && !empty($order->product_id)) {
                     $product = $productsById->get($order->product_id);
                 }
 
@@ -528,14 +535,158 @@ class InventoryTransferController extends Controller
                 }
 
                 return (object) [
-                    'area' => ($hasGuestTerritory ? $order->guest_area : null) ?: $order->dealer_area ?: $order->ad_area,
+                    'area' => ($meta['has_guest_territory'] ? $order->guest_area : null) ?: $order->dealer_area ?: $order->ad_area,
                     'product_id' => $product ? $product->id : null,
                     'sku' => $product ? $product->sku : null,
                     'product_name' => $product ? $product->product_name : $order->item,
                     'item_name' => $product ? $product->product_name : $order->item,
                     'qty' => (float) $order->qty,
+                    'source_database' => $meta['connection'] ?: config('database.default'),
                 ];
             });
+    }
+
+    private function dealerOrderQtyForConnection($connection, $adId, $area, Product $product)
+    {
+        $queryData = $this->dealerOrderBaseQuery($connection, $adId);
+
+        if (!$queryData) {
+            return 0;
+        }
+
+        [$query, $meta] = $queryData;
+
+        if (!$this->dealerOrderHasAreaSource($meta)) {
+            return 0;
+        }
+
+        $query->where(function ($query) use ($area, $meta) {
+                $hasAreaFilter = false;
+
+                if ($meta['has_dealer_area']) {
+                    $query->where('d.area', $area);
+                    $hasAreaFilter = true;
+                }
+
+                if ($meta['has_ad_area']) {
+                    $hasAreaFilter
+                        ? $query->orWhere('ordering_ad_areas.area_name', $area)
+                        : $query->where('ordering_ad_areas.area_name', $area);
+                    $hasAreaFilter = true;
+                }
+
+                if ($meta['has_guest_territory']) {
+                    $hasAreaFilter
+                        ? $query->orWhere('od.guest_authorized_territory', $area)
+                        : $query->where('od.guest_authorized_territory', $area);
+                }
+            })
+            ->where(function ($query) use ($product, $meta) {
+                if ($meta['has_product_id']) {
+                    $query->where('od.product_id', $product->id)
+                        ->orWhereRaw('LOWER(TRIM(od.item)) = ?', [$this->normalizeProductName($product->product_name)]);
+                    return;
+                }
+
+                $query->whereRaw('LOWER(TRIM(od.item)) = ?', [$this->normalizeProductName($product->product_name)]);
+            });
+
+        return (float) $query->sum('od.qty');
+    }
+
+    private function dealerOrderHasAreaSource($meta)
+    {
+        return $meta['has_dealer_area'] || $meta['has_ad_area'] || $meta['has_guest_territory'];
+    }
+
+    private function dealerOrderBaseQuery($connection, $adId)
+    {
+        try {
+            $database = $connection ? DB::connection($connection) : DB::connection();
+            $schema = $database->getSchemaBuilder();
+
+            if (!$schema->hasTable('order_details')
+                || !$schema->hasColumn('order_details', 'ad_id')
+                || !$schema->hasColumn('order_details', 'item')
+                || !$schema->hasColumn('order_details', 'qty')) {
+                return null;
+            }
+
+            $hasProductId = $schema->hasColumn('order_details', 'product_id');
+            $hasGuestTerritory = $schema->hasColumn('order_details', 'guest_authorized_territory');
+            $hasDealerId = $schema->hasColumn('order_details', 'dealer_id');
+            $hasDealers = $schema->hasTable('dealers') && $hasDealerId;
+            $dealerJoinColumn = null;
+            $hasDealerArea = false;
+
+            if ($hasDealers) {
+                if ($schema->hasColumn('dealers', 'user_id')) {
+                    $dealerJoinColumn = 'user_id';
+                } elseif ($schema->hasColumn('dealers', 'id')) {
+                    $dealerJoinColumn = 'id';
+                }
+
+                $hasDealerArea = $dealerJoinColumn && $schema->hasColumn('dealers', 'area');
+            }
+
+            $hasAdArea = $hasDealerId
+                && $schema->hasTable('area_distributors')
+                && $schema->hasTable('ad_areas')
+                && $schema->hasColumn('area_distributors', 'user_id')
+                && $schema->hasColumn('area_distributors', 'id')
+                && $schema->hasColumn('ad_areas', 'ad_id')
+                && $schema->hasColumn('ad_areas', 'area_name');
+
+            $selects = [
+                $hasGuestTerritory ? 'od.guest_authorized_territory as guest_area' : DB::raw('NULL as guest_area'),
+                $hasDealerArea ? 'd.area as dealer_area' : DB::raw('NULL as dealer_area'),
+                $hasAdArea ? 'ordering_ad_areas.area_name as ad_area' : DB::raw('NULL as ad_area'),
+                'od.item',
+                DB::raw('SUM(od.qty) as qty'),
+            ];
+
+            if ($hasProductId) {
+                $selects[] = 'od.product_id';
+            }
+
+            $query = $database->table('order_details as od')
+                ->select($selects)
+                ->where('od.ad_id', $adId);
+
+            if ($schema->hasColumn('order_details', 'status')) {
+                $query->where('od.status', 'Completed');
+            }
+
+            if ($schema->hasColumn('order_details', 'deleted_at')) {
+                $query->whereNull('od.deleted_at');
+            }
+
+            if ($hasDealerArea) {
+                $query->leftJoin('dealers as d', 'od.dealer_id', '=', 'd.' . $dealerJoinColumn);
+            }
+
+            if ($hasAdArea) {
+                $query->leftJoin('area_distributors as ordering_ads', 'od.dealer_id', '=', 'ordering_ads.user_id');
+
+                $adAreaWhere = $schema->hasColumn('ad_areas', 'deleted_at') ? ' where deleted_at is null' : '';
+                $query->leftJoin(
+                    DB::raw('(select ad_id, min(area_name) as area_name from ad_areas' . $adAreaWhere . ' group by ad_id) as ordering_ad_areas'),
+                    'ordering_ads.id',
+                    '=',
+                    'ordering_ad_areas.ad_id'
+                );
+            }
+
+            return [$query, [
+                'connection' => $connection,
+                'has_product_id' => $hasProductId,
+                'has_guest_territory' => $hasGuestTerritory,
+                'has_dealer_area' => $hasDealerArea,
+                'has_ad_area' => $hasAdArea,
+            ]];
+        } catch (\Exception $exception) {
+            return null;
+        }
     }
 
     private function normalizeProductName($name)
