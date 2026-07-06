@@ -196,6 +196,8 @@ Route::get('/users/data', 'UserController@datatable')->name('users.data');
 
 Route::get('/users','UserController@index')->name('users');
 Route::post('/new-user','UserController@store')->name('new-admin');
+Route::post('/users/mobile-otp/send', 'UserController@sendMobileOtp')->name('users.mobile-otp.send');
+Route::post('/users/mobile-otp/verify', 'UserController@verifyMobileOtp')->name('users.mobile-otp.verify');
 Route::post('/generate-partner-code', 'UserController@generatePartnerCode')->name('generate.partner.code');
 Route::post('/check-mothers-name', 'UserController@checkMothersName')->name('check.mothers.name');
 Route::post('/check-user-duplicate', 'UserController@checkDuplicate')->name('check.user.duplicate');

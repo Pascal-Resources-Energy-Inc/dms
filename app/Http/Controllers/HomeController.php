@@ -183,40 +183,76 @@ class HomeController extends Controller
         );
     }
 
-    public function liveOverview()
+    public function liveOverview(Request $request)
     {
         abort_unless(auth()->user()->role === 'Admin', 403);
 
+        $source = $request->get('source', 'regular');
+        $connection = $this->dashboardConnectionForSource($source);
         $today = Carbon::today();
         $monthStart = Carbon::now()->startOfMonth();
         $thirtyDaysAgo = Carbon::today()->subDays(29);
 
-        $todaySalesRow = TransactionDetail::whereDate('created_at', $today)
-            ->selectRaw('COALESCE(SUM(price * qty), 0) as total')
-            ->first();
-        $monthSalesRow = TransactionDetail::where('created_at', '>=', $monthStart)
-            ->selectRaw('COALESCE(SUM(price * qty), 0) as total')
-            ->first();
+        $hasTransactionsTable = $this->dashboardHasTable($connection, 'transaction_details');
+        $hasOrdersTable = $this->dashboardHasTable($connection, 'order_details');
+        $hasAdOrdersTable = $this->dashboardHasTable($connection, 'ad_purchase_orders');
+        $transactionDateColumn = $this->dashboardTransactionDateColumn($connection);
+        $transactionAmountExpression = $this->dashboardTransactionAmountExpression($connection);
+        $transactionQtyExpression = $this->dashboardTransactionQtyExpression($connection);
+
+        $todaySalesRow = $hasTransactionsTable && $transactionDateColumn
+            ? $this->dashboardQuery($connection, 'transaction_details')->whereDate($transactionDateColumn, $today)
+                ->selectRaw('COALESCE(SUM(' . $transactionAmountExpression . '), 0) as total')
+                ->first()
+            : null;
+        $monthSalesRow = $hasTransactionsTable && $transactionDateColumn
+            ? $this->dashboardQuery($connection, 'transaction_details')->where($transactionDateColumn, '>=', $monthStart)
+                ->selectRaw('COALESCE(SUM(' . $transactionAmountExpression . '), 0) as total')
+                ->first()
+            : null;
         $todaySales = (float) optional($todaySalesRow)->total;
         $monthSales = (float) optional($monthSalesRow)->total;
-        $todayTransactions = TransactionDetail::whereDate('created_at', $today)->count();
-        $monthUnits = (float) TransactionDetail::where('created_at', '>=', $monthStart)->sum('qty');
-        $activeDealers = TransactionDetail::where('created_at', '>=', Carbon::now()->subDays(30))
-            ->whereNotNull('dealer_id')
-            ->distinct()
-            ->count('dealer_id');
 
-        $pendingDealerOrders = OrderDetail::where('status', 'Pending')->count();
-        $pendingAdOrders = AdPurchaseOrder::whereIn('status', ['Pending', 'For Verification'])->count();
+        $todayTransactions = $hasTransactionsTable && $transactionDateColumn
+            ? $this->dashboardQuery($connection, 'transaction_details')->whereDate($transactionDateColumn, $today)->count()
+            : 0;
+        $monthUnits = $hasTransactionsTable && $transactionDateColumn
+            ? (float) optional($this->dashboardQuery($connection, 'transaction_details')
+                ->where($transactionDateColumn, '>=', $monthStart)
+                ->selectRaw('COALESCE(SUM(' . $transactionQtyExpression . '), 0) as total')
+                ->first())->total
+            : 0;
+        $totalSalesRow = $hasTransactionsTable
+            ? $this->dashboardQuery($connection, 'transaction_details')
+                ->selectRaw('COALESCE(SUM(' . $transactionAmountExpression . '), 0) as total')
+                ->first()
+            : null;
+        $totalSales = (float) optional($totalSalesRow)->total;
+        $totalProductsSold = $hasTransactionsTable
+            ? (float) optional($this->dashboardQuery($connection, 'transaction_details')
+                ->selectRaw('COALESCE(SUM(' . $transactionQtyExpression . '), 0) as total')
+                ->first())->total
+            : 0;
+        $activeDealers = $this->dashboardActiveDealers($connection);
+        $activeCustomers = $this->dashboardActiveCustomers($connection);
 
-        $dailyRows = TransactionDetail::selectRaw(
-                'DATE(created_at) as sale_date, COALESCE(SUM(price * qty), 0) as sales, COALESCE(SUM(qty), 0) as units'
-            )
-            ->whereDate('created_at', '>=', $thirtyDaysAgo)
-            ->groupBy(DB::raw('DATE(created_at)'))
-            ->orderBy('sale_date')
-            ->get()
-            ->keyBy('sale_date');
+        $pendingDealerOrders = $hasOrdersTable
+            ? $this->dashboardQuery($connection, 'order_details')->where('status', 'Pending')->count()
+            : 0;
+        $pendingAdOrders = $hasAdOrdersTable
+            ? $this->dashboardQuery($connection, 'ad_purchase_orders')->whereIn('status', ['Pending', 'For Verification'])->count()
+            : 0;
+
+        $dailyRows = $hasTransactionsTable && $transactionDateColumn
+            ? $this->dashboardQuery($connection, 'transaction_details')->selectRaw(
+                    'DATE(' . $transactionDateColumn . ') as sale_date, COALESCE(SUM(' . $transactionAmountExpression . '), 0) as sales, COALESCE(SUM(' . $transactionQtyExpression . '), 0) as units'
+                )
+                ->whereDate($transactionDateColumn, '>=', $thirtyDaysAgo)
+                ->groupBy(DB::raw('DATE(' . $transactionDateColumn . ')'))
+                ->orderBy('sale_date')
+                ->get()
+                ->keyBy('sale_date')
+            : collect();
 
         $salesTrend = collect(range(0, 29))->map(function ($offset) use ($thirtyDaysAgo, $dailyRows) {
             $date = $thirtyDaysAgo->copy()->addDays($offset);
@@ -229,12 +265,16 @@ class HomeController extends Controller
             ];
         });
 
-        $dealerOrderStatuses = OrderDetail::selectRaw('status, COUNT(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
-        $adOrderStatuses = AdPurchaseOrder::selectRaw('status, COUNT(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
+        $dealerOrderStatuses = $hasOrdersTable
+            ? $this->dashboardQuery($connection, 'order_details')->selectRaw('status, COUNT(*) as total')
+                ->groupBy('status')
+                ->pluck('total', 'status')
+            : collect();
+        $adOrderStatuses = $hasAdOrdersTable
+            ? $this->dashboardQuery($connection, 'ad_purchase_orders')->selectRaw('status, COUNT(*) as total')
+                ->groupBy('status')
+                ->pluck('total', 'status')
+            : collect();
 
         $statusNames = $dealerOrderStatuses->keys()
             ->merge($adOrderStatuses->keys())
@@ -249,36 +289,533 @@ class HomeController extends Controller
             ];
         })->sortByDesc('total')->values();
 
-        $recentTransactions = TransactionDetail::with(['dealer', 'customer'])
-            ->latest('id')
-            ->limit(6)
-            ->get()
-            ->map(function ($transaction) {
-                return [
-                    'id' => $transaction->id,
-                    'customer' => optional($transaction->customer)->name ?: 'Walk-in customer',
-                    'dealer' => optional($transaction->dealer)->name ?: 'Unassigned',
-                    'item' => $transaction->item ?: 'Product',
-                    'amount' => round((float) $transaction->price * (float) $transaction->qty, 2),
-                    'quantity' => (float) $transaction->qty,
-                    'time' => optional($transaction->created_at)->diffForHumans(),
-                ];
-            });
+        $recentTransactions = $this->dashboardRecentTransactions($connection);
+        $selectedYear = $request->get('year', Carbon::now()->year);
+        $selectedMonth = $request->get('month', null);
+        $refillChart = $this->dashboardRefillChart($connection, $selectedYear, $selectedMonth);
 
         return response()->json([
             'generated_at' => now()->toIso8601String(),
+            'source' => $source,
             'kpis' => [
                 'today_sales' => $todaySales,
                 'month_sales' => $monthSales,
                 'today_transactions' => $todayTransactions,
                 'month_units' => $monthUnits,
+                'total_sales' => $totalSales,
+                'total_products_sold' => $totalProductsSold,
                 'active_dealers' => $activeDealers,
+                'active_customers' => $activeCustomers,
                 'pending_orders' => $pendingDealerOrders + $pendingAdOrders,
             ],
             'sales_trend' => $salesTrend,
             'order_statuses' => $orderStatuses,
             'recent_transactions' => $recentTransactions,
+            'refill_chart' => $refillChart,
+            'latest_transactions' => $this->dashboardLatestTransactions($connection),
+            'top_dealers' => $this->dashboardTopDealers($connection),
+            'inactive_dealers' => $this->dashboardInactiveDealers($connection),
+            'top_customers' => $this->dashboardTopCustomers($connection),
         ]);
+    }
+
+    private function dashboardConnectionForSource($source)
+    {
+        return [
+            'project_rise' => 'admin_crms',
+            'admin_crms' => 'admin_crms',
+            'project_genesis' => 'admin_crms2',
+            'admin_crms2' => 'admin_crms2',
+        ][$source] ?? null;
+    }
+
+    private function dashboardDatabase($connection)
+    {
+        return $connection ? DB::connection($connection) : DB::connection();
+    }
+
+    private function dashboardHasTable($connection, $table)
+    {
+        try {
+            return $this->dashboardDatabase($connection)->getSchemaBuilder()->hasTable($table);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function dashboardHasColumn($connection, $table, $column)
+    {
+        try {
+            return $this->dashboardDatabase($connection)->getSchemaBuilder()->hasColumn($table, $column);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function dashboardQuery($connection, $table)
+    {
+        return $this->dashboardDatabase($connection)->table($table);
+    }
+
+    private function dashboardTransactionDateColumn($connection)
+    {
+        foreach (['created_at', 'date', 'transaction_date'] as $column) {
+            if ($this->dashboardHasColumn($connection, 'transaction_details', $column)) {
+                return $column;
+            }
+        }
+
+        return null;
+    }
+
+    private function dashboardTransactionQtyExpression($connection)
+    {
+        foreach (['qty', 'quantity'] as $column) {
+            if ($this->dashboardHasColumn($connection, 'transaction_details', $column)) {
+                return 'COALESCE(' . $column . ', 0)';
+            }
+        }
+
+        return '0';
+    }
+
+    private function dashboardTransactionAmountExpression($connection)
+    {
+        $qtyExpression = $this->dashboardTransactionQtyExpression($connection);
+
+        if ($this->dashboardHasColumn($connection, 'transaction_details', 'price') && $qtyExpression !== '0') {
+            return 'COALESCE(price, 0) * ' . $qtyExpression;
+        }
+
+        foreach (['amount', 'total_amount', 'grand_total'] as $column) {
+            if ($this->dashboardHasColumn($connection, 'transaction_details', $column)) {
+                return 'COALESCE(' . $column . ', 0)';
+            }
+        }
+
+        return '0';
+    }
+
+    private function dashboardClientTable($connection)
+    {
+        foreach (['clients', 'customers'] as $table) {
+            if ($this->dashboardHasTable($connection, $table)) {
+                return $table;
+            }
+        }
+
+        return null;
+    }
+
+    private function dashboardTransactionCustomerColumn($connection)
+    {
+        foreach (['client_id', 'customer_id', 'user_id'] as $column) {
+            if ($this->dashboardHasColumn($connection, 'transaction_details', $column)) {
+                return $column;
+            }
+        }
+
+        return null;
+    }
+
+    private function dashboardTransactionDealerColumn($connection)
+    {
+        foreach (['dealer_id', 'user_id'] as $column) {
+            if ($this->dashboardHasColumn($connection, 'transaction_details', $column)) {
+                return $column;
+            }
+        }
+
+        return null;
+    }
+
+    private function dashboardNameExpression($connection, $table, $alias)
+    {
+        if ($this->dashboardHasColumn($connection, $table, 'name')) {
+            return $alias . '.name';
+        }
+
+        $nameColumns = collect(['first_name', 'middle_name', 'last_name'])
+            ->filter(function ($column) use ($connection, $table) {
+                return $this->dashboardHasColumn($connection, $table, $column);
+            })
+            ->map(function ($column) use ($alias) {
+                return $alias . '.' . $column;
+            })
+            ->values();
+
+        return $nameColumns->isNotEmpty()
+            ? "TRIM(CONCAT_WS(' ', " . $nameColumns->implode(', ') . '))'
+            : null;
+    }
+
+    private function dashboardActiveCustomers($connection)
+    {
+        $table = $this->dashboardClientTable($connection);
+
+        if (!$table) {
+            return 0;
+        }
+
+        $query = $this->dashboardQuery($connection, $table);
+
+        if ($this->dashboardHasColumn($connection, $table, 'status')) {
+            $query->whereRaw('LOWER(status) = ?', ['active']);
+        }
+
+        return $query->count();
+    }
+
+    private function dashboardActiveDealers($connection)
+    {
+        if ($this->dashboardHasTable($connection, 'dealers')) {
+            $query = $this->dashboardQuery($connection, 'dealers');
+
+            if ($this->dashboardHasColumn($connection, 'dealers', 'status')) {
+                $query->whereRaw('LOWER(status) = ?', ['active']);
+            }
+
+            return $query->count();
+        }
+
+        $dealerColumn = $this->dashboardTransactionDealerColumn($connection);
+
+        return $this->dashboardHasTable($connection, 'transaction_details') && $dealerColumn
+            ? $this->dashboardQuery($connection, 'transaction_details')
+                ->whereNotNull($dealerColumn)
+                ->distinct()
+                ->count($dealerColumn)
+            : 0;
+    }
+
+    private function dashboardRecentTransactions($connection)
+    {
+        if (!$this->dashboardHasTable($connection, 'transaction_details')) {
+            return collect();
+        }
+
+        $query = $this->dashboardQuery($connection, 'transaction_details')
+            ->select('transaction_details.*');
+        $customerTable = $this->dashboardClientTable($connection);
+        $customerColumn = $this->dashboardTransactionCustomerColumn($connection);
+        $dealerColumn = $this->dashboardTransactionDealerColumn($connection);
+
+        try {
+            if (
+                $customerTable &&
+                $customerColumn &&
+                $this->dashboardHasColumn($connection, $customerTable, 'id') &&
+                ($customerNameExpression = $this->dashboardNameExpression($connection, $customerTable, 'c'))
+            ) {
+                $query->leftJoin($customerTable . ' as c', 'transaction_details.' . $customerColumn, '=', 'c.id')
+                    ->addSelect(DB::raw($customerNameExpression . ' as customer_name'));
+            }
+
+            if (
+                $this->dashboardHasTable($connection, 'users') &&
+                $dealerColumn &&
+                $this->dashboardHasColumn($connection, 'users', 'id') &&
+                ($dealerNameExpression = $this->dashboardNameExpression($connection, 'users', 'u'))
+            ) {
+                $query->leftJoin('users as u', 'transaction_details.' . $dealerColumn, '=', 'u.id')
+                    ->addSelect(DB::raw($dealerNameExpression . ' as dealer_name'));
+            } elseif (
+                $this->dashboardHasTable($connection, 'dealers') &&
+                $dealerColumn &&
+                $this->dashboardHasColumn($connection, 'dealers', 'id') &&
+                ($dealerNameExpression = $this->dashboardNameExpression($connection, 'dealers', 'd'))
+            ) {
+                $query->leftJoin('dealers as d', 'transaction_details.' . $dealerColumn, '=', 'd.id')
+                    ->addSelect(DB::raw($dealerNameExpression . ' as dealer_name'));
+            }
+        } catch (\Throwable $e) {
+            //
+        }
+
+        $sortColumn = $this->dashboardHasColumn($connection, 'transaction_details', 'id')
+            ? 'transaction_details.id'
+            : ($this->dashboardTransactionDateColumn($connection)
+                ? 'transaction_details.' . $this->dashboardTransactionDateColumn($connection)
+                : null);
+
+        if ($sortColumn) {
+            $query->orderByDesc($sortColumn);
+        }
+
+        return $query->limit(6)
+            ->get()
+            ->map(function ($transaction) {
+                $qty = (float) ($transaction->qty ?? ($transaction->quantity ?? 0));
+                $amount = (float) ($transaction->amount ?? ($transaction->total_amount ?? ($transaction->grand_total ?? 0)));
+                $price = (float) ($transaction->price ?? ($qty > 0 && $amount > 0 ? $amount / $qty : 0));
+
+                return [
+                    'id' => $transaction->id ?? null,
+                    'customer' => $transaction->customer_name ?? 'Walk-in customer',
+                    'dealer' => $transaction->dealer_name ?? 'Unassigned',
+                    'item' => ($transaction->item ?? ($transaction->product_name ?? ($transaction->product ?? null))) ?: 'Product',
+                    'amount' => round($amount > 0 ? $amount : $price * $qty, 2),
+                    'quantity' => $qty,
+                    'customer_points' => (float) ($transaction->points_client ?? ($transaction->points ?? 0)),
+                    'dealer_points' => (float) ($transaction->points_dealer ?? 0),
+                    'raw_date' => $transaction->created_at ?? ($transaction->date ?? null),
+                    'time' => !empty($transaction->created_at ?? $transaction->date ?? null)
+                        ? Carbon::parse($transaction->created_at ?? $transaction->date)->diffForHumans()
+                        : null,
+                ];
+            });
+    }
+
+    private function dashboardRefillChart($connection, $year, $month = null)
+    {
+        $year = (int) $year;
+        $month = $month ? (int) $month : null;
+        $dateColumn = $this->dashboardTransactionDateColumn($connection);
+        $qtyExpression = $this->dashboardTransactionQtyExpression($connection);
+
+        if (!$this->dashboardHasTable($connection, 'transaction_details') || !$dateColumn) {
+            return [
+                'categories' => $month ? range(1, Carbon::create($year, $month ?: 1, 1)->daysInMonth) : collect(range(1, 12))->map(function ($m) { return Carbon::create()->month($m)->format('F'); })->toArray(),
+                'qty' => $month ? array_fill(0, Carbon::create($year, $month ?: 1, 1)->daysInMonth, 0) : array_fill(0, 12, 0),
+                'year' => $year,
+                'month' => $month,
+                'view_type' => $month ? 'monthly' : 'yearly',
+                'available_months' => [],
+            ];
+        }
+
+        if ($month) {
+            $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
+            $rows = $this->dashboardQuery($connection, 'transaction_details')
+                ->selectRaw('DAY(' . $dateColumn . ') as day_number, COALESCE(SUM(' . $qtyExpression . '), 0) as total_qty')
+                ->whereYear($dateColumn, $year)
+                ->whereMonth($dateColumn, $month)
+                ->whereNotNull($dateColumn)
+                ->groupBy(DB::raw('DAY(' . $dateColumn . ')'))
+                ->pluck('total_qty', 'day_number');
+
+            $categories = range(1, $daysInMonth);
+            $qty = collect($categories)->map(function ($day) use ($rows) {
+                return (float) ($rows[$day] ?? 0);
+            })->toArray();
+        } else {
+            $rows = $this->dashboardQuery($connection, 'transaction_details')
+                ->selectRaw('MONTH(' . $dateColumn . ') as month_number, COALESCE(SUM(' . $qtyExpression . '), 0) as total_qty')
+                ->whereYear($dateColumn, $year)
+                ->whereNotNull($dateColumn)
+                ->groupBy(DB::raw('MONTH(' . $dateColumn . ')'))
+                ->pluck('total_qty', 'month_number');
+
+            $categories = collect(range(1, 12))->map(function ($monthNumber) {
+                return Carbon::create()->month($monthNumber)->format('F');
+            })->toArray();
+            $qty = collect(range(1, 12))->map(function ($monthNumber) use ($rows) {
+                return (float) ($rows[$monthNumber] ?? 0);
+            })->toArray();
+        }
+
+        return [
+            'categories' => $categories,
+            'qty' => $qty,
+            'year' => $year,
+            'month' => $month,
+            'view_type' => $month ? 'monthly' : 'yearly',
+            'available_months' => $this->dashboardAvailableMonths($connection, $year),
+        ];
+    }
+
+    private function dashboardAvailableMonths($connection, $year)
+    {
+        $dateColumn = $this->dashboardTransactionDateColumn($connection);
+
+        if (!$this->dashboardHasTable($connection, 'transaction_details') || !$dateColumn) {
+            return [];
+        }
+
+        return $this->dashboardQuery($connection, 'transaction_details')
+            ->selectRaw('DISTINCT MONTH(' . $dateColumn . ') as month_number, MONTHNAME(' . $dateColumn . ') as month_name')
+            ->whereYear($dateColumn, (int) $year)
+            ->whereNotNull($dateColumn)
+            ->orderBy('month_number')
+            ->get()
+            ->map(function ($month) {
+                return [
+                    'number' => (int) $month->month_number,
+                    'name' => $month->month_name,
+                ];
+            })
+            ->toArray();
+    }
+
+    private function dashboardLatestTransactions($connection)
+    {
+        return $this->dashboardRecentTransactions($connection)->map(function ($transaction) {
+            return [
+                'customer' => $transaction['customer'],
+                'dealer' => $transaction['dealer'],
+                'item' => $transaction['item'],
+                'date' => $transaction['time'],
+                'raw_date' => $transaction['raw_date'] ?? null,
+                'amount' => $transaction['amount'],
+                'quantity' => $transaction['quantity'],
+                'customer_points' => $transaction['customer_points'] ?? 0,
+                'dealer_points' => $transaction['dealer_points'] ?? 0,
+            ];
+        })->values();
+    }
+
+    private function dashboardTopDealers($connection)
+    {
+        $dealerColumn = $this->dashboardTransactionDealerColumn($connection);
+        $dateColumn = $this->dashboardTransactionDateColumn($connection);
+
+        if (!$this->dashboardHasTable($connection, 'transaction_details') || !$dealerColumn) {
+            return collect();
+        }
+
+        if ($this->dashboardHasColumn($connection, 'transaction_details', 'points_dealer')) {
+            $pointsExpression = 'COALESCE(td.points_dealer, 0)';
+        } elseif ($this->dashboardHasColumn($connection, 'transaction_details', 'points')) {
+            $pointsExpression = 'COALESCE(td.points, 0)';
+        } elseif ($this->dashboardHasColumn($connection, 'transaction_details', 'qty')) {
+            $pointsExpression = 'COALESCE(td.qty, 0)';
+        } elseif ($this->dashboardHasColumn($connection, 'transaction_details', 'quantity')) {
+            $pointsExpression = 'COALESCE(td.quantity, 0)';
+        } else {
+            $pointsExpression = '0';
+        }
+
+        $query = $this->dashboardQuery($connection, 'transaction_details as td')
+            ->selectRaw('td.' . $dealerColumn . ' as id, COALESCE(SUM(' . $pointsExpression . '), 0) as total_points')
+            ->whereNotNull('td.' . $dealerColumn)
+            ->groupBy('td.' . $dealerColumn)
+            ->orderByDesc('total_points')
+            ->limit(10);
+
+        if ($dateColumn) {
+            $query->addSelect(DB::raw('MAX(td.' . $dateColumn . ') as latest_transaction'));
+        }
+
+        return $query->get()->map(function ($row) use ($connection) {
+            $row->name = $this->dashboardLookupName($connection, 'dealers', $row->id)
+                ?: $this->dashboardLookupName($connection, 'users', $row->id)
+                ?: 'Unknown';
+            return [
+                'name' => $row->name,
+                'total_points' => (float) $row->total_points,
+                'latest_transaction' => $row->latest_transaction ?? null,
+            ];
+        });
+    }
+
+    private function dashboardTopCustomers($connection)
+    {
+        $customerColumn = $this->dashboardTransactionCustomerColumn($connection);
+        $dateColumn = $this->dashboardTransactionDateColumn($connection);
+
+        if (!$this->dashboardHasTable($connection, 'transaction_details') || !$customerColumn) {
+            return collect();
+        }
+
+        if ($this->dashboardHasColumn($connection, 'transaction_details', 'points_client')) {
+            $pointsExpression = 'COALESCE(td.points_client, 0)';
+        } elseif ($this->dashboardHasColumn($connection, 'transaction_details', 'points')) {
+            $pointsExpression = 'COALESCE(td.points, 0)';
+        } elseif ($this->dashboardHasColumn($connection, 'transaction_details', 'qty')) {
+            $pointsExpression = 'COALESCE(td.qty, 0)';
+        } elseif ($this->dashboardHasColumn($connection, 'transaction_details', 'quantity')) {
+            $pointsExpression = 'COALESCE(td.quantity, 0)';
+        } else {
+            $pointsExpression = '0';
+        }
+
+        $query = $this->dashboardQuery($connection, 'transaction_details as td')
+            ->selectRaw('td.' . $customerColumn . ' as id, COALESCE(SUM(' . $pointsExpression . '), 0) as total_points')
+            ->whereNotNull('td.' . $customerColumn)
+            ->groupBy('td.' . $customerColumn)
+            ->orderByDesc('total_points')
+            ->limit(10);
+
+        if ($dateColumn) {
+            $query->addSelect(DB::raw('MAX(td.' . $dateColumn . ') as latest_transaction'));
+        }
+
+        $clientTable = $this->dashboardClientTable($connection);
+
+        return $query->get()->map(function ($row) use ($connection, $clientTable) {
+            $row->name = ($clientTable ? $this->dashboardLookupName($connection, $clientTable, $row->id) : null) ?: 'Unknown';
+            return [
+                'name' => $row->name,
+                'total_points' => (float) $row->total_points,
+                'latest_transaction' => $row->latest_transaction ?? null,
+            ];
+        });
+    }
+
+    private function dashboardInactiveDealers($connection)
+    {
+        if (!$this->dashboardHasTable($connection, 'dealers')) {
+            return collect();
+        }
+
+        $dealerColumn = $this->dashboardTransactionDealerColumn($connection);
+        $dateColumn = $this->dashboardTransactionDateColumn($connection);
+        $dealerIdColumn = $this->dashboardHasColumn($connection, 'dealers', 'user_id') ? 'user_id' : 'id';
+
+        $latestRows = ($dealerColumn && $dateColumn && $this->dashboardHasTable($connection, 'transaction_details'))
+            ? $this->dashboardQuery($connection, 'transaction_details')
+                ->selectRaw($dealerColumn . ' as dealer_id, MAX(' . $dateColumn . ') as last_transaction_date')
+                ->whereNotNull($dealerColumn)
+                ->groupBy($dealerColumn)
+                ->pluck('last_transaction_date', 'dealer_id')
+            : collect();
+
+        return $this->dashboardQuery($connection, 'dealers')
+            ->get()
+            ->map(function ($dealer) use ($connection, $latestRows, $dealerIdColumn) {
+                $dealerId = $dealer->{$dealerIdColumn} ?? ($dealer->id ?? null);
+                $lastDate = $dealerId ? ($latestRows[$dealerId] ?? null) : null;
+
+                return [
+                    'name' => $this->dashboardResolvedName($connection, 'dealers', $dealer),
+                    'store_name' => $dealer->store_name ?? null,
+                    'last_transaction_date' => $lastDate,
+                    'days_since_transaction' => $lastDate ? Carbon::parse($lastDate)->diffInDays(now()) : null,
+                ];
+            })
+            ->filter(function ($dealer) {
+                return empty($dealer['last_transaction_date']) || (int) $dealer['days_since_transaction'] >= 3;
+            })
+            ->sortByDesc(function ($dealer) {
+                return $dealer['days_since_transaction'] ?? 99999;
+            })
+            ->take(25)
+            ->values();
+    }
+
+    private function dashboardLookupName($connection, $table, $id)
+    {
+        if (!$id || !$this->dashboardHasTable($connection, $table) || !$this->dashboardHasColumn($connection, $table, 'id')) {
+            return null;
+        }
+
+        $row = $this->dashboardQuery($connection, $table)->where('id', $id)->first();
+
+        return $row ? $this->dashboardResolvedName($connection, $table, $row) : null;
+    }
+
+    private function dashboardResolvedName($connection, $table, $row)
+    {
+        if (!empty($row->name)) {
+            return $row->name;
+        }
+
+        return collect(['first_name', 'middle_name', 'last_name'])
+            ->map(function ($column) use ($row) {
+                return $row->{$column} ?? null;
+            })
+            ->filter()
+            ->implode(' ') ?: 'Unknown';
     }
 
     private function getPhilippineMapData()
@@ -611,6 +1148,8 @@ class HomeController extends Controller
         $year = $request->get('year', Carbon::now()->year);
         $month = $request->get('month', null);
         $viewType = $month ? 'monthly' : 'yearly';
+        $source = $request->get('source', 'regular');
+        $connection = $this->dashboardConnectionForSource($source);
         
         if (!is_numeric($year) || $year < 1900 || $year > Carbon::now()->year + 10) {
             return response()->json(['error' => 'Invalid year'], 400);
@@ -620,6 +1159,20 @@ class HomeController extends Controller
             return response()->json(['error' => 'Invalid month'], 400);
         }
         
+        if ($source !== 'regular') {
+            $sourceChart = $this->dashboardRefillChart($connection, $year, $month);
+
+            return response()->json([
+                'categories' => $sourceChart['categories'],
+                'qty' => $sourceChart['qty'],
+                'year' => (int) $year,
+                'month' => $month ? (int) $month : null,
+                'view_type' => $viewType,
+                'available_months' => $sourceChart['available_months'],
+                'total_records' => 0,
+            ]);
+        }
+
         if ($viewType === 'monthly') {
             $chartData = $this->getDailyData($year, $month);
         } else {

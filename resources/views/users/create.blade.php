@@ -129,7 +129,26 @@
                         </div>
                         <div class="col-md-6 mb-2">
                             <label class="form-label" for="contact_number">Mobile Number&nbsp;<span class="text-danger" id="contactRequiredMark">*</span></label>
-                            <input type="text" class="form-control" id="contact_number" name="contact_number" placeholder="09xxxxxxx" maxlength="11" pattern="09[0-9]{9}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, ''); toggleContactRequired();">
+                            <div class="mobile-verify-shell" id="mobileVerifyShell">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                                    <input type="text" class="form-control" id="contact_number" name="contact_number" placeholder="09xxxxxxxxx" maxlength="11" pattern="09[0-9]{9}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, ''); toggleContactRequired();">
+                                    <button type="button" class="btn btn-outline-primary" id="sendMobileOtpBtn">
+                                        Send OTP
+                                    </button>
+                                </div>
+                                <div class="mobile-otp-panel" id="mobileOtpPanel" hidden>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input type="text" class="form-control otp-code-input" id="mobile_otp" placeholder="6-digit OTP" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+                                        <button type="button" class="btn btn-primary" id="verifyMobileOtpBtn">Verify</button>
+                                    </div>
+                                    <div class="mobile-otp-help">
+                                        <span id="mobileOtpStatus">Enter the code sent by Semaphore SMS.</span>
+                                        <button type="button" class="btn btn-link p-0 mobile-resend-link" id="resendMobileOtpBtn" disabled>Resend</button>
+                                    </div>
+                                </div>
+                                <div class="mobile-verify-status" id="mobileVerifyStatus" aria-live="polite"></div>
+                            </div>
                         </div>
                         <div class="col-md-4 mb-3 non-admin-personal-fields">
                             <label class="form-label" for="birthdate">Birthdate&nbsp;<span class="text-danger">*</span></label>
@@ -182,47 +201,84 @@
                                 </label>
                             </div>
                         </div>
-                        <div class="fs-6 fw-bold col-md-12 mb-3 location-fields">
-                            <i class="bi bi-geo-alt"></i> Location Details
-                        </div>
-                        <div class="col-md-12 mb-2 location-fields">
-                            <label class="form-label">Street Name, Building, House No. <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="street_address" id="street_address" value="{{ old('street_address') }}" placeholder="e.g., 1868 Kapalaran St" data-uppercase required>
-                        </div>
-                        <div class="col-md-6 mb-2 location-fields">
-                            <label class="form-label">Region <span class="text-danger">*</span></label>
-                            <select class="form-control select2" id="location_region" name="location_region" data-placeholder="Select Region" required onclick="event.stopPropagation();">
-                                <option value="">-- Select Region --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-2 location-fields">
-                            <label class="form-label">Province <span class="text-danger">*</span></label>
-                            <select class="form-control select2" id="location_province" name="location_province" data-placeholder="Select Province" required onclick="event.stopPropagation();" disabled>
-                                <option value="">-- Select Region First --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-2 location-fields">
-                            <label class="form-label">City/Municipality <span class="text-danger">*</span></label>
-                            <select class="form-control select2" id="location_city" name="location_city" data-placeholder="Select City/Municipality" required onclick="event.stopPropagation();" disabled>
-                                <option value="">-- Select Province First --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-2 location-fields">
-                            <label class="form-label">Barangay <span class="text-danger">*</span></label>
-                            <select class="form-control select2"
-                                    name="location_barangay"
-                                    id="location_barangay"
-                                    data-placeholder="Select Barangay"
-                                    required
-                                    onclick="event.stopPropagation();"
-                                    disabled>
-                                <option value="">-- Select City First --</option>
-                            </select>
-                            <small class="form-text text-muted">Select barangay from the list</small>
-                        </div>
-                        <div class="col-md-6 mb-2 location-fields">
-                            <label class="form-label">Zip Code&nbsp;<span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="location_zipcode" name="zipcode" readonly required>
+                        <div class="col-md-12 location-fields">
+                            <div class="location-panel">
+                                <div class="location-panel-header">
+                                    <div>
+                                        <div class="fs-6 fw-bold">
+                                            <i class="bi bi-geo-alt me-1"></i> Location Details
+                                        </div>
+                                        <small class="text-muted">Complete the address and the pin will update automatically.</small>
+                                    </div>
+                                    <span class="location-status" id="locationMapStatus">Waiting for address</span>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-lg-5">
+                                        <div class="location-input-grid">
+                                            <div>
+                                                <label class="form-label">Street Name, Building, House No. <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" name="street_address" id="street_address" value="{{ old('street_address') }}" placeholder="e.g., 1868 Kapalaran St" data-uppercase required>
+                                            </div>
+                                            <div>
+                                                <label class="form-label">Region <span class="text-danger">*</span></label>
+                                                <select class="form-control select2" id="location_region" name="location_region" data-placeholder="Select Region" required>
+                                                    <option value="">-- Select Region --</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="form-label">Province <span class="text-danger">*</span></label>
+                                                <select class="form-control select2" id="location_province" name="location_province" data-placeholder="Select Province" required disabled>
+                                                    <option value="">-- Select Region First --</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="form-label">City/Municipality <span class="text-danger">*</span></label>
+                                                <select class="form-control select2" id="location_city" name="location_city" data-placeholder="Select City/Municipality" required disabled>
+                                                    <option value="">-- Select Province First --</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="form-label">Barangay <span class="text-danger">*</span></label>
+                                                <select class="form-control select2"
+                                                        name="location_barangay"
+                                                        id="location_barangay"
+                                                        data-placeholder="Select Barangay"
+                                                        required
+                                                        disabled>
+                                                    <option value="">-- Select City First --</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="form-label">Zip Code&nbsp;<span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="location_zipcode" name="zipcode" readonly required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-7">
+                                        <div class="location-map-shell">
+                                            <div class="location-map-toolbar">
+                                                <div>
+                                                    <strong>Exact Pin Location</strong>
+                                                    <small>Drag the pin or click the map to adjust.</small>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" id="refreshLocationMapBtn">
+                                                    <i class="bi bi-arrow-clockwise"></i> Locate
+                                                </button>
+                                            </div>
+                                            <div id="location_map"></div>
+                                            <div class="location-coordinate-bar">
+                                                <span><strong>Lat:</strong> <span id="display_lat">--</span></span>
+                                                <span><strong>Lng:</strong> <span id="display_lng">--</span></span>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <label class="form-label">Complete Address Preview</label>
+                                            <textarea class="form-control location-preview" id="full_address_preview" rows="2" readonly></textarea>
+                                            <input type="hidden" name="address" id="location_hidden" data-uppercase>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-12 admin-fields" style="display:none;">
                             <div class="warehouse-panel">
@@ -367,37 +423,11 @@
                                 </div>
                             </div>
                         </template>
-                        <div class="col-md-12 location-fields">
-                            <div class="form-group">
-                            <label>Pin Exact Location</span></label>
-                            <div class="alert alert-warning d-flex align-items-start" role="alert">
-                                <svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16" style="min-width: 24px; margin-right: 10px;">
-                                    <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
-                                </svg>
-                                <div>
-                                    <strong>Place an accurate pin</strong><br>
-                                    <small>We will deliver to your map location. Please check if it is correct, else click the map to adjust the pin location.</small>
-                                </div>
-                            </div>
-                            <div id="location_map" style="height: 400px; border-radius: 8px; border: 2px solid #dee2e6;"></div>
-                                <div class="mt-2 p-2 bg-light rounded">
-                                    <strong>Current Pin Location:</strong><br>
-                                    Latitude: <span id="display_lat">--</span>, Longitude: <span id="display_lng">--</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-12 location-fields">
-                            <div class="form-group">
-                                <label>Complete Address Preview</label>
-                                <textarea class="form-control bg-light" id="full_address_preview" rows="2" readonly></textarea>
-                                <input type="hidden" name="address" id="location_hidden" data-uppercase>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn bg-danger-subtle text-danger  waves-effect"data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn bg-info-subtle text-info  waves-effect">Submit</button>
+                    <button type="submit" class="btn bg-info-subtle text-info  waves-effect" id="newUserSubmitBtn">Submit</button>
                 </div>
             </form>
         </div>
@@ -406,8 +436,13 @@
 
 <style>
     #location_map {
-        height: 400px;
+        height: 420px;
         width: 100%;
+        border-radius: 8px;
+        border: 1px solid #d6e1ec;
+        background: #eef3f7;
+        position: relative;
+        z-index: 1;
     }
     .avatar-wrapper {
         width: 100px;
@@ -549,9 +584,199 @@
         cursor: not-allowed;
     }
 
+    .location-panel {
+        border: 1px solid #d7e3f1;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 8px 20px rgba(33, 37, 41, 0.04);
+    }
+
+    .location-panel-header,
+    .location-map-toolbar,
+    .location-coordinate-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .location-panel-header {
+        border-bottom: 1px solid #e5edf5;
+        padding-bottom: 12px;
+        margin-bottom: 14px;
+    }
+
+    .location-status {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        border-radius: 999px;
+        background: #eef2f7;
+        color: #52606d;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 5px 10px;
+        white-space: nowrap;
+    }
+
+    .location-status.is-locating {
+        background: #fff7e6;
+        color: #9a6500;
+    }
+
+    .location-status.is-ready {
+        background: #eaf7ef;
+        color: #16794c;
+    }
+
+    .location-status.is-warning {
+        background: #fff0f0;
+        color: #b42318;
+    }
+
+    .location-input-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .location-map-shell {
+        border: 1px solid #e0e7ef;
+        border-radius: 8px;
+        background: #f8fafc;
+        padding: 10px;
+        position: relative;
+    }
+
+    .location-map-toolbar {
+        min-height: 40px;
+        margin-bottom: 8px;
+    }
+
+    .location-map-toolbar strong,
+    .location-map-toolbar small {
+        display: block;
+        line-height: 1.25;
+    }
+
+    .location-map-toolbar small {
+        color: #6c757d;
+        margin-top: 2px;
+    }
+
+    .location-coordinate-bar {
+        flex-wrap: wrap;
+        border: 1px solid #e3e9f1;
+        border-radius: 8px;
+        background: #fff;
+        color: #495057;
+        font-size: 12px;
+        margin-top: 8px;
+        padding: 8px 10px;
+    }
+
+    .location-coordinate-bar span {
+        white-space: nowrap;
+    }
+
+    .location-preview {
+        background: #f8fafc;
+        border-color: #d8e3ee;
+        resize: vertical;
+    }
+
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .mobile-verify-shell {
+        border: 1px solid #d9e2ec;
+        border-radius: 8px;
+        background: #fbfcfe;
+        padding: 8px;
+    }
+
+    .mobile-verify-shell .input-group-text {
+        background: #f1f6fb;
+        color: #0d6efd;
+    }
+
+    .mobile-otp-panel {
+        margin-top: 8px;
+        border-top: 1px dashed #d4dde8;
+        padding-top: 8px;
+    }
+
+    .otp-code-input {
+        max-width: 150px;
+        font-weight: 700;
+        letter-spacing: 0;
+        text-align: center;
+    }
+
+    .mobile-otp-help,
+    .mobile-verify-status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 6px;
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .mobile-verify-status.is-success {
+        color: #198754;
+        font-weight: 700;
+    }
+
+    .mobile-verify-status.is-error {
+        color: #dc3545;
+        font-weight: 700;
+    }
+
+    .mobile-resend-link {
+        font-size: 12px;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
     @media (max-width: 575.98px) {
         .warehouse-options {
             grid-template-columns: 1fr;
+        }
+
+        .mobile-verify-shell .input-group {
+            display: grid;
+            grid-template-columns: 42px 1fr;
+        }
+
+        .mobile-verify-shell .input-group .btn {
+            grid-column: 1 / -1;
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+
+        .mobile-otp-panel .d-flex,
+        .mobile-otp-help {
+            align-items: stretch !important;
+            flex-direction: column;
+        }
+
+        .otp-code-input {
+            max-width: none;
+        }
+
+        .location-panel-header,
+        .location-map-toolbar {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        #location_map {
+            height: 340px;
         }
     }
 
@@ -600,6 +825,16 @@
         const submitButton = newUserForm ? newUserForm.querySelector('button[type="submit"]') : null;
         const sameAsDeliveryAddressInput = document.getElementById('same_as_delivery_address');
         const deliveryAddressInput = document.getElementById('delivery_address');
+        const contactInput = document.getElementById('contact_number');
+        const sendMobileOtpBtn = document.getElementById('sendMobileOtpBtn');
+        const resendMobileOtpBtn = document.getElementById('resendMobileOtpBtn');
+        const verifyMobileOtpBtn = document.getElementById('verifyMobileOtpBtn');
+        const mobileOtpInput = document.getElementById('mobile_otp');
+        const mobileOtpPanel = document.getElementById('mobileOtpPanel');
+        const mobileOtpStatus = document.getElementById('mobileOtpStatus');
+        const mobileVerifyStatus = document.getElementById('mobileVerifyStatus');
+        const locationMapStatus = document.getElementById('locationMapStatus');
+        const refreshLocationMapBtn = document.getElementById('refreshLocationMapBtn');
         
         let map, marker;
         let currentLat = 14.6507, currentLng = 121.0494;
@@ -609,13 +844,283 @@
         let currentCityName = '';
         let geocodeCache = {};
         let geocodeTimeout = null;
+        let lastGeocodedAddressKey = '';
         // let mothersNameTimeout = null;
         // let hasDuplicateMothersName = false;
         let duplicateTimeout = null;
         let hasDuplicateUser = false;
+        let mobileOtpVerified = false;
+        let verifiedMobileNumber = '';
+        let resendTimer = null;
+
+        function initModalSelect2(parent = document) {
+            if (!window.jQuery || !$.fn || !$.fn.select2) {
+                return;
+            }
+
+            const $modal = $('#new_users');
+            const $parent = $(parent);
+            const $selects = $parent.is('select.select2')
+                ? $parent
+                : $parent.find('select.select2');
+
+            $selects.each(function () {
+                const $select = $(this);
+
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('change.select2');
+                    return;
+                }
+
+                $select.select2({
+                    width: '100%',
+                    dropdownParent: $modal.length ? $modal : $(document.body),
+                    placeholder: $select.data('placeholder') || 'Select Option',
+                    allowClear: true,
+                    theme: $select.data('select2-theme') || 'bootstrap-5'
+                });
+            });
+        }
+
+        initModalSelect2(document.getElementById('new_users'));
+
+        function setLocationStatus(message, state) {
+            if (!locationMapStatus) return;
+
+            locationMapStatus.textContent = message || '';
+            locationMapStatus.classList.remove('is-locating', 'is-ready', 'is-warning');
+
+            if (state) {
+                locationMapStatus.classList.add(state);
+            }
+        }
+
+        function getCsrfToken() {
+            const token = document.querySelector('meta[name="csrf-token"]');
+            return token ? token.getAttribute('content') : '';
+        }
+
+        function getMobileNumber() {
+            return contactInput ? contactInput.value.replace(/[^0-9]/g, '') : '';
+        }
+
+        function isValidMobileNumber(number) {
+            return /^09[0-9]{9}$/.test(number);
+        }
+
+        function mobileNeedsVerification() {
+            return getMobileNumber() !== '';
+        }
+
+        function isMobileVerificationReady() {
+            const number = getMobileNumber();
+            return !number || (mobileOtpVerified && verifiedMobileNumber === number);
+        }
+
+        function updateSubmitState() {
+            if (!submitButton) return;
+
+            submitButton.disabled = hasDuplicateUser || !isMobileVerificationReady();
+        }
+
+        function setMobileStatus(message, type) {
+            if (!mobileVerifyStatus) return;
+
+            mobileVerifyStatus.textContent = message || '';
+            mobileVerifyStatus.classList.remove('is-success', 'is-error');
+
+            if (type) {
+                mobileVerifyStatus.classList.add(type === 'success' ? 'is-success' : 'is-error');
+            }
+        }
+
+        function setMobileOtpStatus(message) {
+            if (mobileOtpStatus) {
+                mobileOtpStatus.textContent = message || '';
+            }
+        }
+
+        function setOtpLoading(isLoading, button, loadingText) {
+            if (!button) return;
+
+            if (isLoading) {
+                button.dataset.originalText = button.textContent;
+                button.textContent = loadingText;
+                button.disabled = true;
+            } else {
+                button.textContent = button.dataset.originalText || button.textContent;
+                button.disabled = false;
+            }
+        }
+
+        function startResendCountdown(seconds) {
+            let remaining = seconds || 60;
+
+            clearInterval(resendTimer);
+
+            if (!resendMobileOtpBtn) return;
+
+            resendMobileOtpBtn.disabled = true;
+            resendMobileOtpBtn.textContent = 'Resend in ' + remaining + 's';
+
+            resendTimer = setInterval(function () {
+                remaining -= 1;
+
+                if (remaining <= 0) {
+                    clearInterval(resendTimer);
+                    resendMobileOtpBtn.disabled = false;
+                    resendMobileOtpBtn.textContent = 'Resend';
+                    return;
+                }
+
+                resendMobileOtpBtn.textContent = 'Resend in ' + remaining + 's';
+            }, 1000);
+        }
+
+        function resetMobileVerification(message) {
+            mobileOtpVerified = false;
+            verifiedMobileNumber = '';
+
+            if (mobileOtpInput) {
+                mobileOtpInput.value = '';
+            }
+
+            if (mobileNeedsVerification()) {
+                setMobileStatus(message || 'Send OTP to verify this mobile number.', 'error');
+            } else {
+                setMobileStatus('', null);
+                if (mobileOtpPanel) {
+                    mobileOtpPanel.hidden = true;
+                }
+            }
+
+            updateSubmitState();
+        }
+
+        function handleOtpResponse(response) {
+            return response.json().then(function (data) {
+                if (!response.ok || data.success !== true) {
+                    throw data;
+                }
+
+                return data;
+            });
+        }
+
+        function sendMobileOtp() {
+            const number = getMobileNumber();
+
+            if (!isValidMobileNumber(number)) {
+                setMobileStatus('Enter a valid 11-digit mobile number starting with 09.', 'error');
+                if (contactInput) contactInput.focus();
+                return;
+            }
+
+            resetMobileVerification('');
+            setOtpLoading(true, sendMobileOtpBtn, 'Sending...');
+            setOtpLoading(true, resendMobileOtpBtn, 'Sending...');
+
+            fetch("{{ route('users.mobile-otp.send') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ contact_number: number })
+            })
+            .then(handleOtpResponse)
+            .then(function (data) {
+                if (mobileOtpPanel) {
+                    mobileOtpPanel.hidden = false;
+                }
+
+                setMobileStatus(data.message || 'OTP sent successfully.', 'success');
+                setMobileOtpStatus('Code expires in 5 minutes.');
+                startResendCountdown(60);
+
+                if (mobileOtpInput) {
+                    mobileOtpInput.focus();
+                }
+            })
+            .catch(function (error) {
+                const message = error && error.message ? error.message : 'Unable to send OTP. Please try again.';
+                setMobileStatus(message, 'error');
+
+                if (error && error.retry_after) {
+                    startResendCountdown(error.retry_after);
+                }
+            })
+            .finally(function () {
+                setOtpLoading(false, sendMobileOtpBtn, 'Sending...');
+
+                if (!resendMobileOtpBtn || resendMobileOtpBtn.textContent.indexOf('Resend in') === -1) {
+                    setOtpLoading(false, resendMobileOtpBtn, 'Sending...');
+                }
+
+                updateSubmitState();
+            });
+        }
+
+        function verifyMobileOtp() {
+            const number = getMobileNumber();
+            const otp = mobileOtpInput ? mobileOtpInput.value.replace(/[^0-9]/g, '') : '';
+
+            if (!isValidMobileNumber(number)) {
+                setMobileStatus('Enter a valid mobile number before verifying.', 'error');
+                return;
+            }
+
+            if (!/^[0-9]{6}$/.test(otp)) {
+                setMobileStatus('Enter the 6-digit OTP.', 'error');
+                if (mobileOtpInput) mobileOtpInput.focus();
+                return;
+            }
+
+            setOtpLoading(true, verifyMobileOtpBtn, 'Checking...');
+
+            fetch("{{ route('users.mobile-otp.verify') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    contact_number: number,
+                    otp: otp
+                })
+            })
+            .then(handleOtpResponse)
+            .then(function (data) {
+                mobileOtpVerified = true;
+                verifiedMobileNumber = number;
+                setMobileStatus(data.message || 'Mobile number verified.', 'success');
+                setMobileOtpStatus('Verified. You can submit the form.');
+                clearInterval(resendTimer);
+
+                if (resendMobileOtpBtn) {
+                    resendMobileOtpBtn.disabled = true;
+                    resendMobileOtpBtn.textContent = 'Verified';
+                }
+
+                if (mobileOtpInput) {
+                    mobileOtpInput.setAttribute('readonly', 'readonly');
+                }
+            })
+            .catch(function (error) {
+                const message = error && error.message ? error.message : 'OTP verification failed.';
+                mobileOtpVerified = false;
+                verifiedMobileNumber = '';
+                setMobileStatus(message, 'error');
+            })
+            .finally(function () {
+                setOtpLoading(false, verifyMobileOtpBtn, 'Checking...');
+                updateSubmitState();
+            });
+        }
 
         window.toggleContactRequired = function () {
-            const contactInput = document.getElementById('contact_number');
             const facebookInput = document.getElementById('facebook');
             const contactRequiredMark = document.getElementById('contactRequiredMark');
             const facebookRequiredMark = document.getElementById('facebookRequiredMark');
@@ -635,6 +1140,8 @@
             if (facebookRequiredMark) {
                 facebookRequiredMark.style.display = facebookInput.required ? 'inline' : 'none';
             }
+
+            updateSubmitState();
         };
 
         function calculateAge(birthdate) {
@@ -675,7 +1182,7 @@
             });
 
             if (submitButton) {
-                submitButton.disabled = isDuplicate;
+                updateSubmitState();
             }
         }
 
@@ -747,6 +1254,17 @@
                     return;
                 }
 
+                if (!isMobileVerificationReady()) {
+                    event.preventDefault();
+                    setMobileStatus('Please verify the mobile number before submitting.', 'error');
+
+                    if (contactInput) {
+                        contactInput.focus();
+                    }
+
+                    return;
+                }
+
                 syncDeliveryAddress();
 
                 if (typeof show === 'function') {
@@ -756,6 +1274,44 @@
             });
 
         }
+
+        if (contactInput) {
+            contactInput.addEventListener('input', function () {
+                const number = getMobileNumber();
+
+                if (mobileOtpInput) {
+                    mobileOtpInput.removeAttribute('readonly');
+                }
+
+                if (!number) {
+                    resetMobileVerification('');
+                } else if (verifiedMobileNumber !== number) {
+                    resetMobileVerification('Send OTP to verify this mobile number.');
+                } else {
+                    updateSubmitState();
+                }
+            });
+        }
+
+        if (mobileOtpInput) {
+            mobileOtpInput.addEventListener('input', function () {
+                this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+            });
+        }
+
+        if (sendMobileOtpBtn) {
+            sendMobileOtpBtn.addEventListener('click', sendMobileOtp);
+        }
+
+        if (resendMobileOtpBtn) {
+            resendMobileOtpBtn.addEventListener('click', sendMobileOtp);
+        }
+
+        if (verifyMobileOtpBtn) {
+            verifyMobileOtpBtn.addEventListener('click', verifyMobileOtp);
+        }
+
+        updateSubmitState();
 
         // function setMothersNameValidation(isDuplicate) {
         //     hasDuplicateMothersName = isDuplicate;
@@ -915,9 +1471,7 @@
                 return;
             }
 
-            if (typeof initSelect2 === 'function') {
-                initSelect2(selectElement);
-            }
+            initModalSelect2(selectElement);
 
             $select.trigger('change.select2');
         }
@@ -996,7 +1550,7 @@
                             <span class="sr-only">Loading...</span>
                         </div>
                         <div class="mt-2" style="font-size: 14px; color: #495057;">
-                            <strong>Locating barangay...</strong>
+                            <strong>Locating address...</strong>
                         </div>
                     </div>
                 `;
@@ -1013,14 +1567,81 @@
             }
         }
 
-        async function geocodeAddress(barangay, city, province, region) {
-            const cacheKey = `${barangay}|${city}|${province}`;
+        function getLocationParts() {
+            return {
+                street: document.getElementById('street_address').value.trim(),
+                barangay: getSelectedText('location_barangay'),
+                city: getSelectedText('location_city'),
+                province: getSelectedText('location_province'),
+                region: getSelectedText('location_region'),
+                fullAddress: document.getElementById('location_hidden').value.trim()
+            };
+        }
+
+        function hasCompleteLocationDetails(parts) {
+            const provinceIsReady = parts.province || (
+                parts.region &&
+                (
+                    parts.region.toLowerCase().includes('ncr') ||
+                    parts.region.toLowerCase().includes('national capital')
+                )
+            );
+
+            return Boolean(parts.street && parts.barangay && parts.city && provinceIsReady);
+        }
+
+        function scheduleLocationGeocode(force) {
+            updateFullAddress();
+            const parts = getLocationParts();
+
+            if (!hasCompleteLocationDetails(parts)) {
+                lastGeocodedAddressKey = '';
+                setLocationStatus('Waiting for complete address', '');
+                return;
+            }
+
+            const addressKey = [
+                parts.street,
+                parts.barangay,
+                parts.city,
+                parts.province,
+                parts.region
+            ].join('|').toLowerCase();
+
+            if (!force && addressKey === lastGeocodedAddressKey) {
+                return;
+            }
+
+            clearTimeout(geocodeTimeout);
+            setLocationStatus('Locating address...', 'is-locating');
+
+            geocodeTimeout = setTimeout(function () {
+                lastGeocodedAddressKey = addressKey;
+                geocodeAddress(parts);
+            }, force ? 0 : 650);
+        }
+
+        async function geocodeAddress(parts) {
+            if (!map || !marker) {
+                lastGeocodedAddressKey = '';
+                setLocationStatus('Map is loading...', 'is-locating');
+                return;
+            }
+
+            const street = parts.street || '';
+            const barangay = parts.barangay || '';
+            const city = parts.city || '';
+            const province = parts.province || '';
+            const region = parts.region || '';
+            const fullAddress = parts.fullAddress || '';
+            const cacheKey = `${street}|${barangay}|${city}|${province}|${region}`;
             
             if (geocodeCache[cacheKey]) {
                 const cached = geocodeCache[cacheKey];
                 map.setView([cached.lat, cached.lng], 16);
                 marker.setLatLng([cached.lat, cached.lng]);
                 updateCoordinates(cached.lat, cached.lng);
+                setLocationStatus('Pin updated', 'is-ready');
                 return;
             }
 
@@ -1043,9 +1664,12 @@
                         'Accept': 'application/json'
                     },
                     body: JSON.stringify({
+                        street: street,
                         barangay: barangay,
                         city: city,
-                        province: province
+                        province: province,
+                        region: region,
+                        full_address: fullAddress
                     })
                 });
                 
@@ -1064,13 +1688,16 @@
                     map.setView([lat, lng], 16);
                     marker.setLatLng([lat, lng]);
                     updateCoordinates(lat, lng);
+                    setLocationStatus('Pin updated', 'is-ready');
                 } else {
                     console.log('Barangay not found, using city coordinates');
                     updateMapForCity(city);
+                    setLocationStatus('Using city estimate', 'is-warning');
                 }
             } catch (error) {
                 console.error('Geocoding error:', error);
                 updateMapForCity(city);
+                setLocationStatus('Using city estimate', 'is-warning');
             } finally {
                 hideMapLoading();
             }
@@ -1078,10 +1705,16 @@
 
         async function loadRegions() {
             try {
+                const regionSelect = document.getElementById('location_region');
+
+                if (regionSelect && regionSelect.options.length > 1) {
+                    refreshSelect2Element(regionSelect);
+                    return;
+                }
+
                 const response = await fetch(`${BASE_URL}/regions`);
                 const regions = await response.json();
                 
-                const regionSelect = document.getElementById('location_region');
                 regionSelect.innerHTML = '<option value="">-- Select Region --</option>';
                 
                 // regions.forEach(region => {
@@ -1137,7 +1770,7 @@
                     currentProvinceName = 'Metro Manila';
                     refreshSelect2Element(provinceSelect);
 
-                    updateFullAddress();
+                    scheduleLocationGeocode(false);
 
                     await loadNCRCities(regionCode);
 
@@ -1179,7 +1812,7 @@
                 refreshSelect2Element(provinceSelect);
             }
 
-            updateFullAddress();
+            scheduleLocationGeocode(false);
         });
 
         async function loadNCRCities(regionCode) {
@@ -1267,7 +1900,7 @@
                 citySelect.disabled = true;
                 refreshSelect2Element(citySelect);
             }
-            updateFullAddress();
+            scheduleLocationGeocode(false);
         });
 
         document.getElementById('location_city').addEventListener('change', async function() {
@@ -1314,7 +1947,7 @@
                 barangaySelect.disabled = true;
                 refreshSelect2Element(barangaySelect);
             }
-            updateFullAddress();
+            scheduleLocationGeocode(false);
         });
 
         // async function fetchZipCode(lat, lng) {
@@ -1379,27 +2012,24 @@
         }
         
         document.getElementById('location_barangay').addEventListener('change', function () {
-            const barangayName = this.options[this.selectedIndex]?.text || '';
-
-            if (!barangayName || barangayName === '-- Select Barangay --') return;
-
-            if (geocodeTimeout) clearTimeout(geocodeTimeout);
-
-            geocodeTimeout = setTimeout(() => {
-
-                geocodeAddress(
-                    barangayName,
-                    currentCityName,
-                    currentProvinceName,
-                    currentRegionName
-                );
-
-            }, 300);
+            scheduleLocationGeocode(false);
         });
 
-        document.getElementById('street_address').addEventListener('input', updateFullAddress);
+        document.getElementById('street_address').addEventListener('input', function () {
+            scheduleLocationGeocode(false);
+        });
+
+        if (refreshLocationMapBtn) {
+            refreshLocationMapBtn.addEventListener('click', function () {
+                scheduleLocationGeocode(true);
+            });
+        }
 
         function updateMapForCity(city) {
+            if (!map || !marker) {
+                return;
+            }
+
             const cityCoordinates = {
                 'Manila': [14.5995, 120.9842],
                 'Quezon City': [14.6760, 121.0437],
@@ -1468,6 +2098,7 @@
         }
 
         $('#new_users').on('shown.bs.modal', function () {
+            initModalSelect2(this);
             loadRegions();
 
             setTimeout(() => {
@@ -1476,6 +2107,7 @@
                 } else {
                     map.invalidateSize();
                 }
+                scheduleLocationGeocode(false);
             }, 300); // delay is important
         });
 

@@ -9,6 +9,7 @@ use App\Area;
 use App\TransactionDetail;
 use App\AreaDistributor;
 use App\AreaAd;
+use App\Services\SemaphoreSmsService;
 use RealRashid\SweetAlert\Facades\Alert;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -38,6 +39,7 @@ class UserController extends Controller
     {
        $isAdmin = $request->role === 'Admin';
        $needsDeliveryAddress = in_array($request->role, ['Area Distributor', 'Provincial Distributor'], true);
+       $normalizedContactNumber = $this->normalizeMobileNumber($request->contact_number);
 
        if ($isAdmin && $request->has('same_as_address')) {
             $request->merge([
@@ -63,9 +65,22 @@ class UserController extends Controller
             'designation' => 'required_if:role,Admin|nullable|string|max:255',
             'employee_number' => 'required_if:role,Admin|nullable|string|max:255',
             'department' => 'required_if:role,Admin|nullable|string|max:255',
+            'contact_number' => 'nullable|regex:/^09[0-9]{9}$/',
             'type' => 'nullable|array',
             'type.*' => 'in:Project Rise,Project Genesis,Regular',
         ]);
+
+       if (!$isAdmin && trim((string) $request->contact_number) === '' && trim((string) $request->facebook) === '') {
+            return back()
+                ->withErrors(['contact_number' => 'Mobile Number or Facebook is required.'])
+                ->withInput();
+       }
+
+       if ($normalizedContactNumber && !$this->isVerifiedMobileNumber($request, $normalizedContactNumber)) {
+            return back()
+                ->withErrors(['contact_number' => 'Please verify the mobile number by OTP before submitting.'])
+                ->withInput();
+       }
 
        $duplicate = false;
 
@@ -144,6 +159,8 @@ class UserController extends Controller
         $user->save();
 
         if ($request->role === 'Admin') {
+            session()->forget('mobile_otp');
+
             return redirect()
                 ->route('users')
                 ->with('success', 'Admin successfully created');
@@ -172,7 +189,7 @@ class UserController extends Controller
         $areaDistributor->name = $fullName;
         $areaDistributor->store_code = $request->store_code;
         $areaDistributor->email_address = $request->email_address;
-        $areaDistributor->contact_number = $request->contact_number;
+        $areaDistributor->contact_number = $normalizedContactNumber ?: $request->contact_number;
         $areaDistributor->facebook = $request->facebook;
         $areaDistributor->address = $request->address;
         $areaDistributor->delivery_address = $needsDeliveryAddress
@@ -236,9 +253,171 @@ class UserController extends Controller
             }
         }
 
+        session()->forget('mobile_otp');
+
         return redirect()
             ->route('users')
             ->with('success', 'Successfully encoded');
+    }
+
+    public function sendMobileOtp(Request $request, SemaphoreSmsService $sms)
+    {
+        $validator = Validator::make($request->all(), [
+            'contact_number' => 'required|regex:/^09[0-9]{9}$/',
+        ], [
+            'contact_number.regex' => 'Enter a valid Philippine mobile number starting with 09.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first('contact_number'),
+            ], 422);
+        }
+
+        $mobileNumber = $this->normalizeMobileNumber($request->contact_number);
+        $lastSentAt = session('mobile_otp.last_sent_at');
+
+        if ($lastSentAt && time() - (int) $lastSentAt < 60) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please wait before sending another OTP.',
+                'retry_after' => 60 - (time() - (int) $lastSentAt),
+            ], 429);
+        }
+
+        $otp = (string) random_int(100000, 999999);
+        $result = $sms->sendOtp($this->formatSemaphoreMobileNumber($mobileNumber), $otp);
+
+        if (!$result['ok']) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+            ], 422);
+        }
+
+        session([
+            'mobile_otp' => [
+                'number' => $mobileNumber,
+                'hash' => hash('sha256', $otp),
+                'expires_at' => time() + 300,
+                'attempts' => 0,
+                'last_sent_at' => time(),
+                'verified' => false,
+            ],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP sent. Please check the mobile number.',
+            'expires_in' => 300,
+        ]);
+    }
+
+    public function verifyMobileOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'contact_number' => 'required|regex:/^09[0-9]{9}$/',
+            'otp' => 'required|digits:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $otpState = session('mobile_otp');
+        $mobileNumber = $this->normalizeMobileNumber($request->contact_number);
+
+        if (!$otpState || !isset($otpState['number'], $otpState['hash'], $otpState['expires_at'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please request a new OTP.',
+            ], 422);
+        }
+
+        if ($otpState['number'] !== $mobileNumber) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This OTP was sent to a different mobile number.',
+            ], 422);
+        }
+
+        if (time() > (int) $otpState['expires_at']) {
+            session()->forget('mobile_otp');
+
+            return response()->json([
+                'success' => false,
+                'message' => 'OTP expired. Please request a new code.',
+            ], 422);
+        }
+
+        $attempts = (int) array_get($otpState, 'attempts', 0) + 1;
+
+        if (!hash_equals($otpState['hash'], hash('sha256', $request->otp))) {
+            $otpState['attempts'] = $attempts;
+            session(['mobile_otp' => $otpState]);
+
+            if ($attempts >= 5) {
+                session()->forget('mobile_otp');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Too many incorrect attempts. Please request a new OTP.',
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Incorrect OTP. Please check the code and try again.',
+            ], 422);
+        }
+
+        $otpState['verified'] = true;
+        $otpState['verified_at'] = time();
+        session(['mobile_otp' => $otpState]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mobile number verified.',
+        ]);
+    }
+
+    protected function normalizeMobileNumber($mobileNumber)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $mobileNumber);
+
+        if (preg_match('/^09[0-9]{9}$/', $digits)) {
+            return $digits;
+        }
+
+        if (preg_match('/^639[0-9]{9}$/', $digits)) {
+            return '0' . substr($digits, 2);
+        }
+
+        return $digits;
+    }
+
+    protected function formatSemaphoreMobileNumber($mobileNumber)
+    {
+        $mobileNumber = $this->normalizeMobileNumber($mobileNumber);
+
+        if (preg_match('/^09[0-9]{9}$/', $mobileNumber)) {
+            return '63' . substr($mobileNumber, 1);
+        }
+
+        return $mobileNumber;
+    }
+
+    protected function isVerifiedMobileNumber(Request $request, $mobileNumber)
+    {
+        $otpState = session('mobile_otp');
+
+        return $otpState
+            && array_get($otpState, 'verified') === true
+            && array_get($otpState, 'number') === $mobileNumber
+            && time() <= (int) array_get($otpState, 'expires_at', 0);
     }
 
     // public function store(Request $request)

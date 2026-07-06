@@ -489,43 +489,58 @@ class AreaDistributorController extends Controller
     {
         try {
             $request->validate([
+                'street' => 'nullable|string',
                 'barangay' => 'required|string',
                 'city' => 'required|string',
                 'province' => 'required|string',
+                'region' => 'nullable|string',
+                'full_address' => 'nullable|string',
             ]);
 
+            $street = $request->input('street');
             $barangay = $request->input('barangay');
             $city = $request->input('city');
             $province = $request->input('province');
-            
-            $query = urlencode("{$barangay}, {$city}, {$province}, Philippines");
-            $url = "https://nominatim.openstreetmap.org/search?q={$query}&format=json&limit=1&countrycodes=ph";
-            
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'DealerRegistrationApp/1.0');
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-            curl_close($ch);
-            
-            if ($error) {
-                \Log::error('Geocoding cURL error: ' . $error);
-            }
-            
-            if ($httpCode == 200 && $response) {
-                $data = json_decode($response, true);
+            $region = $request->input('region');
+            $fullAddress = $request->input('full_address');
+
+            $queries = collect([
+                $fullAddress,
+                trim(collect([$street, $barangay, $city, $province, $region, 'Philippines'])->filter()->implode(', ')),
+                trim(collect([$barangay, $city, $province, 'Philippines'])->filter()->implode(', ')),
+            ])->filter()->unique()->values();
+
+            foreach ($queries as $queryText) {
+                $query = urlencode($queryText);
+                $url = "https://nominatim.openstreetmap.org/search?q={$query}&format=json&limit=1&countrycodes=ph";
                 
-                if (!empty($data)) {
-                    return response()->json([
-                        'success' => true,
-                        'lat' => $data[0]['lat'],
-                        'lng' => $data[0]['lon']
-                    ]);
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'DealerRegistrationApp/1.0');
+                curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $error = curl_error($ch);
+                curl_close($ch);
+                
+                if ($error) {
+                    \Log::error('Geocoding cURL error: ' . $error);
+                    continue;
+                }
+                
+                if ($httpCode == 200 && $response) {
+                    $data = json_decode($response, true);
+                    
+                    if (!empty($data)) {
+                        return response()->json([
+                            'success' => true,
+                            'lat' => $data[0]['lat'],
+                            'lng' => $data[0]['lon']
+                        ]);
+                    }
                 }
             }
             
