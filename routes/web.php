@@ -215,5 +215,15 @@ Route::get('/reports/monthly-sales/export', 'ReportController@exportMonthlySales
 Route::get('/reports/voucher-history', 'ReportController@voucherHistoryReport')->name('voucher-history');
 Route::get('/reports/voucher-history/export', 'ReportController@exportVoucherHistory')->name('voucher-history.export');
 
+
 });
 
+Route::get('/test-db', function () {
+    try {
+        DB::connection('admin_crms2')->getPdo();
+
+        return 'Connected!';
+    } catch (\Exception $e) {
+        return $e->getMessage();
+    }
+});

@@ -1411,14 +1411,17 @@
 <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
  @if(auth()->user()->role == "Client")
       <script>
-          const qrcode = new QRCode(document.getElementById('qrcode'), {
-              text: "{{ $customer->serial->serial_number }}",
-              width: 128,
-              height: 128,
-              colorDark : '#000',
-              colorLight : '#fff',
-              correctLevel : QRCode.CorrectLevel.H
-          });
+          const qrCodeElement = document.getElementById('qrcode');
+          if (qrCodeElement && window.QRCode) {
+              const qrcode = new QRCode(qrCodeElement, {
+                  text: "{{ $customer->serial->serial_number }}",
+                  width: 128,
+                  height: 128,
+                  colorDark : '#000',
+                  colorLight : '#fff',
+                  correctLevel : QRCode.CorrectLevel.H
+              });
+          }
       </script>
   @endif
 
@@ -1454,6 +1457,17 @@
 
     function escapeAttr(value) {
         return escapeHtml(value).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function renderApexChart(chart) {
+        if (!chart || typeof chart.render !== 'function') return;
+
+        var result = chart.render();
+        if (result && typeof result.catch === 'function') {
+            result.catch(function (error) {
+                console.warn('Dashboard chart could not render:', error);
+            });
+        }
     }
 
     function setText(id, value) {
@@ -1578,7 +1592,7 @@
             var salesChartElement = document.querySelector('#saSalesChart');
             if (salesChartElement) {
                 salesChart = new ApexCharts(salesChartElement, options);
-                salesChart.render();
+                renderApexChart(salesChart);
             }
         }
     }
@@ -1629,7 +1643,7 @@
             orderChart.updateOptions(options);
         } else {
             orderChart = new ApexCharts(orderChartElement, options);
-            orderChart.render();
+            renderApexChart(orderChart);
         }
     }
 
@@ -1737,7 +1751,7 @@
 
         if (chartElement && window.ApexCharts) {
             chartElement.innerHTML = '';
-            new ApexCharts(chartElement, {
+            var rankingChart = new ApexCharts(chartElement, {
                 series: rows.length ? rows.slice(0, 10).map(function (row) { return Number(row.total_points || 0); }) : [1],
                 labels: rows.length ? rows.slice(0, 10).map(function (row) { return row.name || 'Unknown'; }) : ['No data'],
                 chart: { type: 'donut', height: 220, width: 220, fontFamily: 'inherit' },
@@ -1746,7 +1760,8 @@
                 legend: { show: false },
                 stroke: { width: 0 },
                 tooltip: { enabled: rows.length > 0 }
-            }).render();
+            });
+            renderApexChart(rankingChart);
         }
     }
 
@@ -2218,7 +2233,9 @@ document.addEventListener('DOMContentLoaded', function() {
         a.click();
     }
 
-    document.getElementById('provinceSearch').addEventListener('input', function(e) {
+    const provinceSearch = document.getElementById('provinceSearch');
+    if (provinceSearch) {
+      provinceSearch.addEventListener('input', function(e) {
         const searchTerm = e.target.value.toLowerCase();
         filteredProvinceData = provinceData.filter(item => 
             item.location.toLowerCase().includes(searchTerm) ||
@@ -2226,15 +2243,21 @@ document.addEventListener('DOMContentLoaded', function() {
         );
         currentPage = 1;
         renderProvinceTable();
-    });
+      });
+    }
 
-    document.getElementById('provinceEntriesPerPage').addEventListener('change', function(e) {
+    const provinceEntriesPerPage = document.getElementById('provinceEntriesPerPage');
+    if (provinceEntriesPerPage) {
+      provinceEntriesPerPage.addEventListener('change', function(e) {
         entriesPerPage = parseInt(e.target.value);
         currentPage = 1;
         renderProvinceTable();
-    });
+      });
+    }
 
-    document.getElementById('provinceSortBy').addEventListener('change', function(e) {
+    const provinceSortBy = document.getElementById('provinceSortBy');
+    if (provinceSortBy) {
+      provinceSortBy.addEventListener('change', function(e) {
         const sortValue = e.target.value;
         
         filteredProvinceData.sort((a, b) => {
@@ -2260,7 +2283,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         currentPage = 1;
         renderProvinceTable();
-    });
+      });
+    }
 
     window.showProvinceDetails = showProvinceDetails;
     window.changePage = changePage;
@@ -2567,8 +2591,16 @@ $(document).ready(function() {
     labels: dealerNames,
   };
 
-  var donutChart = new ApexCharts(document.querySelector("#dealers-donut-chart"), donutOptions);
-  donutChart.render();
+  var dealerChartElement = document.querySelector("#dealers-donut-chart");
+  if (dealerChartElement && window.ApexCharts) {
+    var donutChart = new ApexCharts(dealerChartElement, donutOptions);
+    var donutRender = donutChart.render();
+    if (donutRender && typeof donutRender.catch === 'function') {
+      donutRender.catch(function (error) {
+        console.warn('Dealer chart could not render:', error);
+      });
+    }
+  }
 });
 </script>
 
@@ -2624,8 +2656,16 @@ $(document).ready(function() {
     labels: customerNames,
   };
 
-  var customersDonutChart = new ApexCharts(document.querySelector("#customers-donut-chart"), customersDonutOptions);
-  customersDonutChart.render();
+  var customerChartElement = document.querySelector("#customers-donut-chart");
+  if (customerChartElement && window.ApexCharts) {
+    var customersDonutChart = new ApexCharts(customerChartElement, customersDonutOptions);
+    var customerRender = customersDonutChart.render();
+    if (customerRender && typeof customerRender.catch === 'function') {
+      customerRender.catch(function (error) {
+        console.warn('Customer chart could not render:', error);
+      });
+    }
+  }
 });
 </script>
 
@@ -2734,6 +2774,10 @@ function renderChart(categories, qty, year, month = null, viewType = 'yearly') {
   }
 
   const chartElement = document.querySelector('#chart-bar-stacked');
+  if (!chartElement || !window.ApexCharts) {
+    return;
+  }
+
   chartElement.innerHTML = '';
 
   const options = {
@@ -2840,8 +2884,17 @@ function renderChart(categories, qty, year, month = null, viewType = 'yearly') {
   };
 
   setTimeout(function () {
+    if (!document.body.contains(chartElement)) {
+      return;
+    }
+
     chartInstance = new ApexCharts(chartElement, options);
-    chartInstance.render();
+    var chartRender = chartInstance.render();
+    if (chartRender && typeof chartRender.catch === 'function') {
+      chartRender.catch(function (error) {
+        console.warn('Refill chart could not render:', error);
+      });
+    }
   }, 50);
 }
 </script>
@@ -2978,11 +3031,13 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {{-- <script src="{{asset('design/assets/js/apex-chart/apex.bar.init.js')}}"></script> --}}
-<script src="{{asset('design/assets/js/dashboards/dashboard.js')}}"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    var myModal = new bootstrap.Modal(document.getElementById('homeModal'));
-    myModal.show();
+    var homeModal = document.getElementById('homeModal');
+    if (homeModal && window.bootstrap) {
+      var myModal = new bootstrap.Modal(homeModal);
+      myModal.show();
+    }
   });
 </script>
 @endsection

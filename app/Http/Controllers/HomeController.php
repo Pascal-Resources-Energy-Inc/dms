@@ -468,6 +468,17 @@ class HomeController extends Controller
 
     private function dashboardActiveDealers($connection)
     {
+        $dealerColumn = $this->dashboardTransactionDealerColumn($connection);
+        $dateColumn = $this->dashboardTransactionDateColumn($connection);
+
+        if ($this->dashboardHasTable($connection, 'transaction_details') && $dealerColumn && $dateColumn) {
+            return $this->dashboardQuery($connection, 'transaction_details')
+                ->whereNotNull($dealerColumn)
+                ->where($dateColumn, '>=', Carbon::today()->subDays(29))
+                ->distinct()
+                ->count($dealerColumn);
+        }
+
         if ($this->dashboardHasTable($connection, 'dealers')) {
             $query = $this->dashboardQuery($connection, 'dealers');
 
@@ -477,8 +488,6 @@ class HomeController extends Controller
 
             return $query->count();
         }
-
-        $dealerColumn = $this->dashboardTransactionDealerColumn($connection);
 
         return $this->dashboardHasTable($connection, 'transaction_details') && $dealerColumn
             ? $this->dashboardQuery($connection, 'transaction_details')
