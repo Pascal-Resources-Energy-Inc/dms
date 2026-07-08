@@ -87,17 +87,39 @@ class Voucher extends Model implements Auditable
         return $normalizedArea !== '' && $this->normalizedAreaNames()->contains($normalizedArea);
     }
 
-    private function normalizedAreaNames()
+    public function areaNames()
     {
         $areaNames = $this->area_names;
 
+        if (!is_array($areaNames)) {
+            $rawAreaNames = $this->getOriginal('area_names');
+            $areaNames = $areaNames ?: $rawAreaNames;
+        }
+
         if (is_string($areaNames)) {
             $decoded = json_decode($areaNames, true);
-            $areaNames = is_array($decoded) ? $decoded : [$areaNames];
+            $areaNames = is_array($decoded) ? $decoded : explode(',', $areaNames);
         }
 
         return collect($areaNames ?? [])
+            ->map(function ($name) {
+                return trim((string) $name);
+            })
             ->filter()
+            ->unique()
+            ->values();
+    }
+
+    public function areaNamesLabel($fallback = 'All assigned areas')
+    {
+        $label = $this->areaNames()->implode(', ');
+
+        return $label !== '' ? $label : $fallback;
+    }
+
+    private function normalizedAreaNames()
+    {
+        return $this->areaNames()
             ->map(function ($name) {
                 return strtolower(trim((string) $name));
             })

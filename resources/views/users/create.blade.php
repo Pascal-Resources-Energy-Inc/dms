@@ -188,6 +188,30 @@
                                 <option value="Grocery">Grocery</option>
                             </select>
                         </div>
+                        <div class="col-md-6 mb-3 business-fields">
+                            <label class="form-label" for="tin">TIN</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="tin"
+                                name="tin"
+                                value="{{ old('tin') }}"
+                                placeholder="Enter TIN (Optional)"
+                                maxlength="50"
+                            >
+                            <small class="form-text text-muted">Optional. Tax identification number if applicable.</small>
+                        </div>
+                        <div class="col-md-6 mb-3 business-fields">
+                            <label class="form-label" for="store_picture">Store Picture</label>
+                            <input
+                                type="file"
+                                class="form-control"
+                                id="store_picture"
+                                name="store_picture"
+                                accept="image/*"
+                            >
+                            <small class="form-text text-muted">Optional. JPG or PNG, max 2MB.</small>
+                        </div>
                         <div class="col-md-6 mb-3 attachment-field">
                             <label class="form-label" for="attachment">Upload Attachment&nbsp;<span class="text-danger">*</span></label>
                             <input type="file" class="form-control required" id="attachment" name="attachment" required> 

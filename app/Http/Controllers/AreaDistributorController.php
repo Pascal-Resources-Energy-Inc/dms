@@ -229,6 +229,8 @@ class AreaDistributorController extends Controller
 
         $request->validate([
             'delivery_address' => 'nullable|string|max:1000',
+            'tin' => 'nullable|string|max:50',
+            'store_picture' => 'nullable|image|max:2048',
         ]);
 
         DB::beginTransaction();
@@ -258,6 +260,7 @@ class AreaDistributorController extends Controller
 
             $avatarPath = $ad->avatar;
             $attachmentPath = $ad->attachment;
+            $storePicturePath = $ad->store_picture;
 
             if ($request->hasFile('avatar')) {
 
@@ -299,6 +302,30 @@ class AreaDistributorController extends Controller
                 $attachmentPath = $path . '/' . $filename;
             }
 
+            if ($request->hasFile('store_picture')) {
+
+                if (
+                    $ad->store_picture &&
+                    file_exists(public_path($ad->store_picture))
+                ) {
+                    unlink(public_path($ad->store_picture));
+                }
+
+                $file = $request->file('store_picture');
+
+                $filename = time() . '_' . $file->getClientOriginalName();
+
+                $path = 'uploads/store_pictures';
+
+                if (!is_dir(public_path($path))) {
+                    mkdir(public_path($path), 0755, true);
+                }
+
+                $file->move(public_path($path), $filename);
+
+                $storePicturePath = $path . '/' . $filename;
+            }
+
             $ad->update([
                 'name' => $fullName ?: $request->name,
                 'store_code' => $request->store_code,
@@ -315,11 +342,13 @@ class AreaDistributorController extends Controller
                 'zipcode' => $request->zipcode,
                 'business_name' => $request->business_name,
                 'business_type' => $request->business_type,
+                'tin' => trim((string) $request->tin) ?: null,
                 'latitude' => $request->latitude,
                 'longitude' => $request->longitude,
                 'status' => $request->status,
                 'avatar' => $avatarPath,
                 'attachment' => $attachmentPath,
+                'store_picture' => $storePicturePath,
                 'withholding_tax' => $request->withholding_tax ? 1 : 0,
             ]);
 

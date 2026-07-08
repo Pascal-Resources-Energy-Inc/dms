@@ -87,7 +87,7 @@
                         <tr>
                             <td><span class="my-voucher-code">{{ $voucher->code }}</span>@if($voucher->description)<span class="my-voucher-description">{{ $voucher->description }}</span>@endif</td>
                             <td><span class="my-voucher-discount">{{ $voucher->discount_type === 'percent' ? number_format($voucher->discount_value, 2) . '%' : 'PHP ' . number_format($voucher->discount_value, 2) }}</span><span class="my-voucher-description">Minimum: PHP {{ number_format($voucher->minimum_order_amount, 2) }}</span></td>
-                            <td><div class="my-voucher-areas">@forelse($voucher->area_names ?? [] as $area)<span class="my-voucher-area">{{ $area }}</span>@empty<span class="text-muted">All assigned areas</span>@endforelse</div></td>
+                            <td><div class="my-voucher-areas">@forelse($voucher->areaNames() as $area)<span class="my-voucher-area">{{ $area }}</span>@empty<span class="text-muted">All assigned areas</span>@endforelse</div></td>
                             <td><strong>{{ number_format($voucher->used_count) }}</strong> / {{ $voucher->usage_limit ? number_format($voucher->usage_limit) : 'Unlimited' }}</td>
                             <td>{{ $voucher->starts_at ? $voucher->starts_at->format('M d, Y') : 'Available now' }}<span class="my-voucher-description">to {{ $voucher->expires_at ? $voucher->expires_at->format('M d, Y') : 'No expiry' }}</span></td>
                             <td><span class="my-voucher-status {{ strtolower(str_replace(' ', '-', $status)) }}">{{ $status }}</span></td>
