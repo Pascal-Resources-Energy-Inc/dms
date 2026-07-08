@@ -7,8 +7,6 @@
     --dashboard-muted: #667085;
     --dashboard-line: #e7ebf0;
     --dashboard-soft: #f8fafc;
-    --dashboard-primary: #1596b8;
-    --dashboard-primary-soft: #e4f7fb;
     --dashboard-radius: 16px;
     --dashboard-shadow: 0 9px 28px rgba(15, 23, 42, .055);
   }
@@ -53,25 +51,27 @@
     .dashboard-panel-head, .dashboard-pagination { align-items: stretch; flex-direction: column; }
   }
 
-  .content-area:has(.welcome-dealer) {
-      margin-top: 90px !important;
-  }
   .stats-card {
       background: white;
-      border: none;
-      border-radius: 16px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      border: 1px solid #e7ebf0;
+      border-radius: 12px;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, .045);
       padding: 20px;
       position: relative;
       height: 130px;
+      overflow: hidden;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
   }
+  .stats-card:hover { border-color: #cfeaf1; box-shadow: 0 14px 28px rgba(15, 23, 42, .08); transform: translateY(-2px); }
+  .stats-card::after { content: ""; position: absolute; width: 72px; height: 72px; right: -26px; bottom: -32px; border-radius: 50%; background: #e4f7fb; }
+  .stats-card > * { position: relative; z-index: 1; }
   
   .icon-circle {
     width: 48px;
     height: 48px;
-    border-radius: 50%;
-    background: white;
-    border: 2px solid #17a2b8;
+    border-radius: 12px;
+    background: #e4f7fb;
+    border: 1px solid #c8edf5;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -132,8 +132,8 @@
   }
 
   #provinceModal .modal-header {
-      background: #ffff !important;
-      border-bottom: 2px solid #000000;
+      background: #f8fbff !important;
+      border-bottom: 1px solid #dbeafe;
   }
 
   #provinceModal .table thead {
@@ -158,17 +158,6 @@
       border-radius: 12px;
       font-weight: 600;
       font-size: 13px;
-  }
-
-  @media (max-width: 768px) {
-    .text-nowrap {
-      white-space: nowrap;
-    }
-    
-    .flex-grow-1 {
-      flex: 1;
-      min-width: 0;
-    }
   }
 
   .customer-link{
@@ -270,6 +259,64 @@
     .sa-panel-head { align-items: flex-start; flex-direction: column; }
   }
   @media (max-width: 430px) { .sa-kpis { grid-template-columns: 1fr; } }
+
+  .wh-dashboard { display: grid; gap: 16px; color: #101828; }
+  .wh-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 24px; border: 1px solid #dbeafe; border-radius: 12px; background: linear-gradient(120deg, #f8fbff 0%, #eef6ff 58%, #e0f2fe 100%); box-shadow: 0 12px 30px rgba(15, 23, 42, .06); }
+  .wh-eyebrow { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 7px; color: #1d4ed8; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+  .wh-title { margin: 0; color: #101828; font-size: 26px; font-weight: 900; line-height: 1.18; }
+  .wh-subtitle { max-width: 680px; margin: 6px 0 0; color: #667085; font-size: 13px; line-height: 1.45; }
+  .wh-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .wh-actions .btn { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; font-weight: 800; }
+  .wh-actions .btn i { font-size: 16px; line-height: 1; }
+  .wh-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .wh-kpi { position: relative; min-height: 126px; overflow: hidden; padding: 16px; border: 1px solid #e6eaf0; border-radius: 10px; background: #fff; box-shadow: 0 9px 24px rgba(15, 23, 42, .045); }
+  .wh-kpi::after { content: ""; position: absolute; width: 74px; height: 74px; right: -30px; bottom: -34px; border-radius: 50%; background: var(--wh-soft); }
+  .wh-kpi-icon { width: 38px; height: 38px; display: inline-flex !important; align-items: center; justify-content: center; border-radius: 9px; background: var(--wh-soft); color: var(--wh-color); font-size: 18px !important; }
+  .wh-kpi span { display: block; margin-top: 13px; color: #667085; font-size: 10px; font-weight: 900; letter-spacing: .045em; text-transform: uppercase; }
+  .wh-kpi strong { display: block; margin-top: 5px; color: #101828; font-size: 25px; font-weight: 900; line-height: 1; }
+  .wh-kpi small { display: block; margin-top: 8px; color: #98a2b3; font-size: 10px; font-weight: 700; }
+  .wh-kpi.pending { --wh-color:#b45309; --wh-soft:#fef3c7; }
+  .wh-kpi.delivery { --wh-color:#1d4ed8; --wh-soft:#dbeafe; }
+  .wh-kpi.partial { --wh-color:#7c3aed; --wh-soft:#ede9fe; }
+  .wh-kpi.done { --wh-color:#15803d; --wh-soft:#dcfce7; }
+  .wh-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(320px, .85fr); gap: 14px; align-items: start; }
+  .wh-panel { overflow: hidden; border: 1px solid #e6eaf0; border-radius: 10px; background: #fff; box-shadow: 0 9px 24px rgba(15, 23, 42, .045); }
+  .wh-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px; border-bottom: 1px solid #eef2f7; background: #fcfcfd; }
+  .wh-panel-head h5 { margin: 0; color: #101828; font-size: 15px; font-weight: 900; }
+  .wh-panel-head p { margin: 3px 0 0; color: #98a2b3; font-size: 11px; }
+  .wh-chart { min-height: 285px; padding: 8px 12px 0; }
+  .wh-status-list { display: grid; gap: 9px; padding: 14px 17px 17px; }
+  .wh-status-row { display: grid; grid-template-columns: 130px minmax(0, 1fr) 42px; gap: 10px; align-items: center; color: #475467; font-size: 12px; font-weight: 800; }
+  .wh-status-track { height: 8px; overflow: hidden; border-radius: 999px; background: #eef2f7; }
+  .wh-status-fill { height: 100%; border-radius: inherit; background: #0ea5e9; }
+  .wh-status-fill.pending { background: #f59e0b; }
+  .wh-status-fill.so-created { background: #7c3aed; }
+  .wh-status-fill.for-delivery { background: #1d4ed8; }
+  .wh-status-fill.partial-received { background: #b45309; }
+  .wh-status-fill.completed { background: #15803d; }
+  .wh-status-fill.cancelled { background: #dc2626; }
+  .wh-table-wrap { overflow: auto; }
+  .wh-table { margin: 0; min-width: 760px; }
+  .wh-table th { padding: 11px 14px; color: #667085; font-size: 10px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; background: #f8fafc; border-color: #eef2f7; white-space: nowrap; }
+  .wh-table td { padding: 12px 14px; color: #344054; border-color: #f1f3f6; vertical-align: middle; }
+  .wh-po { color: #101828; font-weight: 900; white-space: nowrap; }
+  .wh-muted { color: #98a2b3; font-size: 11px; }
+  .wh-status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 900; white-space: nowrap; }
+  .wh-status-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .wh-status-pill.pending { background: #fffbeb; color: #b45309; }
+  .wh-status-pill.so-created { background: #f5f3ff; color: #7c3aed; }
+  .wh-status-pill.for-delivery { background: #eff6ff; color: #1d4ed8; }
+  .wh-status-pill.partial-received { background: #fff7ed; color: #c2410c; }
+  .wh-status-pill.completed { background: #f0fdf4; color: #15803d; }
+  .wh-status-pill.cancelled { background: #fef2f2; color: #dc2626; }
+  .wh-confirm-list { display: grid; gap: 9px; max-height: 372px; overflow-y: auto; padding: 14px 17px 17px; }
+  .wh-confirm-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 12px; border: 1px solid #eef2f7; border-radius: 9px; background: #fff; }
+  .wh-confirm-item strong { display: block; overflow: hidden; color: #101828; font-size: 12px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+  .wh-confirm-item span { display: block; margin-top: 3px; color: #667085; font-size: 11px; }
+  .wh-confirm-qty { min-width: 54px; padding: 7px 9px; border-radius: 8px; background: #fffbeb; color: #92400e; font-size: 12px; font-weight: 900; text-align: center; }
+  .wh-empty { padding: 28px 16px; color: #98a2b3; font-size: 12px; text-align: center; }
+  @media (max-width: 1100px) { .wh-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .wh-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) { .wh-hero { grid-template-columns: 1fr; } .wh-actions { justify-content: stretch; } .wh-actions .btn { flex: 1; justify-content: center; } .wh-kpis { grid-template-columns: 1fr; } }
 </style>
 @endsection
 @section('content')
@@ -277,12 +324,15 @@
 <!--  Header End -->
   <!-- Welcome Section Start -->
   @php
-    $isSuperAdminDashboard = auth()->user()->role === 'Admin';
+
+    $isSuperAdminDashboard = auth()->user()->role === 'Admin' && blank(auth()->user()->warehouse);
+    $isWarehouseDashboard = auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse) && filled($warehouseDashboard);
+
     $adminDashboardTabs = [
       ['key' => 'regular', 'label' => 'Regular', 'database' => 'dms_prei', 'icon' => 'ti ti-building-store', 'class' => 'regular'],
       ['key' => 'project_rise', 'label' => 'Project Rise', 'database' => 'admin_crms', 'icon' => 'ti ti-trending-up', 'class' => 'rise'],
       ['key' => 'project_genesis', 'label' => 'Project Genesis', 'database' => 'admin_crms2', 'icon' => 'ti ti-sparkles', 'class' => 'genesis'],
-    ];
+
   @endphp
 
   @if(auth()->user()->role == "Admin")
@@ -391,12 +441,12 @@
       </article>
 
       <div class="sa-side-stack">
-        {{-- <article class="sa-panel">
+        <article class="sa-panel">
           <div class="sa-panel-head">
             <div><h5>Order Pipeline</h5><p>Dealer and distributor orders</p></div>
           </div>
           <div class="sa-status-chart" id="saOrderChart"></div>
-        </article> --}}
+        </article>
         <article class="sa-panel">
           <div class="sa-panel-head">
             <div><h5>Live Transaction Pulse</h5><p>Most recent recorded sales</p></div>
@@ -410,8 +460,188 @@
     </div>
   </section>
   @endif
+
+  @if($isWarehouseDashboard)
+    @php
+      $warehouseSummary = $warehouseDashboard['summary'];
+      $statusTotal = max(1, $warehouseDashboard['status_counts']->sum());
+    @endphp
+    <section class="wh-dashboard">
+      <div class="wh-hero">
+        <div>
+          <span class="wh-eyebrow"><i class="ti ti-building-warehouse"></i> Warehouse Operations</span>
+          <h1 class="wh-title">{{ $warehouseDashboard['warehouse_label'] }} Warehouse Dashboard</h1>
+          <p class="wh-subtitle">
+            {{-- Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ auth()->user()->name }}. --}}
+            Monitor DPO movement, delivery workload, and AD partial receiving confirmations from one screen.
+            {{-- You have {{ number_format($warehouseSummary['active_orders']) }} active {{ \Illuminate\Support\Str::plural('order', $warehouseSummary['active_orders']) }} assigned today. --}}
+          </p>
+        </div>
+        <div class="wh-actions">
+          <a href="{{ $warehouseDashboard['orders_url'] }}" class="btn btn-primary">
+            <i class="ti ti-receipt"></i> Open Purchase Orders
+          </a>
+          <a href="{{ $warehouseDashboard['inventory_url'] }}" class="btn btn-outline-primary">
+            <i class="ti ti-packages"></i> Inventory Report
+          </a>
+          <a href="{{ $warehouseDashboard['report_url'] }}" class="btn btn-outline-secondary">
+            <i class="ti ti-file-description"></i> DPO Report
+          </a>
+        </div>
+      </div>
+
+      <div class="wh-kpis">
+        <article class="wh-kpi pending">
+          <span class="wh-kpi-icon"><i class="ti ti-hourglass"></i></span>
+          <span>Pending DPO</span>
+          <strong>{{ number_format($warehouseSummary['pending_orders']) }}</strong>
+          <small>Orders waiting for action</small>
+        </article>
+        <article class="wh-kpi delivery">
+          <span class="wh-kpi-icon"><i class="ti ti-truck-delivery"></i></span>
+          <span>For Delivery</span>
+          <strong>{{ number_format($warehouseSummary['for_delivery']) }}</strong>
+          <small>Scheduled warehouse releases</small>
+        </article>
+        <article class="wh-kpi partial">
+          <span class="wh-kpi-icon"><i class="ti ti-clipboard-check"></i></span>
+          <span>AD Confirmations</span>
+          <strong>{{ number_format($warehouseSummary['pending_confirmation']) }}</strong>
+          <small>Partial receipts waiting on AD</small>
+        </article>
+        <article class="wh-kpi done">
+          <span class="wh-kpi-icon"><i class="ti ti-circle-check"></i></span>
+          <span>Completed This Month</span>
+          <strong>{{ number_format($warehouseSummary['completed_month']) }}</strong>
+          <small>{{ number_format($warehouseSummary['total_qty']) }} total ordered qty</small>
+        </article>
+      </div>
+
+      <div class="wh-grid">
+        <article class="wh-panel">
+          <div class="wh-panel-head">
+            <div>
+              <h5>Shipment Pace</h5>
+              <p>Delivery orders and quantities over the last 7 days.</p>
+            </div>
+            <span class="wh-muted">Updated {{ $warehouseDashboard['generated_at'] }}</span>
+          </div>
+          <div class="wh-chart" id="warehouseShipmentChart"></div>
+        </article>
+
+        <article class="wh-panel">
+          <div class="wh-panel-head">
+            <div>
+              <h5>Status Workload</h5>
+              <p>DPO distribution assigned to this warehouse.</p>
+            </div>
+          </div>
+          <div class="wh-status-list">
+            @foreach($warehouseDashboard['status_counts'] as $status => $count)
+              @php
+                $statusClass = strtolower(str_replace(' ', '-', $status));
+                $statusPercent = round(($count / $statusTotal) * 100);
+              @endphp
+              <div class="wh-status-row">
+                <span>{{ $status }}</span>
+                <div class="wh-status-track">
+                  <div class="wh-status-fill {{ $statusClass }}" style="width: {{ $statusPercent }}%;"></div>
+                </div>
+                <strong>{{ number_format($count) }}</strong>
+              </div>
+            @endforeach
+          </div>
+        </article>
+      </div>
+
+      <div class="wh-grid">
+        <article class="wh-panel">
+          <div class="wh-panel-head">
+            <div>
+              <h5>Recent Purchase Orders</h5>
+              <p>Latest DPO records routed to {{ $warehouseDashboard['warehouse_label'] }}.</p>
+            </div>
+            <a href="{{ $warehouseDashboard['orders_url'] }}" class="btn btn-sm btn-outline-primary">View All</a>
+          </div>
+          <div class="wh-table-wrap">
+            <table class="table wh-table align-middle">
+              <thead>
+                <tr>
+                  <th>PO Number</th>
+                  <th>Business</th>
+                  <th>Delivery</th>
+                  <th class="text-center">Qty</th>
+                  <th>Status</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                @forelse($warehouseDashboard['recent_orders'] as $order)
+                  @php $orderStatusClass = strtolower(str_replace(' ', '-', $order->status)); @endphp
+                  <tr>
+                    <td>
+                      <div class="wh-po">{{ $order->po_number }}</div>
+                      <div class="wh-muted">{{ optional($order->submitted_at ?: $order->created_at)->format('M d, Y') }}</div>
+                    </td>
+                    <td>
+                      <strong>{{ $order->business_name ?: optional($order->ad)->business_name ?: 'Area Distributor' }}</strong>
+                      <div class="wh-muted">{{ optional($order->ad)->name ?: 'N/A' }}</div>
+                    </td>
+                    <td>
+                      {{ optional($order->delivery_date)->format('M d, Y') ?: 'Not scheduled' }}
+                      <div class="wh-muted">{{ $order->dr_number ? strtoupper($order->dr_number) : 'No DR yet' }}</div>
+                    </td>
+                    <td class="text-center">{{ number_format($order->total_qty) }}</td>
+                    <td><span class="wh-status-pill {{ $orderStatusClass }}">{{ $order->status }}</span></td>
+                    <td class="text-end">
+                      <a href="{{ route('ad-purchase-orders.show', $order->id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="ti ti-eye"></i> View
+                      </a>
+                    </td>
+                  </tr>
+                @empty
+                  <tr>
+                    <td colspan="6">
+                      <div class="wh-empty">No purchase orders assigned to this warehouse yet.</div>
+                    </td>
+                  </tr>
+                @endforelse
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="wh-panel">
+          <div class="wh-panel-head">
+            <div>
+              <h5>Partial Confirmation Queue</h5>
+              <p>Warehouse deliveries waiting for AD confirmation.</p>
+            </div>
+          </div>
+          <div class="wh-confirm-list">
+            @forelse($warehouseDashboard['pending_confirmation_receipts'] as $receipt)
+              @php
+                $receiptOrder = $receipt->purchaseOrder;
+                $forConfirmQty = max((int) $receipt->received_qty - (int) $receipt->confirmed_qty, 0);
+              @endphp
+              <div class="wh-confirm-item">
+                <div>
+                  <strong>{{ optional($receipt->item)->product_name ?: 'Product' }}</strong>
+                  <span>{{ optional($receiptOrder)->po_number ?: 'DPO' }} &middot; {{ strtoupper($receipt->dr_number ?: optional($receiptOrder)->dr_number ?: 'NO DR') }}</span>
+                  <span>{{ optional($receipt->delivery_date)->format('M d, Y') ?: 'No date' }} &middot; {{ optional($receiptOrder)->business_name ?: 'Area Distributor' }}</span>
+                </div>
+                <div class="wh-confirm-qty">{{ number_format($forConfirmQty) }}</div>
+              </div>
+            @empty
+              <div class="wh-empty">No AD confirmations pending. The board is clear.</div>
+            @endforelse
+          </div>
+        </article>
+      </div>
+    </section>
+  @endif
   
-  @if(!$isSuperAdminDashboard)
+  @if(!$isSuperAdminDashboard && !$isWarehouseDashboard)
   <section class="welcome">
     <div class="row">
     <div class="col-lg-12 col-xl-12">
@@ -473,6 +703,7 @@
   </div>
   </section>
   @endif
+  @if(!$isSuperAdminDashboard && !$isWarehouseDashboard)
   <section class="dashboard-section">
     <div class="row">
       
@@ -1405,7 +1636,8 @@
       </div>
 
     </div>
-  </section>        
+  </section>
+  @endif
 @endsection
 @section('javascript')
 <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
@@ -1430,6 +1662,73 @@
 <script src="{{asset('design/assets/libs/apexcharts/dist/apexcharts.min.js')}}"></script>
 <script src="{{asset('design/assets/js/extra-libs/jvectormap/jquery-jvectormap-us-aea-en.js')}}"></script>
 <script src="{{asset('design/assets/js/dashboards/dashboard.js')}}"></script>
+
+@if($isWarehouseDashboard)
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const chartElement = document.querySelector('#warehouseShipmentChart');
+    if (!chartElement) return;
+
+    const rows = @json($warehouseDashboard['daily_shipments']);
+    const options = {
+        series: [
+            { name: 'Orders', type: 'column', data: rows.map(function (row) { return row.orders; }) },
+            { name: 'Quantity', type: 'line', data: rows.map(function (row) { return row.qty; }) }
+        ],
+        chart: {
+            height: 280,
+            type: 'line',
+            toolbar: { show: false },
+            fontFamily: 'inherit'
+        },
+        colors: ['#1d4ed8', '#f59e0b'],
+        stroke: { width: [0, 3], curve: 'smooth' },
+        plotOptions: {
+            bar: { columnWidth: '42%', borderRadius: 5, borderRadiusApplication: 'end' }
+        },
+        dataLabels: { enabled: false },
+        grid: { borderColor: '#edf0f5', strokeDashArray: 4 },
+        xaxis: {
+            categories: rows.map(function (row) { return row.label; }),
+            axisBorder: { show: false },
+            axisTicks: { show: false },
+            labels: { style: { colors: '#98a2b3', fontSize: '10px' } }
+        },
+        yaxis: [
+            {
+                labels: {
+                    style: { colors: '#98a2b3', fontSize: '10px' },
+                    formatter: function (value) { return Math.round(value); }
+                }
+            },
+            {
+                opposite: true,
+                labels: {
+                    style: { colors: '#98a2b3', fontSize: '10px' },
+                    formatter: function (value) { return Math.round(value); }
+                }
+            }
+        ],
+        tooltip: {
+            shared: true,
+            y: [
+                { formatter: function (value) { return Math.round(value).toLocaleString('en-PH') + ' orders'; } },
+                { formatter: function (value) { return Math.round(value).toLocaleString('en-PH') + ' qty'; } }
+            ]
+        },
+        legend: {
+            position: 'top',
+            horizontalAlign: 'right',
+            fontSize: '11px',
+            markers: { width: 8, height: 8, radius: 8 }
+        },
+        noData: { text: 'No shipment activity yet.' }
+    };
+
+    new ApexCharts(chartElement, options).render();
+});
+</script>
+@endif
 
 @if($isSuperAdminDashboard)
 <script>
@@ -1659,6 +1958,8 @@
         container.innerHTML = rows.map(function (row) {
             return '<div class="sa-pulse-item">' +
                 '<div class="sa-pulse-copy">' +
+                    '<strong>' + escapeHtml(row.customer) + ' &middot; ' + escapeHtml(row.item) + '</strong>' +
+                    '<small>' + escapeHtml(row.dealer) + ' &middot; ' + escapeHtml(row.time || 'just now') + '</small>' +
                     '<strong>' + escapeHtml(row.customer) + ' - ' + escapeHtml(row.item) + '</strong>' +
                     '<small>' + escapeHtml(row.dealer) + ' - ' + escapeHtml(row.time || 'just now') + '</small>' +
                 '</div>' +
@@ -1666,16 +1967,6 @@
             '</div>';
         }).join('');
         return;
-
-        container.innerHTML = rows.map(function (row) {
-            return '<div class="sa-pulse-item">' +
-                '<div class="sa-pulse-copy">' +
-                    '<strong>' + escapeHtml(row.customer) + ' · ' + escapeHtml(row.item) + '</strong>' +
-                    '<small>' + escapeHtml(row.dealer) + ' · ' + escapeHtml(row.time || 'just now') + '</small>' +
-                '</div>' +
-                '<span class="sa-pulse-amount">' + escapeHtml(peso.format(row.amount || 0)) + '</span>' +
-            '</div>';
-        }).join('');
     }
 
     function formatDate(value) {
@@ -1875,6 +2166,7 @@
 </script>
 @endif
 
+@if(!$isWarehouseDashboard)
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -3040,4 +3332,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 </script>
+@endif
 @endsection
+

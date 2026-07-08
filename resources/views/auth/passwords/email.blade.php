@@ -2,602 +2,426 @@
 
 @section('content')
 <style>
-    .forgot-password-container {
+    :root {
+        --reset-primary: #2f80ed;
+        --reset-primary-dark: #1d62c6;
+        --reset-ink: #172033;
+        --reset-muted: #667085;
+        --reset-line: #e4e7ec;
+        --reset-soft: #f5fbff;
+        --reset-danger: #dc2626;
+        --reset-success: #027a48;
+    }
+
+    .forgot-page {
         min-height: 100vh;
-        background: linear-gradient(135deg, #ffffffff 0%, #ffffffff 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: clamp(10px, 2vw, 20px);
+        padding: 24px;
+        background:
+            radial-gradient(circle at 12% 12%, rgba(47, 128, 237, .12), transparent 28%),
+            linear-gradient(135deg, #f8fbff 0%, #eef7ff 100%);
     }
 
-    .main-card {
-        background: white;
-        border-radius: clamp(15px, 2vw, 20px);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    .forgot-shell {
+        width: min(1080px, 100%);
+        min-height: 620px;
+        display: grid;
+        grid-template-columns: 1.05fr .95fr;
         overflow: hidden;
-        max-width: 1200px;
-        width: 100%;
-        display: flex;
-        min-height: clamp(400px, 60vh, 600px);
+        background: #fff;
+        border: 1px solid rgba(47, 128, 237, .12);
+        border-radius: 8px;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, .12);
     }
 
-    .illustration-section {
-        flex: 1;
-        background: linear-gradient(135deg, #ffffffff 0%, #ffffffff 100%);
+    .forgot-visual {
+        position: relative;
         display: flex;
         flex-direction: column;
+        justify-content: center;
+        gap: 24px;
+        padding: 56px;
+        background: linear-gradient(135deg, #eaf6ff 0%, #ffffff 82%);
+        border-right: 1px solid var(--reset-line);
+    }
+
+    .forgot-brand {
+        position: absolute;
+        top: 28px;
+        left: 32px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--reset-ink);
+        font-size: 14px;
+        font-weight: 800;
+    }
+
+    .forgot-brand img {
+        width: 36px;
+        height: 36px;
+        object-fit: contain;
+    }
+
+    .forgot-visual img.forgot-image {
+        width: min(420px, 100%);
+        max-height: 360px;
+        object-fit: contain;
+        align-self: center;
+        filter: drop-shadow(0 18px 28px rgba(47, 128, 237, .16));
+    }
+
+    .forgot-steps {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .forgot-step {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #344054;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .forgot-step span {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: clamp(20px, 4vw, 40px);
-        position: relative;
-        min-width: 0;
+        color: var(--reset-primary);
+        background: #fff;
+        border: 1px solid rgba(47, 128, 237, .18);
+        border-radius: 999px;
+        box-shadow: 0 8px 20px rgba(47, 128, 237, .08);
     }
 
-    .context-image {
-        max-width: 100%;
-        max-height: 70vh;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-        border-radius: clamp(10px, 1.5vw, 20px);
-    }
-
-    .context-image-mobile {
-        display: none;
-        max-width: 200px;
-        max-height: 250px;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-        border-radius: 10px;
-        margin: 0 auto;
-    }
-
-    .form-section {
-        flex: 1;
-        padding: clamp(20px, 4vw, 60px) clamp(15px, 3vw, 40px);
+    .forgot-panel {
         display: flex;
-        flex-direction: column;
+        align-items: center;
         justify-content: center;
-        min-width: 0;
+        padding: 56px 46px;
     }
 
-    .card {
-        border: none !important;
-        box-shadow: none !important;
-        background: transparent !important;
+    .forgot-card {
+        width: min(430px, 100%);
     }
 
-    .card-body {
-        padding: 0 !important;
+    .forgot-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+        padding: 7px 11px;
+        color: var(--reset-primary-dark);
+        background: var(--reset-soft);
+        border: 1px solid rgba(47, 128, 237, .16);
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: .02em;
+        text-transform: uppercase;
     }
 
-    .text-primary {
-        color: #4facfe !important;
-        font-size: 14px !important;
-        font-weight: bold !important;
-        margin-bottom: clamp(8px, 1.5vw, 10px) !important;
+    .forgot-title {
+        margin: 0;
+        color: var(--reset-ink);
+        font-size: clamp(28px, 4vw, 38px);
+        font-weight: 900;
+        line-height: 1.08;
     }
 
-    .forg {
-        color: #4facfe !important;
-        font-size: 23px !important;
-        font-weight: 20px !important;
-        margin-bottom: 20px !important;
+    .forgot-copy {
+        margin: 14px 0 28px;
+        color: var(--reset-muted);
+        font-size: 15px;
+        line-height: 1.65;
     }
 
-    .text-muted {
-        color: #666 !important;
-        margin-bottom: clamp(20px, 3vw, 30px) !important;
-        font-size: clamp(14px, 2vw, 16px);
+    .forgot-alert {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 18px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.45;
     }
 
-    .alert-warning {
-        background-color: rgba(79, 172, 254, 0.1) !important;
-        border: 1px solid #4facfe !important;
-        color: #4facfe !important;
-        border-radius: clamp(8px, 1vw, 10px) !important;
-        font-size: clamp(13px, 2vw, 14px);
-        padding: clamp(10px, 2vw, 15px) !important;
+    .forgot-alert.is-error {
+        color: #991b1b;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
     }
 
-    .form-label {
-        font-size: clamp(14px, 2vw, 16px);
-        font-weight: 500;
-        margin-bottom: clamp(6px, 1vw, 8px);
+    .forgot-alert.is-success {
+        color: var(--reset-success);
+        background: #ecfdf3;
+        border: 1px solid #abefc6;
     }
 
-    .form-control {
-        padding: clamp(12px, 2.5vw, 15px) !important;
-        border: 2px solid #e0e0e0 !important;
-        border-radius: clamp(8px, 1vw, 10px) !important;
-        font-size: clamp(14px, 2vw, 16px) !important;
+    .forgot-field {
+        margin-bottom: 18px;
+    }
+
+    .forgot-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        color: #344054;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .forgot-input-wrap {
+        position: relative;
+    }
+
+    .forgot-input-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #98a2b3;
+        font-size: 18px;
+        pointer-events: none;
+    }
+
+    .forgot-input {
         width: 100%;
-        box-sizing: border-box;
+        height: 52px;
+        padding: 0 16px 0 44px;
+        color: var(--reset-ink);
+        background: #fff;
+        border: 1px solid var(--reset-line);
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 700;
+        outline: none;
+        transition: border-color .16s ease, box-shadow .16s ease;
     }
 
-    .form-control:focus {
-        border-color: #4facfe !important;
-        box-shadow: 0 0 0 clamp(2px, 0.3vw, 3px) rgba(79, 172, 254, 0.1) !important;
+    .forgot-input::placeholder {
+        color: #98a2b3;
+        font-weight: 600;
     }
 
-    .form-control.is-invalid {
-        border-color: #dc3545 !important;
+    .forgot-input:focus {
+        border-color: var(--reset-primary);
+        box-shadow: 0 0 0 4px rgba(47, 128, 237, .12);
     }
 
-    .btn-success {
-        background-color: #5DADE2;
-        border: none !important;
-        border-radius: clamp(20px, 3vw, 25px) !important;
-        padding: clamp(12px, 2.5vw, 15px) !important;
-        font-size: clamp(14px, 2.5vw, 16px) !important;
-        font-weight: bold !important;
-        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+    .forgot-input.is-invalid {
+        border-color: var(--reset-danger);
+        box-shadow: 0 0 0 4px rgba(220, 38, 38, .08);
+    }
+
+    .forgot-error {
+        display: block;
+        margin-top: 8px;
+        color: var(--reset-danger);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .forgot-submit {
         width: 100%;
-        min-height: clamp(45px, 6vw, 50px);
+        height: 52px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: #fff;
+        background: linear-gradient(135deg, var(--reset-primary), #56b4f2);
+        border: 0;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 900;
+        box-shadow: 0 14px 28px rgba(47, 128, 237, .24);
+        transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
     }
 
-    .btn-success:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3) !important;
-        background-color: #4a8ab6ff;
+    .forgot-submit:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 18px 34px rgba(47, 128, 237, .3);
     }
 
-    .alert-danger {
-        border-radius: clamp(8px, 1vw, 10px) !important;
-        border: 1px solid #dc3545 !important;
-        font-size: clamp(13px, 2vw, 14px);
-        padding: clamp(10px, 2vw, 15px) !important;
+    .forgot-submit:disabled {
+        cursor: wait;
+        opacity: .78;
+        transform: none;
     }
 
-    .back-link {
+    .forgot-foot {
+        margin-top: 24px;
         text-align: center;
-        margin-top: clamp(15px, 2.5vw, 20px);
+        color: var(--reset-muted);
+        font-size: 14px;
+        font-weight: 650;
     }
 
-    .back-link p {
-        font-size: clamp(13px, 2vw, 14px);
-        margin-bottom: 0;
+    .forgot-foot a {
+        color: var(--reset-primary-dark);
+        font-weight: 900;
+        text-decoration: none;
     }
 
-    .back-link a {
-        color: #4facfe !important;
-        text-decoration: none !important;
-        font-weight: 500;
+    .forgot-foot a:hover {
+        text-decoration: underline;
     }
 
-    .back-link a:hover {
-        text-decoration: underline !important;
+    .forgot-mobile-image {
+        display: none;
+        width: min(190px, 70%);
+        margin: 0 auto 22px;
+        object-fit: contain;
     }
 
-    .avatar-xl {
-        width: clamp(60px, 8vw, 80px) !important;
-        height: clamp(60px, 8vw, 80px) !important;
-    }
-
-    /* Small Mobile Devices (320px - 479px) */
-    @media (max-width: 479px) {
-        .main-card {
-            flex-direction: column;
-            margin: 5px;
-            min-height: auto;
+    @media (max-width: 900px) {
+        .forgot-page {
+            align-items: flex-start;
+            padding: 16px;
         }
 
-        .illustration-section {
+        .forgot-shell {
+            min-height: auto;
+            grid-template-columns: 1fr;
+        }
+
+        .forgot-visual {
             display: none;
         }
 
-        .form-section {
-            padding: 20px 15px;
+        .forgot-panel {
+            padding: 34px 22px;
         }
 
-        .text-primary {
-            font-size: 14px !important;
-        }
-
-        .forg{
-            font-size: 20px !important;
-            margin-bottom: 10px !important;
-        }
-
-        .btn-success {
-            min-height: 50px;
-        }
-
-        .context-image-mobile {
+        .forgot-mobile-image {
             display: block;
-            margin: 15px auto 25px auto;
         }
     }
 
-    /* Mobile Devices (480px - 767px) */
-    @media (min-width: 480px) and (max-width: 767px) {
-        .main-card {
-            flex-direction: column;
-            margin: 10px;
+    @media (max-width: 420px) {
+        .forgot-page {
+            padding: 10px;
         }
 
-        .illustration-section {
-            display: none;
+        .forgot-panel {
+            padding: 28px 16px;
         }
 
-        .form-section {
-            padding: 25px 20px;
-        }
-
-        .context-image-mobile {
-            display: block;
-            margin: 15px auto 25px auto;
-            max-height: 180px;
-        }
-    }
-
-    /* Tablet Portrait (768px - 1023px) */
-    @media (min-width: 768px) and (max-width: 1023px) {
-        .main-card {
-            flex-direction: row;
-            max-width: 900px;
-        }
-
-        .illustration-section {
-            flex: 0.8;
-            padding: 30px;
-        }
-
-        .form-section {
-            flex: 1.2;
-            padding: 40px 30px;
-        }
-
-        .context-image {
-            max-height: 60vh;
-        }
-
-        .context-image-mobile {
-            display: none !important;
-        }
-
-        .forg {
-            margin-bottom: 50px !important;
-        }
-    }
-
-    /* Tablet Landscape & Small Desktop (1024px - 1279px) */
-    @media (min-width: 1024px) and (max-width: 1279px) {
-        .main-card {
-            max-width: 1000px;
-        }
-
-        .illustration-section {
-            padding: 35px;
-        }
-
-        .form-section {
-            padding: 50px 35px;
-        }
-
-        .context-image {
-            max-height: 65vh;
-        }
-
-        .context-image-mobile{
-            display: none !important;
-        }
-
-        .forg {
-            margin-bottom: 50px !important;
-        }
-    }
-
-    /* Medium Desktop (1280px - 1599px) */
-    @media (min-width: 1280px) and (max-width: 1599px) {
-        .main-card {
-            max-width: 1100px;
-        }
-
-        .illustration-section {
-            padding: 40px;
-        }
-
-        .form-section {
-            padding: 55px 40px;
-        }
-
-        .context-image {
-            max-height: 70vh;
-        }
-        
-        .context-image-mobile{
-            display: none !important;
-        }
-
-        .forg {
-            margin-bottom: 50px !important;
-        }
-    }
-
-    /* Large Desktop (1600px - 1919px) */
-    @media (min-width: 1600px) and (max-width: 1919px) {
-        .main-card {
-            max-width: 1200px;
-            min-height: 650px;
-        }
-
-        .illustration-section {
-            padding: 45px;
-        }
-
-        .form-section {
-            padding: 60px 45px;
-        }
-
-        .text-primary {
-            font-size: 14px !important;
-        }
-
-        .forg{
-            font-size: 20px !important;
-            margin-bottom: 50px !important;
-        }
-
-        .context-image {
-            max-height: 75vh;
-        }
-        .context-image-mobile{
-            display: none !important;
-        }
-    }
-
-    /* Extra Large Desktop (1920px+) */
-    @media (min-width: 1920px) {
-        .forgot-password-container {
-            padding: 30px;
-        }
-
-        .main-card {
-            max-width: 1300px;
-            min-height: 700px;
-        }
-
-        .illustration-section {
-            padding: 50px;
-        }
-
-        .form-section {
-            padding: 70px 50px;
-        }
-
-        .text-primary {
-            font-size: 14px !important;
-        }
-
-        .forg{
-            font-size: 20px !important;
-            margin-bottom: 50px !important;
-        }
-
-        .text-muted {
-            font-size: 18px;
-        }
-
-        .form-control {
-            padding: 18px !important;
-            font-size: 18px !important;
-        }
-
-        .btn-success {
-            padding: 18px !important;
-            font-size: 18px !important;
-            min-height: 55px;
-        }
-
-        .alert-warning {
-            font-size: 16px;
-            padding: 18px !important;
-        }
-
-        .context-image {
-            max-height: 80vh;
-        }
-        .context-image-mobile{
-            display: none !important;
-        }
-    }
-
-    /* Ultra Wide Monitors (2560px+) */
-    @media (min-width: 2560px) {
-        .main-card {
-            max-width: 1500px;
-            min-height: 800px;
-        }
-
-        .text-primary {
-            font-size: 14px !important;
-        }
-
-        .forg{
-            font-size: 20px !important;
-            margin-bottom: 50px !important;
-        }
-
-        .form-control {
-            padding: 22px !important;
-            font-size: 20px !important;
-        }
-
-        .btn-success {
-            padding: 22px !important;
-            font-size: 20px !important;
-            min-height: 60px;
-        }
-    }
-
-    /* High DPI Displays */
-    @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-        .context-image {
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-        }
-    }
-
-    /* Landscape Orientation for Mobile */
-    @media (max-width: 767px) and (orientation: landscape) {
-        .main-card {
-            flex-direction: row;
-            min-height: 400px;
-        }
-
-        .illustration-section {
-            flex: 0.6;
-            min-height: auto;
-            padding: 15px;
-        }
-
-        .form-section {
-            flex: 1.4;
-            padding: 20px 15px;
-        }
-
-        .context-image {
-            max-height: 50vh;
-        }
-        .context-image-mobile {
-            display: none !important;
-        }
-    }
-
-    /* Print Styles */
-    @media print {
-        .forgot-password-container {
-            background: white;
-            min-height: auto;
-        }
-
-        .main-card {
-            box-shadow: none;
-            border: 1px solid #ccc;
-        }
-
-        .btn-success {
-            background: #4facfe !important;
-            -webkit-print-color-adjust: exact;
-            color-adjust: exact;
+        .forgot-title {
+            font-size: 26px;
         }
     }
 </style>
 
-<div class="forgot-password-container">
-    <div class="main-card">
-        <!-- Illustration Section -->
-        <div class="illustration-section">
-           <img src="{{asset('images/password.png')}}" alt="Forgot Password Illustration" class="context-image">
-        </div>
+<div class="forgot-page">
+    <main class="forgot-shell" aria-labelledby="forgotPasswordTitle">
+        <section class="forgot-visual" aria-label="Password recovery steps">
+            <div class="forgot-brand">
+                <img src="{{ asset('images/icon.png') }}" alt="">
+                <span>{{ config('app.name', 'Gaz Lite') }}</span>
+            </div>
 
-        <!-- Form Section -->
-        <div class="form-section">
-            <div class="row justify-content-center">
-                <div class="col-12">
-                    <div class="card mt-4 card-bg-fill">
-                        <div class="card-body p-4">
-                            <div class="text-center mt-2">
-                                <h5 class="forg">Forgot Password?</h5>
-                            </div>
+            <img src="{{ asset('images/password.png') }}" alt="Password recovery illustration" class="forgot-image">
 
-                            <!-- Image shows here only on mobile -->
-                            <div class="text-center">
-                                <img src="{{asset('images/password.png')}}" alt="Forgot Password Illustration" class="context-image-mobile">
-                            </div>
+            <ul class="forgot-steps">
+                <li class="forgot-step"><span>1</span> Enter the email linked to your account.</li>
+                <li class="forgot-step"><span>2</span> Receive your 6-digit verification code.</li>
+                <li class="forgot-step"><span>3</span> Verify the OTP and create a new password.</li>
+            </ul>
+        </section>
 
-                            <!-- <div class="alert border-0 alert-warning text-center mb-2 mx-2" role="alert">
-                                Enter yuor email address.
-                            </div> -->
-                            <div class="p-2">
-                                <form method="POST" action="{{ route('password.email') }}">
-                                    @csrf
-                                    <div class="mb-4">
-                                        <label class="form-label">Email</label>
-                                        <input id="email" type="email" placeholder="Email" class="form-control{{ $errors->has('email') ? ' is-invalid' : '' }}" name="email" value="{{ old('email') }}" required>
-                                    </div>
+        <section class="forgot-panel">
+            <div class="forgot-card">
+                <img src="{{ asset('images/password.png') }}" alt="Password recovery illustration" class="forgot-mobile-image">
 
-                                    <div class="text-center mt-4">
-                                        <button class="btn btn-success w-100" type="submit">Send OTP</button>
-                                    </div>
-                                    
-                                    @if ($errors->has('email'))
-                                        <div class="mt-3 form-group alert alert-danger alert-dismissable">
-                                            <strong>{{ $errors->first('email') }}</strong>
-                                        </div>
-                                    @endif
-                                </form><!-- end form -->
-                            </div>
+                <div class="forgot-kicker">
+                    <i class="ti ti-shield-lock"></i>
+                    Account Recovery
+                </div>
+
+                <h1 class="forgot-title" id="forgotPasswordTitle">Forgot your password?</h1>
+                <p class="forgot-copy">
+                    No stress. Enter your registered email and we will send a secure OTP code so you can reset your password.
+                </p>
+
+                @if (session('status'))
+                    <div class="forgot-alert is-success" role="status">
+                        <i class="ti ti-circle-check"></i>
+                        <span>{{ session('status') }}</span>
+                    </div>
+                @endif
+
+                @if ($errors->has('email'))
+                    <div class="forgot-alert is-error" role="alert">
+                        <i class="ti ti-alert-circle"></i>
+                        <span>{{ $errors->first('email') }}</span>
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('password.email') }}" id="forgotPasswordForm" novalidate>
+                    @csrf
+
+                    <div class="forgot-field">
+                        <label class="forgot-label" for="email">Email address</label>
+                        <div class="forgot-input-wrap">
+                            <i class="ti ti-mail forgot-input-icon"></i>
+                            <input
+                                id="email"
+                                type="email"
+                                name="email"
+                                value="{{ old('email') }}"
+                                class="forgot-input{{ $errors->has('email') ? ' is-invalid' : '' }}"
+                                placeholder="name@example.com"
+                                autocomplete="email"
+                                required
+                                autofocus
+                            >
                         </div>
-                        <!-- end card body -->
+                        @if ($errors->has('email'))
+                            <span class="forgot-error">{{ $errors->first('email') }}</span>
+                        @endif
                     </div>
-                    <!-- end card -->
 
-                    <div class="back-link">
-                        <p class="mb-0">Wait, I remember my password... <a href="{{ route('login', ['direct' => 'true']) }}" class="fw-semibold text-primary text-decoration-underline"> Click here </a> </p>
-                    </div>
+                    <button class="forgot-submit" type="submit" id="forgotSubmitBtn">
+                        <i class="ti ti-send"></i>
+                        <span>Send OTP</span>
+                    </button>
+                </form>
+
+                <div class="forgot-foot">
+                    Remembered your password?
+                    <a href="{{ route('login', ['direct' => 'true']) }}">Back to login</a>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 </div>
 
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-@if (session('status'))
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        Swal.fire({
-            icon: 'success',
-            title: 'OTP Sent!',
-            text: 'We have sent a 6-digit OTP code to your email address. Please check your email.',
-            confirmButtonText: 'Enter OTP',
-            confirmButtonColor: '#5DADE2',
-            showClass: {
-                popup: 'animate__animated animate__fadeInDown'
-            },
-            hideClass: {
-                popup: 'animate__animated animate__fadeOutUp'
-            },
-            customClass: {
-                popup: 'swal-custom-popup'
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = "{{ route('password.otp') }}?email={{ request('email') }}";
-            }
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('forgotPasswordForm');
+        const button = document.getElementById('forgotSubmitBtn');
+
+        if (!form || !button) {
+            return;
+        }
+
+        form.addEventListener('submit', function () {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Sending OTP...</span>';
         });
     });
 </script>
-<style>
-    .swal-custom-popup {
-        border-radius: 15px !important;
-    }
-    
-    .swal2-popup {
-        font-family: inherit;
-    }
-    
-    .swal2-title {
-        color: #4facfe;
-        font-size: 1.5rem;
-        font-weight: 600;
-    }
-</style>
-
-<script>
-function goToLogin(event) {
-    event.preventDefault();
-    window.location.href = "{{url('/')}}#login-page";
-}
-</script>
-
-
-
-@endif
-
 @endsection

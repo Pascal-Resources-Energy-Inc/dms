@@ -471,13 +471,13 @@
             border-color: rgba(93, 173, 226, .22);
         }
 
-        .main-layout .sidebar .nav-link > .bi-chevron-down {
+        .main-layout .sidebar .nav-link > .ti-chevron-down {
             color: var(--sidebar-muted);
             font-size: 12px;
             transition: transform .2s ease, color .2s ease, opacity .2s ease;
         }
 
-        .main-layout .sidebar .nav-link[aria-expanded="true"] > .bi-chevron-down {
+        .main-layout .sidebar .nav-link[aria-expanded="true"] > .ti-chevron-down {
             color: var(--sidebar-active);
             transform: rotate(180deg);
         }
@@ -514,7 +514,7 @@
         }
 
         .main-layout .sidebar.collapsed .nav-text,
-        .main-layout .sidebar.collapsed .nav-link > .bi-chevron-down {
+        .main-layout .sidebar.collapsed .nav-link > .ti-chevron-down {
             opacity: 0;
             width: 0;
             overflow: hidden;
@@ -1279,7 +1279,7 @@
                 <div class="nav-item">
                     <a href="{{url('/')}}" class="nav-link @if(Route::currentRouteName() == 'home')active @endif">
                         <div class="nav-icon">
-                            <i class="bi bi-grid-1x2"></i>
+                            <i class="ti ti-layout-dashboard"></i>
                         </div>
                         <span class="nav-text">Dashboard</span>
                     </a>
@@ -1288,7 +1288,7 @@
                     <div class="nav-item">
                         <a href="{{url('ad-dashboard')}}" class="nav-link @if(Route::currentRouteName() == 'ad-dashboard') active @endif">
                             <div class="nav-icon">
-                                <i class="bi bi-grid-1x2"></i>
+                                <i class="ti ti-layout-dashboard"></i>
                             </div>
                             <span class="nav-text">Dashboard</span>
                         </a>
@@ -1296,7 +1296,7 @@
                     <div class="nav-item">
                         <a href="{{url('/ad-transactions')}}" class="nav-link @if(Route::currentRouteName() == 'ad-transactions') active @endif">
                             <div class="nav-icon">
-                                <i class="bi bi-currency-dollar"></i>
+                                <i class="ti ti-cash"></i>
                             </div>
                             <span class="nav-text">Transactions</span>
                         </a>
@@ -1304,10 +1304,10 @@
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#suppliesMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['product','inventories','inventory-transfers.index']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
-                                <i class="bi bi-cart-plus-fill"></i>
+                                <i class="ti ti-shopping-cart-plus"></i>
                             </div>
                             <span class="nav-text">Supplies</span>
-                            <i class="bi bi-chevron-down ms-auto"></i>
+                            <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
                         <div class="collapse @if(in_array(Route::currentRouteName(), ['product','inventories','inventory-transfers.index'])) show @endif"
@@ -1326,10 +1326,10 @@
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#partnersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['dealer-ads','my-customers','charges']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
-                                <i class="bi bi-person-workspace"></i>
+                                <i class="ti ti-id-badge-2"></i>
                             </div>
                             <span class="nav-text">Partners</span>
-                            <i class="bi bi-chevron-down ms-auto"></i>
+                            <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
                         <div class="collapse @if(in_array(Route::currentRouteName(), ['dealer-ads','my-customers','charges'])) show @endif"
@@ -1350,7 +1350,7 @@
                     {{-- <div class="nav-item">
                         <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif">
                             <div class="nav-icon">
-                                <i class="bi bi-person-workspace"></i>
+                                <i class="ti ti-id-badge-2"></i>
                             </div>
                             <span class="nav-text">My Dealers</span>
                         </a>
@@ -1358,7 +1358,7 @@
                     {{-- <div class="nav-item">
                         <a href="{{url('/orders')}}" class="nav-link @if(Route::currentRouteName() == 'orders')active @endif">
                             <div class="nav-icon">
-                                <i class="bi bi-shop"></i>
+                                <i class="ti ti-building-store"></i>
                             </div>
                             <span class="nav-text">Orders</span>
                         </a>
@@ -1368,7 +1368,7 @@
                         class="nav-link @if(Route::currentRouteName() == 'orders') active @endif position-relative">
 
                             <div class="nav-icon position-relative">
-                                <i class="bi bi-shop"></i>
+                                <i class="ti ti-building-store"></i>
                                 @if(!empty($pendingOrdersCount) && $pendingOrdersCount > 0)
                                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                                         {{ $pendingOrdersCount }}
@@ -1383,7 +1383,7 @@
                         <a href="{{ route('ad-purchase-orders.index') }}"
                             class="nav-link @if(in_array(Route::currentRouteName(), ['ad-purchase-orders.index','ad-purchase-orders.create','ad-purchase-orders.show'])) active @endif">
                             <div class="nav-icon">
-                                <i class="bi bi-receipt-cutoff"></i>
+                                <i class="ti ti-receipt"></i>
                             </div>
                             <span class="nav-text">Purchase Orders</span>
                         </a>
@@ -1391,10 +1391,10 @@
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['dsr','aging']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
-                                <i class="bi bi-clipboard-data"></i>
+                                <i class="ti ti-clipboard-data"></i>
                             </div>
                             <span class="nav-text">Reports</span>
-                            <i class="bi bi-chevron-down ms-auto"></i>
+                            <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
                         <div class="collapse @if(in_array(Route::currentRouteName(), ['dsr','aging'])) show @endif"
@@ -1442,7 +1442,7 @@
                         <a href="{{ route('warehouse-ad-purchase-orders.region-v') }}"
                             class="nav-link @if(in_array(Route::currentRouteName(), ['warehouse-ad-purchase-orders.region-v','ad-purchase-orders.show'])) active @endif position-relative">
                             <div class="nav-icon position-relative">
-                                <i class="bi bi-receipt-cutoff"></i>
+                                <i class="ti ti-receipt"></i>
                                 @if($pendingAdPurchaseOrdersCount > 0)
                                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                                         {{ $pendingAdPurchaseOrdersCount > 99 ? '99+' : $pendingAdPurchaseOrdersCount }}
@@ -1455,10 +1455,10 @@
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['dpo','isl']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
-                                <i class="bi bi-clipboard-data"></i>
+                                <i class="ti ti-clipboard-data"></i>
                             </div>
                             <span class="nav-text">Reports</span>
-                            <i class="bi bi-chevron-down ms-auto"></i>
+                            <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
                         <div class="collapse @if(in_array(Route::currentRouteName(), ['dpo','isl'])) show @endif"
@@ -1481,7 +1481,7 @@
                         <a href="{{ route('ad-purchase-orders.index') }}"
                             class="nav-link @if(in_array(Route::currentRouteName(), ['ad-purchase-orders.index','ad-purchase-orders.create','ad-purchase-orders.show'])) active @endif position-relative">
                             <div class="nav-icon position-relative">
-                                <i class="bi bi-receipt-cutoff"></i>
+                                <i class="ti ti-receipt"></i>
                                 @if($pendingAdPurchaseOrdersCount > 0)
                                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                                         {{ $pendingAdPurchaseOrdersCount > 99 ? '99+' : $pendingAdPurchaseOrdersCount }}
@@ -1496,7 +1496,7 @@
                     <div class="nav-item">
                         <a href="{{ route('isl') }}" class="nav-link @if(Route::currentRouteName() == 'isl') active @endif">
                             <div class="nav-icon">
-                                <i class="bi bi-box-seam"></i>
+                                <i class="ti ti-box-seam"></i>
                             </div>
                             <span class="nav-text">Inventory Stock Report</span>
                         </a>
@@ -1507,7 +1507,7 @@
                     <div class="nav-item">
                         <a href="{{url('/transactions')}}" class="nav-link @if(Route::currentRouteName() == 'transactions')active @endif">
                             <div class="nav-icon">
-                                <i class="bi bi-currency-dollar"></i>
+                                <i class="ti ti-cash"></i>
                             </div>
                             <span class="nav-text">Transactions</span>
                         </a>
@@ -1519,10 +1519,10 @@
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#partnersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['ads','pds','mds']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
-                                <i class="bi bi-people-fill"></i>
+                                <i class="ti ti-users"></i>
                             </div>
                             <span class="nav-text">Authorized Distributors</span>
-                            <i class="bi bi-chevron-down ms-auto"></i>
+                            <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
                         <div class="collapse @if(in_array(Route::currentRouteName(), ['ads','pds'])) show @endif"
@@ -1540,10 +1540,10 @@
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#dealersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['ads','pds','mds']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
-                                <i class="bi bi-shop"></i>
+                                <i class="ti ti-building-store"></i>
                             </div>
                             <span class="nav-text">Dealers</span>
-                            <i class="bi bi-chevron-down ms-auto"></i>
+                            <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
                         <div class="collapse @if(in_array(Route::currentRouteName(), ['mds','dealers'])) show @endif"
@@ -1565,7 +1565,7 @@
                     {{-- <div class="nav-item">
                         <a href="{{url('/dealers')}}" class="nav-link @if(Route::currentRouteName() == 'dealers')active @endif">
                             <div class="nav-icon">
-                                <i class="bi bi-shop"></i>
+                                <i class="ti ti-building-store"></i>
                             </div>
                             <span class="nav-text">Dealers</span>
                         </a>
@@ -1573,7 +1573,7 @@
                     <div class="nav-item">
                         <a href="{{url('/customers')}}" class="nav-link @if(Route::currentRouteName() == 'customers')active @endif">
                             <div class="nav-icon">
-                                <i class="bi bi-people"></i>
+                                <i class="ti ti-users"></i>
                             </div>
                             <span class="nav-text">Customers</span>
                         </a>
@@ -1581,7 +1581,7 @@
                     <div class="nav-item">
                         <a href="{{url('/users')}}" class="nav-link @if(Route::currentRouteName() == 'users')active @endif">
                             <div class="nav-icon">
-                                <i class="bi bi-person-bounding-box"></i>
+                                <i class="ti ti-id-badge"></i>
                             </div>
                             <span class="nav-text">Users</span>
                         </a>
@@ -1589,7 +1589,7 @@
                     {{-- <div class="nav-item">
                         <a href="{{url('/rewards')}}" class="nav-link @if(Route::currentRouteName() == 'rewards')active @endif">
                             <div class="nav-icon">
-                                <i class="bi bi-gift"></i>
+                                <i class="ti ti-gift"></i>
                             </div>
                             <span class="nav-text">Rewards</span>
                         </a>
@@ -1597,10 +1597,10 @@
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#settingsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['vouchers', 'rewards', 'items', 'raffles']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
-                                <i class="bi bi-gear-fill"></i>
+                                <i class="ti ti-settings"></i>
                             </div>
                             <span class="nav-text">Settings</span>
-                            <i class="bi bi-chevron-down ms-auto"></i>
+                            <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
                         <div class="collapse @if(in_array(Route::currentRouteName(), ['vouchers','rewards', 'items', 'raffles', 'areas'])) show @endif"
@@ -1627,10 +1627,10 @@
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['aging','dpo','isl','monthly-sales','voucher-history']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
-                                <i class="bi bi-clipboard-data"></i>
+                                <i class="ti ti-clipboard-data"></i>
                             </div>
                             <span class="nav-text">Reports</span>
-                            <i class="bi bi-chevron-down ms-auto"></i>
+                            <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
                         <div class="collapse @if(in_array(Route::currentRouteName(), ['dsr','aging', 'dpo', 'isl', 'monthly-sales', 'voucher-history'])) show @endif"
@@ -1660,10 +1660,10 @@
                     {{-- <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#suppliesMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['areas','centers']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
-                                <i class="bi bi-gear-fill"></i>
+                                <i class="ti ti-settings"></i>
                             </div>
                             <span class="nav-text">Settings</span>
-                            <i class="bi bi-chevron-down ms-auto"></i>
+                            <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
                         <div class="collapse @if(in_array(Route::currentRouteName(), ['areas','centers'])) show @endif"
@@ -1706,7 +1706,7 @@
         <header class="topbar">
             <div class="topbar-left">
                 <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="true">
-                    <i class="bi bi-list" style="font-size: 20px;"></i>
+                    <i class="ti ti-menu-2" style="font-size: 20px;"></i>
                 </button>
                 <div class="welcome-message">
                     <h6>Hello {{current(explode(' ',auth()->user()->name))}}!</h6>
@@ -1717,11 +1717,11 @@
             <div class="topbar-right">
                 @if(auth()->user()->role == "Area Distributor")
                     <a href="{{ route('guest-order') }}" class="guest-order-link" target="_blank" rel="noopener">
-                        <i class="bi bi-bag-plus-fill"></i>
+                        <i class="ti ti-shopping-cart-plus"></i>
                         <span>Guest Order</span>
                     </a>
                     <button type="button" class="loyalty-scan-link border-0" data-bs-toggle="modal" data-bs-target="#loyaltyScanModal">
-                        <i class="bi bi-qr-code-scan"></i>
+                        <i class="ti ti-qrcode"></i>
                         <span>Scan Loyalty</span>
                     </button>
                 @endif
@@ -1760,7 +1760,7 @@
                             data-current-count="{{ $totalUnreadCount }}"
                             data-latest-notification-id="{{ $latestNotificationId }}">
                             {{-- <iconify-icon icon="solar:bell-linear" class="fs-7" style="color: #DFDFEC"></iconify-icon> --}}
-                            <i class="bi bi-bell-fill fs-7" style="color: #ffffff"></i>
+                            <i class="ti ti-bell fs-7" style="color: #ffffff"></i>
                             <span class="position-absolute bottom-45 start-100 translate-middle badges rounded-pill notif-badge" 
                                 id="notification-badge" style="{{ $totalUnreadCount > 0 ? '' : 'display: none;' }}">
                                 {{$totalUnreadCount ?? ''}}
@@ -1979,13 +1979,13 @@
                         </li>
                         @if(auth()->user()->role != "Admin" && auth()->user()->role != "Area Distributor")
                         <li><a class="dropdown-item" href="{{url('user-profile')}}">
-                            <i class="bi bi-person"></i>
+                            <i class="ti ti-user"></i>
                             <span>My Profile</span>
                         </a></li>
                         @endif
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="#" onclick="logout(); show();">
-                            <i class="bi bi-box-arrow-right text-danger"></i>
+                            <i class="ti ti-logout text-danger"></i>
                             <span>Log Out</span>
                         </a></li>
                     </ul>
@@ -2010,14 +2010,14 @@
                         <div class="input-group mt-3">
                             <input type="text" class="form-control" id="loyaltyManualCode" placeholder="Enter loyalty code manually">
                             <button type="button" class="btn btn-danger" id="loyaltyManualScanBtn">
-                                <i class="bi bi-search"></i>
+                                <i class="ti ti-search"></i>
                             </button>
                         </div>
                     </div>
                     <div class="modal-footer border-0 pt-0">
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
                         <a href="#" class="btn btn-success d-none" id="loyaltyViewClientBtn">
-                            <i class="bi bi-bag-plus-fill"></i> <span id="loyaltyOrderLabel">Guest Order</span>
+                            <i class="ti ti-shopping-cart-plus"></i> <span id="loyaltyOrderLabel">Guest Order</span>
                         </a>
                     </div>
                 </div>
