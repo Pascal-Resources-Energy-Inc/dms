@@ -394,7 +394,7 @@
                                 @endif --}}
                             </td>
                             <td>{{ strtoupper($voucher->description ?? 'NO DESCRIPTION') }}</td>
-                            <td>{{ implode(', ', $voucher->area_names) }}</td>
+                            <td>{{ $voucher->areaNamesLabel() }}</td>
                             <td>
                                 <div class="voucher-discount">
                                     @if($voucher->discount_type === 'percent')

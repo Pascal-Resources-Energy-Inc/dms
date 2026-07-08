@@ -1,8 +1,14 @@
 @php
     $isEdit = (bool) $voucher;
     $selectedDistributor = old('name', $voucher->name ?? '');
-    $selectedAreaNames = old('area_names', $voucher->area_names ?? []);
-    $selectedAreaNames = is_array($selectedAreaNames) ? array_values($selectedAreaNames) : [];
+    $selectedAreaNames = old('area_names', $voucher ? $voucher->areaNames()->all() : []);
+    if (is_string($selectedAreaNames)) {
+        $decodedAreaNames = json_decode($selectedAreaNames, true);
+        $selectedAreaNames = is_array($decodedAreaNames) ? $decodedAreaNames : explode(',', $selectedAreaNames);
+    }
+    $selectedAreaNames = collect($selectedAreaNames)->map(function ($areaName) {
+        return trim((string) $areaName);
+    })->filter()->values()->all();
     $discountType = old('discount_type', $voucher->discount_type ?? 'fixed');
     $isActive = old('is_active', $voucher->is_active ?? true);
 @endphp

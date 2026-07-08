@@ -327,12 +327,13 @@
 
     $isSuperAdminDashboard = auth()->user()->role === 'Admin' && blank(auth()->user()->warehouse);
     $isWarehouseDashboard = auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse) && filled($warehouseDashboard);
+    $showStandardDashboard = !$isWarehouseDashboard;
 
     $adminDashboardTabs = [
       ['key' => 'regular', 'label' => 'Regular', 'database' => 'dms_prei', 'icon' => 'ti ti-building-store', 'class' => 'regular'],
       ['key' => 'project_rise', 'label' => 'Project Rise', 'database' => 'admin_crms', 'icon' => 'ti ti-trending-up', 'class' => 'rise'],
       ['key' => 'project_genesis', 'label' => 'Project Genesis', 'database' => 'admin_crms2', 'icon' => 'ti ti-sparkles', 'class' => 'genesis'],
-
+    ];
   @endphp
 
   @if(auth()->user()->role == "Admin")
@@ -641,69 +642,7 @@
     </section>
   @endif
   
-  @if(!$isSuperAdminDashboard && !$isWarehouseDashboard)
-  <section class="welcome">
-    <div class="row">
-    <div class="col-lg-12 col-xl-12">
-        <div class="row custom-width-card">
-            <div class="col-sm-3 d-flex align-items-stretch">
-                <div class="card stats-card w-100 border-0">
-                    <div class="icon-circle">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-currency-peso">
-                          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                          <path d="M8 19v-14h3.5a4.5 4.5 0 1 1 0 9h-3.5" />
-                          <path d="M18 8h-12" />
-                          <path d="M18 11h-12" />
-                        </svg>
-                    </div>
-                    <div class="stats-number">
-                        ₱{{ number_format($total_sales, 2) }}
-                    </div>
-                    <div class="stats-label">Total Sales</div>
-                </div>
-            </div>
-
-            <div class="col-sm-3 d-flex align-items-stretch">
-                <div class="card stats-card w-100 border-0">
-                    <div class="icon-circle">
-                        <i class="ti ti-shopping-cart"></i>
-                    </div>
-                    <div class="stats-number">
-                        {{number_format($transactions_details->sum('qty'),0)}} 
-                    </div>
-                    <div class="stats-label">Products Sold</div>
-                </div>
-            </div>
-
-            <div class="col-sm-3 d-flex align-items-stretch">
-                <div class="card stats-card w-100 border-0">
-                    <div class="icon-circle">
-                        <i class="ti ti-map-pin"></i>
-                    </div>
-                    <div class="stats-number">
-                        {{count($dealers)}} 
-                    </div>
-                    <div class="stats-label">Dealer</div>
-                </div>
-            </div>
-
-            <div class="col-sm-3 d-flex align-items-stretch">
-                <div class="card stats-card w-100 border-0">
-                    <div class="icon-circle">
-                        <i class="ti ti-users"></i>
-                    </div>
-                    <div class="stats-number">
-                        {{$customers->count()}} 
-                    </div>
-                    <div class="stats-label">Customers</div>
-                </div>
-            </div>
-        </div>
-    </div>
-  </div>
-  </section>
-  @endif
-  @if(!$isSuperAdminDashboard && !$isWarehouseDashboard)
+@if($showStandardDashboard)
   <section class="dashboard-section">
     <div class="row">
       
@@ -1637,7 +1576,7 @@
 
     </div>
   </section>
-  @endif
+@endif
 @endsection
 @section('javascript')
 <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
@@ -1960,8 +1899,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<div class="sa-pulse-copy">' +
                     '<strong>' + escapeHtml(row.customer) + ' &middot; ' + escapeHtml(row.item) + '</strong>' +
                     '<small>' + escapeHtml(row.dealer) + ' &middot; ' + escapeHtml(row.time || 'just now') + '</small>' +
-                    '<strong>' + escapeHtml(row.customer) + ' - ' + escapeHtml(row.item) + '</strong>' +
-                    '<small>' + escapeHtml(row.dealer) + ' - ' + escapeHtml(row.time || 'just now') + '</small>' +
+                    // '<strong>' + escapeHtml(row.customer) + ' - ' + escapeHtml(row.item) + '</strong>' +
+                    // '<small>' + escapeHtml(row.dealer) + ' - ' + escapeHtml(row.time || 'just now') + '</small>' +
                 '</div>' +
                 '<span class="sa-pulse-amount">' + escapeHtml(peso.format(row.amount || 0)) + '</span>' +
             '</div>';
@@ -2835,8 +2774,6 @@ function updateTableEntries() {
 <script>
 // Donut Chart for Top 10 Dealers
 $(document).ready(function() {
-  if (@json($isSuperAdminDashboard)) return;
-
   const dealersData = @json($dealers);
   const dealerNames = dealersData.slice(0, 10).map(dealer => dealer.dealer?.name || 'Unknown');
   const dealerPoints = dealersData.slice(0, 10).map(dealer => parseFloat(dealer.total_points));
@@ -2899,8 +2836,6 @@ $(document).ready(function() {
 <script>
 // Donut Chart for Top 10 Customers
 $(document).ready(function() {
-  if (@json($isSuperAdminDashboard)) return;
-
   const customersData = @json($top_customers ?? []);
   const customerNames = customersData.slice(0, 10).map(customer => customer.customer?.name || 'Unknown');
   const customerPoints = customersData.slice(0, 10).map(customer => parseFloat(customer.total_points));
@@ -2969,7 +2904,7 @@ const initialViewType = @json($view_type);
 
 // Initialize chart on page load
 $(function () {
-  if (!@json($isSuperAdminDashboard)) {
+  if (document.querySelector('#chart-bar-stacked')) {
     renderChart(initialCategories, initialQty, {{ $selected_year }}, {{ $selected_month ?? 'null' }}, initialViewType);
   }
   

@@ -47,7 +47,7 @@ class VouchersExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
         return [
             $voucher->code,
             $voucher->name,
-            collect($voucher->area_names ?? [])->implode(', '),
+            $voucher->areaNamesLabel(),
             $voucher->description,
             ucfirst($voucher->discount_type),
             (float) $voucher->discount_value,

@@ -55,6 +55,60 @@
         font-size: 13px;
         font-weight: 600;
     }
+
+    .store-picture-card {
+        overflow: hidden;
+        border: 1px solid #e7ebf0;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .store-picture-frame {
+        min-height: 240px;
+        background: #f8fafc;
+    }
+
+    .store-picture-frame img {
+        display: block;
+        width: 100%;
+        height: 260px;
+        object-fit: cover;
+    }
+
+    .store-picture-empty {
+        min-height: 240px;
+        display: grid;
+        place-items: center;
+        padding: 26px;
+        color: #98a2b3;
+        text-align: center;
+    }
+
+    .store-picture-empty i {
+        display: block;
+        margin-bottom: 8px;
+        color: #5BC2E7;
+        font-size: 42px;
+    }
+
+    .store-picture-caption {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border-top: 1px solid #eef1f5;
+    }
+
+    .store-picture-caption strong {
+        display: block;
+        color: #344054;
+        font-size: 13px;
+    }
+
+    .store-picture-caption small {
+        color: #98a2b3;
+    }
 </style>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 @endsection
@@ -129,6 +183,10 @@
                             <div class="info-value">{{ strtoupper($ad->business_type ?? '-') }}</div>
                         </div>
                         <div class="col-md-6">
+                            <div class="info-label">TIN</div>
+                            <div class="info-value">{{ strtoupper($ad->tin ?? '-') }}</div>
+                        </div>
+                        <div class="col-md-6">
                             <div class="info-label">Region</div>
                             <div class="info-value">{{ strtoupper($ad->location_region ?? '-') }}</div>
                         </div>
@@ -143,6 +201,35 @@
                         <div class="col-md-6">
                             <div class="info-label">Longitude</div>
                             <div class="info-value">{{ $ad->longitude ?? '-' }}</div>
+                        </div>
+                    </div>
+
+                    <div class="store-picture-card mt-2">
+                        <div class="store-picture-frame">
+                            @if(!empty($ad->store_picture))
+                                <a href="{{ asset($ad->store_picture) }}" target="_blank" rel="noopener noreferrer">
+                                    <img src="{{ asset($ad->store_picture) }}" alt="{{ $ad->business_name ?: 'Store' }} picture">
+                                </a>
+                            @else
+                                <div class="store-picture-empty">
+                                    <div>
+                                        <i class="bi bi-shop"></i>
+                                        <strong>No store picture uploaded</strong>
+                                        <div class="small">Add one from the edit partner modal.</div>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="store-picture-caption">
+                            <div>
+                                <strong>Store Picture</strong>
+                                <small>{{ $ad->business_name ?: 'Partner storefront' }}</small>
+                            </div>
+                            @if(!empty($ad->store_picture))
+                                <a href="{{ asset($ad->store_picture) }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-arrows-fullscreen"></i> Open
+                                </a>
+                            @endif
                         </div>
                     </div>
                 </div>

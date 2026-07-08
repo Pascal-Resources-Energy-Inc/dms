@@ -30,6 +30,8 @@ class AreaDistributor extends Model implements Auditable
         'zipcode',
         'business_name',
         'business_type',
+        'tin',
+        'store_picture',
         'latitude',
         'longitude',
         'center_id',

@@ -68,6 +68,8 @@ class UserController extends Controller
             'contact_number' => 'nullable|regex:/^09[0-9]{9}$/',
             'type' => 'nullable|array',
             'type.*' => 'in:Project Rise,Project Genesis,Regular',
+            // 'tin' => 'nullable|string|max:50',
+            // 'store_picture' => 'nullable|image|max:2048',
         ]);
 
        if (!$isAdmin && trim((string) $request->contact_number) === '' && trim((string) $request->facebook) === '') {
@@ -183,6 +185,14 @@ class UserController extends Controller
             $attachmentPath = 'uploads/attachments/' . $filename;
         }
 
+        $storePicturePath = null;
+        if ($request->hasFile('store_picture')) {
+            $file = $request->file('store_picture');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('uploads/store_pictures'), $filename);
+            $storePicturePath = 'uploads/store_pictures/' . $filename;
+        }
+
         $areaDistributor = new AreaDistributor();
         $areaDistributor->user_id = $user->id;
         $areaDistributor->ad_reference = $ad_reference;
@@ -205,6 +215,9 @@ class UserController extends Controller
 
         $areaDistributor->business_name = $request->business_name;
         $areaDistributor->business_type = $request->business_type;
+        if (Schema::hasColumn('area_distributors', 'tin')) {
+            $areaDistributor->tin = trim((string) $request->tin) ?: null;
+        }
         $areaDistributor->withholding_tax = $request->has('withholding_tax') ? 1 : 0;
 
         $areaDistributor->latitude = $request->latitude;
@@ -212,6 +225,10 @@ class UserController extends Controller
 
         if ($attachmentPath) {
             $areaDistributor->attachment = $attachmentPath;
+        }
+
+        if ($storePicturePath && Schema::hasColumn('area_distributors', 'store_picture')) {
+            $areaDistributor->store_picture = $storePicturePath;
         }
 
         if ($imagePath) {

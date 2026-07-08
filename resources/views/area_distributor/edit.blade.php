@@ -235,6 +235,49 @@
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
+                            <label class="form-label" for="tin_{{ $ad->id }}">TIN</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="tin_{{ $ad->id }}"
+                                name="tin"
+                                placeholder="Enter TIN (Optional)"
+                                value="{{ old('tin', $ad->tin) }}"
+                                maxlength="50"
+                            >
+                            <small class="text-muted">Optional. Tax identification number if applicable.</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="store_picture_{{ $ad->id }}">Store Picture</label>
+                            <div class="ad-store-picture-editor">
+                                <div class="ad-store-picture-preview">
+                                    @if($ad->store_picture)
+                                        <img src="{{ asset($ad->store_picture) }}" alt="{{ $ad->business_name ?: 'Store' }} picture">
+                                    @else
+                                        <div class="ad-store-picture-empty">
+                                            <i class="ti ti-building-store"></i>
+                                            <span>No store picture</span>
+                                        </div>
+                                    @endif
+                                </div>
+                                <div class="ad-store-picture-actions">
+                                    <input
+                                        type="file"
+                                        class="form-control"
+                                        id="store_picture_{{ $ad->id }}"
+                                        name="store_picture"
+                                        accept="image/*"
+                                    >
+                                    <small class="text-muted d-block mt-1">Optional. Upload JPG or PNG up to 2MB.</small>
+                                    @if($ad->store_picture)
+                                        <a href="{{ asset($ad->store_picture) }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary mt-2">
+                                            <i class="bi bi-image"></i> View current store picture
+                                        </a>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label class="form-label" for="attachment-{{ $ad->id }}">Attachment</label>
                             <input type="file" class="form-control" id="attachment-{{ $ad->id }}" name="attachment">
                             @if($ad->attachment)
@@ -553,6 +596,47 @@
         color: #1f2937;
         margin-bottom: 12px;
     }
+    #edit_area_distributor-{{ $ad->id }} .ad-store-picture-editor {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 12px;
+        align-items: stretch;
+        border: 1px solid #d9e2ec;
+        border-radius: 8px;
+        background: #fff;
+        padding: 10px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-store-picture-preview {
+        min-height: 112px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #f8fafc;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-store-picture-preview img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        min-height: 112px;
+        object-fit: cover;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-store-picture-empty {
+        display: grid;
+        min-height: 112px;
+        place-items: center;
+        gap: 4px;
+        color: #94a3b8;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-store-picture-empty i {
+        font-size: 28px;
+    }
+    #edit_area_distributor-{{ $ad->id }} .ad-store-picture-actions {
+        min-width: 0;
+        align-self: center;
+    }
     #edit_area_distributor-{{ $ad->id }} .ad-project-list {
         display: grid;
         gap: 8px;
@@ -783,6 +867,9 @@
         padding: 14px 22px;
     }
     @media (max-width: 767.98px) {
+        #edit_area_distributor-{{ $ad->id }} .ad-store-picture-editor {
+            grid-template-columns: 1fr;
+        }
         #edit_area_distributor-{{ $ad->id }} .modal-header,
         #edit_area_distributor-{{ $ad->id }} .modal-body,
         #edit_area_distributor-{{ $ad->id }} .modal-footer {
