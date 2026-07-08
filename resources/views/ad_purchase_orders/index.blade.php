@@ -117,6 +117,10 @@
     .partial-items-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
     .partial-received-card { border: 1px solid #f3d18b; border-radius: 8px; padding: 12px; background: #fffbeb; }
     .partial-received-copy { margin: 0 0 10px; color: #92400e; font-size: 12px; font-weight: 700; }
+    .partial-confirm-callout { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; margin-bottom: 10px; padding: 10px 12px; border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; color: #1e40af; }
+    .partial-confirm-callout i { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; background: #dbeafe; color: #1d4ed8; font-size: 16px; }
+    .partial-confirm-callout strong { display: block; color: #1e3a8a; font-size: 13px; font-weight: 900; }
+    .partial-confirm-callout span { display: block; margin-top: 2px; font-size: 12px; font-weight: 700; line-height: 1.35; }
     .partial-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
     .partial-summary-item { padding: 9px 10px; border: 1px solid #fde68a; border-radius: 8px; background: #fff; }
     .partial-summary-item span { display: block; color: #92400e; font-size: 10px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
@@ -275,7 +279,7 @@
         @if($showCreateButton)
             <div class="adpo-actions">
                 <a href="{{ route('ad-purchase-orders.create') }}" class="btn btn-danger">
-                    <i class="bi bi-plus-circle"></i> New ADPO
+                    <i class="ti ti-circle-plus"></i> New ADPO
                 </a>
             </div>
         @endif
@@ -290,33 +294,33 @@
 
     <div class="adpo-summary">
         <div class="adpo-tile is-total">
-            <div class="adpo-tile-icon"><i class="bi bi-receipt"></i></div>
+            <div class="adpo-tile-icon"><i class="ti ti-receipt"></i></div>
             <div><span>Total Orders</span><strong>{{ number_format($summary['total']) }}</strong></div>
         </div>
         @if($isWarehouseTaskView)
             <div class="adpo-tile is-delivery">
-                <div class="adpo-tile-icon pending"><i class="bi bi-truck"></i></div>
+                <div class="adpo-tile-icon pending"><i class="ti ti-truck-delivery"></i></div>
                 <div><span>For Delivery</span><strong>{{ number_format($summary['for_delivery'] ?? 0) }}</strong></div>
             </div>
             <div class="adpo-tile is-verification">
-                <div class="adpo-tile-icon amount"><i class="bi bi-shield-check"></i></div>
+                <div class="adpo-tile-icon amount"><i class="ti ti-shield-check"></i></div>
                 <div><span>SO Created</span><strong>{{ number_format($summary['so_created'] ?? 0) }}</strong></div>
             </div>
             <div class="adpo-tile is-completed">
-                <div class="adpo-tile-icon completed"><i class="bi bi-check2-circle"></i></div>
+                <div class="adpo-tile-icon completed"><i class="ti ti-circle-check"></i></div>
                 <div><span>Completed</span><strong>{{ number_format($summary['completed']) }}</strong></div>
             </div>
         @else
             <div class="adpo-tile is-pending">
-                <div class="adpo-tile-icon pending"><i class="bi bi-hourglass-split"></i></div>
+                <div class="adpo-tile-icon pending"><i class="ti ti-hourglass"></i></div>
                 <div><span>Pending</span><strong>{{ number_format($summary['pending']) }}</strong></div>
             </div>
             <div class="adpo-tile is-completed">
-                <div class="adpo-tile-icon completed"><i class="bi bi-check2-circle"></i></div>
+                <div class="adpo-tile-icon completed"><i class="ti ti-circle-check"></i></div>
                 <div><span>Completed</span><strong>{{ number_format($summary['completed']) }}</strong></div>
             </div>
             <div class="adpo-tile is-amount">
-                <div class="adpo-tile-icon amount"><i class="bi bi-cash-stack"></i></div>
+                <div class="adpo-tile-icon amount"><i class="ti ti-cash"></i></div>
                 <div><span>Total Amount</span><strong>PHP {{ number_format($summary['amount'], 2) }}</strong></div>
             </div>
         @endif
@@ -346,7 +350,7 @@
                 </div>
                 <form method="GET" class="adpo-filters">
                     <div class="adpo-search">
-                        <i class="bi bi-search"></i>
+                        <i class="ti ti-search"></i>
                         <input type="search" name="search" value="{{ request('search') }}" class="form-control form-control-sm" placeholder="Search PO, business, territory">
                     </div>
                     <select name="status" class="form-select form-select-sm">
@@ -373,14 +377,14 @@
                     </div>
                     <div class="adpo-filter-actions">
                         <button class="btn btn-sm btn-outline-secondary adpo-filter-btn" type="submit">
-                            <i class="bi bi-funnel"></i> Filter
+                            <i class="ti ti-filter"></i> Filter
                         </button>
                         <a href="{{ $exportRoute }}" class="btn btn-sm btn-outline-success adpo-filter-btn">
-                            <i class="bi bi-file-earmark-excel"></i> Excel
+                            <i class="ti ti-file-spreadsheet"></i> Excel
                         </a>
                         @if($hasFilters)
                             <a href="{{ $clearRoute }}" class="btn btn-sm btn-outline-secondary adpo-filter-btn">
-                                <i class="bi bi-x-circle"></i> Clear
+                                <i class="ti ti-circle-x"></i> Clear
                             </a>
                         @endif
                     </div>
@@ -418,33 +422,33 @@
                                         </div>
                                         <div class="task-business">{{ $order->business_name ?: 'Area Distributor' }}</div>
                                         <div class="task-ad">
-                                            <i class="bi bi-person-badge"></i>
+                                            <i class="ti ti-id-badge"></i>
                                             <span>{{ optional($order->ad)->name ?: optional($order->ad)->business_name ?: 'N/A' }}</span>
                                         </div>
                                         <div class="task-address" title="{{ $order->delivery_address ?: $order->authorized_territory ?: 'No delivery address' }}">
-                                            <i class="bi bi-geo-alt"></i>
+                                            <i class="ti ti-map-pin"></i>
                                             <span>{{ $order->delivery_address ?: $order->authorized_territory ?: 'No delivery address' }}</span>
                                         </div>
                                         <div class="task-meta">
                                             <div class="task-metric">
-                                                <span><i class="bi bi-box-seam"></i> Quantity</span>
+                                                <span><i class="ti ti-box-seam"></i> Quantity</span>
                                                 <strong>{{ number_format($order->total_qty) }} item(s)</strong>
                                             </div>
                                             <div class="task-metric">
-                                                <span><i class="bi bi-cash-stack"></i> Amount</span>
+                                                <span><i class="ti ti-cash"></i> Amount</span>
                                                 <strong>PHP {{ number_format($order->total_amount, 2) }}</strong>
                                             </div>
                                         </div>
                                         <div class="task-actions">
                                             <div class="task-payment">
-                                                <i class="bi bi-credit-card-2-front"></i>
+                                                <i class="ti ti-credit-card"></i>
                                                 {{ strtoupper(ucwords(str_replace('_', ' ', $order->payment_method))) }}
                                                 @if($order->bank_name)
                                                     <div class="small text-muted">{{ strtoupper($order->bank_name) }}</div>
                                                 @endif
                                             </div>
                                             <a href="{{ route($viewRouteName, $order->id) }}" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-eye"></i> View
+                                                <i class="ti ti-eye"></i> View
                                             </a>
                                         </div>
                                     </div>
@@ -533,11 +537,11 @@
                                                 data-si-number="{{ $order->si_number }}"
                                                 data-remarks="{{ $order->remarks }}"
                                                 data-total="PHP {{ number_format($order->total_amount, 2) }}">
-                                                <i class="bi bi-shield-check"></i> Status
+                                                <i class="ti ti-shield-check"></i> {{ auth()->user()->role === 'Area Distributor' && $order->status === 'Partial Received' ? 'Confirm Partial' : 'Status' }}
                                             </button>
                                         @endif
                                         <a href="{{ route($viewRouteName, $order->id) }}" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye"></i> View
+                                            <i class="ti ti-eye"></i> View
                                         </a>
                                     </div>
                                 </td>
@@ -546,7 +550,7 @@
                             <tr>
                                 <td colspan="7">
                                     <div class="empty-state">
-                                        <i class="bi bi-inbox"></i>
+                                        <i class="ti ti-inbox"></i>
                                         <h6>{{ $hasFilters ? 'No matching purchase orders' : 'No AD purchase orders yet' }}</h6>
                                         <p>{{ $hasFilters ? 'Try clearing the filters or searching another keyword.' : 'Create a new ADPO to start tracking submissions.' }}</p>
                                     </div>
@@ -571,7 +575,7 @@
                     <div class="modal-header">
                         <div>
                             <h5 class="modal-title" id="adpoStatusModalLabel">Verify DPO Status</h5>
-                            <div class="text-muted small">Confirm warehouse movement before saving.</div>
+                            <div class="text-muted small" id="adpoStatusModalSubtitle">Confirm warehouse movement before saving.</div>
                         </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
@@ -610,7 +614,7 @@
                             <label class="form-label small fw-bold text-uppercase text-muted">Proof of Payment</label>
                             <div class="d-none" id="statusCurrentProof">
                                 <a href="#" id="statusCurrentProofLink" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">
-                                    <i class="bi bi-paperclip"></i> View Current Attachment
+                                    <i class="ti ti-paperclip"></i> View Current Attachment
                                 </a>
                             </div>
                             <div class="form-text d-none" id="statusNoCurrentProof">No proof of payment attachment is available.</div>
@@ -659,6 +663,15 @@
                                 <p class="partial-received-copy">
                                     {{ auth()->user()->role === 'Area Distributor' ? 'Verify the warehouse partial delivery and confirm only the quantity actually received.' : 'Enter only the actual received quantity. Ordered quantities and order totals will not be changed.' }}
                                 </p>
+                                @if(auth()->user()->role === 'Area Distributor')
+                                    <div class="partial-confirm-callout">
+                                        <i class="ti ti-clipboard-check"></i>
+                                        <div>
+                                            <strong>AD receiving confirmation</strong>
+                                            <span>Review the DR rows below. Leave any item at 0 if it was not actually received, then confirm the partial delivery before saving.</span>
+                                        </div>
+                                    </div>
+                                @endif
                                 <div class="partial-summary">
                                     <div class="partial-summary-item">
                                         <span>Ordered</span>
@@ -689,7 +702,7 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-sm btn-primary">
-                            <i class="bi bi-check2-circle"></i> Save Status
+                            <i class="ti ti-circle-check"></i> Save Status
                         </button>
                     </div>
                 </form>
@@ -1101,11 +1114,25 @@
                         currentItems = orderItemsById[button.dataset.orderId] || [];
                         renderPartialItems(currentItems);
                         const requestedStatus = button.dataset.currentStatus || '';
+                        const modalTitle = document.getElementById('adpoStatusModalLabel');
+                        const modalSubtitle = document.getElementById('adpoStatusModalSubtitle');
                         const hasNoReceivingProducts = currentItems.length === 0;
                         const canCompleteReceiving = button.dataset.canCompleteReceiving === '1';
                         const cancelledOption = Array.from(statusSelect.options).find(function (option) {
                             return option.value === 'Cancelled';
                         });
+
+                        if (modalTitle) {
+                            modalTitle.textContent = requestedStatus === 'Partial Received'
+                                ? 'Confirm Partial Delivery'
+                                : 'Verify DPO Status';
+                        }
+
+                        if (modalSubtitle) {
+                            modalSubtitle.textContent = requestedStatus === 'Partial Received'
+                                ? 'Review each DR quantity received by the AD before saving.'
+                                : 'Confirm warehouse movement before saving.';
+                        }
 
                         if (cancelledOption) {
                             const canCancel = ['Pending', 'SO Created'].includes(requestedStatus);
@@ -1259,13 +1286,24 @@
                             title: willComplete ? 'Complete this DPO?' : 'Confirm partial received?',
                             html: `
                                 <div style="text-align:left">
-                                    <p class="mb-2">${willComplete
+                                    <div style="display:grid;grid-template-columns:38px minmax(0,1fr);gap:10px;align-items:start;margin-bottom:12px;padding:10px 12px;border:1px solid ${willComplete ? '#bbf7d0' : '#bfdbfe'};border-radius:8px;background:${willComplete ? '#f0fdf4' : '#eff6ff'};">
+                                        <div style="width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#fff;color:${willComplete ? '#15803d' : '#1d4ed8'};font-size:18px;">
+                                            <i class="bi ${willComplete ? 'bi-check2-circle' : 'bi-clipboard-check'}"></i>
+                                        </div>
+                                        <div>
+                                            <strong style="display:block;color:#101828;font-size:13px;">${willComplete ? 'All receiving will be completed' : 'AD confirmation required'}</strong>
+                                            <span style="display:block;margin-top:2px;color:#475467;font-size:12px;line-height:1.4;">${willComplete
+                                                ? 'All products are confirmed received. Saving will mark this DPO as Completed.'
+                                                : 'Confirm only the quantities actually received from the warehouse delivery.'}</span>
+                                        </div>
+                                    </div>
+                                    <p class="mb-2" style="color:#475467;font-size:13px;">${willComplete
                                         ? 'All products are confirmed received. Saving will mark this DPO as Completed.'
                                         : 'Please review the AD confirmed quantities before saving. Confirmed quantity cannot be higher than For Receiving.'}</p>
                                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
-                                        <div style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;"><small>Ordered</small><br><strong>${confirmation.ordered.toLocaleString()}</strong></div>
-                                        <div style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;"><small>Received</small><br><strong>${confirmation.received.toLocaleString()}</strong></div>
-                                        <div style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;"><small>Pending</small><br><strong>${confirmation.pending.toLocaleString()}</strong></div>
+                                        <div style="padding:9px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;"><small style="color:#667085;font-weight:800;text-transform:uppercase;">Ordered</small><br><strong style="font-size:18px;color:#101828;">${confirmation.ordered.toLocaleString()}</strong></div>
+                                        <div style="padding:9px 10px;border:1px solid #bbf7d0;border-radius:8px;background:#f0fdf4;"><small style="color:#15803d;font-weight:800;text-transform:uppercase;">Confirmed</small><br><strong style="font-size:18px;color:#101828;">${confirmation.received.toLocaleString()}</strong></div>
+                                        <div style="padding:9px 10px;border:1px solid ${confirmation.pending > 0 ? '#fde68a' : '#bbf7d0'};border-radius:8px;background:${confirmation.pending > 0 ? '#fffbeb' : '#f0fdf4'};"><small style="color:${confirmation.pending > 0 ? '#92400e' : '#15803d'};font-weight:800;text-transform:uppercase;">Pending</small><br><strong style="font-size:18px;color:#101828;">${confirmation.pending.toLocaleString()}</strong></div>
                                     </div>
                                     <div style="max-height:220px;overflow:auto;border:1px solid #eef2f7;border-radius:8px;">
                                         <table style="width:100%;font-size:12px;border-collapse:collapse;">
@@ -1279,7 +1317,7 @@
                                                     <th style="padding:7px 8px;text-align:center;background:#f8fafc;">Pending</th>
                                                 </tr>
                                             </thead>
-                                            <tbody>${rowsHtml}</tbody>
+                                            <tbody>${rowsHtml || '<tr><td colspan="6" style="padding:12px;text-align:center;color:#667085;">No received quantity selected.</td></tr>'}</tbody>
                                         </table>
                                     </div>
                                 </div>

@@ -37,6 +37,11 @@ class HomeController extends Controller
      */
     public function index(Request $request)
     {
+        $warehouseDashboard = null;
+        if (auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse)) {
+            $warehouseDashboard = $this->buildWarehouseDashboard(auth()->user());
+        }
+
         $dealer = "";
         $customer = "";
         $threeDaysAgo = Carbon::now()->subDays(7)->toDateString();
@@ -176,9 +181,134 @@ class HomeController extends Controller
                 'customer_available_points' => $customerAvailablePoints ?? 0,
                 'dealers_inactive' => $dealers_inactive,
                 'map_data' => $mapData,
-                'pendingOrdersCount' => $pendingOrdersCount
+                'pendingOrdersCount' => $pendingOrdersCount,
+                'warehouseDashboard' => $warehouseDashboard
             )
         );
+    }
+
+    private function buildWarehouseDashboard(User $user)
+    {
+        $warehouse = strtolower((string) $user->warehouse);
+        $orders = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'ad'])
+            ->orderByDesc('id')
+            ->get()
+            ->filter(function ($order) use ($warehouse) {
+                return $this->orderBelongsToWarehouse($order, $warehouse);
+            })
+            ->values();
+
+        $activeStatuses = ['Pending', 'SO Created', 'For Delivery', 'Partial Received'];
+        $pendingConfirmationReceipts = $orders
+            ->flatMap(function ($order) {
+                return $order->partialReceipts->map(function ($receipt) use ($order) {
+                    $receipt->setRelation('purchaseOrder', $order);
+                    return $receipt;
+                });
+            })
+            ->filter(function ($receipt) {
+                return (int) $receipt->received_qty > (int) $receipt->confirmed_qty;
+            })
+            ->values();
+
+        $statusCounts = collect(['Pending', 'SO Created', 'For Delivery', 'Partial Received', 'Completed', 'Cancelled'])
+            ->mapWithKeys(function ($status) use ($orders) {
+                return [$status => $orders->where('status', $status)->count()];
+            });
+
+        $sevenDaysAgo = Carbon::today()->subDays(6);
+        $dailyShipments = collect(range(0, 6))->map(function ($offset) use ($sevenDaysAgo, $orders) {
+            $date = $sevenDaysAgo->copy()->addDays($offset);
+            $dayOrders = $orders->filter(function ($order) use ($date) {
+                return $order->delivery_date && $order->delivery_date->isSameDay($date);
+            });
+
+            return [
+                'label' => $date->format('M d'),
+                'orders' => $dayOrders->count(),
+                'qty' => (int) $dayOrders->sum('total_qty'),
+            ];
+        })->values();
+
+        return [
+            'warehouse' => $warehouse,
+            'warehouse_label' => ucwords(str_replace('_', ' ', $warehouse)),
+            'orders_url' => $warehouse === 'guinobatan'
+                ? route('warehouse-ad-purchase-orders.region-v')
+                : route('ad-purchase-orders.index'),
+            'report_url' => route('dpo'),
+            'inventory_url' => route('isl'),
+            'generated_at' => now()->format('M d, Y h:i A'),
+            'summary' => [
+                'total_orders' => $orders->count(),
+                'active_orders' => $orders->whereIn('status', $activeStatuses)->count(),
+                'pending_orders' => $statusCounts->get('Pending', 0),
+                'for_delivery' => $statusCounts->get('For Delivery', 0),
+                'partial_received' => $statusCounts->get('Partial Received', 0),
+                'pending_confirmation' => $pendingConfirmationReceipts->count(),
+                'completed_month' => $orders->filter(function ($order) {
+                    return $order->status === 'Completed'
+                        && $order->updated_at
+                        && $order->updated_at->greaterThanOrEqualTo(Carbon::now()->startOfMonth());
+                })->count(),
+                'total_qty' => (int) $orders->sum('total_qty'),
+            ],
+            'status_counts' => $statusCounts,
+            'daily_shipments' => $dailyShipments,
+            'recent_orders' => $orders->take(8)->values(),
+            'pending_confirmation_receipts' => $pendingConfirmationReceipts->take(8)->values(),
+        ];
+    }
+
+    private function orderBelongsToWarehouse(AdPurchaseOrder $order, $warehouse)
+    {
+        if ($warehouse === 'guinobatan') {
+            return $order->shipping_type === 'pickup_guinobatan'
+                || $this->isRegionVText(
+                    $order->delivery_address,
+                    optional($order->ad)->delivery_address,
+                    optional($order->ad)->location_region
+                );
+        }
+
+        if ($warehouse === 'lubao') {
+            return $order->shipping_type === 'pickup_lubao'
+                || (
+                    $order->shipping_type === 'delivered'
+                    && !$this->isRegionVText(
+                        $order->delivery_address,
+                        optional($order->ad)->delivery_address,
+                        optional($order->ad)->location_region
+                    )
+                );
+        }
+
+        return true;
+    }
+
+    private function isRegionVText(...$values)
+    {
+        $regionText = strtolower(implode(' ', array_filter($values)));
+
+        foreach ([
+            'region v',
+            'region 5',
+            'region-5',
+            'region-v',
+            'bicol',
+            'albay',
+            'camarines norte',
+            'camarines sur',
+            'catanduanes',
+            'masbate',
+            'sorsogon',
+        ] as $needle) {
+            if (strpos($regionText, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function liveOverview()
