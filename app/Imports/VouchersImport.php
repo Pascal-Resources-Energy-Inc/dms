@@ -87,14 +87,15 @@ class VouchersImport implements ToCollection, WithHeadingRow
         $data = [
             'code' => strtoupper(trim((string) $this->rowValue($row, ['code'], 0))),
             'name' => trim((string) $this->rowValue($row, ['name', 'ad_name'], 1)),
-            'description' => $this->blankToNull($this->rowValue($row, ['description'], 2)),
-            'discount_type' => $this->normalizeDiscountType($this->rowValue($row, ['discount_type', 'discount type'], 3)),
-            'discount_value' => $this->blankToNull($this->rowValue($row, ['discount_value', 'discount value'], 4)),
-            'minimum_order_amount' => $this->blankToNull($this->rowValue($row, ['minimum_order_amount', 'minimum order amount'], 5)),
-            'usage_limit' => $this->blankToNull($this->rowValue($row, ['usage_limit', 'usage limit'], 6)),
-            'starts_at' => $this->normalizeDate($this->rowValue($row, ['starts_at', 'start_date', 'start date'], 7)),
-            'expires_at' => $this->normalizeDate($this->rowValue($row, ['expires_at', 'expiry_date', 'expiry date'], 8)),
-            'is_active' => $this->normalizeBoolean($this->rowValue($row, ['is_active', 'active'], 9)),
+            'area_names' => $this->blankToNull($this->rowValue($row, ['areas', 'area_names'], 2)),
+            'description' => $this->blankToNull($this->rowValue($row, ['description'], 3)),
+            'discount_type' => $this->normalizeDiscountType($this->rowValue($row, ['discount_type', 'discount type'], 4)),
+            'discount_value' => $this->blankToNull($this->rowValue($row, ['discount_value', 'discount value'], 5)),
+            'minimum_order_amount' => $this->blankToNull($this->rowValue($row, ['minimum_order_amount', 'minimum order amount'], 6)),
+            'usage_limit' => $this->blankToNull($this->rowValue($row, ['usage_limit', 'usage limit'], 7)),
+            'starts_at' => $this->normalizeDate($this->rowValue($row, ['starts_at', 'start_date', 'start date'], 8)),
+            'expires_at' => $this->normalizeDate($this->rowValue($row, ['expires_at', 'expiry_date', 'expiry date'], 9)),
+            'is_active' => $this->normalizeBoolean($this->rowValue($row, ['is_active', 'active'], 10)),
         ];
 
         $data['minimum_order_amount'] = $data['minimum_order_amount'] === null ? 0 : $data['minimum_order_amount'];

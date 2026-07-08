@@ -23,6 +23,7 @@ class VoucherImportTemplateExport implements FromArray, ShouldAutoSize, WithHead
             // 'is_active',
             'Code',
             'Name',
+            'Areas',
             'Description',
             'Discount Type (fixed or percent)',
             'Discount Value',
