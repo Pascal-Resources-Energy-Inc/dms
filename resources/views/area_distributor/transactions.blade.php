@@ -3,152 +3,292 @@
     .content-area:has(.welcome-client) {
         margin-top: 90px !important;
     }
-    
-    .transaction-table th {
-        text-align: center;
-    }
-    .btn-view {
-        width: 100px;
-        font-size: 14px;
-    }
-    .dashboard-stats {
-        display: flex;
-        justify-content: space-around;
-    }
-    .dashboard-stats div {
-        text-align: center;
-        padding: 20px;
-        background-color: #f8f9fa;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        width: 30%;
-    }
+
     .welcome {
         margin-top: auto !important;
     }
-    .card-header {
-        font-size: 1.25rem;
-        font-weight: bold;
+
+    .transaction-page {
+        display: grid;
+        gap: 16px;
     }
-    .card-body {
-        padding: 20px;
+
+    .transaction-summary-grid {
+        row-gap: 12px;
     }
-    .filter-container {
-        margin-bottom: 20px;
+
+    .transaction-summary-card {
+        position: relative;
+        min-height: 116px;
+        border: 1px solid #e6e9ef;
+        border-radius: 8px !important;
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .055);
+        overflow: hidden;
+        transition: transform .18s ease, box-shadow .18s ease;
     }
-    .card {
-      border-radius: 15px !important;
+
+    .transaction-summary-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, .09);
     }
+
+    .transaction-summary-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        background: var(--summary-color);
+    }
+
+    .transaction-summary-card .card-body {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-height: 116px;
+        padding: 18px !important;
+    }
+
+    .transaction-summary-card.is-sales {
+        --summary-color: #0f766e;
+        --summary-soft: #ccfbf1;
+    }
+
+    .transaction-summary-card.is-count {
+        --summary-color: #1d4ed8;
+        --summary-soft: #dbeafe;
+    }
+
+    .transaction-summary-card.is-qty {
+        --summary-color: #b45309;
+        --summary-soft: #fef3c7;
+    }
+
+    .transaction-summary-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        width: 46px;
+        height: 46px;
+        color: var(--summary-color);
+        background: var(--summary-soft);
+        border-radius: 8px;
+        font-size: 23px;
+    }
+
+    .transaction-summary-label {
+        display: block;
+        color: #667085;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .04em;
+        line-height: 1.2;
+        text-transform: uppercase;
+    }
+
+    .transaction-summary-value {
+        display: block;
+        margin-top: 6px;
+        color: #101828;
+        font-size: clamp(19px, 2vw, 24px);
+        font-weight: 900;
+        line-height: 1.1;
+        overflow-wrap: anywhere;
+    }
+
+    .transaction-summary-note {
+        display: block;
+        margin-top: 6px;
+        color: #98a2b3;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .transaction-panel {
+        border: 1px solid #e6e9ef;
+        border-radius: 8px !important;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, .06);
+        overflow: hidden;
+    }
+
+    .transaction-panel .card-body {
+        padding: 18px;
+    }
+
+    .transaction-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .transaction-toolbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .transaction-toolbar .btn {
+        min-height: 38px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .transaction-table {
+        margin: 0 !important;
+    }
+
+    .transaction-table th {
+        color: #667085;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .04em;
+        text-align: center;
+        text-transform: uppercase;
+        background: #f8fafc;
+        border-bottom: 1px solid #edf0f5 !important;
+        white-space: nowrap;
+    }
+
+    .transaction-table td {
+        color: #344054;
+        font-size: 13px;
+        vertical-align: middle;
+        border-color: #f1f3f6;
+    }
+
+    .transaction-table tbody tr:hover {
+        background: #f8fbff;
+    }
+
+    .transaction-table input[type="checkbox"] {
+        cursor: pointer;
+    }
+
+    .payment-badge {
+        border-radius: 999px;
+        background: #e0f2fe;
+        border: 1px solid #bae6fd;
+        color: #075985;
+        display: inline-flex;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1;
+        padding: 7px 10px;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .dataTables_wrapper {
+        display: grid;
+        gap: 12px;
+    }
+
+    .dataTables_wrapper .row:first-child,
+    .dataTables_wrapper .row:last-child {
+        align-items: center;
+        row-gap: 10px;
+    }
+
+    .dataTables_wrapper .dataTables_length label,
+    .dataTables_wrapper .dataTables_filter label,
+    .dataTables_wrapper .dataTables_info {
+        color: #667085;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .dataTables_wrapper .dataTables_filter input,
+    .dataTables_wrapper .dataTables_length select {
+        min-height: 36px;
+        border: 1px solid #dfe4ea;
+        border-radius: 8px;
+        box-shadow: none;
+    }
+
+    .dataTables_wrapper .dataTables_filter input {
+        min-width: 230px;
+        margin-left: 8px;
+        padding: 6px 10px;
+    }
+
+    .dataTables_wrapper .dataTables_length select {
+        padding: 4px 28px 4px 8px;
+    }
+
+    .dataTables_wrapper .pagination {
+        justify-content: flex-end;
+        gap: 4px;
+        margin: 0;
+    }
+
+    .dataTables_wrapper .page-link {
+        min-width: 34px;
+        color: #475467;
+        font-size: 12px;
+        text-align: center;
+        border-color: #dfe4ea;
+        border-radius: 7px !important;
+    }
+
+    .dataTables_wrapper .page-item.active .page-link {
+        color: #fff;
+        background: #5BC2E7;
+        border-color: #5BC2E7;
+    }
+
+    .dataTables_wrapper .dataTables_paginate .paginate_button:focus,
+    .dataTables_wrapper .page-link:focus {
+        box-shadow: none;
+        outline: none;
+    }
+
     @media (max-width: 768px) {
         .modal-dialog {
             margin: 1rem;
             max-width: 100%;
         }
 
-        .chosen-container {
-            width: 100% !important;
+        .transaction-toolbar {
+            align-items: stretch;
+            flex-direction: column;
         }
 
-        .chosen-drop {
-            max-height: 200px;
-            overflow-y: auto;
+        .transaction-summary-card .card-body {
+            min-height: 98px;
         }
 
-    }
+        .transaction-toolbar-actions,
+        .transaction-toolbar-actions .btn {
+            width: 100%;
+        }
 
-    .search-name-responsive{
-        width: 180px !important;
-    }
+        .dataTables_wrapper .dataTables_filter input {
+            min-width: 0;
+            width: 100%;
+            margin: 6px 0 0;
+        }
 
-    @media (max-width: 576px) {
-        .search-name-responsive{
-            font-size: 12px !important;
-            width: 170px !important;
-            height: 43px !important; 
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            text-align: left;
+        }
+
+        .dataTables_wrapper .pagination {
+            justify-content: flex-start;
         }
     }
-
-.chosen-container .chosen-single {
-  height: calc(2.25rem + 2px);
-  padding: 0.375rem 0.75rem;
-  font-size: 1rem;
-  line-height: 1.5;
-  color: #495057;
-  background-color: #fff;
-  border: 1px solid #ced4da;
-  border-radius: 0.25rem;
-  box-shadow: none;
-}
-
-.chosen-container-active.chosen-with-drop .chosen-single {
-  border-color: #80bdff;
-  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
-}
-
-.chosen-container .chosen-drop {
-  border: 1px solid #ced4da;
-  border-top: none;
-  border-radius: 0 0 0.25rem 0.25rem;
-  box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
-}
-
-.chosen-container .chosen-results {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.chosen-container .chosen-search input {
-  height: calc(1.5em + 0.75rem + 2px);
-  padding: 0.375rem 0.75rem;
-  font-size: 1rem;
-  border: 1px solid #ced4da;
-  border-radius: 0.25rem;
-}
-
-.dataTables_length {
-  float: left;
-  margin-top: 15px;
-  margin-bottom: 5px;
-}
-
-.dataTables_filter {
-  float: right;
-  margin-top: 15px;
-  margin-bottom: 5px;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button:focus {
-    box-shadow: none;
-    outline: none;
-}
-
-.export-btn-custom {
-    width: 130px;
-    height: 38px;
-    font-size: 14px;
-    padding: 6px 12px;
-}
-
-.dataTables_wrapper .dataTables_length,
-.dataTables_wrapper .dataTables_filter {
-    margin-bottom: 0 !important;
-}
-
-table.dataTable {
-    margin-top: 5px !important;
-}
-
-.card-body > .dataTables_wrapper {
-    margin-bottom: 0 !important;
-}
-
-.dataTables_wrapper .row:first-child {
-    margin-bottom: 0 !important;
-}
 
 
 </style>
-<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="{{ asset('design/vendors/datatables.net-bs4/dataTables.bootstrap4.css') }}">
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -158,82 +298,80 @@ table.dataTable {
 <meta name="csrf-token" content="{{ csrf_token() }}">
 @endsection
 @section('content')
-<div class="welcome @if(auth()->user()->role === 'Dealer') welcome-client @endif">
+<div class="welcome transaction-page @if(auth()->user()->role === 'Dealer') welcome-client @endif">
     <div class="row">
-        <!-- Cards Section - All 4 cards in one row -->
         <div class="col-12">
-            <div class="row mb-0 cards">
-                <!-- Total Sales -->
-                  <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card warning-card overflow-hidden text-bg-primary w-100">
-                        <div class="card-body p-4">
-                          <div class="mb-7">
-                            <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
-                          </div>
-                          <h5 class="text-white fw-bold fs-14 text-nowrap">
-                            {{ $transactions->sum(function($transaction) {
-                                return $transaction->price * $transaction->qty;
-                            }) }}
-                          </h5>
-                          <p class="opacity-50 mb-0 ">TOTAL SALES</p>
+            <div class="row mb-0 transaction-summary-grid">
+                <div class="col-sm-6 col-xl-4">
+                    <div class="card transaction-summary-card is-sales w-100">
+                        <div class="card-body">
+                            <span class="transaction-summary-icon">
+                                <i class="ti ti-currency-peso"></i>
+                            </span>
+                            <div>
+                                <span class="transaction-summary-label">Total Sales</span>
+                                <strong class="transaction-summary-value">
+                                    PHP {{ number_format($transactions->sum(function($transaction) {
+                                        return $transaction->price * $transaction->qty;
+                                    }), 2) }}
+                                </strong>
+                                <span class="transaction-summary-note">Completed transaction value</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-                  <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card danger-card overflow-hidden text-bg-primary w-100">
-                        <div class="card-body p-4">
-                          <div class="mb-7">
-                            <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
-                          </div>
-                          <h5 class="text-white fw-bold fs-14 text-nowrap">
-                            {{$transactions->count()}}
-                          </h5>
-                          <p class="opacity-50 mb-0 ">TRANSACTIONS</p>
+                <div class="col-sm-6 col-xl-4">
+                    <div class="card transaction-summary-card is-count w-100">
+                        <div class="card-body">
+                            <span class="transaction-summary-icon">
+                                <i class="ti ti-receipt"></i>
+                            </span>
+                            <div>
+                                <span class="transaction-summary-label">Transactions</span>
+                                <strong class="transaction-summary-value">
+                                    {{ number_format($transactions->count()) }}
+                                </strong>
+                                <span class="transaction-summary-note">Recorded sales activity</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card info-card overflow-hidden text-bg-primary w-100">
-                        <div class="card-body p-4">
-                          <div class="mb-7">
-                            <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
-                          </div>
-                          <h5 class="text-white fw-bold fs-14 text-nowrap">
-                            {{$transactions->sum('qty')}}
-                          </h5>
-                          <p class="opacity-50 mb-0 ">QTY SOLD</p>
+                <div class="col-sm-6 col-xl-4">
+                    <div class="card transaction-summary-card is-qty w-100">
+                        <div class="card-body">
+                            <span class="transaction-summary-icon">
+                                <i class="ti ti-packages"></i>
+                            </span>
+                            <div>
+                                <span class="transaction-summary-label">Qty Sold</span>
+                                <strong class="transaction-summary-value">
+                                    {{ number_format($transactions->sum('qty'), 2) }}
+                                </strong>
+                                <span class="transaction-summary-note">Total products moved</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-                {{-- <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card info-card overflow-hidden text-bg-primary w-100">
-                        <div class="card-body p-4">
-                          <div class="mb-7">
-                            <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
-                          </div>
-                          <h5 class="text-white fw-bold fs-14 text-nowrap">
-                            {{$transactions->sum('points_dealer') + $transactions->sum('points_client')}}
-                          </h5>
-                          <p class="opacity-50 mb-0 ">TOTAL POINTS</p>
-                        </div>
-                    </div>
-                </div> --}}
             </div>
         </div>
         
         <div class="col-12">
-            <div class="card w-100">  
+            <div class="card transaction-panel w-100">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-                        <h5 class="mb-0">Transactions</h5>
-                        {{-- <button type="button" class="btn btn-primary search-name-responsive" data-bs-toggle="modal" data-bs-target="#addTransactionModalAd">
-                            <i class="bi bi-plus-lg"></i> Add Transaction
-                        </button> --}}
+                    <div class="transaction-toolbar">
+                        <h5 class="mb-0 fw-bold">Transactions</h5>
+                        <div class="transaction-toolbar-actions">
+                            @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
+                                <button type="button" class="btn btn-danger btn-sm" id="deleteSelectedBtn" title="Delete Selected" style="display: none;">
+                                    <i class="bi bi-trash"></i> Delete Selected
+                                </button>
+                            @endif
+                        </div>
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-bordered table-striped transaction-table" id="example" style="width:100%">
-                            <thead>
+                        <table class="table table-hover align-middle transaction-table" id="example" style="width:100%">
+                            <thead class="table-light">
                                 <tr>
                                     @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
                                         <th scope="col" style="width: 50px; text-align: center;">
@@ -264,16 +402,16 @@ table.dataTable {
                                                 <input type="checkbox" class="checkbox-item" data-id="{{$transaction->id}}" style="cursor: pointer;">
                                             </td>
                                         @endif
-                                        <td>{{ date('M d, Y', strtotime($transaction->date)) }}</td>
-                                        <td>{{ number_format($transaction->qty, 2) }}</td>
-                                        <td>{{ number_format($transaction->qty * $transaction->price, 2) }}</td>
+                                        <td data-order="{{ strtotime($transaction->date) }}">{{ date('M d, Y', strtotime($transaction->date)) }}</td>
+                                        <td data-order="{{ $transaction->qty }}">{{ number_format($transaction->qty, 2) }}</td>
+                                        <td data-order="{{ $transaction->qty * $transaction->price }}">{{ number_format($transaction->qty * $transaction->price, 2) }}</td>
                                         <td>{{ $transaction->dealer->name ?? '' }}</td>
                                         <td>{{ $transaction->customer->name ?? '' }}</td>
                                         <td><span class='text-success'>{{ $transaction->points_dealer }}</span></td>
                                         <td><span class='text-success'>{{ $transaction->points_client }}</span></td>
                                         <td>{{ strtoupper($transaction->item) }}</td>
-                                         <td class="delivery-type-cell">
-                                            <span class="badge rounded-pill px-3 py-2 text-dark bg-info border fw-semibold">
+                                        <td>
+                                            <span class="payment-badge">
                                                 {{ strtoupper(ucwords(str_replace('_', ' ', $transaction->payment_method))) }}
                                             </span>
                                         </td>
@@ -305,17 +443,14 @@ table.dataTable {
 
 @section('javascript')
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap4.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
+    if (!window.TomSelect || !document.querySelector('#adCustomerSelect') || !document.querySelector('#adDealerSelect')) {
+      return;
+    }
+
     const customerSelect = new TomSelect('#adCustomerSelect', {
       create: false,
       allowEmptyOption: true,
@@ -354,19 +489,84 @@ table.dataTable {
       customerSelect.enable();
     });
 
-    document.getElementById('adQtyMinus').addEventListener('click', function() {
+    const qtyMinus = document.getElementById('adQtyMinus');
+    const qtyPlus = document.getElementById('adQtyPlus');
+    const qtyInput = document.getElementById('adQtyInput');
+
+    if (!qtyMinus || !qtyPlus || !qtyInput) {
+      return;
+    }
+
+    qtyMinus.addEventListener('click', function() {
       const qtyInput = document.getElementById('adQtyInput');
       qtyInput.value = Math.max(1, parseInt(qtyInput.value || '1', 10) - 1);
     });
 
-    document.getElementById('adQtyPlus').addEventListener('click', function() {
+    qtyPlus.addEventListener('click', function() {
       const qtyInput = document.getElementById('adQtyInput');
       qtyInput.value = parseInt(qtyInput.value || '1', 10) + 1;
     });
   });
 </script>
 <script>
-$(document).ready(function() {
+(async function() {
+    if (!window.jQuery) {
+        console.error('jQuery is required for the transactions table.');
+        return;
+    }
+
+    function loadScript(src) {
+        return new Promise(function(resolve, reject) {
+            if (document.querySelector('script[src="' + src + '"]')) {
+                resolve();
+                return;
+            }
+
+            var script = document.createElement('script');
+            script.src = src;
+            script.async = false;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    async function ensureDataTables() {
+        if ($.fn && $.fn.DataTable) {
+            return true;
+        }
+
+        var sources = [
+            "{{ asset('design/assets/libs/datatables.net/js/jquery.dataTables.min.js') }}",
+            "{{ asset('design/vendors/datatables.net/jquery.dataTables.js') }}",
+            "https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"
+        ];
+
+        for (var i = 0; i < sources.length; i++) {
+            try {
+                await loadScript(sources[i]);
+                if ($.fn && $.fn.DataTable) {
+                    break;
+                }
+            } catch (error) {
+                console.warn('Unable to load DataTables from:', sources[i]);
+            }
+        }
+
+        if (!$.fn || !$.fn.DataTable) {
+            return false;
+        }
+
+        try {
+            await loadScript("{{ asset('design/vendors/datatables.net-bs4/dataTables.bootstrap4.js') }}");
+        } catch (error) {
+            console.warn('DataTables Bootstrap integration did not load. Continuing with core DataTables.');
+        }
+
+        return true;
+    }
+
+$(async function() {
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
     
     $.ajaxSetup({
@@ -375,33 +575,52 @@ $(document).ready(function() {
         }
     });
 
+    if (!await ensureDataTables()) {
+        console.error('DataTables failed to load.');
+        return;
+    }
+
+    if ($.fn.DataTable.isDataTable('#example')) {
+        $('#example').DataTable().destroy();
+    }
+
+    var actionColumnIndex = $('#example thead th').length - 1;
+    var hasSelectColumn = $('#selectAll').length > 0;
+    var disabledOrderTargets = hasSelectColumn ? [0, actionColumnIndex] : [];
+
     const table = $('#example').DataTable({
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
              '<"row"<"col-sm-12"tr>>' +
              '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        buttons: [
-            {
-                extend: 'excelHtml5',
-                text: 'Export Excel',
-                className: 'btn btn-sm btn-success export-btn-custom',
-                title: 'Transactions'
-            }
-        ],
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+        autoWidth: false,
+        responsive: false,
         columnDefs: [
             { 
                 orderable: false, 
-                targets: [0, -1] // Disable sorting on first column (checkbox) and last column (actions)
+                targets: disabledOrderTargets
             },
             {
-                className: 'text-center', // Center align the checkbox column
-                targets: [0]
+                className: 'text-center',
+                targets: hasSelectColumn ? [0, actionColumnIndex] : []
             }
         ],
         destroy: true,
-        order: [[1, 'desc']] // Default sort by ID column (index 1) in descending order
+        order: [[hasSelectColumn ? 1 : 0, 'desc']],
+        language: {
+            search: 'Search transactions:',
+            searchPlaceholder: 'Date, dealer, customer, item...',
+            lengthMenu: 'Show _MENU_ records',
+            info: 'Showing _START_ to _END_ of _TOTAL_ transactions',
+            infoEmpty: 'No transactions to show',
+            zeroRecords: 'No matching transactions found.',
+            paginate: {
+                previous: 'Previous',
+                next: 'Next'
+            }
+        }
     });
-
-    table.buttons().container().appendTo('#exportExcelContainer');
 
     $(document).on('change', '.checkbox-item', function() {
         updateUI();
@@ -604,6 +823,7 @@ $(document).ready(function() {
         updateUI();
     }, 100);
 });
+})();
 </script>
 
 <script>

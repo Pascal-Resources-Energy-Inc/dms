@@ -48,13 +48,22 @@
                             </div>
                             <div class="col-lg-4">
                                 <label class="form-label" for="{{ $modalId }}_distributor">Distributor <span class="text-danger">*</span></label>
-                                <select id="{{ $modalId }}_distributor" name="name" class="form-select select2 voucher-distributor-select" data-placeholder="Select distributor" data-area-target="{{ $modalId }}_areas" data-areas-url="{{ route('vouchers.distributor-areas') }}" required>
+                                <select id="{{ $modalId }}_distributor" name="name" class="form-select select2 voucher-distributor-select" data-placeholder="Search distributor by code or name" data-minimum-results-for-search="0" data-dropdown-css-class="voucher-select2-dropdown" data-area-target="{{ $modalId }}_areas" data-areas-url="{{ route('vouchers.distributor-areas') }}" required>
                                     <option value=""></option>
                                     @foreach($areaDistributors as $areaDistributor)
                                         @php
                                             $storeCode = optional($areaDistributor->ad)->store_code;
+                                            $distributorValue = $storeCode ?: $areaDistributor->name;
+                                            $areaCount = optional(optional($areaDistributor)->ad)->areas ? $areaDistributor->ad->areas->count() : 0;
                                         @endphp
-                                        <option value="{{ $storeCode }}" data-distributor-id="{{ $areaDistributor->id }}" @if(in_array($selectedDistributor, [$storeCode, $areaDistributor->name], true)) selected @endif>
+                                        <option value="{{ $distributorValue }}"
+                                            data-distributor-id="{{ $areaDistributor->id }}"
+                                            data-store-code="{{ $storeCode ?: 'NO CODE' }}"
+                                            data-name="{{ $areaDistributor->name }}"
+                                            data-role="{{ $areaDistributor->role }}"
+                                            data-email="{{ $areaDistributor->email }}"
+                                            data-area-count="{{ $areaCount }}"
+                                            @if(in_array($selectedDistributor, [$storeCode, $areaDistributor->name], true)) selected @endif>
                                             {{ $storeCode ? $storeCode . ' - ' : '' }}{{ $areaDistributor->name }}
                                         </option>
                                     @endforeach 

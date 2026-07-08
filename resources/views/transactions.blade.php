@@ -3,169 +3,191 @@
     .content-area:has(.welcome-client) {
         margin-top: 90px !important;
     }
-    
-    .transaction-table th {
-        text-align: center;
-    }
-    .btn-view {
-        width: 100px;
-        font-size: 14px;
-    }
-    .dashboard-stats {
-        display: flex;
-        justify-content: space-around;
-    }
-    .dashboard-stats div {
-        text-align: center;
-        padding: 20px;
-        background-color: #f8f9fa;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        width: 30%;
-    }
+
     .welcome {
         margin-top: auto !important;
     }
-    .card-header {
-        font-size: 1.25rem;
-        font-weight: bold;
+
+    .transaction-page {
+        display: grid;
+        gap: 16px;
     }
-    .card-body {
-        padding: 20px;
+    .transaction-summary-card {
+        min-height: 126px;
+        border: 0;
+        border-radius: 8px !important;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .08);
     }
-    .filter-container {
-        margin-bottom: 20px;
+    .transaction-summary-card .card-body {
+        display: grid;
+        align-content: space-between;
+        min-height: 126px;
     }
-    .card {
-      border-radius: 15px !important;
+    .transaction-panel {
+        border: 1px solid #e6e9ef;
+        border-radius: 8px !important;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, .06);
+        overflow: hidden;
+    }
+    .transaction-panel .card-body {
+        padding: 18px;
+    }
+    .transaction-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .transaction-toolbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+    .transaction-toolbar .btn,
+    .export-btn-custom {
+        min-height: 38px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 800;
+    }
+    .search-name-responsive {
+        width: 180px !important;
+    }
+    .transaction-table {
+        margin: 0 !important;
+    }
+    .transaction-table th {
+        color: #667085;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .04em;
+        text-align: center;
+        text-transform: uppercase;
+        background: #f8fafc;
+        border-bottom: 1px solid #edf0f5 !important;
+        white-space: nowrap;
+    }
+    .transaction-table td {
+        color: #344054;
+        font-size: 13px;
+        vertical-align: middle;
+        border-color: #f1f3f6;
+    }
+    .transaction-table tbody tr:hover {
+        background: #f8fbff;
+    }
+    .transaction-table .form-check-input,
+    .transaction-table input[type="checkbox"] {
+        cursor: pointer;
+    }
+    .dataTables_wrapper {
+        display: grid;
+        gap: 12px;
+    }
+    .dataTables_wrapper .row:first-child,
+    .dataTables_wrapper .row:last-child {
+        align-items: center;
+        row-gap: 10px;
+    }
+    .dataTables_wrapper .dataTables_length label,
+    .dataTables_wrapper .dataTables_filter label,
+    .dataTables_wrapper .dataTables_info {
+        color: #667085;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .dataTables_wrapper .dataTables_filter input,
+    .dataTables_wrapper .dataTables_length select {
+        min-height: 36px;
+        border: 1px solid #dfe4ea;
+        border-radius: 8px;
+        box-shadow: none;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        min-width: 230px;
+        margin-left: 8px;
+        padding: 6px 10px;
+    }
+    .dataTables_wrapper .dataTables_length select {
+        padding: 4px 28px 4px 8px;
+    }
+    .dataTables_wrapper .pagination {
+        justify-content: flex-end;
+        gap: 4px;
+        margin: 0;
+    }
+    .dataTables_wrapper .page-link {
+        min-width: 34px;
+        color: #475467;
+        font-size: 12px;
+        text-align: center;
+        border-color: #dfe4ea;
+        border-radius: 7px !important;
+    }
+    .dataTables_wrapper .page-item.active .page-link {
+        color: #fff;
+        background: #5BC2E7;
+        border-color: #5BC2E7;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button:focus,
+    .dataTables_wrapper .page-link:focus {
+        box-shadow: none;
+        outline: none;
     }
     @media (max-width: 768px) {
         .modal-dialog {
             margin: 1rem;
             max-width: 100%;
         }
-
-        .chosen-container {
+        .transaction-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+        .transaction-toolbar-actions,
+        .transaction-toolbar-actions .btn,
+        #exportExcelContainer,
+        #exportExcelContainer .btn {
+            width: 100%;
+        }
+        .search-name-responsive {
             width: 100% !important;
         }
-
-        .chosen-drop {
-            max-height: 200px;
-            overflow-y: auto;
+        .dataTables_wrapper .dataTables_filter input {
+            min-width: 0;
+            width: 100%;
+            margin: 6px 0 0;
         }
-
-    }
-
-    .search-name-responsive{
-        width: 180px !important;
-    }
-
-    @media (max-width: 576px) {
-        .search-name-responsive{
-            font-size: 12px !important;
-            width: 170px !important;
-            height: 43px !important; 
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            text-align: left;
+        }
+        .dataTables_wrapper .pagination {
+            justify-content: flex-start;
         }
     }
-
-.chosen-container .chosen-single {
-  height: calc(2.25rem + 2px);
-  padding: 0.375rem 0.75rem;
-  font-size: 1rem;
-  line-height: 1.5;
-  color: #495057;
-  background-color: #fff;
-  border: 1px solid #ced4da;
-  border-radius: 0.25rem;
-  box-shadow: none;
-}
-
-.chosen-container-active.chosen-with-drop .chosen-single {
-  border-color: #80bdff;
-  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
-}
-
-.chosen-container .chosen-drop {
-  border: 1px solid #ced4da;
-  border-top: none;
-  border-radius: 0 0 0.25rem 0.25rem;
-  box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
-}
-
-.chosen-container .chosen-results {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.chosen-container .chosen-search input {
-  height: calc(1.5em + 0.75rem + 2px);
-  padding: 0.375rem 0.75rem;
-  font-size: 1rem;
-  border: 1px solid #ced4da;
-  border-radius: 0.25rem;
-}
-
-.dataTables_length {
-  float: left;
-  margin-top: 15px;
-  margin-bottom: 5px;
-}
-
-.dataTables_filter {
-  float: right;
-  margin-top: 15px;
-  margin-bottom: 5px;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button:focus {
-    box-shadow: none;
-    outline: none;
-}
-
-.export-btn-custom {
-    width: 130px;
-    height: 38px;
-    font-size: 14px;
-    padding: 6px 12px;
-}
-
-.dataTables_wrapper .dataTables_length,
-.dataTables_wrapper .dataTables_filter {
-    margin-bottom: 0 !important;
-}
-
-table.dataTable {
-    margin-top: 5px !important;
-}
-
-.card-body > .dataTables_wrapper {
-    margin-bottom: 0 !important;
-}
-
-.dataTables_wrapper .row:first-child {
-    margin-bottom: 0 !important;
-}
-
-
 </style>
-<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="{{ asset('design/vendors/datatables.net-bs4/dataTables.bootstrap4.css') }}">
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
 @section('head')
 <meta name="csrf-token" content="{{ csrf_token() }}">
 @endsection
 @section('content')
-<div class="welcome @if(auth()->user()->role === 'Dealer') welcome-client @endif">
+<div class="welcome transaction-page @if(auth()->user()->role === 'Dealer') welcome-client @endif">
     <div class="row">
         <!-- Cards Section - All 4 cards in one row -->
         <div class="col-12">
             <div class="row mb-0 cards">
                 <!-- Total Sales -->
                   <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card warning-card overflow-hidden text-bg-primary w-100">
+                    <div class="card transaction-summary-card warning-card overflow-hidden text-bg-primary w-100">
                         <div class="card-body p-4">
                           <div class="mb-7">
                             <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
@@ -180,7 +202,7 @@ table.dataTable {
                     </div>
                 </div>
                   <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card danger-card overflow-hidden text-bg-primary w-100">
+                    <div class="card transaction-summary-card danger-card overflow-hidden text-bg-primary w-100">
                         <div class="card-body p-4">
                           <div class="mb-7">
                             <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
@@ -193,7 +215,7 @@ table.dataTable {
                     </div>
                 </div>
                 <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card info-card overflow-hidden text-bg-primary w-100">
+                    <div class="card transaction-summary-card info-card overflow-hidden text-bg-primary w-100">
                         <div class="card-body p-4">
                           <div class="mb-7">
                             <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
@@ -206,7 +228,7 @@ table.dataTable {
                     </div>
                 </div>
                 <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card info-card overflow-hidden text-bg-primary w-100">
+                    <div class="card transaction-summary-card info-card overflow-hidden text-bg-primary w-100">
                         <div class="card-body p-4">
                           <div class="mb-7">
                             <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
@@ -222,9 +244,11 @@ table.dataTable {
         </div>
         
         <div class="col-12">
-            <div class="card w-100">  
+            <div class="card transaction-panel w-100">  
                 <div class="card-body">
-                  <div class="d-flex justify-content-start align-items-center gap-2 mb-3">
+                  <div class="transaction-toolbar">
+                    <h5 class="mb-0 fw-bold">Transactions</h5>
+                    <div class="transaction-toolbar-actions">
                       @if(auth()->user()->role == "Admin")
                           <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTransactionModalAdmin">
                               <i class="bi bi-plus-lg"></i> Search Name
@@ -241,11 +265,12 @@ table.dataTable {
                               <i class="bi bi-plus-lg"></i> Search Name
                           </button>
                       @endif
+                    </div>
                   </div>
 
                   <div class="table-responsive">
-                      <table class="table table-bordered table-striped transaction-table" id="example" style="width:100%">
-                          <thead>
+                      <table class="table table-hover align-middle transaction-table" id="example" style="width:100%">
+                          <thead class="table-light">
                               <tr>
                                   @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
                                       <th scope="col" style="width: 50px; text-align: center;">
@@ -316,14 +341,6 @@ table.dataTable {
 @endsection
 
 @section('javascript')
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap4.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 {{-- <script>
@@ -341,20 +358,80 @@ table.dataTable {
 </script> --}}
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    new TomSelect('#customerSelect', {
-      create: false,
-      allowEmptyOption: true,
-      placeholder: "Search Customer"
-    });
-    new TomSelect('#dealer', {
-      create: false,
-      allowEmptyOption: true,
-      placeholder: "Search Dealer"
-    });
+    if (window.TomSelect && document.querySelector('#customerSelect')) {
+      new TomSelect('#customerSelect', {
+        create: false,
+        allowEmptyOption: true,
+        placeholder: "Search Customer"
+      });
+    }
+
+    if (window.TomSelect && document.querySelector('#dealer')) {
+      new TomSelect('#dealer', {
+        create: false,
+        allowEmptyOption: true,
+        placeholder: "Search Dealer"
+      });
+    }
   });
 </script>
 <script>
-$(document).ready(function() {
+(async function() {
+    if (!window.jQuery) {
+        return;
+    }
+
+    function loadScript(src) {
+        return new Promise(function(resolve, reject) {
+            if (document.querySelector('script[src="' + src + '"]')) {
+                resolve();
+                return;
+            }
+
+            var script = document.createElement('script');
+            script.src = src;
+            script.async = false;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    async function ensureDataTables() {
+        if ($.fn && $.fn.DataTable) {
+            return true;
+        }
+
+        var sources = [
+            "{{ asset('design/assets/libs/datatables.net/js/jquery.dataTables.min.js') }}",
+            "{{ asset('design/vendors/datatables.net/jquery.dataTables.js') }}"
+        ];
+
+        for (var i = 0; i < sources.length; i++) {
+            try {
+                await loadScript(sources[i]);
+                if ($.fn && $.fn.DataTable) {
+                    break;
+                }
+            } catch (error) {
+                console.warn('Unable to load DataTables from:', sources[i]);
+            }
+        }
+
+        if (!$.fn || !$.fn.DataTable) {
+            return false;
+        }
+
+        try {
+            await loadScript("{{ asset('design/vendors/datatables.net-bs4/dataTables.bootstrap4.js') }}");
+        } catch (error) {
+            console.warn('DataTables Bootstrap integration did not load. Continuing with core DataTables.');
+        }
+
+        return true;
+    }
+
+$(async function() {
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
     
     $.ajaxSetup({
@@ -363,33 +440,87 @@ $(document).ready(function() {
         }
     });
 
+    if (!await ensureDataTables()) {
+        console.error('DataTables failed to load.');
+        return;
+    }
+
+    if ($.fn.DataTable.isDataTable('#example')) {
+        $('#example').DataTable().destroy();
+    }
+
+    var actionColumnIndex = $('#example thead th').length - 1;
+    var hasSelectColumn = $('#selectAll').length > 0;
+    var orderColumnIndex = hasSelectColumn ? 1 : 0;
+    var disabledOrderTargets = hasSelectColumn ? [0, actionColumnIndex] : [];
+
     const table = $('#example').DataTable({
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
              '<"row"<"col-sm-12"tr>>' +
              '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        buttons: [
-            {
-                extend: 'excelHtml5',
-                text: 'Export Excel',
-                className: 'btn btn-sm btn-success export-btn-custom',
-                title: 'Transactions'
-            }
-        ],
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+        autoWidth: false,
+        responsive: false,
         columnDefs: [
             { 
                 orderable: false, 
-                targets: [0, -1] // Disable sorting on first column (checkbox) and last column (actions)
+                targets: disabledOrderTargets
             },
             {
-                className: 'text-center', // Center align the checkbox column
-                targets: [0]
+                className: 'text-center',
+                targets: hasSelectColumn ? [0] : []
             }
         ],
         destroy: true,
-        order: [[1, 'desc']] // Default sort by ID column (index 1) in descending order
+        order: [[orderColumnIndex, 'desc']],
+        language: {
+            search: 'Search transactions:',
+            searchPlaceholder: 'ID, dealer, customer, item...',
+            lengthMenu: 'Show _MENU_ records',
+            info: 'Showing _START_ to _END_ of _TOTAL_ transactions',
+            infoEmpty: 'No transactions to show',
+            zeroRecords: 'No matching transactions found.',
+            paginate: {
+                previous: 'Previous',
+                next: 'Next'
+            }
+        }
     });
 
-    table.buttons().container().appendTo('#exportExcelContainer');
+    var $exportContainer = $('#exportExcelContainer');
+    if ($exportContainer.length) {
+        $('<button type="button" class="btn btn-sm btn-success export-btn-custom"><i class="bi bi-file-earmark-spreadsheet"></i> Export CSV</button>')
+            .appendTo($exportContainer)
+            .on('click', function() {
+                var rows = table.rows({ search: 'applied' }).data().toArray();
+                var headers = $('#example thead th').map(function() {
+                    return $(this).text().trim();
+                }).get();
+                var excludedIndexes = hasSelectColumn ? [0, headers.length - 1] : [];
+                var visibleHeaders = headers.filter(function(_, index) {
+                    return excludedIndexes.indexOf(index) === -1;
+                });
+
+                var csvRows = rows.map(function(row) {
+                    return row.filter(function(_, index) {
+                        return excludedIndexes.indexOf(index) === -1;
+                    }).map(function(cell) {
+                        return '"' + $('<div>').html(cell).text().trim().replace(/"/g, '""') + '"';
+                    }).join(',');
+                });
+
+                var csv = visibleHeaders.map(function(header) {
+                    return '"' + header.replace(/"/g, '""') + '"';
+                }).join(',') + '\n' + csvRows.join('\n');
+                var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                var link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'transactions.csv';
+                link.click();
+                URL.revokeObjectURL(link.href);
+            });
+    }
 
     $(document).on('change', '.checkbox-item', function() {
         updateUI();
@@ -592,6 +723,7 @@ $(document).ready(function() {
         updateUI();
     }, 100);
 });
+})();
 </script>
 
 <script>

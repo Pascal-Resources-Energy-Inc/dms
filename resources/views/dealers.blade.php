@@ -231,30 +231,6 @@
         white-space: nowrap;
     }
 
-    .dealer-source {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 28px;
-        border-radius: 999px;
-        padding: 4px 10px;
-        color: #475569;
-        background: #f1f5f9;
-        font-size: 12px;
-        font-weight: 800;
-        white-space: nowrap;
-    }
-
-    .dealer-source.is-admin-crms {
-        color: #1d4ed8;
-        background: #dbeafe;
-    }
-
-    .dealer-source.is-admin-crms2 {
-        color: #7c3aed;
-        background: #ede9fe;
-    }
-
     .dealer-action-btn {
         width: 34px;
         height: 34px;
@@ -443,29 +419,6 @@
         background: #fee2e2;
     }
 
-    .dealer-type {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 76px;
-        min-height: 28px;
-        border-radius: 999px;
-        padding: 4px 10px;
-        font-size: 12px;
-        font-weight: 800;
-        white-space: nowrap;
-    }
-
-    .dealer-type.is-project {
-        color: #1d4ed8;
-        background: #dbeafe;
-    }
-
-    .dealer-type.is-regular {
-        color: #047857;
-        background: #d1fae5;
-    }
-
     .dealer-muted {
         color: #64748b;
         max-width: 260px;
@@ -517,13 +470,6 @@
         font-size: 15px;
     }
 
-    .dealer-sync-note {
-        margin-top: 6px;
-        color: #64748b;
-        font-size: 12px;
-        font-weight: 600;
-    }
-
     @media (max-width: 575px) {
         .dealer-head {
             padding: 16px;
@@ -570,16 +516,26 @@
             ['key' => 'admin_crms2', 'label' => 'Project Genesis', 'icon' => 'ti ti-database-export', 'count' => $adminCrm2Dealers->count()],
         ]);
     } else {
-        $projectDealerCount = $dealers->filter(function ($dealer) {
-            return strcasecmp((string) ($dealer->dealer_type ?: 'Project'), 'Regular') !== 0;
+        $projectRiseDealerCount = $dealers->filter(function ($dealer) {
+            return ($dealer->source ?? null) === 'admin_crms';
+        })->count();
+        $projectGenesisDealerCount = $dealers->filter(function ($dealer) {
+            return ($dealer->source ?? null) === 'admin_crms2';
         })->count();
         $regularDealerCount = $dealers->filter(function ($dealer) {
-            return strcasecmp((string) $dealer->dealer_type, 'Regular') === 0;
+            return empty($dealer->is_remote) && strcasecmp((string) $dealer->dealer_type, 'Regular') === 0;
+        })->count();
+        $localProjectDealerCount = $dealers->filter(function ($dealer) {
+            return empty($dealer->is_remote) && strcasecmp((string) ($dealer->dealer_type ?: 'Project'), 'Regular') !== 0;
         })->count();
         $dealerTabs = collect([
-            ['key' => 'Project', 'label' => 'Project', 'icon' => 'ti ti-building-community', 'count' => $projectDealerCount],
+            ['key' => 'admin_crms', 'label' => 'Project Rise', 'icon' => 'ti ti-database', 'count' => $projectRiseDealerCount],
+            ['key' => 'admin_crms2', 'label' => 'Project Genesis', 'icon' => 'ti ti-database-export', 'count' => $projectGenesisDealerCount],
             ['key' => 'Regular', 'label' => 'Regular', 'icon' => 'ti ti-building-store', 'count' => $regularDealerCount],
-        ]);
+            ['key' => 'Project', 'label' => 'Local Project', 'icon' => 'ti ti-building-community', 'count' => $localProjectDealerCount],
+        ])->filter(function ($tab) {
+            return $tab['count'] > 0 || in_array($tab['key'], ['admin_crms', 'admin_crms2', 'Regular']);
+        })->values();
     }
 
     $initialDealerTab = $dealerTabs->firstWhere('count', '>', 0) ?: $dealerTabs->first();
@@ -594,11 +550,6 @@
                 <div class="dealer-eyebrow">Partner Network</div>
                 <h4 class="mb-1 mt-2">{{ $dealerPageTitle }}</h4>
                 <div class="text-muted">Monitor dealer status, territory, stock, and sales performance.</div>
-                {{-- @if($isAdminDealerPage)
-                    <div class="dealer-sync-note">
-                        Synced from admin_crms and admin_crms2. Use the tabs to inspect each CRM source.
-                    </div>
-                @endif --}}
             </div>
             <div class="dealer-actions">
                 @if(auth()->user()->role == 'Admin' && Route::currentRouteName() !== 'mds')
@@ -683,11 +634,7 @@
                             <table class="table dealer-table transaction-table" style="width:100%">
                                 <thead>
                                     <tr>
-                                        {{-- @if($isAdminDealerPage)
-                                            <th>Source</th>
-                                        @endif --}}
                                         <th>{{ $dealerSingularTitle }} Reference</th>
-                                        {{-- <th>Dealer Type</th> --}}
                                         <th>{{ $dealerSingularTitle }} Name</th>
                                         <th>Store Name</th>
                                         <th>Store Type</th>
@@ -712,19 +659,7 @@
                                             : null;
                                     @endphp
                                     <tr data-dealer-tab-key="{{ $dealerTabKey }}" data-dealer-type="{{ $dealerType }}">
-                                        {{-- @if($isAdminDealerPage)
-                                            <td scope="col">
-                                                <span class="dealer-source {{ ($dealer->source ?? '') === 'admin_crms2' ? 'is-admin-crms2' : 'is-admin-crms' }}">
-                                                    {{ strtoupper($dealer->source_label ?? $dealerTabKey) }}
-                                                </span>
-                                            </td>
-                                        @endif --}}
                                         <td scope="col"><span class="dealer-ref">{{  strtoupper($dealer->dealer_reference) }}</span></td>
-                                        {{-- <td>
-                                            <span class="dealer-type {{ $dealerType === 'Regular' ? 'is-regular' : 'is-project' }}">
-                                                {{ strtoupper($dealerType) }}
-                                            </span>
-                                        </td> --}}
                                         <td scope="col">
                                             @if($isAdminDealerPage)
                                                 <a href="{{ $adminDealerViewUrl }}" class="dealer-link">{{ strtoupper($dealer->name)}} </a>
@@ -784,7 +719,6 @@
                                 <thead>
                                     <tr>
                                         <th rowspan="2">{{ $dealerSingularTitle }} Ref</th>
-                                        {{-- <th rowspan="2">Dealer Type</th> --}}
                                         <th rowspan="2">{{ $dealerSingularTitle }} Name</th>
                                         <th rowspan="2">Store</th>
                                         <th rowspan="2">Type</th>
@@ -810,19 +744,38 @@
 
                                 <tbody id="adBody">
                                     @foreach($dealers as $dealer)
-                                    @php $dealerType = strcasecmp((string) $dealer->dealer_type, 'Regular') === 0 ? 'Regular' : 'Project'; @endphp
-                                    <tr data-dealer-tab-key="{{ $dealerType }}" data-dealer-type="{{ $dealerType }}">
+                                    @php
+                                        $dealerType = strcasecmp((string) $dealer->dealer_type, 'Regular') === 0 ? 'Regular' : 'Project';
+                                        $dealerTabKey = !empty($dealer->is_remote) ? ($dealer->source ?? 'admin_crms') : $dealerType;
+                                        $dealerName = $dealer->name ?: '-';
+                                        $dealerInfo = [
+                                            'source' => $dealer->source_label ?: 'Local',
+                                            'reference' => $dealer->dealer_reference ?: '-',
+                                            'name' => $dealerName,
+                                            'initials' => collect(explode(' ', $dealerName))->filter()->map(function ($part) { return strtoupper(substr($part, 0, 1)); })->take(2)->implode(''),
+                                            'store_name' => $dealer->store_name ?: '-',
+                                            'store_type' => $dealer->store_type ?: '-',
+                                            'number' => $dealer->number ?: '-',
+                                            'address' => $dealer->address ?: '-',
+                                            'area' => $dealer->area ?: '-',
+                                            'status' => $dealer->status ?: '-',
+                                        ];
+                                    @endphp
+                                    <tr data-dealer-tab-key="{{ $dealerTabKey }}" data-dealer-type="{{ $dealerType }}">
                                         <td><span class="dealer-ref">{{ $dealer->dealer_reference }}</span></td>
-                                        {{-- <td>
-                                            <span class="dealer-type {{ $dealerType === 'Regular' ? 'is-regular' : 'is-project' }}">
-                                                {{ strtoupper($dealerType) }}
-                                            </span>
-                                        </td> --}}
 
                                         <td>
-                                            <a href="view-dealer/{{$dealer->id}}" class="dealer-link">
-                                                {{ $dealer->name }}
-                                            </a>
+                                            @if(!empty($dealer->is_remote))
+                                                <button type="button"
+                                                    class="dealer-link btn btn-link p-0 js-view-dealer"
+                                                    data-dealer="{{ e(json_encode($dealerInfo)) }}">
+                                                    {{ $dealer->name }}
+                                                </button>
+                                            @else
+                                                <a href="view-dealer/{{$dealer->id}}" class="dealer-link">
+                                                    {{ $dealer->name }}
+                                                </a>
+                                            @endif
                                         </td>
 
                                         <td>{{ strtoupper($dealer->store_name ?? '-') }}</td>
@@ -863,21 +816,6 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @php
-                                                $dealerName = $dealer->name ?: '-';
-                                                $dealerInfo = [
-                                                    'source' => 'Local',
-                                                    'reference' => $dealer->dealer_reference ?: '-',
-                                                    'name' => $dealerName,
-                                                    'initials' => collect(explode(' ', $dealerName))->filter()->map(function ($part) { return strtoupper(substr($part, 0, 1)); })->take(2)->implode(''),
-                                                    'store_name' => $dealer->store_name ?: '-',
-                                                    'store_type' => $dealer->store_type ?: '-',
-                                                    'number' => $dealer->number ?: '-',
-                                                    'address' => $dealer->address ?: '-',
-                                                    'area' => $dealer->area ?: '-',
-                                                    'status' => $dealer->status ?: '-',
-                                                ];
-                                            @endphp
                                             <button type="button"
                                                 class="dealer-action-btn js-view-dealer"
                                                 title="View dealer"

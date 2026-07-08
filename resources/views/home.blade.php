@@ -185,7 +185,7 @@
   }
 
   .sa-command { display: grid; gap: 18px; margin-bottom: 22px; color: #172033; }
-  .sa-hero { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px; overflow: hidden; padding: 26px 28px; color: #fff; background: linear-gradient(120deg, #101828 0%, #173f58 55%, #0c708a 100%); border-radius: 20px; box-shadow: 0 18px 45px rgba(15, 23, 42, .18); }
+  .sa-hero { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px; overflow: hidden; padding: 28px; color: #fff; background: linear-gradient(120deg, #0b1220 0%, #12384f 52%, #0e7490 100%); border-radius: 18px; box-shadow: 0 18px 45px rgba(15, 23, 42, .18); }
   .sa-hero::after { content: ""; position: absolute; width: 330px; height: 330px; right: -110px; top: -170px; border: 58px solid rgba(255,255,255,.07); border-radius: 50%; }
   .sa-hero-copy, .sa-hero-actions { position: relative; z-index: 1; }
   .sa-eyebrow { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 8px; color: #9ce8f6; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
@@ -197,20 +197,35 @@
   .sa-refresh { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; color: #fff; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); border-radius: 11px; }
   .sa-refresh:hover { color: #fff; background: rgba(255,255,255,.18); }
   .sa-refresh.is-loading i { animation: saSpin .8s linear infinite; }
-  .sa-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
-  .sa-kpi { position: relative; min-height: 132px; overflow: hidden; padding: 17px; background: #fff; border: 1px solid #e8ecf2; border-radius: 15px; box-shadow: 0 8px 25px rgba(15,23,42,.055); transition: transform .2s ease, box-shadow .2s ease; }
-  .sa-kpi:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(15,23,42,.09); }
-  .sa-kpi::after { content: ""; position: absolute; width: 70px; height: 70px; right: -28px; bottom: -30px; background: var(--sa-soft); border-radius: 50%; }
-  .sa-kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .sa-kpi-icon { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; color: var(--sa-color); background: var(--sa-soft); border-radius: 10px; font-size: 18px; }
-  .sa-kpi-label { display: block; margin-top: 14px; color: #667085; font-size: 10px; font-weight: 900; letter-spacing: .045em; text-transform: uppercase; }
-  .sa-kpi-value { display: block; margin-top: 5px; color: #101828; font-size: clamp(19px, 2vw, 25px); font-weight: 900; line-height: 1; white-space: nowrap; }
-  .sa-kpi-note { display: block; margin-top: 8px; color: #98a2b3; font-size: 10px; font-weight: 700; }
+  .sa-tabs { display: inline-grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 4px; width: 100%; padding: 5px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 12px; }
+  .sa-tab { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 10px 14px; color: #64748b; text-align: center; background: transparent; border: 0; border-radius: 9px; transition: background .18s ease, color .18s ease, box-shadow .18s ease; }
+  .sa-tab:hover { color: #172033; background: rgba(255,255,255,.72); }
+  .sa-tab.active { color: #0f172a; background: #fff; box-shadow: 0 4px 14px rgba(15, 23, 42, .08); }
+  .sa-tab-icon { width: 28px; height: 28px; display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; color: var(--sa-tab-color); background: var(--sa-tab-soft); border-radius: 8px; font-size: 16px; }
+  .sa-tab-copy { min-width: 0; }
+  .sa-tab-label { display: block; color: inherit; font-size: 12px; font-weight: 900; white-space: nowrap; }
+  .sa-tab.regular { --sa-tab-color:#0f766e; --sa-tab-soft:#ccfbf1; }
+  .sa-tab.rise { --sa-tab-color:#0369a1; --sa-tab-soft:#e0f2fe; }
+  .sa-tab.genesis { --sa-tab-color:#7c3aed; --sa-tab-soft:#ede9fe; }
+  .sa-source-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 2px 0; }
+  .sa-source-name { margin: 0; color: #172033; font-size: 17px; font-weight: 900; }
+  .sa-source-copy { margin: 3px 0 0; color: #64748b; font-size: 11px; }
+  .sa-command.is-loading .sa-kpi-value, .sa-command.is-loading .sa-chart, .sa-command.is-loading .sa-pulse-list { opacity: .48; transition: opacity .18s ease; }
+  .sa-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .sa-kpi { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 12px; min-height: 108px; padding: 15px; background: #fff; border: 1px solid #e8ecf2; border-radius: 12px; box-shadow: 0 6px 18px rgba(15,23,42,.045); }
+  .sa-kpi-top { grid-row: span 3; }
+  .sa-kpi-icon { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; color: var(--sa-color); background: var(--sa-soft); border-radius: 9px; font-size: 17px; }
+  .sa-kpi-label { display: block; color: #64748b; font-size: 10px; font-weight: 900; letter-spacing: .045em; line-height: 1.2; text-transform: uppercase; }
+  .sa-kpi-value { display: block; margin-top: 5px; color: #0f172a; font-size: 22px; font-weight: 900; line-height: 1.05; white-space: nowrap; }
+  .sa-kpi-note { display: block; margin-top: 7px; color: #94a3b8; font-size: 10px; font-weight: 700; line-height: 1.35; }
   .sa-kpi.sales { --sa-color:#0f766e; --sa-soft:#ccfbf1; }
   .sa-kpi.month { --sa-color:#0369a1; --sa-soft:#e0f2fe; }
   .sa-kpi.transactions { --sa-color:#7c3aed; --sa-soft:#ede9fe; }
   .sa-kpi.units { --sa-color:#b45309; --sa-soft:#fef3c7; }
+  .sa-kpi.total-sales { --sa-color:#0e7490; --sa-soft:#cffafe; }
+  .sa-kpi.total-products { --sa-color:#4338ca; --sa-soft:#e0e7ff; }
   .sa-kpi.dealers { --sa-color:#15803d; --sa-soft:#dcfce7; }
+  .sa-kpi.customers { --sa-color:#c2410c; --sa-soft:#ffedd5; }
   .sa-kpi.orders { --sa-color:#b91c1c; --sa-soft:#fee2e2; }
   .sa-grid { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(300px, .75fr); gap: 14px; }
   .sa-panel { overflow: hidden; background: #fff; border: 1px solid #e5e9f0; border-radius: 16px; box-shadow: 0 9px 26px rgba(15,23,42,.055); }
@@ -234,11 +249,13 @@
   .sa-updated { color: #98a2b3; font-size: 10px; font-weight: 700; }
   @keyframes saPulse { 50% { opacity: .45; transform: scale(.82); } }
   @keyframes saSpin { to { transform: rotate(360deg); } }
-  @media (max-width: 1250px) { .sa-kpis { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 1250px) { .sa-kpis { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 900px) { .sa-grid { grid-template-columns: 1fr; } }
   @media (max-width: 700px) {
     .sa-hero { align-items: flex-start; flex-direction: column; padding: 22px; }
-    .sa-kpis { grid-template-columns: repeat(2, 1fr); }
+    .sa-tabs { grid-template-columns: 1fr; }
+    .sa-source-bar { align-items: flex-start; flex-direction: column; }
+    .sa-kpis { grid-template-columns: 1fr; }
     .sa-panel-head { align-items: flex-start; flex-direction: column; }
   }
   @media (max-width: 430px) { .sa-kpis { grid-template-columns: 1fr; } }
@@ -307,8 +324,15 @@
 <!--  Header End -->
   <!-- Welcome Section Start -->
   @php
+
     $isSuperAdminDashboard = auth()->user()->role === 'Admin' && blank(auth()->user()->warehouse);
     $isWarehouseDashboard = auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse) && filled($warehouseDashboard);
+
+    $adminDashboardTabs = [
+      ['key' => 'regular', 'label' => 'Regular', 'database' => 'dms_prei', 'icon' => 'ti ti-building-store', 'class' => 'regular'],
+      ['key' => 'project_rise', 'label' => 'Project Rise', 'database' => 'admin_crms', 'icon' => 'ti ti-trending-up', 'class' => 'rise'],
+      ['key' => 'project_genesis', 'label' => 'Project Genesis', 'database' => 'admin_crms2', 'icon' => 'ti ti-sparkles', 'class' => 'genesis'],
+
   @endphp
 
   @if(auth()->user()->role == "Admin")
@@ -322,13 +346,31 @@
       <div class="sa-hero-copy">
         <span class="sa-eyebrow"><i class="ti ti-shield-check"></i> Super Admin Command Center</span>
         <h1 class="sa-title">Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ auth()->user()->name }}</h1>
-        <p class="sa-subtitle">A live view of sales, fulfillment, partner activity, and the transactions moving through Gaz Lite.</p>
+        <p class="sa-subtitle">A separate live view of sales, fulfillment, and transactions across Regular and Project operations.</p>
       </div>
       <div class="sa-hero-actions">
         <span class="sa-live-pill"><span class="sa-live-dot"></span> Live data <span id="saUpdatedAt">connecting...</span></span>
         <button class="sa-refresh" id="saRefreshButton" type="button" title="Refresh dashboard">
           <i class="ti ti-refresh"></i>
         </button>
+      </div>
+    </div>
+
+    <div class="sa-tabs" role="tablist" aria-label="Admin dashboard sources">
+      @foreach($adminDashboardTabs as $tab)
+        <button class="sa-tab {{ $tab['class'] }} {{ $loop->first ? 'active' : '' }}" type="button" role="tab" data-dashboard-source="{{ $tab['key'] }}" data-dashboard-label="{{ $tab['label'] }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}">
+          <span class="sa-tab-icon"><i class="{{ $tab['icon'] }}"></i></span>
+          <span class="sa-tab-copy">
+            <span class="sa-tab-label">{{ $tab['label'] }}</span>
+          </span>
+        </button>
+      @endforeach
+    </div>
+
+    <div class="sa-source-bar">
+      <div>
+        <h2 class="sa-source-name" id="saSourceName">Regular Dashboard</h2>
+        <p class="sa-source-copy" id="saSourceCopy">Live overview for the selected dashboard.</p>
       </div>
     </div>
 
@@ -339,17 +381,17 @@
         <strong class="sa-kpi-value" id="saTodaySales">PHP 0</strong>
         <span class="sa-kpi-note">Live transaction revenue</span>
       </article>
-      <article class="sa-kpi month">
-        <div class="sa-kpi-top"><span class="sa-kpi-icon"><i class="ti ti-chart-line"></i></span></div>
-        <span class="sa-kpi-label">Month-to-date</span>
-        <strong class="sa-kpi-value" id="saMonthSales">PHP 0</strong>
-        <span class="sa-kpi-note">Current calendar month</span>
-      </article>
       <article class="sa-kpi transactions">
         <div class="sa-kpi-top"><span class="sa-kpi-icon"><i class="ti ti-receipt"></i></span></div>
         <span class="sa-kpi-label">Transactions Today</span>
         <strong class="sa-kpi-value" id="saTodayTransactions">0</strong>
         <span class="sa-kpi-note">Recorded sales activity</span>
+      </article>
+      <article class="sa-kpi month">
+        <div class="sa-kpi-top"><span class="sa-kpi-icon"><i class="ti ti-chart-line"></i></span></div>
+        <span class="sa-kpi-label">Month-to-date</span>
+        <strong class="sa-kpi-value" id="saMonthSales">PHP 0</strong>
+        <span class="sa-kpi-note">Current calendar month</span>
       </article>
       <article class="sa-kpi units">
         <div class="sa-kpi-top"><span class="sa-kpi-icon"><i class="ti ti-flame"></i></span></div>
@@ -357,17 +399,29 @@
         <strong class="sa-kpi-value" id="saMonthUnits">0</strong>
         <span class="sa-kpi-note">Products moved</span>
       </article>
+      <article class="sa-kpi total-sales">
+        <div class="sa-kpi-top"><span class="sa-kpi-icon"><i class="ti ti-report-money"></i></span></div>
+        <span class="sa-kpi-label">Total Sales</span>
+        <strong class="sa-kpi-value" id="saTotalSales">PHP 0</strong>
+        <span class="sa-kpi-note">All-time transaction revenue</span>
+      </article>
+      <article class="sa-kpi total-products">
+        <div class="sa-kpi-top"><span class="sa-kpi-icon"><i class="ti ti-package"></i></span></div>
+        <span class="sa-kpi-label">Total Products Sold</span>
+        <strong class="sa-kpi-value" id="saTotalProductsSold">0</strong>
+        <span class="sa-kpi-note">All-time product quantity</span>
+      </article>
       <article class="sa-kpi dealers">
         <div class="sa-kpi-top"><span class="sa-kpi-icon"><i class="ti ti-building-store"></i></span></div>
         <span class="sa-kpi-label">Active Dealers</span>
         <strong class="sa-kpi-value" id="saActiveDealers">0</strong>
         <span class="sa-kpi-note">With sales in 30 days</span>
       </article>
-      <article class="sa-kpi orders">
-        <div class="sa-kpi-top"><span class="sa-kpi-icon"><i class="ti ti-alert-circle"></i></span></div>
-        <span class="sa-kpi-label">Pending Orders</span>
-        <strong class="sa-kpi-value" id="saPendingOrders">0</strong>
-        <span class="sa-kpi-note">Needs operational action</span>
+      <article class="sa-kpi customers">
+        <div class="sa-kpi-top"><span class="sa-kpi-icon"><i class="ti ti-users"></i></span></div>
+        <span class="sa-kpi-label">Active Customers</span>
+        <strong class="sa-kpi-value" id="saActiveCustomers">0</strong>
+        <span class="sa-kpi-note">Currently active accounts</span>
       </article>
     </div>
 
@@ -1246,132 +1300,147 @@
   </section>
   <section class="dashboard-section">
     <div class="row">
-      
-        <div class="col-lg-8 col-xl-8 d-flex align-items-stretch">
-          <div class="card dashboard-card">
-            <div class="card-body">
-              <div class="dashboard-panel-head">
-                <div>
-                  <h5 class="dashboard-panel-title">Latest Transactions</h5>
-                  <p class="dashboard-panel-copy">Most recent customer purchases and earned points.</p>
-                </div>
+      <div class="col-lg-8 col-xl-8 d-flex align-items-stretch">
+        <div class="card dashboard-card">
+          <div class="card-body">
+            <div class="dashboard-panel-head">
+              <div>
+                <h5 class="dashboard-panel-title">Latest Transactions</h5>
+                <p class="dashboard-panel-copy">Most recent customer purchases and earned points.</p>
               </div>
+            </div>
 
-              <div class="row mb-2 px-3 text-uppercase text-muted fw-bold" style="font-size: 9px; letter-spacing: .05em;">
-                <div class="col-4">
-                  Customer
-                </div>
-                <div class="col-4 text-center">
-                  Date
-                </div>
-                <div class="col-4 text-end">
-                  Customer points
-                </div>
+            <div class="row mb-2 px-3 text-uppercase text-muted fw-bold" style="font-size: 9px; letter-spacing: .05em;">
+              <div class="col-4">
+                Customer
               </div>
+              <div class="col-4 text-center">
+                Date
+              </div>
+              <div class="col-4 text-end">
+                Customer points
+              </div>
+            </div>
 
-              <div class="transaction-list dashboard-list">
-                @foreach($transactions_details as $index => $transaction)
-                  <div class="transaction-item {{ $index >= 5 ? 'd-none' : '' }}" data-customer-id="{{$transaction->customer->id ?? 0}}">
-                    <div class="row align-items-center dashboard-list-item">
-                      
-                      <div class="col-4">
-                        <div class="d-flex align-items-center">
-                          <div class="flex-shrink-0 me-3">
-                            <div class="dashboard-avatar">
-                              <img src="{{ optional($transaction->customer)->avatar ? asset($transaction->customer->avatar) : asset('/design/assets/images/profile/user-1.png') }}" 
-                                  alt="{{ optional($transaction->customer)->name ?? 'Customer' }}"
-                                  loading="lazy">
-                            </div>
+            <div class="transaction-list dashboard-list" id="latestTransactionsList">
+              @foreach($transactions_details as $index => $transaction)
+                @php
+                  $transactionDate = date('M d, Y', strtotime($transaction->created_at));
+                  $transactionQty = number_format((float) ($transaction->qty ?? 0), 2);
+                  $transactionAmount = number_format((float) ($transaction->qty ?? 0) * (float) ($transaction->price ?? 0), 2);
+                  $transactionDealer = strtoupper($transaction->dealer->name ?? '');
+                  $transactionCustomer = strtoupper($transaction->customer->name ?? 'Unknown');
+                  $transactionDealerPoints = $transaction->points_dealer ?? 0;
+                  $transactionCustomerPoints = $transaction->points_client ?? 0;
+                  $transactionItem = $transaction->item ?? 'Product';
+                @endphp
+                <div class="transaction-item {{ $index >= 5 ? 'd-none' : '' }}" data-customer-id="{{$transaction->customer->id ?? 0}}">
+                  <div class="row align-items-center dashboard-list-item">
+                    
+                    <div class="col-4">
+                      <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0 me-3">
+                          <div class="dashboard-avatar">
+                            <img src="{{ optional($transaction->customer)->avatar ? asset($transaction->customer->avatar) : asset('/design/assets/images/profile/user-1.png') }}" 
+                                alt="{{ optional($transaction->customer)->name ?? 'Customer' }}"
+                                loading="lazy">
                           </div>
-                          
-                          <div class="flex-grow-1">
-                            <h6 class="mb-0 fw-bold text-dark text-truncate">
-                                <a href="#" 
-                                    class="text-decoration-none text-dark customer-link text-truncate d-inline-block" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#transactionModal" 
-                                    onclick="showTransactionDetails('{{date('M d, Y',strtotime($transaction->created_at))}}', '{{number_format($transaction->qty,2)}}', '{{number_format($transaction->qty*$transaction->price,2)}}', '{{strtoupper($transaction->dealer->name ?? '')}}', '{{strtoupper($transaction->customer->name ?? '')}}', '{{$transaction->points_dealer}}', '{{$transaction->points_client}}', '{{$transaction->item}}')">
-                                    {{ strtoupper($transaction->customer->name ?? 'Unknown') }}
-                                </a>
-                            </h6>
                         </div>
-                        </div>
+                        
+                        <div class="flex-grow-1">
+                          <h6 class="mb-0 fw-bold text-dark text-truncate">
+                              <a href="javascript:void(0)" 
+                                  class="text-decoration-none text-dark customer-link text-truncate d-inline-block js-transaction-detail" 
+                                  data-bs-toggle="modal" 
+                                  data-bs-target="#transactionModal" 
+                                  data-date="{{ $transactionDate }}"
+                                  data-quantity="{{ $transactionQty }}"
+                                  data-amount="{{ $transactionAmount }}"
+                                  data-dealer="{{ $transactionDealer }}"
+                                  data-customer="{{ $transactionCustomer }}"
+                                  data-dealer-points="{{ $transactionDealerPoints }}"
+                                  data-customer-points="{{ $transactionCustomerPoints }}"
+                                  data-item="{{ $transactionItem }}">
+                                  {{ $transactionCustomer }}
+                              </a>
+                          </h6>
                       </div>
-                      
-                      <div class="col-4 text-center">
-                        <span class="text-dark fw-medium">
-                          {{ date('d.m.Y', strtotime($transaction->created_at)) }}
-                        </span>
-                      </div>
-                      
-                      <div class="col-3 text-end">
-                        <span class="fw-bold text-dark">
-                          {{ $transaction->points_client }}
-                        </span>
                       </div>
                     </div>
+                    
+                    <div class="col-4 text-center">
+                      <span class="text-dark fw-medium">
+                        {{ date('d.m.Y', strtotime($transaction->created_at)) }}
+                      </span>
+                    </div>
+                    
+                    <div class="col-4 text-end">
+                      <span class="fw-bold text-dark">
+                        {{ $transaction->points_client }}
+                      </span>
+                    </div>
                   </div>
-                @endforeach
-              </div>
-
-              <div class="dashboard-pagination">
-                <small class="text-muted" id="entriesInfo">
-                  Showing <span id="currentStart">1</span> to <span id="currentEnd">5</span> of <span id="totalEntries">{{ $transactions_details->count() }}</span> entries
-                </small>
-                
-                <nav aria-label="Transaction pagination">
-                  <ul class="pagination pagination-sm mb-0">
-                    <li class="page-item" id="prevPage">
-                      <a class="page-link" href="javascript:void(0)" onclick="changePage('prev')">
-                        <i class="fas fa-chevron-left"></i> Previous
-                      </a>
-                    </li>
-                    <li class="page-item" id="nextPage">
-                      <a class="page-link" href="javascript:void(0)" onclick="changePage('next')">
-                        Next <i class="fas fa-chevron-right"></i>
-                      </a>
-                    </li>
-                  </ul>
-                </nav>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
-          <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title" id="transactionModalLabel">Transaction Details <span id="customerName" style="display:none"></span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <div class="modal-body">
-                <div class="table-responsive">
-                  <table class="table table-striped align-middle text-nowrap">
-                    <thead>
-                      <tr>
-                        <th scope="col">Date</th>
-                        <th scope="col">Quantity</th>
-                        <th scope="col">Amount</th>
-                        <th scope="col">Dealer</th>
-                        <th scope="col">Customer</th>
-                        <th scope="col">Dealer Points</th>
-                        <th scope="col">Customer Points</th>
-                        <th scope="col">Item</th>
-                      </tr>
-                    </thead>
-                    <tbody id="customerTransactions">
-                      <!-- Customer transactions will be here -->
-                    </tbody>
-                  </table>
                 </div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-              </div>
+              @endforeach
+            </div>
+
+            <div class="dashboard-pagination">
+              <small class="text-muted" id="entriesInfo">
+                Showing <span id="currentStart">1</span> to <span id="currentEnd">5</span> of <span id="totalEntries">{{ $transactions_details->count() }}</span> entries
+              </small>
+              
+              <nav aria-label="Transaction pagination">
+                <ul class="pagination pagination-sm mb-0" id="transactionPagination">
+                  <li class="page-item" id="prevPage">
+                    <a class="page-link" href="javascript:void(0)" onclick="changeTransactionPage('prev'); return false;">
+                      <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                  </li>
+                  <li class="page-item" id="nextPage">
+                    <a class="page-link" href="javascript:void(0)" onclick="changeTransactionPage('next'); return false;">
+                      Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                  </li>
+                </ul>
+              </nav>
             </div>
           </div>
         </div>
+      </div>
+      <div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="transactionModalLabel">Transaction Details <span id="customerName" style="display:none"></span></h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="table-responsive">
+                <table class="table table-striped align-middle text-nowrap">
+                  <thead>
+                    <tr>
+                      <th scope="col">Date</th>
+                      <th scope="col">Quantity</th>
+                      <th scope="col">Amount</th>
+                      <th scope="col">Dealer</th>
+                      <th scope="col">Customer</th>
+                      <th scope="col">Dealer Points</th>
+                      <th scope="col">Customer Points</th>
+                      <th scope="col">Item</th>
+                    </tr>
+                  </thead>
+                  <tbody id="customerTransactions">
+                    <!-- Customer transactions will be here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
         <div class="col-lg-4 col-xl-4 d-flex align-items-stretch">
           <div class="card dashboard-card">
@@ -1387,7 +1456,7 @@
                 <div class="dashboard-donut-center">
                   <small>Highest points</small>
                   <strong>
-                      {{ $dealers->isNotEmpty() ? number_format($dealers->first()->total_points) : '0' }}
+                      <span id="topDealersHighestPoints">{{ $dealers->isNotEmpty() ? number_format($dealers->first()->total_points) : '0' }}</span>
                   </strong>
                 </div>
               </div>
@@ -1401,7 +1470,7 @@
                       <th scope="col">Last transaction</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody id="topDealersTableBody">
                     @foreach($dealers as $index => $dealer)
                       <tr>
                         <td>
@@ -1442,7 +1511,7 @@
               </div>
             </div>
 
-            <div class="inactive-dealers-list dashboard-list">
+            <div class="inactive-dealers-list dashboard-list" id="inactiveDealersList">
               @if($dealers_inactive->isEmpty())
                 <div class="dashboard-empty">
                   <div>
@@ -1496,28 +1565,26 @@
               @endif
             </div>
 
-            @if($dealers_inactive->isNotEmpty())
-              <div class="dashboard-pagination">
+              <div class="dashboard-pagination {{ $dealers_inactive->isEmpty() ? 'd-none' : '' }}" id="inactiveDealersPaginationWrap">
                 <small class="text-muted" id="dealersEntriesInfo">
                   Showing <span id="dealersCurrentStart">1</span> to <span id="dealersCurrentEnd">5</span> of <span id="dealersTotalEntries">{{ $dealers_inactive->count() }}</span> entries
                 </small>
                 
                 <nav aria-label="Inactive dealers pagination">
-                  <ul class="pagination pagination-sm mb-0">
+                  <ul class="pagination pagination-sm mb-0" id="inactiveDealersPagination">
                     <li class="page-item" id="dealersPrevPage">
-                      <a class="page-link" href="javascript:void(0)" onclick="changeDealersPage('prev')">
+                      <a class="page-link" href="javascript:void(0)" onclick="changeDealersPage('prev'); return false;">
                         <i class="fas fa-chevron-left"></i> Previous
                       </a>
                     </li>
                     <li class="page-item" id="dealersNextPage">
-                      <a class="page-link" href="javascript:void(0)" onclick="changeDealersPage('next')">
+                      <a class="page-link" href="javascript:void(0)" onclick="changeDealersPage('next'); return false;">
                         Next <i class="fas fa-chevron-right"></i>
                       </a>
                     </li>
                   </ul>
                 </nav>
               </div>
-            @endif
           </div>
         </div>
       </div>
@@ -1536,7 +1603,7 @@
               <div class="dashboard-donut-center">
                 <small>Highest points</small>
                 <strong>
-                    {{ $top_customers->isNotEmpty() ? number_format($top_customers->first()->total_points) : '0' }}
+                    <span id="topCustomersHighestPoints">{{ $top_customers->isNotEmpty() ? number_format($top_customers->first()->total_points) : '0' }}</span>
                 </strong>
               </div>
             </div>
@@ -1550,7 +1617,7 @@
                     <th scope="col">Last transaction</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="topCustomersTableBody">
                   @foreach($top_customers as $index => $customer)
                     <tr>
                       <td>
@@ -1576,14 +1643,17 @@
 <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
  @if(auth()->user()->role == "Client")
       <script>
-          const qrcode = new QRCode(document.getElementById('qrcode'), {
-              text: "{{ $customer->serial->serial_number }}",
-              width: 128,
-              height: 128,
-              colorDark : '#000',
-              colorLight : '#fff',
-              correctLevel : QRCode.CorrectLevel.H
-          });
+          const qrCodeElement = document.getElementById('qrcode');
+          if (qrCodeElement && window.QRCode) {
+              const qrcode = new QRCode(qrCodeElement, {
+                  text: "{{ $customer->serial->serial_number }}",
+                  width: 128,
+                  height: 128,
+                  colorDark : '#000',
+                  colorLight : '#fff',
+                  correctLevel : QRCode.CorrectLevel.H
+              });
+          }
       </script>
   @endif
 
@@ -1664,9 +1734,13 @@ document.addEventListener('DOMContentLoaded', function () {
 <script>
 (function () {
     var endpoint = @json(route('home.live-overview'));
+    var activeSource = 'regular';
     var salesChart = null;
     var orderChart = null;
+    var liveRequestId = 0;
     var refreshButton = document.getElementById('saRefreshButton');
+    var commandCenter = document.getElementById('superAdminCommand');
+    var sourceTabs = Array.prototype.slice.call(document.querySelectorAll('[data-dashboard-source]'));
     var peso = new Intl.NumberFormat('en-PH', {
         style: 'currency',
         currency: 'PHP',
@@ -1680,9 +1754,55 @@ document.addEventListener('DOMContentLoaded', function () {
         return node.innerHTML;
     }
 
+    function escapeAttr(value) {
+        return escapeHtml(value).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function renderApexChart(chart) {
+        if (!chart || typeof chart.render !== 'function') return;
+
+        var result = chart.render();
+        if (result && typeof result.catch === 'function') {
+            result.catch(function (error) {
+                console.warn('Dashboard chart could not render:', error);
+            });
+        }
+    }
+
     function setText(id, value) {
         var element = document.getElementById(id);
         if (element) element.textContent = value;
+    }
+
+    function setActiveSource(tab) {
+        if (!tab) return;
+
+        activeSource = tab.getAttribute('data-dashboard-source') || 'regular';
+        window.currentDashboardSource = activeSource;
+        sourceTabs.forEach(function (item) {
+            var isActive = item === tab;
+            item.classList.toggle('active', isActive);
+            item.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        var label = tab.getAttribute('data-dashboard-label') || 'Regular';
+        setText('saSourceName', label + ' Dashboard');
+        setText('saSourceCopy', 'Live overview for ' + label + '.');
+        setText('saUpdatedAt', 'loading...');
+    }
+
+    function sourceEndpoint() {
+        var separator = endpoint.indexOf('?') === -1 ? '?' : '&';
+        var year = document.getElementById('yearSelect') ? document.getElementById('yearSelect').value : '';
+        var month = document.getElementById('monthSelect') ? document.getElementById('monthSelect').value : '';
+        return endpoint + separator + 'source=' + encodeURIComponent(activeSource) +
+            (year ? '&year=' + encodeURIComponent(year) : '') +
+            (month ? '&month=' + encodeURIComponent(month) : '');
+    }
+
+    function setLoading(isLoading) {
+        if (commandCenter) commandCenter.classList.toggle('is-loading', isLoading);
+        if (refreshButton) refreshButton.classList.toggle('is-loading', isLoading);
     }
 
     function renderKpis(kpis) {
@@ -1690,11 +1810,15 @@ document.addEventListener('DOMContentLoaded', function () {
         setText('saMonthSales', peso.format(kpis.month_sales || 0));
         setText('saTodayTransactions', wholeNumber.format(kpis.today_transactions || 0));
         setText('saMonthUnits', wholeNumber.format(kpis.month_units || 0));
+        setText('saTotalSales', peso.format(kpis.total_sales || 0));
+        setText('saTotalProductsSold', wholeNumber.format(kpis.total_products_sold || 0));
         setText('saActiveDealers', wholeNumber.format(kpis.active_dealers || 0));
+        setText('saActiveCustomers', wholeNumber.format(kpis.active_customers || 0));
         setText('saPendingOrders', wholeNumber.format(kpis.pending_orders || 0));
     }
 
     function renderSalesChart(rows) {
+        rows = rows || [];
         var categories = rows.map(function (row) { return row.date; });
         var sales = rows.map(function (row) { return row.sales; });
         var units = rows.map(function (row) { return row.units; });
@@ -1764,12 +1888,19 @@ document.addEventListener('DOMContentLoaded', function () {
         if (salesChart) {
             salesChart.updateOptions(options);
         } else {
-            salesChart = new ApexCharts(document.querySelector('#saSalesChart'), options);
-            salesChart.render();
+            var salesChartElement = document.querySelector('#saSalesChart');
+            if (salesChartElement) {
+                salesChart = new ApexCharts(salesChartElement, options);
+                renderApexChart(salesChart);
+            }
         }
     }
 
     function renderOrderChart(rows) {
+        var orderChartElement = document.querySelector('#saOrderChart');
+        if (!orderChartElement) return;
+
+        rows = rows || [];
         var usableRows = rows.filter(function (row) { return Number(row.total) > 0; });
         var options = {
             series: usableRows.length ? usableRows.map(function (row) { return Number(row.total); }) : [1],
@@ -1810,8 +1941,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (orderChart) {
             orderChart.updateOptions(options);
         } else {
-            orderChart = new ApexCharts(document.querySelector('#saOrderChart'), options);
-            orderChart.render();
+            orderChart = new ApexCharts(orderChartElement, options);
+            renderApexChart(orderChart);
         }
     }
 
@@ -1829,16 +1960,162 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<div class="sa-pulse-copy">' +
                     '<strong>' + escapeHtml(row.customer) + ' &middot; ' + escapeHtml(row.item) + '</strong>' +
                     '<small>' + escapeHtml(row.dealer) + ' &middot; ' + escapeHtml(row.time || 'just now') + '</small>' +
+                    '<strong>' + escapeHtml(row.customer) + ' - ' + escapeHtml(row.item) + '</strong>' +
+                    '<small>' + escapeHtml(row.dealer) + ' - ' + escapeHtml(row.time || 'just now') + '</small>' +
                 '</div>' +
                 '<span class="sa-pulse-amount">' + escapeHtml(peso.format(row.amount || 0)) + '</span>' +
             '</div>';
         }).join('');
+        return;
+    }
+
+    function formatDate(value) {
+        if (!value) return 'No activity';
+        var parsed = new Date(value);
+        return isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function renderLatestTransactions(rows) {
+        var container = document.getElementById('latestTransactionsList');
+        if (!container) return;
+
+        if (!rows || !rows.length) {
+            container.innerHTML = '<div class="dashboard-empty"><div><i class="ti ti-receipt-off"></i><p class="mb-0">No transactions found.</p></div></div>';
+            setText('totalEntries', '0');
+            setText('currentStart', '0');
+            setText('currentEnd', '0');
+            if (typeof transactionTotalEntries !== 'undefined') transactionTotalEntries = 0;
+            if (typeof transactionTotalPages !== 'undefined') transactionTotalPages = 1;
+            if (typeof transactionCurrentPage !== 'undefined') transactionCurrentPage = 1;
+            if (typeof updateTransactionPagination === 'function') updateTransactionPagination();
+            if (typeof updateTransactionEntriesInfo === 'function') updateTransactionEntriesInfo();
+            return;
+        }
+
+        container.innerHTML = rows.map(function (row, index) {
+            var customer = String(row.customer || 'Unknown').toUpperCase();
+            var dealer = String(row.dealer || '').toUpperCase();
+            var item = row.item || 'Product';
+            var date = formatDate(row.raw_date || row.date);
+            var quantity = Number(row.quantity || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            var amount = Number(row.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            var dealerPoints = wholeNumber.format(row.dealer_points || 0);
+            var customerPoints = wholeNumber.format(row.customer_points || 0);
+
+            return '<div class="transaction-item ' + (index >= 5 ? 'd-none' : '') + '">' +
+                '<div class="row align-items-center dashboard-list-item">' +
+                    '<div class="col-4"><div class="d-flex align-items-center"><div class="flex-shrink-0 me-3"><div class="dashboard-avatar"><img src="{{ asset('/design/assets/images/profile/user-1.png') }}" alt="Customer" loading="lazy"></div></div><div class="flex-grow-1"><h6 class="mb-0 fw-bold text-dark text-truncate"><a href="javascript:void(0)" class="text-decoration-none text-dark customer-link text-truncate d-inline-block js-transaction-detail" data-bs-toggle="modal" data-bs-target="#transactionModal" data-date="' + escapeAttr(date) + '" data-quantity="' + escapeAttr(quantity) + '" data-amount="' + escapeAttr(amount) + '" data-dealer="' + escapeAttr(dealer) + '" data-customer="' + escapeAttr(customer) + '" data-dealer-points="' + escapeAttr(dealerPoints) + '" data-customer-points="' + escapeAttr(customerPoints) + '" data-item="' + escapeAttr(item) + '">' + escapeHtml(customer) + '</a></h6><small class="text-muted">' + escapeHtml(item) + '</small></div></div></div>' +
+                    '<div class="col-4 text-center"><span class="text-dark fw-medium">' + escapeHtml(date) + '</span></div>' +
+                    '<div class="col-4 text-end"><span class="fw-bold text-dark">' + customerPoints + '</span></div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+
+        if (typeof transactionEntriesPerPage !== 'undefined') {
+            transactionTotalEntries = rows.length;
+            transactionTotalPages = Math.max(1, Math.ceil(transactionTotalEntries / transactionEntriesPerPage));
+            transactionCurrentPage = 1;
+            if (typeof showTransactionPage === 'function') showTransactionPage(transactionCurrentPage);
+            if (typeof updateTransactionPagination === 'function') updateTransactionPagination();
+            if (typeof updateTransactionEntriesInfo === 'function') updateTransactionEntriesInfo();
+        } else {
+            setText('totalEntries', rows.length);
+            setText('currentStart', rows.length ? '1' : '0');
+            setText('currentEnd', String(Math.min(5, rows.length)));
+        }
+    }
+
+    function renderLeaderboard(rows, chartId, tableBodyId, highestId, colors) {
+        var chartElement = document.getElementById(chartId);
+        var tableBody = document.getElementById(tableBodyId);
+        if (!tableBody) return;
+
+        rows = rows || [];
+        setText(highestId, rows.length ? wholeNumber.format(rows[0].total_points || 0) : '0');
+
+        tableBody.innerHTML = rows.length ? rows.map(function (row, index) {
+            return '<tr><td><span class="dashboard-rank-dot" style="background-color:' + colors[index % colors.length] + ';"></span>' +
+                escapeHtml(String(row.name || 'Unknown').toUpperCase().substring(0, 12)) + '</td>' +
+                '<td>' + wholeNumber.format(row.total_points || 0) + '</td>' +
+                '<td>' + escapeHtml(formatDate(row.latest_transaction)) + '</td></tr>';
+        }).join('') : '<tr><td colspan="3" class="text-center text-muted py-3">No data found.</td></tr>';
+
+        if (chartElement && window.ApexCharts) {
+            chartElement.innerHTML = '';
+            var rankingChart = new ApexCharts(chartElement, {
+                series: rows.length ? rows.slice(0, 10).map(function (row) { return Number(row.total_points || 0); }) : [1],
+                labels: rows.length ? rows.slice(0, 10).map(function (row) { return row.name || 'Unknown'; }) : ['No data'],
+                chart: { type: 'donut', height: 220, width: 220, fontFamily: 'inherit' },
+                colors: rows.length ? colors : ['#e5e7eb'],
+                dataLabels: { enabled: false },
+                legend: { show: false },
+                stroke: { width: 0 },
+                tooltip: { enabled: rows.length > 0 }
+            });
+            renderApexChart(rankingChart);
+        }
+    }
+
+    function renderInactiveDealers(rows) {
+        var container = document.getElementById('inactiveDealersList');
+        if (!container) return;
+
+        rows = rows || [];
+        if (!rows.length) {
+            container.innerHTML = '<div class="dashboard-empty"><div><i class="ti ti-circle-check"></i><p class="mb-0">All dealers are active.</p></div></div>';
+            setText('dealersTotalEntries', '0');
+            setText('dealersCurrentStart', '0');
+            setText('dealersCurrentEnd', '0');
+            if (typeof totalDealersEntries !== 'undefined') totalDealersEntries = 0;
+            if (typeof totalDealersPages !== 'undefined') totalDealersPages = 1;
+            if (typeof currentDealersPage !== 'undefined') currentDealersPage = 1;
+            if (typeof updateDealersPagination === 'function') updateDealersPagination();
+            if (typeof updateDealersEntriesInfo === 'function') updateDealersEntriesInfo();
+            return;
+        }
+
+        container.innerHTML = rows.map(function (row, index) {
+            var days = row.days_since_transaction == null ? null : Number(row.days_since_transaction);
+            return '<div class="inactive-dealer-item ' + (index >= 5 ? 'd-none' : '') + '">' +
+                '<div class="row align-items-center dashboard-list-item">' +
+                    '<div class="col-6"><div class="d-flex align-items-center"><div class="flex-shrink-0 me-3"><div class="dashboard-alert-icon"><i class="ti ti-alert-triangle"></i></div></div><div class="flex-grow-1"><h6 class="mb-0 fw-bold text-dark text-truncate">' + escapeHtml(String(row.name || 'Unknown').toUpperCase()) + '</h6>' + (row.store_name ? '<small class="text-muted">' + escapeHtml(String(row.store_name).toUpperCase()) + '</small>' : '') + '</div></div></div>' +
+                    '<div class="col-6 text-end">' + (row.last_transaction_date ? '<span class="text-dark fw-medium d-block">' + escapeHtml(formatDate(row.last_transaction_date)) + '</span><span class="badge bg-danger">' + days + ' ' + (days === 1 ? 'day' : 'days') + ' ago</span>' : '<span class="text-muted" style="font-size:12px;">No activity</span>') + '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+
+        if (typeof dealersPerPage !== 'undefined') {
+            totalDealersEntries = rows.length;
+            totalDealersPages = Math.max(1, Math.ceil(totalDealersEntries / dealersPerPage));
+            currentDealersPage = 1;
+            if (typeof showDealersPage === 'function') showDealersPage(currentDealersPage);
+            if (typeof updateDealersPagination === 'function') updateDealersPagination();
+            if (typeof updateDealersEntriesInfo === 'function') updateDealersEntriesInfo();
+        } else {
+            setText('dealersTotalEntries', rows.length);
+            setText('dealersCurrentStart', rows.length ? '1' : '0');
+            setText('dealersCurrentEnd', String(Math.min(5, rows.length)));
+        }
+    }
+
+    function renderDynamicDashboardSections(data) {
+        renderLatestTransactions(data.latest_transactions || []);
+        renderLeaderboard(data.top_dealers || [], 'dealers-donut-chart', 'topDealersTableBody', 'topDealersHighestPoints', ['#02437B', '#0E5A8A', '#1A7199', '#2688A8', '#329FB7', '#3EB6C6', '#4ACDD5', '#56E4E4', '#62FBF3', '#6EFFFF']);
+        renderInactiveDealers(data.inactive_dealers || []);
+        renderLeaderboard(data.top_customers || [], 'customers-donut-chart', 'topCustomersTableBody', 'topCustomersHighestPoints', ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA']);
+
+        if (data.refill_chart && typeof renderChart === 'function') {
+            updateMonthsDropdown(data.refill_chart.available_months || [], data.refill_chart.month);
+            updateViewModeIndicator(data.refill_chart.view_type || 'yearly');
+            renderChart(data.refill_chart.categories || [], data.refill_chart.qty || [], data.refill_chart.year, data.refill_chart.month, data.refill_chart.view_type);
+        }
     }
 
     function loadLiveOverview() {
-        if (refreshButton) refreshButton.classList.add('is-loading');
+        var requestId = ++liveRequestId;
+        setLoading(true);
 
-        fetch(endpoint, {
+        fetch(sourceEndpoint(), {
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
@@ -1851,24 +2128,40 @@ document.addEventListener('DOMContentLoaded', function () {
             return response.json();
         })
         .then(function (data) {
-            renderKpis(data.kpis || {});
+            if (requestId !== liveRequestId || data.source !== activeSource) return;
+
+            var kpis = data.kpis || {};
+            renderKpis(kpis);
             renderSalesChart(data.sales_trend || []);
             renderOrderChart(data.order_statuses || []);
             renderRecentTransactions(data.recent_transactions || []);
+            renderDynamicDashboardSections(data);
             setText('saUpdatedAt', 'updated ' + new Date(data.generated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         })
         .catch(function (error) {
+            if (requestId !== liveRequestId) return;
+
             console.error('Super Admin dashboard:', error);
             setText('saUpdatedAt', 'refresh failed');
         })
         .finally(function () {
-            if (refreshButton) refreshButton.classList.remove('is-loading');
+            if (requestId === liveRequestId) setLoading(false);
         });
     }
 
+    sourceTabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            setActiveSource(tab);
+            loadLiveOverview();
+        });
+    });
+
+    setActiveSource(sourceTabs[0]);
     if (refreshButton) refreshButton.addEventListener('click', loadLiveOverview);
-    loadLiveOverview();
-    window.setInterval(loadLiveOverview, 30000);
+    document.addEventListener('DOMContentLoaded', function () {
+        loadLiveOverview();
+        window.setInterval(loadLiveOverview, 30000);
+    });
 })();
 </script>
 @endif
@@ -2232,7 +2525,9 @@ document.addEventListener('DOMContentLoaded', function() {
         a.click();
     }
 
-    document.getElementById('provinceSearch').addEventListener('input', function(e) {
+    const provinceSearch = document.getElementById('provinceSearch');
+    if (provinceSearch) {
+      provinceSearch.addEventListener('input', function(e) {
         const searchTerm = e.target.value.toLowerCase();
         filteredProvinceData = provinceData.filter(item => 
             item.location.toLowerCase().includes(searchTerm) ||
@@ -2240,15 +2535,21 @@ document.addEventListener('DOMContentLoaded', function() {
         );
         currentPage = 1;
         renderProvinceTable();
-    });
+      });
+    }
 
-    document.getElementById('provinceEntriesPerPage').addEventListener('change', function(e) {
+    const provinceEntriesPerPage = document.getElementById('provinceEntriesPerPage');
+    if (provinceEntriesPerPage) {
+      provinceEntriesPerPage.addEventListener('change', function(e) {
         entriesPerPage = parseInt(e.target.value);
         currentPage = 1;
         renderProvinceTable();
-    });
+      });
+    }
 
-    document.getElementById('provinceSortBy').addEventListener('change', function(e) {
+    const provinceSortBy = document.getElementById('provinceSortBy');
+    if (provinceSortBy) {
+      provinceSortBy.addEventListener('change', function(e) {
         const sortValue = e.target.value;
         
         filteredProvinceData.sort((a, b) => {
@@ -2274,7 +2575,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         currentPage = 1;
         renderProvinceTable();
-    });
+      });
+    }
 
     window.showProvinceDetails = showProvinceDetails;
     window.changePage = changePage;
@@ -2286,11 +2588,16 @@ document.addEventListener('DOMContentLoaded', function() {
 let currentDealersPage = 1;
 let dealersPerPage = 5;
 let totalDealersEntries = {{ $dealers_inactive->count() ?? 0 }};
-let totalDealersPages = Math.ceil(totalDealersEntries / dealersPerPage);
+let totalDealersPages = Math.max(1, Math.ceil(totalDealersEntries / dealersPerPage));
 
 function showDealersPage(page) {
-    const items = document.querySelectorAll('.inactive-dealer-item');
-    const startIndex = (page - 1) * dealersPerPage;
+    const list = document.getElementById('inactiveDealersList');
+    const items = list ? list.querySelectorAll('.inactive-dealer-item') : [];
+    totalDealersEntries = items.length;
+    totalDealersPages = Math.max(1, Math.ceil(totalDealersEntries / dealersPerPage));
+    currentDealersPage = Math.min(Math.max(1, Number(page) || 1), totalDealersPages);
+
+    const startIndex = (currentDealersPage - 1) * dealersPerPage;
     const endIndex = startIndex + dealersPerPage;
     
     items.forEach((item, index) => {
@@ -2315,7 +2622,7 @@ function changeDealersPage(direction) {
 }
 
 function goToDealersPage(page) {
-    currentDealersPage = page;
+    currentDealersPage = Number(page) || 1;
     showDealersPage(currentDealersPage);
     updateDealersPagination();
     updateDealersEntriesInfo();
@@ -2323,8 +2630,10 @@ function goToDealersPage(page) {
 }
 
 function updateDealersPagination() {
-    const pageNumbers = document.querySelector('.inactive-dealers-list').nextElementSibling.querySelector('.pagination');
+    const pageNumbers = document.getElementById('inactiveDealersPagination');
     if (!pageNumbers) return;
+    const paginationWrap = document.getElementById('inactiveDealersPaginationWrap');
+    if (paginationWrap) paginationWrap.classList.toggle('d-none', totalDealersEntries === 0);
     
     const pageItems = pageNumbers.querySelectorAll('.page-item:not(#dealersPrevPage):not(#dealersNextPage)');
     pageItems.forEach(item => item.remove());
@@ -2333,6 +2642,12 @@ function updateDealersPagination() {
     const nextPage = document.getElementById('dealersNextPage');
     
     if (!prevPage || !nextPage) return;
+
+    if (totalDealersEntries === 0) {
+        prevPage.classList.add('disabled');
+        nextPage.classList.add('disabled');
+        return;
+    }
     
     let startPage, endPage;
     
@@ -2363,7 +2678,7 @@ function updateDealersPagination() {
         const dotsLi = document.createElement('li');
         dotsLi.className = 'page-item disabled';
         dotsLi.innerHTML = '<span class="page-link" style="font-size: 12px;">...</span>';
-        prevPage.nextSibling.after(dotsLi);
+        prevPage.after(dotsLi);
     }
     
     if (endPage < totalDealersPages) {
@@ -2378,7 +2693,7 @@ function updateDealersPagination() {
 }
 
 function updateDealersEntriesInfo() {
-    const startEntry = (currentDealersPage - 1) * dealersPerPage + 1;
+    const startEntry = totalDealersEntries ? (currentDealersPage - 1) * dealersPerPage + 1 : 0;
     const endEntry = Math.min(currentDealersPage * dealersPerPage, totalDealersEntries);
     
     const startEl = document.getElementById('dealersCurrentStart');
@@ -2417,56 +2732,86 @@ const allTransactions = {!! json_encode(
 ) !!};
 
 function showTransactionDetails(date, quantity, amount, dealer, customer, dealerPoints, customerPoints, item) {
-    document.getElementById('customerName').textContent = customer;
-    
+    const customerName = document.getElementById('customerName');
     const tbody = document.getElementById('customerTransactions');
+    if (!tbody) return;
+
+    if (customerName) customerName.textContent = customer || 'Customer';
     tbody.innerHTML = '';
-    
-    const row = `
-        <tr>
-            <td>${date}</td>
-            <td>${quantity}</td>
-            <td>${amount}</td>
-            <td>${dealer}</td>
-            <td>${customer}</td>
-            <td><span class='text-success'>${dealerPoints}</span></td>
-            <td><span class='text-success'>${customerPoints}</span></td>
-            <td>${item}</td>
-        </tr>
-    `;
-    tbody.innerHTML = row;
+    appendTransactionModalRow(tbody, {
+        date: date,
+        quantity: quantity,
+        amount: amount,
+        dealer: dealer,
+        customer: customer,
+        dealer_points: dealerPoints,
+        customer_points: customerPoints,
+        item: item
+    });
+}
+
+function appendTransactionModalCell(row, value, className = '') {
+    const td = document.createElement('td');
+    if (className) {
+        const span = document.createElement('span');
+        span.className = className;
+        span.textContent = value ?? '';
+        td.appendChild(span);
+    } else {
+        td.textContent = value ?? '';
+    }
+    row.appendChild(td);
+}
+
+function appendTransactionModalRow(tbody, transaction) {
+    const row = document.createElement('tr');
+    appendTransactionModalCell(row, transaction.date);
+    appendTransactionModalCell(row, transaction.quantity);
+    appendTransactionModalCell(row, transaction.amount);
+    appendTransactionModalCell(row, transaction.dealer);
+    appendTransactionModalCell(row, transaction.customer);
+    appendTransactionModalCell(row, transaction.dealer_points, 'text-success');
+    appendTransactionModalCell(row, transaction.customer_points, 'text-success');
+    appendTransactionModalCell(row, transaction.item);
+    tbody.appendChild(row);
 }
 
 function loadCustomerTransactions(customerId, customerName) {
-    document.getElementById('customerName').textContent = customerName;
+    const modalCustomerName = document.getElementById('customerName');
+    if (modalCustomerName) modalCustomerName.textContent = customerName || 'Customer';
     
     const customerTransactions = allTransactions.filter(transaction => 
         transaction.customer_id == customerId
     );
     
     const tbody = document.getElementById('customerTransactions');
+    if (!tbody) return;
     tbody.innerHTML = '';
     
     customerTransactions.forEach(transaction => {
-        const row = `
-            <tr>
-                <td>${transaction.date}</td>
-                <td>${transaction.quantity}</td>
-                <td>${transaction.amount}</td>
-                <td>${transaction.dealer}</td>
-                <td>${transaction.customer}</td>
-                <td><span class='text-success'>${transaction.dealer_points}</span></td>
-                <td><span class='text-success'>${transaction.customer_points}</span></td>
-                <td>${transaction.item}</td>
-            </tr>
-        `;
-        tbody.innerHTML += row;
+        appendTransactionModalRow(tbody, transaction);
     });
     
     if (customerTransactions.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center">No transactions found for this customer.</td></tr>';
     }
 }
+
+document.addEventListener('click', function(event) {
+    const trigger = event.target.closest('.js-transaction-detail');
+    if (!trigger) return;
+
+    showTransactionDetails(
+        trigger.dataset.date || '',
+        trigger.dataset.quantity || '0.00',
+        trigger.dataset.amount || '0.00',
+        trigger.dataset.dealer || '',
+        trigger.dataset.customer || 'Customer',
+        trigger.dataset.dealerPoints || '0',
+        trigger.dataset.customerPoints || '0',
+        trigger.dataset.item || 'Product'
+    );
+});
 
 function updateTableEntries() {
     const entriesPerPage = parseInt(document.getElementById('entriesPerPage').value);
@@ -2490,6 +2835,8 @@ function updateTableEntries() {
 <script>
 // Donut Chart for Top 10 Dealers
 $(document).ready(function() {
+  if (@json($isSuperAdminDashboard)) return;
+
   const dealersData = @json($dealers);
   const dealerNames = dealersData.slice(0, 10).map(dealer => dealer.dealer?.name || 'Unknown');
   const dealerPoints = dealersData.slice(0, 10).map(dealer => parseFloat(dealer.total_points));
@@ -2536,14 +2883,24 @@ $(document).ready(function() {
     labels: dealerNames,
   };
 
-  var donutChart = new ApexCharts(document.querySelector("#dealers-donut-chart"), donutOptions);
-  donutChart.render();
+  var dealerChartElement = document.querySelector("#dealers-donut-chart");
+  if (dealerChartElement && window.ApexCharts) {
+    var donutChart = new ApexCharts(dealerChartElement, donutOptions);
+    var donutRender = donutChart.render();
+    if (donutRender && typeof donutRender.catch === 'function') {
+      donutRender.catch(function (error) {
+        console.warn('Dealer chart could not render:', error);
+      });
+    }
+  }
 });
 </script>
 
 <script>
 // Donut Chart for Top 10 Customers
 $(document).ready(function() {
+  if (@json($isSuperAdminDashboard)) return;
+
   const customersData = @json($top_customers ?? []);
   const customerNames = customersData.slice(0, 10).map(customer => customer.customer?.name || 'Unknown');
   const customerPoints = customersData.slice(0, 10).map(customer => parseFloat(customer.total_points));
@@ -2591,8 +2948,16 @@ $(document).ready(function() {
     labels: customerNames,
   };
 
-  var customersDonutChart = new ApexCharts(document.querySelector("#customers-donut-chart"), customersDonutOptions);
-  customersDonutChart.render();
+  var customerChartElement = document.querySelector("#customers-donut-chart");
+  if (customerChartElement && window.ApexCharts) {
+    var customersDonutChart = new ApexCharts(customerChartElement, customersDonutOptions);
+    var customerRender = customersDonutChart.render();
+    if (customerRender && typeof customerRender.catch === 'function') {
+      customerRender.catch(function (error) {
+        console.warn('Customer chart could not render:', error);
+      });
+    }
+  }
 });
 </script>
 
@@ -2604,7 +2969,9 @@ const initialViewType = @json($view_type);
 
 // Initialize chart on page load
 $(function () {
-  renderChart(initialCategories, initialQty, {{ $selected_year }}, {{ $selected_month ?? 'null' }}, initialViewType);
+  if (!@json($isSuperAdminDashboard)) {
+    renderChart(initialCategories, initialQty, {{ $selected_year }}, {{ $selected_month ?? 'null' }}, initialViewType);
+  }
   
   // Handle year selection change
   $('#yearSelect').on('change', function() {
@@ -2636,7 +3003,8 @@ function loadChartData(year, month = null) {
       method: 'GET',
       data: { 
         year: year, 
-        month: month || null 
+        month: month || null,
+        source: window.currentDashboardSource || 'regular'
       },
       cache: false,
       success: function(response) {
@@ -2698,6 +3066,10 @@ function renderChart(categories, qty, year, month = null, viewType = 'yearly') {
   }
 
   const chartElement = document.querySelector('#chart-bar-stacked');
+  if (!chartElement || !window.ApexCharts) {
+    return;
+  }
+
   chartElement.innerHTML = '';
 
   const options = {
@@ -2804,30 +3176,45 @@ function renderChart(categories, qty, year, month = null, viewType = 'yearly') {
   };
 
   setTimeout(function () {
+    if (!document.body.contains(chartElement)) {
+      return;
+    }
+
     chartInstance = new ApexCharts(chartElement, options);
-    chartInstance.render();
+    var chartRender = chartInstance.render();
+    if (chartRender && typeof chartRender.catch === 'function') {
+      chartRender.catch(function (error) {
+        console.warn('Refill chart could not render:', error);
+      });
+    }
   }, 50);
 }
 </script>
 <script>
-let currentPage = 1;
-let entriesPerPage = 5;
-let totalEntries = {{ $transactions_details->count() }};
-let totalPages = Math.ceil(totalEntries / entriesPerPage);
+let transactionCurrentPage = 1;
+let transactionEntriesPerPage = 5;
+let transactionTotalEntries = {{ $transactions_details->count() }};
+let transactionTotalPages = Math.max(1, Math.ceil(transactionTotalEntries / transactionEntriesPerPage));
 
-function updateTableEntries() {
-    entriesPerPage = parseInt(document.getElementById('entriesPerPage').value);
-    totalPages = Math.ceil(totalEntries / entriesPerPage);
-    currentPage = 1;
-    showPage(currentPage);
-    updatePagination();
-    updateEntriesInfo();
+function updateTransactionTableEntries() {
+    const entriesSelect = document.getElementById('entriesPerPage');
+    transactionEntriesPerPage = entriesSelect ? parseInt(entriesSelect.value) : transactionEntriesPerPage;
+    transactionTotalPages = Math.max(1, Math.ceil(transactionTotalEntries / transactionEntriesPerPage));
+    transactionCurrentPage = 1;
+    showTransactionPage(transactionCurrentPage);
+    updateTransactionPagination();
+    updateTransactionEntriesInfo();
 }
 
-function showPage(page) {
-    const items = document.querySelectorAll('.transaction-item');
-    const startIndex = (page - 1) * entriesPerPage;
-    const endIndex = startIndex + entriesPerPage;
+function showTransactionPage(page) {
+    const list = document.getElementById('latestTransactionsList');
+    const items = list ? list.querySelectorAll('.transaction-item') : [];
+    transactionTotalEntries = items.length;
+    transactionTotalPages = Math.max(1, Math.ceil(transactionTotalEntries / transactionEntriesPerPage));
+    transactionCurrentPage = Math.min(Math.max(1, page), transactionTotalPages);
+
+    const startIndex = (transactionCurrentPage - 1) * transactionEntriesPerPage;
+    const endIndex = startIndex + transactionEntriesPerPage;
     
     items.forEach((item, index) => {
         if (index >= startIndex && index < endIndex) {
@@ -2838,56 +3225,64 @@ function showPage(page) {
     });
 }
 
-function changePage(direction) {
-    if (direction === 'next' && currentPage < totalPages) {
-        currentPage++;
-    } else if (direction === 'prev' && currentPage > 1) {
-        currentPage--;
+function changeTransactionPage(direction) {
+    if (direction === 'next' && transactionCurrentPage < transactionTotalPages) {
+        transactionCurrentPage++;
+    } else if (direction === 'prev' && transactionCurrentPage > 1) {
+        transactionCurrentPage--;
     }
-    showPage(currentPage);
-    updatePagination();
-    updateEntriesInfo();
+    showTransactionPage(transactionCurrentPage);
+    updateTransactionPagination();
+    updateTransactionEntriesInfo();
     return false;
 }
 
-function goToPage(page) {
-    currentPage = page;
-    showPage(currentPage);
-    updatePagination();
-    updateEntriesInfo();
+function goToTransactionPage(page) {
+    transactionCurrentPage = Number(page) || 1;
+    showTransactionPage(transactionCurrentPage);
+    updateTransactionPagination();
+    updateTransactionEntriesInfo();
     return false;
 }
 
-function updatePagination() {
-    const pageNumbers = document.querySelector('.pagination');
+function updateTransactionPagination() {
+    const pageNumbers = document.getElementById('transactionPagination');
+    if (!pageNumbers) return;
     const pageItems = pageNumbers.querySelectorAll('.page-item:not(#prevPage):not(#nextPage)');
     pageItems.forEach(item => item.remove());
     
     const prevPage = document.getElementById('prevPage');
     const nextPage = document.getElementById('nextPage');
+    if (!prevPage || !nextPage) return;
+
+    if (transactionTotalEntries === 0) {
+        prevPage.classList.add('disabled');
+        nextPage.classList.add('disabled');
+        return;
+    }
     
     let startPage, endPage;
     
-    if (totalPages <= 3) {
+    if (transactionTotalPages <= 3) {
         startPage = 1;
-        endPage = totalPages;
+        endPage = transactionTotalPages;
     } else {
-        if (currentPage <= 2) {
+        if (transactionCurrentPage <= 2) {
             startPage = 1;
             endPage = 3;
-        } else if (currentPage >= totalPages - 1) {
-            startPage = totalPages - 2;
-            endPage = totalPages;
+        } else if (transactionCurrentPage >= transactionTotalPages - 1) {
+            startPage = transactionTotalPages - 2;
+            endPage = transactionTotalPages;
         } else {
-            startPage = currentPage - 1;
-            endPage = currentPage + 1;
+            startPage = transactionCurrentPage - 1;
+            endPage = transactionCurrentPage + 1;
         }
     }
     
     for (let i = startPage; i <= endPage; i++) {
         const li = document.createElement('li');
-        li.className = `page-item ${i === currentPage ? 'active' : ''}`;
-        li.innerHTML = `<a class="page-link" href="javascript:void(0)" onclick="goToPage(${i}); return false;" style="font-size: 12px;">${i}</a>`;
+        li.className = `page-item ${i === transactionCurrentPage ? 'active' : ''}`;
+        li.innerHTML = `<a class="page-link" href="javascript:void(0)" onclick="goToTransactionPage(${i}); return false;" style="font-size: 12px;">${i}</a>`;
         nextPage.parentNode.insertBefore(li, nextPage);
     }
     
@@ -2895,41 +3290,44 @@ function updatePagination() {
         const dotsLi = document.createElement('li');
         dotsLi.className = 'page-item disabled';
         dotsLi.innerHTML = '<span class="page-link" style="font-size: 12px;">...</span>';
-        prevPage.nextSibling.after(dotsLi);
+        prevPage.after(dotsLi);
     }
     
-    if (endPage < totalPages) {
+    if (endPage < transactionTotalPages) {
         const dotsLi = document.createElement('li');
         dotsLi.className = 'page-item disabled';
         dotsLi.innerHTML = '<span class="page-link" style="font-size: 12px;">...</span>';
         nextPage.parentNode.insertBefore(dotsLi, nextPage);
     }
     
-    document.getElementById('prevPage').classList.toggle('disabled', currentPage === 1);
-    document.getElementById('nextPage').classList.toggle('disabled', currentPage === totalPages);
+    prevPage.classList.toggle('disabled', transactionCurrentPage === 1);
+    nextPage.classList.toggle('disabled', transactionCurrentPage === transactionTotalPages || transactionTotalEntries === 0);
 }
 
-function updateEntriesInfo() {
-    const startEntry = (currentPage - 1) * entriesPerPage + 1;
-    const endEntry = Math.min(currentPage * entriesPerPage, totalEntries);
+function updateTransactionEntriesInfo() {
+    const startEntry = transactionTotalEntries ? (transactionCurrentPage - 1) * transactionEntriesPerPage + 1 : 0;
+    const endEntry = Math.min(transactionCurrentPage * transactionEntriesPerPage, transactionTotalEntries);
     
-    document.getElementById('currentStart').textContent = startEntry;
-    document.getElementById('currentEnd').textContent = endEntry;
-    document.getElementById('totalEntries').textContent = totalEntries;
+    const currentStart = document.getElementById('currentStart');
+    const currentEnd = document.getElementById('currentEnd');
+    const totalEntries = document.getElementById('totalEntries');
+    if (currentStart) currentStart.textContent = startEntry;
+    if (currentEnd) currentEnd.textContent = endEntry;
+    if (totalEntries) totalEntries.textContent = transactionTotalEntries;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    showPage(1);
-    updatePagination();
-    updateEntriesInfo();
+    showTransactionPage(1);
+    updateTransactionPagination();
+    updateTransactionEntriesInfo();
 });
 </script>
 {{-- <script src="{{asset('design/assets/js/apex-chart/apex.bar.init.js')}}"></script> --}}
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    var modalElement = document.getElementById('homeModal');
-    if (modalElement) {
-      var myModal = new bootstrap.Modal(modalElement);
+    var homeModal = document.getElementById('homeModal');
+    if (homeModal && window.bootstrap) {
+      var myModal = new bootstrap.Modal(homeModal);
       myModal.show();
     }
   });

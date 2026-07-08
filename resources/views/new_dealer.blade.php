@@ -65,7 +65,7 @@
             <div class="col-md-6 mb-2">
               <label class="form-label" for="store_type">Store Type &nbsp;<span class="text-danger">*</span></label>
               {{-- <input type="text" class="form-control required" name='store_type' id="store_type" placeholder="Enter Store Type" /> --}}
-              <select name="store_type" class="form-control select2" data-placeholder="Select Business Type" required>
+              <select name="store_type" class="form-control select2" data-placeholder="Select Business Type" data-select2-theme="bootstrap-5" required>
                 <option value="">Select Store Type</option>
                 <option value="Sari Sari Store">Sari Sari Store</option>
                 <option value="Mini Mart">Mini Mart</option>
@@ -80,7 +80,7 @@
             </div>
             <div class="col-md-6 mb-2" id="dealerCenterWrap">
               <label class="form-label" for="center">Center&nbsp;<span class="text-danger">*</span></label>
-              <select class="form-control select2" id="center" name="center" required data-placeholder="Select Center">
+              <select class="form-control select2" id="center" name="center" required data-placeholder="Select Center" data-select2-theme="bootstrap-5">
                 <option value="">Select Center</option>
                 @foreach($centers ?? [] as $center)
                     <option value="{{ $center->name }}" {{ old('center') === $center->name ? 'selected' : '' }}>{{ $center->name }}</option>
@@ -113,25 +113,25 @@
             </div>
             <div class="col-md-6 mb-2">
               <label>Region <span class="text-danger">*</span></label>
-              <select class="form-control select2" id="location_region" name="location_region" required onclick="event.stopPropagation();">
+              <select class="form-control select2" id="location_region" name="location_region" required data-placeholder="Select Region" data-select2-theme="bootstrap-5" onclick="event.stopPropagation();">
                 <option value="">-- Select Region --</option>
               </select>
             </div>
             <div class="col-md-6 mb-2">
               <label>Province <span class="text-danger">*</span></label>
-              <select class="form-control select2" id="location_province" name="location_province" required onclick="event.stopPropagation();" disabled>
+              <select class="form-control select2" id="location_province" name="location_province" required data-placeholder="Select Province" data-select2-theme="bootstrap-5" onclick="event.stopPropagation();" disabled>
                 <option value="">-- Select Region First --</option>
               </select>
             </div>
             <div class="col-md-6 mb-2">
               <label>City/Municipality <span class="text-danger">*</span></label>
-              <select class="form-control select2" id="location_city" name="location_city" required onclick="event.stopPropagation();" disabled>
+              <select class="form-control select2" id="location_city" name="location_city" required data-placeholder="Select City/Municipality" data-select2-theme="bootstrap-5" onclick="event.stopPropagation();" disabled>
                 <option value="">-- Select Province First --</option>
               </select>
             </div>
             <div class="col-md-6 mb-2">
               <label>Barangay <span class="text-danger">*</span></label>
-              <select class="form-control " name="location_barangay" id="location_barangay" required onclick="event.stopPropagation();" disabled>
+              <select class="form-control select2" name="location_barangay" id="location_barangay" required data-placeholder="Select Barangay" data-select2-theme="bootstrap-5" onclick="event.stopPropagation();" disabled>
                 <option value="">-- Select City First --</option>
               </select>
             </div>
@@ -319,6 +319,52 @@
       checkDuplicateDealer();
     }
 
+    function refreshNewDealerSelect2(selector) {
+      const $select = $(selector);
+
+      if ($select.hasClass('select2-hidden-accessible')) {
+        $select.trigger('change.select2');
+      }
+    }
+
+    function selectedLocationText(selector) {
+      const text = $(`${selector} option:selected`).text();
+
+      if (!text || text.includes('Select') || text.includes('Loading') || text === 'Not applicable') {
+        return '';
+      }
+
+      return text.trim();
+    }
+
+    function optionsFromPsgc(data, placeholder) {
+      let options = `<option value="">${placeholder}</option>`;
+
+      (data || []).forEach(function(item) {
+        options += `<option value="${item.name}">${item.name}</option>`;
+      });
+
+      return options;
+    }
+
+    function loadRegionCities(regionID) {
+      resetMappedAddressCache();
+      $('#location_city').prop('disabled', true).html('<option>Loading...</option>');
+      refreshNewDealerSelect2('#location_city');
+
+      return $.get('/api/regions/' + encodeURIComponent(regionID) + '/cities-municipalities')
+        .done(function(data) {
+          $('#location_city')
+            .html(optionsFromPsgc(data, '-- Select City/Municipality --'))
+            .prop('disabled', false);
+          refreshNewDealerSelect2('#location_city');
+          generateFullAddress();
+        })
+        .fail(function() {
+          alert('Failed to load cities/municipalities');
+        });
+    }
+
     @if($errors->has('dealer_duplicate'))
       setTimeout(function() {
         const modal = document.getElementById('new_dealer');
@@ -332,11 +378,8 @@
     // LOAD REGIONS
     $.get('/api/regions')
       .done(function(data) {
-          let options = '<option value="">-- Select Region --</option>';
-          data.forEach(function(item) {
-              options += `<option value="${item.name}">${item.name}</option>`;
-          });
-          $('#location_region').html(options);
+          $('#location_region').html(optionsFromPsgc(data, '-- Select Region --'));
+          refreshNewDealerSelect2('#location_region');
 
           generateFullAddress(); // ✅ add this
       })
@@ -346,45 +389,63 @@
 
     // REGION CHANGE
     $('#location_region').on('change', function() {
+      resetMappedAddressCache();
       let regionID = $(this).val();
 
       $('#location_province').prop('disabled', true).html('<option>Loading...</option>');
-      $('#location_city').prop('disabled', true).html('<option>-- Select Province First --</option>');
+      $('#location_city').prop('disabled', true).html('<option>-- Select Province or Region First --</option>');
       $('#location_barangay').prop('disabled', true).html('<option>-- Select City First --</option>');
+      refreshNewDealerSelect2('#location_province');
+      refreshNewDealerSelect2('#location_city');
+      refreshNewDealerSelect2('#location_barangay');
 
       if (!regionID) return;
 
-      $.get('/api/regions/' + regionID + '/provinces')
+      $.get('/api/regions/' + encodeURIComponent(regionID) + '/provinces')
           .done(function(data) {
-              let options = '<option value="">-- Select Province --</option>';
-              data.forEach(function(item) {
-                  options += `<option value="${item.name}">${item.name}</option>`;
-              });
-              $('#location_province').html(options).prop('disabled', false);
+              if (!data || data.length === 0) {
+                  $('#location_province')
+                      .html('<option value="">Not applicable</option>')
+                      .prop('disabled', true);
+                  refreshNewDealerSelect2('#location_province');
+                  loadRegionCities(regionID);
+                  return;
+              }
+
+              $('#location_province')
+                  .html(optionsFromPsgc(data, '-- Select Province --'))
+                  .prop('disabled', false);
+              refreshNewDealerSelect2('#location_province');
 
               generateFullAddress(); // ✅ add this
           })
           .fail(function() {
-              alert('Failed to load provinces');
+              $('#location_province')
+                  .html('<option value="">Not applicable</option>')
+                  .prop('disabled', true);
+              refreshNewDealerSelect2('#location_province');
+              loadRegionCities(regionID);
           });
     });
 
     // PROVINCE CHANGE
     $('#location_province').on('change', function() {
+        resetMappedAddressCache();
         let provinceID = $(this).val();
 
         $('#location_city').prop('disabled', true).html('<option>Loading...</option>');
         $('#location_barangay').prop('disabled', true).html('<option>-- Select City First --</option>');
+        refreshNewDealerSelect2('#location_city');
+        refreshNewDealerSelect2('#location_barangay');
 
         if (!provinceID) return;
 
-        $.get('/api/provinces/' + provinceID + '/cities')
+        $.get('/api/provinces/' + encodeURIComponent(provinceID) + '/cities')
           .done(function(data) {
-              let options = '<option value="">-- Select City/Municipality --</option>';
-              data.forEach(function(item) {
-                  options += `<option value="${item.name}">${item.name}</option>`;
-              });
-              $('#location_city').html(options).prop('disabled', false);
+              $('#location_city')
+                  .html(optionsFromPsgc(data, '-- Select City/Municipality --'))
+                  .prop('disabled', false);
+              refreshNewDealerSelect2('#location_city');
 
               generateFullAddress(); // ✅ add this
           })
@@ -395,17 +456,22 @@
 
     // City change
     $('#location_city').change(function() {
+        resetMappedAddressCache();
         let cityID = $(this).val();
         $('#location_barangay').prop('disabled', true).html('<option>Loading...</option>');
         $('#postal_code').val('');
+        updatePostalCodeFromLocation('city');
+        refreshNewDealerSelect2('#location_barangay');
 
         if(cityID) {
-            $.get(`/api/cities/${cityID}/barangays`, function(data){
+            $.get(`/api/cities/${encodeURIComponent(cityID)}/barangays`, function(data){
                 let options = '<option value="">-- Select Barangay --</option>';
                 data.forEach(function(item){
                     options += `<option value="${item.name}" data-postal="${item.zip_code || ''}">${item.name}</option>`;
                 });
                 $('#location_barangay').html(options).prop('disabled', false);
+                refreshNewDealerSelect2('#location_barangay');
+                generateFullAddress();
             });
         }
     });
@@ -418,11 +484,16 @@
       // ✅ 1. Use dataset zip if exists
       if (postal) {
           $('#postal_code').val(postal);
+          resetMappedAddressCache();
           generateFullAddress();
           return;
       }
 
       // ✅ 2. Build full address
+      resetMappedAddressCache();
+      updatePostalCodeFromLocation('barangay');
+      return;
+
       let fullTextAddress = [
           $('#street_address').val(),
           selected.text(),
@@ -470,31 +541,157 @@
           fallbackZip();
       }
 
+      resetMappedAddressCache();
       generateFullAddress();
-      geocodeAddressToMap(); // 🔥 sync map
     });
 
-    function fallbackZip() {
+    let postalTimeout = null;
 
-      let city = $('#location_city').val();
+    function fallbackZipByCity() {
+      const city = selectedLocationText('#location_city') || $('#location_city').val();
+      const normalizedCity = (city || '')
+        .toLowerCase()
+        .replace(/^city of\s+/, '')
+        .replace(/\s+city$/, '')
+        .trim();
 
-      // Minimal example mapping (you can expand)
       const zipMap = {
-          'Taytay': '1920',
-          'Cainta': '1900',
-          'Antipolo': '1870',
-          'Pasig': '1600',
-          'Marikina': '1800',
-          'Bacarra': '2916'
+          'bacacay': '4509',
+          'caloocan': '1400',
+          'camalig': '4502',
+          'daraga': '4501',
+          'guinobatan': '4503',
+          'jovellar': '4515',
+          'las pinas': '1740',
+          'legazpi': '4500',
+          'libon': '4507',
+          'ligao': '4504',
+          'makati': '1200',
+          'malabon': '1470',
+          'malilipot': '4510',
+          'malinao': '4512',
+          'mandaluyong': '1550',
+          'manila': '1000',
+          'manito': '4514',
+          'muntinlupa': '1770',
+          'navotas': '1485',
+          'oas': '4505',
+          'paranaque': '1700',
+          'pasay': '1300',
+          'pateros': '1620',
+          'pio duran': '4516',
+          'polangui': '4506',
+          'quezon': '1100',
+          'rapu-rapu': '4517',
+          'san juan': '1500',
+          'santo domingo': '4508',
+          'tabaco': '4511',
+          'taguig': '1630',
+          'tiwi': '4513',
+          'valenzuela': '1440',
+          'antipolo': '1870',
+          'bacarra': '2916',
+          'cainta': '1900',
+          'marikina': '1800',
+          'pasig': '1600',
+          'taytay': '1920'
       };
 
-      $('#postal_code').val(zipMap[city] || '');
+      return zipMap[normalizedCity] || '';
+    }
+
+    function updatePostalCodeFromLocation(source) {
+      clearTimeout(postalTimeout);
+
+      postalTimeout = setTimeout(async function() {
+        const barangay = selectedLocationText('#location_barangay');
+        const city = selectedLocationText('#location_city');
+        const province = selectedLocationText('#location_province');
+        const region = selectedLocationText('#location_region');
+
+        if (!city) {
+          $('#postal_code').val('');
+          generateFullAddress();
+          return;
+        }
+
+        const lookupAttempts = [
+          source === 'barangay' && barangay
+            ? [barangay, city, province, region, 'Philippines']
+            : null,
+          [city, province, region, 'Philippines']
+        ].filter(Boolean);
+
+        for (let i = 0; i < lookupAttempts.length; i++) {
+          try {
+            const geo = await $.get('https://nominatim.openstreetmap.org/search', {
+                q: lookupAttempts[i].filter(Boolean).join(', '),
+                format: 'json',
+                limit: 1
+            });
+
+            if (!geo.length) {
+              continue;
+            }
+
+            const lat = geo[0].lat;
+            const lon = geo[0].lon;
+
+            $('#hidden_latitude').val(lat);
+            $('#hidden_longitude').val(lon);
+
+            const zipRes = await $.get('/get-zipcode1', {
+                latitude: lat,
+                longitude: lon
+            });
+
+            if (zipRes.zipcode) {
+              $('#postal_code').val(zipRes.zipcode);
+              generateFullAddress();
+              return;
+            }
+          } catch (error) {
+            console.error('Postal code lookup error:', error);
+          }
+        }
+
+        $('#postal_code').val(fallbackZipByCity());
+        generateFullAddress();
+      }, 300);
+    }
+
+    function fallbackZip() {
+      $('#postal_code').val(fallbackZipByCity());
     }
 
     let geoTimeout = null;
 
+    function hasEnoughAddressForMap() {
+      return Boolean(
+        $('#street_address').val().trim() &&
+        $('#location_region').val() &&
+        $('#location_city').val() &&
+        $('#location_barangay').val()
+      );
+    }
+
+    function resetMappedAddressCache() {
+      if (typeof lastMappedAddress !== 'undefined') {
+        lastMappedAddress = '';
+      }
+    }
+
+    function scheduleLiveMapUpdate() {
+      resetMappedAddressCache();
+      generateFullAddress();
+    }
+
     function triggerMapUpdate() {
       clearTimeout(geoTimeout);
+
+      if (!$('#new_dealer').hasClass('show') || !hasEnoughAddressForMap()) {
+        return;
+      }
 
       geoTimeout = setTimeout(() => {
           geocodeAddressToMap();
@@ -503,7 +700,15 @@
 
     function generateFullAddress() {
 
-      const clean = val => (!val || val.includes('Select')) ? '' : val.trim();
+      const clean = val => {
+        if (!val) return '';
+
+        val = val.trim();
+
+        return val.includes('Select') || val.includes('Loading') || val === 'Not applicable'
+          ? ''
+          : val;
+      };
 
       let parts = [
         clean($('#street_address').val()),
@@ -524,14 +729,10 @@
     }
 
     $('#location_region, #location_province, #location_city, #location_barangay')
-    .on('change', function () {
-        generateFullAddress();
-    });
+    .on('change select2:select select2:clear', scheduleLiveMapUpdate);
 
     $('#street_address, #postal_code')
-    .on('keyup change', function () {
-        generateFullAddress();
-    });
+    .on('input keyup change', scheduleLiveMapUpdate);
 
     // // TRIGGER ON CHANGE
     // $('#location_region, #location_province, #location_city, #location_barangay')
@@ -555,29 +756,81 @@
     `;
   }
 
-  $(document).on('shown.bs.modal', '#new_dealer', function () {
-    if (typeof window.initSelect2 === 'function') {
-      window.initSelect2(this);
+  function ensureDealerSelect2Ready(callback) {
+    if ($.fn.select2) {
+      callback();
       return;
     }
 
-    if ($.fn.select2) {
-      $(this).find('select.select2-area').select2({
-        width: '100%',
-        dropdownParent: $(this),
-        placeholder: 'Select Area',
-        allowClear: true,
-        theme: 'bootstrap-5',
-        templateResult: formatArea,
-        templateSelection: formatArea,
-        escapeMarkup: markup => markup
-      });
+    if (window.dealerSelect2Loading) {
+      setTimeout(function () {
+        ensureDealerSelect2Ready(callback);
+      }, 50);
+      return;
     }
+
+    window.dealerSelect2Loading = true;
+
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
+    script.onload = function () {
+      window.dealerSelect2Loading = false;
+      callback();
+    };
+    document.head.appendChild(script);
+  }
+
+  function initNewDealerSelect2(parent) {
+    ensureDealerSelect2Ready(function () {
+      const $parent = $(parent);
+      const $selects = $parent.is('select.select2')
+        ? $parent
+        : $parent.find('select.select2');
+
+      $selects.each(function () {
+        const $select = $(this);
+        const isSalesTerritory = $select.is('select.select2-area[name="area"]');
+
+        if ($select.hasClass('select2-hidden-accessible')) {
+          return;
+        }
+
+        $select.select2({
+          width: '100%',
+          dropdownParent: $('#new_dealer'),
+          placeholder: $select.data('placeholder') || 'Select Option',
+          allowClear: true,
+          theme: $select.data('select2-theme') || 'bootstrap-5',
+          templateResult: isSalesTerritory ? formatArea : undefined,
+          templateSelection: isSalesTerritory ? formatArea : undefined,
+          escapeMarkup: markup => markup
+        });
+      });
+    });
+  }
+
+  $(document).on('shown.bs.modal', '#new_dealer', function () {
+    if (typeof window.initSelect2 === 'function') {
+      window.initSelect2(this);
+    }
+
+    initNewDealerSelect2(this);
   });
+
+  $(document).ready(function () {
+    initNewDealerSelect2('#new_dealer');
+  });
+
+  /*
+   * Select2 CDN used by these fields if the global layout script has not loaded yet:
+   * https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js
+   */
 </script>
 
 <script>
   let map, marker;
+  let geocodeRequestId = 0;
+  let lastMappedAddress = '';
   const defaultLat = 14.5995;
   const defaultLng = 120.9842;
 
@@ -586,6 +839,10 @@
     const mapElement = document.getElementById('map');
 
     if (!mapElement || typeof L === 'undefined') {
+      return;
+    }
+
+    if (!$('#new_dealer').hasClass('show')) {
       return;
     }
 
@@ -700,9 +957,9 @@
 
   //   $('#map').css('opacity', '1');
   // }
-  async function geocodeAddressToMap() {
-  const address = $('#complete_address').val();
-  if (!address) return;
+  async function geocodeAddressToMapLegacy() {
+  const address = ($('#complete_address').val() || '').trim();
+  if (!address || address === lastMappedAddress || !$('#new_dealer').hasClass('show')) return;
 
   // ✅ SAFETY CHECK (FIXES YOUR ERROR)
   if (!map) {
@@ -714,30 +971,142 @@
       return;
   }
 
+  const requestId = ++geocodeRequestId;
   $('#map').css('opacity', '0.6');
 
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=ph`);
     const data = await res.json();
+
+    if (requestId !== geocodeRequestId) {
+        return;
+    }
 
     if (data.length > 0) {
         const lat = parseFloat(data[0].lat);
         const lon = parseFloat(data[0].lon);
 
-        map.flyTo([lat, lon], 16, {
-            animate: true,
-            duration: 1.2
-        });
+        if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+            map.flyTo([lat, lon], 16, {
+                animate: true,
+                duration: 0.8
+            });
 
-        marker.setLatLng([lat, lon]);
-        updateLatLng(lat, lon);
+            marker.setLatLng([lat, lon]);
+            updateLatLng(lat, lon);
+            lastMappedAddress = address;
+        }
     }
 
     } catch (err) {
         console.error('Geocode error:', err);
     }
 
-    $('#map').css('opacity', '1');
+    if (requestId === geocodeRequestId) {
+        $('#map').css('opacity', '1');
+    }
+  }
+
+  function selectedLocationText(selector) {
+    const value = $(selector).val();
+    const text = $(selector + ' option:selected').text();
+
+    if (!value || !text || text.includes('Select') || text.includes('Loading') || text === 'Not applicable') {
+      return '';
+    }
+
+    return text.trim();
+  }
+
+  function dealerMapSearchQueries() {
+    const street = ($('#street_address').val() || '').trim();
+    const barangay = selectedLocationText('#location_barangay');
+    const city = selectedLocationText('#location_city');
+    const province = selectedLocationText('#location_province');
+    const region = selectedLocationText('#location_region');
+    const postal = ($('#postal_code').val() || '').trim();
+    const completeAddress = ($('#complete_address').val() || '').trim();
+    const queryParts = [
+      [completeAddress],
+      [street, barangay, city, province, region, postal, 'Philippines'],
+      [barangay, city, province, region, 'Philippines'],
+      [city, province, region, 'Philippines'],
+      [city, region, 'Philippines']
+    ];
+    const seen = {};
+
+    return queryParts
+      .map(parts => parts.filter(Boolean).join(', '))
+      .filter(function (query) {
+        if (!query || seen[query]) {
+          return false;
+        }
+
+        seen[query] = true;
+        return true;
+      });
+  }
+
+  async function geocodeAddressToMap() {
+    const address = ($('#complete_address').val() || '').trim();
+
+    if (!address || address === lastMappedAddress || !$('#new_dealer').hasClass('show')) {
+      return;
+    }
+
+    if (!map) {
+      initMap();
+    }
+
+    if (!map || !marker || typeof map.flyTo !== 'function') {
+      console.warn('Map not initialized yet');
+      return;
+    }
+
+    const requestId = ++geocodeRequestId;
+    $('#map').css('opacity', '0.6');
+
+    try {
+      const queries = dealerMapSearchQueries();
+
+      for (let i = 0; i < queries.length; i++) {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queries[i])}&limit=1&countrycodes=ph`);
+        const data = await res.json();
+
+        if (requestId !== geocodeRequestId) {
+          return;
+        }
+
+        if (!data.length) {
+          continue;
+        }
+
+        const lat = parseFloat(data[0].lat);
+        const lon = parseFloat(data[0].lon);
+
+        if (Number.isNaN(lat) || Number.isNaN(lon)) {
+          continue;
+        }
+
+        map.flyTo([lat, lon], 16, {
+          animate: true,
+          duration: 0.8
+        });
+
+        marker.setLatLng([lat, lon]);
+        updateLatLng(lat, lon);
+        lastMappedAddress = address;
+        return;
+      }
+
+      console.warn('No map location found for:', address);
+    } catch (err) {
+      console.error('Geocode error:', err);
+    } finally {
+      if (requestId === geocodeRequestId) {
+        $('#map').css('opacity', '1');
+      }
+    }
   }
 
   $('#new_dealer')
@@ -763,5 +1132,17 @@
 
         updateLatLng(lat, lng);
       }, 250);
+
+      setTimeout(function () {
+        if (!map) {
+          return;
+        }
+
+        map.invalidateSize();
+
+        if ($('#street_address').val().trim() && $('#location_region').val() && $('#location_city').val() && $('#location_barangay').val()) {
+          geocodeAddressToMap();
+        }
+      }, 550);
     });
 </script>

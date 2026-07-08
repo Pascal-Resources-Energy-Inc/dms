@@ -712,9 +712,9 @@ class OrderController extends Controller
 
         $connections = [
             'admin_crms2' => 'admin_crms2',
-            'project_rise' => 'admin_crms2',
+            'project_rise' => 'admin_crms',
             'admin_crms' => 'admin_crms',
-            'project_genesis' => 'admin_crms',
+            'project_genesis' => 'admin_crms2',
         ];
 
         return $connections[$source] ?? null;

@@ -82,7 +82,8 @@ class ProvincialDistributorController extends Controller
                 });
             })
             ->orderBy('name')
-            ->get();
+            ->paginate(10)
+            ->appends($request->query());
 
         return view('area_distributor.index', [
             'ads' => $ads,

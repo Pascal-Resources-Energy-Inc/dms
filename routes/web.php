@@ -196,6 +196,8 @@ Route::get('/users/data', 'UserController@datatable')->name('users.data');
 
 Route::get('/users','UserController@index')->name('users');
 Route::post('/new-user','UserController@store')->name('new-admin');
+Route::post('/users/mobile-otp/send', 'UserController@sendMobileOtp')->name('users.mobile-otp.send');
+Route::post('/users/mobile-otp/verify', 'UserController@verifyMobileOtp')->name('users.mobile-otp.verify');
 Route::post('/generate-partner-code', 'UserController@generatePartnerCode')->name('generate.partner.code');
 Route::post('/check-mothers-name', 'UserController@checkMothersName')->name('check.mothers.name');
 Route::post('/check-user-duplicate', 'UserController@checkDuplicate')->name('check.user.duplicate');
@@ -213,5 +215,15 @@ Route::get('/reports/monthly-sales/export', 'ReportController@exportMonthlySales
 Route::get('/reports/voucher-history', 'ReportController@voucherHistoryReport')->name('voucher-history');
 Route::get('/reports/voucher-history/export', 'ReportController@exportVoucherHistory')->name('voucher-history.export');
 
+
 });
 
+Route::get('/test-db', function () {
+    try {
+        DB::connection('admin_crms2')->getPdo();
+
+        return 'Connected!';
+    } catch (\Exception $e) {
+        return $e->getMessage();
+    }
+});

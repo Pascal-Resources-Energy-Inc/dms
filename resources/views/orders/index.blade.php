@@ -146,6 +146,98 @@ table.dataTable {
     margin-bottom: 0 !important;
 }
 
+.order-summary-grid {
+    row-gap: 12px;
+}
+
+.order-summary-card {
+    position: relative;
+    min-height: 116px;
+    border: 1px solid #e6e9ef;
+    border-radius: 8px !important;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .055);
+    overflow: hidden;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.order-summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, .09);
+}
+
+.order-summary-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--summary-color);
+}
+
+.order-summary-card .card-body {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 116px;
+    padding: 18px !important;
+}
+
+.order-summary-card.is-sales {
+    --summary-color: #0f766e;
+    --summary-soft: #ccfbf1;
+}
+
+.order-summary-card.is-orders {
+    --summary-color: #1d4ed8;
+    --summary-soft: #dbeafe;
+}
+
+.order-summary-card.is-qty {
+    --summary-color: #b45309;
+    --summary-soft: #fef3c7;
+}
+
+.order-summary-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 46px;
+    height: 46px;
+    color: var(--summary-color);
+    background: var(--summary-soft);
+    border-radius: 8px;
+    font-size: 23px;
+}
+
+.order-summary-label {
+    display: block;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .04em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.order-summary-value {
+    display: block;
+    margin-top: 6px;
+    color: #101828;
+    font-size: clamp(19px, 2vw, 24px);
+    font-weight: 900;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+.order-summary-note {
+    display: block;
+    margin-top: 6px;
+    color: #98a2b3;
+    font-size: 11px;
+    font-weight: 700;
+}
+
 .order-stock-pill {
     display: inline-flex;
     align-items: center;
@@ -366,6 +458,10 @@ table.dataTable {
     .order-source-tabs {
         grid-template-columns: 1fr;
     }
+
+    .order-summary-card .card-body {
+        min-height: 98px;
+    }
 }
 
 
@@ -382,64 +478,58 @@ table.dataTable {
 @section('content')
 <div class="welcome @if(auth()->user()->role === 'Dealer') welcome-client @endif">
     <div class="row">
-        <!-- Cards Section - All 4 cards in one row -->
         <div class="col-12">
-            <div class="row mb-0 cards">
-                <!-- Total Sales -->
-                  <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card warning-card overflow-hidden text-bg-primary w-100">
-                        <div class="card-body p-4">
-                          <div class="mb-7">
-                            <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
-                          </div>
-                          <h5 class="text-white fw-bold fs-14 text-nowrap">
-                            {{ $orders->sum(function($transaction) {
-                                return ($transaction->price * $transaction->qty) + ($transaction->delivery_fee ?? 0);
-                            }) }}
-                          </h5>
-                          <p class="opacity-50 mb-0 ">TOTAL SALES</p>
+            <div class="row mb-0 order-summary-grid">
+                <div class="col-sm-6 col-xl-4">
+                    <div class="card order-summary-card is-sales w-100">
+                        <div class="card-body">
+                            <span class="order-summary-icon">
+                                <i class="ti ti-currency-peso"></i>
+                            </span>
+                            <div>
+                                <span class="order-summary-label">Total Sales</span>
+                                <strong class="order-summary-value">
+                                    PHP {{ number_format($orders->sum(function($transaction) {
+                                        return ($transaction->price * $transaction->qty) + ($transaction->delivery_fee ?? 0);
+                                    }), 2) }}
+                                </strong>
+                                <span class="order-summary-note">Includes delivery fees</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-                  <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card danger-card overflow-hidden text-bg-primary w-100">
-                        <div class="card-body p-4">
-                          <div class="mb-7">
-                            <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
-                          </div>
-                          <h5 class="text-white fw-bold fs-14 text-nowrap">
-                            {{$orders->count()}}
-                          </h5>
-                          <p class="opacity-50 mb-0 ">ORDERS</p>
+                <div class="col-sm-6 col-xl-4">
+                    <div class="card order-summary-card is-orders w-100">
+                        <div class="card-body">
+                            <span class="order-summary-icon">
+                                <i class="ti ti-shopping-cart"></i>
+                            </span>
+                            <div>
+                                <span class="order-summary-label">Orders</span>
+                                <strong class="order-summary-value">
+                                    {{ number_format($orders->count()) }}
+                                </strong>
+                                <span class="order-summary-note">Total order records</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card info-card overflow-hidden text-bg-primary w-100">
-                        <div class="card-body p-4">
-                          <div class="mb-7">
-                            <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
-                          </div>
-                          <h5 class="text-white fw-bold fs-14 text-nowrap">
-                            {{$orders->sum('qty')}}
-                          </h5>
-                          <p class="opacity-50 mb-0 ">QTY SOLD</p>
+                <div class="col-sm-6 col-xl-4">
+                    <div class="card order-summary-card is-qty w-100">
+                        <div class="card-body">
+                            <span class="order-summary-icon">
+                                <i class="ti ti-packages"></i>
+                            </span>
+                            <div>
+                                <span class="order-summary-label">Qty Sold</span>
+                                <strong class="order-summary-value">
+                                    {{ number_format($orders->sum('qty'), 2) }}
+                                </strong>
+                                <span class="order-summary-note">Total products ordered</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-                {{-- <div class="col-sm-6 col-lg-4 col-xl-2">
-                    <div class="card info-card overflow-hidden text-bg-primary w-100">
-                        <div class="card-body p-4">
-                          <div class="mb-7">
-                            <i class="ti ti-brand-producthunt fs-8 fw-lighter"></i>
-                          </div>
-                          <h5 class="text-white fw-bold fs-14 text-nowrap">
-                            {{$orders->sum('points_dealer') + $transactions->sum('points_client')}}
-                          </h5>
-                          <p class="opacity-50 mb-0 ">TOTAL POINTS</p>
-                        </div>
-                    </div>
-                </div> --}}
             </div>
         </div>
         
@@ -484,7 +574,7 @@ table.dataTable {
                                             <span class="order-source-tab-icon"><i class="{{ $orderTab['icon'] ?? 'bi bi-database' }}"></i></span>
                                             <span>
                                                 <span class="order-source-tab-title">{{ $orderTab['label'] }}</span>
-                                                <span class="order-source-tab-subtitle">{{ $orderTab['database'] ?? '-' }}</span>
+                                                {{-- <span class="order-source-tab-subtitle">{{ $orderTab['database'] ?? '-' }}</span> --}}
                                             </span>
                                         </span>
                                         <span class="order-source-count">{{ collect($orderTab['orders'])->count() }}</span>
@@ -637,7 +727,7 @@ table.dataTable {
                                                             <i class="bi bi-check-circle-fill"></i> {{ number_format($rowStock) }} IN STOCK
                                                         </span>
                                                     @endif
-                                                    <div class="order-inventory-card {{ $rowStock <= 0 ? 'is-out' : '' }}">
+                                                    {{-- <div class="order-inventory-card {{ $rowStock <= 0 ? 'is-out' : '' }}">
                                                         <div class="order-inventory-grid">
                                                             <div>
                                                                 <span class="order-inventory-label">Stock</span>
@@ -656,7 +746,7 @@ table.dataTable {
                                                                 <span class="order-inventory-value {{ $rowStock <= 0 ? 'is-out' : 'is-good' }}">{{ strtoupper($rowInventoryStatus) }}</span>
                                                             </div>
                                                         </div>
-                                                    </div>
+                                                    </div> --}}
                                                 @endif
                                             @endif
                                         </td>

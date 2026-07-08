@@ -63,7 +63,7 @@ class VoucherController extends Controller
         $areaDistributors = User::with(['ad.areas'])
             ->whereIn('role', ['Area Distributor', 'Provincial Distributor'])
             ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+            ->get(['id', 'name', 'email', 'role']);
         
         
         return view('vouchers.index', compact('vouchers', 'areaDistributors'));
@@ -109,31 +109,69 @@ class VoucherController extends Controller
 
     private function vouchersQuery(Request $request)
     {
-        return Voucher::with('user')->when($request->filled('status'), function ($query) use ($request) {
-                if ($request->status === 'active') {
-                    $query->where('is_active', 1)
-                        ->where(function ($inner) {
-                            $inner->whereNull('starts_at')->orWhere('starts_at', '<=', now()->toDateString());
-                        })
-                        ->where(function ($inner) {
-                            $inner->whereNull('expires_at')->orWhere('expires_at', '>=', now()->toDateString());
-                        });
-                } elseif ($request->status === 'inactive') {
-                    $query->where('is_active', 0);
-                } elseif ($request->status === 'expired') {
-                    $query->whereNotNull('expires_at')->where('expires_at', '<', now()->toDateString());
-                }
+        return Voucher::query()->when($request->filled('status'), function ($query) use ($request) {
+                $this->applyVoucherStatusFilter($query, $request->status);
             })
             ->when($request->filled('search'), function ($query) use ($request) {
-                $search = $request->search;
+                $search = trim($request->search);
                 $query->where(function ($inner) use ($search) {
                     $inner->where('code', 'like', '%' . $search . '%')
-                        ->orWhereHas('user', function ($subQuery) use ($search) {
-                            $subQuery->where('name', 'like', '%' . $search . '%');
+                        ->orWhere('name', 'like', '%' . $search . '%')
+                        ->orWhere('description', 'like', '%' . $search . '%')
+                        ->orWhere('area_names', 'like', '%' . $search . '%')
+                        ->orWhereExists(function ($subQuery) use ($search) {
+                            $subQuery->select(DB::raw(1))
+                                ->from('area_distributors')
+                                ->whereColumn('area_distributors.store_code', 'vouchers.name')
+                                ->where(function ($distributorQuery) use ($search) {
+                                    $distributorQuery->where('area_distributors.store_code', 'like', '%' . $search . '%')
+                                        ->orWhere('area_distributors.name', 'like', '%' . $search . '%')
+                                        ->orWhere('area_distributors.email_address', 'like', '%' . $search . '%')
+                                        ->orWhere('area_distributors.business_name', 'like', '%' . $search . '%');
+                                });
                         });
                 });
             })
             ->orderBy('created_at', 'desc');
+    }
+
+    private function applyVoucherStatusFilter($query, $status)
+    {
+        $today = now()->toDateString();
+
+        if ($status === 'active') {
+            $query->where('is_active', 1)
+                ->where(function ($inner) use ($today) {
+                    $inner->whereNull('starts_at')->orWhere('starts_at', '<=', $today);
+                })
+                ->where(function ($inner) use ($today) {
+                    $inner->whereNull('expires_at')->orWhere('expires_at', '>=', $today);
+                })
+                ->where(function ($inner) {
+                    $inner->whereNull('usage_limit')
+                        ->orWhereColumn('used_count', '<', 'usage_limit');
+                });
+        } elseif ($status === 'inactive') {
+            $query->where('is_active', 0);
+        } elseif ($status === 'scheduled') {
+            $query->where('is_active', 1)
+                ->whereNotNull('starts_at')
+                ->where('starts_at', '>', $today);
+        } elseif ($status === 'expired') {
+            $query->where('is_active', 1)
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '<', $today);
+        } elseif ($status === 'used_up') {
+            $query->where('is_active', 1)
+                ->where(function ($inner) use ($today) {
+                    $inner->whereNull('starts_at')->orWhere('starts_at', '<=', $today);
+                })
+                ->where(function ($inner) use ($today) {
+                    $inner->whereNull('expires_at')->orWhere('expires_at', '>=', $today);
+                })
+                ->whereNotNull('usage_limit')
+                ->whereColumn('used_count', '>=', 'usage_limit');
+        }
     }
 
     public function adOrders(Request $request, Voucher $voucher)

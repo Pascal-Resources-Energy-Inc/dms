@@ -245,6 +245,8 @@ class ReportController extends Controller
 
             });
 
+        $reportTabs = $this->dailySalesReportTabs($user, $from, $to, $otherCharges, $reports, $items, $grandTotal);
+
         return view(
             'reports.daily_sales',
             compact(
@@ -253,9 +255,187 @@ class ReportController extends Controller
                 'from',
                 'to',
                 'grandTotal',
-                'otherCharges'
+                'otherCharges',
+                'reportTabs'
             )
         );
+    }
+
+    private function dailySalesReportTabs($user, $from, $to, $otherCharges, $regularReports, $regularItems, $regularGrandTotal)
+    {
+        $definitions = [
+            [
+                'key' => 'regular',
+                'label' => 'Regular',
+                'connection' => null,
+                'reports' => $regularReports,
+                'items' => $regularItems,
+                'grand_total' => $regularGrandTotal,
+            ],
+            [
+                'key' => 'project_rise',
+                'label' => 'Project Rise',
+                'connection' => 'admin_crms',
+            ],
+            [
+                'key' => 'project_genesis',
+                'label' => 'Project Genesis',
+                'connection' => 'admin_crms2',
+            ],
+        ];
+
+        return collect($definitions)->map(function ($definition) use ($user, $from, $to, $otherCharges) {
+            if (!$definition['connection']) {
+                $reports = $definition['reports'];
+                $items = $definition['items'];
+                $grandTotal = $definition['grand_total'];
+            } else {
+                $orders = $this->dailySalesRemoteOrders($definition['connection'], $user->ad->id ?? null, $from, $to);
+                $reports = $orders->groupBy(function ($item) {
+                    return Carbon::parse($item->date)->format('Y-m-d');
+                });
+                $items = $this->dailySalesRemoteItems($definition['connection'], $orders);
+                $grandTotal = $orders->sum(function ($order) use ($otherCharges) {
+                    $lineSubtotal = (float) $order->qty * (float) $order->price;
+                    $deliveryFee = (float) ($order->delivery_fee ?? 0);
+                    $otherChargeTotal = $this->calculateDailySalesOtherCharges($lineSubtotal, $order, $otherCharges);
+
+                    return $lineSubtotal + $deliveryFee + $otherChargeTotal;
+                });
+            }
+
+            $transactions = $reports->flatten(1);
+
+            return [
+                'key' => $definition['key'],
+                'label' => $definition['label'],
+                'connection' => $definition['connection'],
+                'reports' => $reports,
+                'items' => $items,
+                'grand_total' => $grandTotal,
+                'transaction_count' => $transactions->count(),
+                'dealer_count' => $transactions->pluck('dealer_id')->filter()->unique()->count(),
+                'products_sold' => $transactions->sum('qty'),
+            ];
+        })->values();
+    }
+
+    private function dailySalesRemoteOrders($connection, $adId, $from, $to)
+    {
+        if (!$adId) {
+            return collect();
+        }
+
+        try {
+            $database = DB::connection($connection);
+            $schema = $database->getSchemaBuilder();
+
+            if (!$schema->hasTable('order_details')
+                || !$schema->hasColumn('order_details', 'ad_id')
+                || !$schema->hasColumn('order_details', 'item')
+                || !$schema->hasColumn('order_details', 'qty')) {
+                return collect();
+            }
+
+            if (!$schema->hasColumn('order_details', 'date') && !$schema->hasColumn('order_details', 'created_at')) {
+                return collect();
+            }
+
+            $dateColumn = $schema->hasColumn('order_details', 'date') ? 'date' : 'created_at';
+            $query = $database->table('order_details as od')
+                ->select('od.*')
+                ->where('od.ad_id', $adId)
+                ->whereBetween(DB::raw('DATE(od.' . $dateColumn . ')'), [$from, $to])
+                ->orderBy('od.' . $dateColumn, 'DESC');
+
+            if ($schema->hasColumn('order_details', 'status')) {
+                $query->where('od.status', 'Completed');
+            }
+
+            if ($schema->hasColumn('order_details', 'deleted_at')) {
+                $query->whereNull('od.deleted_at');
+            }
+
+            if ($schema->hasTable('dealers') && $schema->hasColumn('order_details', 'dealer_id')) {
+                $joinedDealers = false;
+
+                if ($schema->hasColumn('dealers', 'user_id')) {
+                    $query->leftJoin('dealers as d', 'od.dealer_id', '=', 'd.user_id');
+                    $joinedDealers = true;
+                } elseif ($schema->hasColumn('dealers', 'id')) {
+                    $query->leftJoin('dealers as d', 'od.dealer_id', '=', 'd.id');
+                    $joinedDealers = true;
+                }
+
+                if ($joinedDealers && $schema->hasColumn('dealers', 'name')) {
+                    $query->addSelect('d.name as dealer_name');
+                }
+            }
+
+            return $query->get()->map(function ($order) use ($dateColumn) {
+                $order->date = $order->date ?? $order->{$dateColumn} ?? now();
+                $order->qty = (float) ($order->qty ?? $order->quantity ?? 0);
+                $amount = (float) ($order->amount ?? $order->total_amount ?? 0);
+                $order->price = (float) ($order->price ?? ($order->qty > 0 && $amount > 0 ? $amount / $order->qty : $amount));
+                $order->delivery_fee = (float) ($order->delivery_fee ?? 0);
+                $order->delivery_type = $order->delivery_type ?? 'pickup';
+                $order->payment_method = strtolower(str_replace(' ', '_', (string) ($order->payment_method ?? 'cash')));
+                $order->transaction_id = $order->transaction_id ?? $order->id ?? '-';
+                $order->item = $order->item ?? $order->product_name ?? $order->product ?? '-';
+                $order->dealer = (object) [
+                    'name' => $order->dealer_name ?? ($order->dealer ?? '-'),
+                ];
+
+                return $order;
+            });
+        } catch (\Exception $exception) {
+            return collect();
+        }
+    }
+
+    private function dailySalesRemoteItems($connection, $orders)
+    {
+        try {
+            $database = DB::connection($connection);
+            $schema = $database->getSchemaBuilder();
+
+            if ($schema->hasTable('products') && $schema->hasColumn('products', 'product_name')) {
+                $query = $database->table('products')->select('product_name');
+
+                if ($schema->hasColumn('products', 'sku')) {
+                    $query->addSelect('sku');
+                } else {
+                    $query->selectRaw('NULL as sku');
+                }
+
+                if ($schema->hasColumn('products', 'status')) {
+                    $query->where(function ($query) {
+                        $query->where('status', 'Activate')
+                            ->orWhereNull('status');
+                    });
+                }
+
+                $items = $query->orderBy('product_name')->get();
+
+                if ($items->isNotEmpty()) {
+                    return $items;
+                }
+            }
+        } catch (\Exception $exception) {
+            // Fall through to order-item columns.
+        }
+
+        return $orders->pluck('item')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->map(function ($item) {
+                return (object) [
+                    'sku' => null,
+                    'product_name' => $item,
+                ];
+            })
+            ->values();
     }
 
     public function exportDailySales(Request $request)

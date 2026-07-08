@@ -81,7 +81,7 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label" for="{{ $modalId }}Description">Description</label>
-                            <textarea id="{{ $modalId }}Description" name="description" class="form-control" rows="3" maxlength="1000" placeholder="Short note about when this charge is used">{{ old('description', optional($charge)->description) }}</textarea>
+                            <textarea id="{{ $modalId }}Description" name="description" class="form-control" rows="3" maxlength="1000" placeholder="Short note about when this charge is used" data-uppercase>{{ old('description', optional($charge)->description) }}</textarea>
                         </div>
                         <div class="col-12">
                             <label class="charge-status-card mb-0" for="{{ $modalId }}Active">

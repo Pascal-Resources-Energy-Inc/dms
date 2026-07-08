@@ -17,6 +17,11 @@ use Illuminate\Http\Request;
 
 class AreaDistributorController extends Controller
 {
+    private $crmConnections = [
+        'admin_crms' => 'Project Rise',
+        'admin_crms2' => 'Project Genesis',
+    ];
+
     public function index(Request $request)
     {
         $centers = Center::orderBy('name')->get();
@@ -484,43 +489,58 @@ class AreaDistributorController extends Controller
     {
         try {
             $request->validate([
+                'street' => 'nullable|string',
                 'barangay' => 'required|string',
                 'city' => 'required|string',
                 'province' => 'required|string',
+                'region' => 'nullable|string',
+                'full_address' => 'nullable|string',
             ]);
 
+            $street = $request->input('street');
             $barangay = $request->input('barangay');
             $city = $request->input('city');
             $province = $request->input('province');
-            
-            $query = urlencode("{$barangay}, {$city}, {$province}, Philippines");
-            $url = "https://nominatim.openstreetmap.org/search?q={$query}&format=json&limit=1&countrycodes=ph";
-            
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'DealerRegistrationApp/1.0');
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-            curl_close($ch);
-            
-            if ($error) {
-                \Log::error('Geocoding cURL error: ' . $error);
-            }
-            
-            if ($httpCode == 200 && $response) {
-                $data = json_decode($response, true);
+            $region = $request->input('region');
+            $fullAddress = $request->input('full_address');
+
+            $queries = collect([
+                $fullAddress,
+                trim(collect([$street, $barangay, $city, $province, $region, 'Philippines'])->filter()->implode(', ')),
+                trim(collect([$barangay, $city, $province, 'Philippines'])->filter()->implode(', ')),
+            ])->filter()->unique()->values();
+
+            foreach ($queries as $queryText) {
+                $query = urlencode($queryText);
+                $url = "https://nominatim.openstreetmap.org/search?q={$query}&format=json&limit=1&countrycodes=ph";
                 
-                if (!empty($data)) {
-                    return response()->json([
-                        'success' => true,
-                        'lat' => $data[0]['lat'],
-                        'lng' => $data[0]['lon']
-                    ]);
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'DealerRegistrationApp/1.0');
+                curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $error = curl_error($ch);
+                curl_close($ch);
+                
+                if ($error) {
+                    \Log::error('Geocoding cURL error: ' . $error);
+                    continue;
+                }
+                
+                if ($httpCode == 200 && $response) {
+                    $data = json_decode($response, true);
+                    
+                    if (!empty($data)) {
+                        return response()->json([
+                            'success' => true,
+                            'lat' => $data[0]['lat'],
+                            'lng' => $data[0]['lon']
+                        ]);
+                    }
                 }
             }
             
@@ -555,7 +575,7 @@ class AreaDistributorController extends Controller
             ->where('status', 'Pending')
             ->count();
 
-        $dealers = Dealer::with([
+        $localDealers = Dealer::with([
             'orders' => function ($q) {
                 $q->where('status', 'Completed')->select('dealer_id', 'item', \DB::raw('SUM(qty) as total_qty'))
                 ->groupBy('dealer_id', 'item');
@@ -564,18 +584,33 @@ class AreaDistributorController extends Controller
                 $q->select('dealer_id', 'item', \DB::raw('SUM(qty) as total_qty'))
                 ->groupBy('dealer_id', 'item');
             }
-        ])->whereIn('area', $areas)->get();
+        ])->whereIn('area', $areas)->get()->toBase();
+
+        $crmDealers = $this->adCrmDealers($areas);
+        $dealers = $localDealers
+            ->merge($crmDealers)
+            ->sortBy('name')
+            ->values();
        
         // $items = Item::select('item')->get(); // master list of items
-        $items = Product::select('product_name')->where('ad_user_id', $user->id)->where('status', 'Activate')->get();
+        $items = Product::select('product_name')->where('ad_user_id', $user->id)->where('status', 'Activate')->get()->toBase()
+            ->merge($this->adCrmProducts())
+            ->filter(function ($item) {
+                return !empty($item->product_name);
+            })
+            ->unique(function ($item) {
+                return strtolower(trim((string) $item->product_name));
+            })
+            ->sortBy('product_name')
+            ->values();
         // dd($items);
-        $activeDealers = Dealer::whereIn('area', $areas)
-            ->where('status', 'Active')
-            ->count();
+        $activeDealers = $dealers->filter(function ($dealer) {
+            return strcasecmp((string) $dealer->status, 'Active') === 0;
+        })->count();
 
-        $inactiveDealers = Dealer::whereIn('area', $areas)
-            ->where('status', 'Inactive')
-            ->count();
+        $inactiveDealers = $dealers->filter(function ($dealer) {
+            return strcasecmp((string) $dealer->status, 'Inactive') === 0;
+        })->count();
 
         return view('dealers', [
             'dealers' => $dealers,
@@ -584,6 +619,139 @@ class AreaDistributorController extends Controller
             'inactiveDealers' => $inactiveDealers,
             'pendingOrdersCount' => $pendingOrdersCount
         ]);
+    }
+
+    private function adCrmDealers(array $areas)
+    {
+        $areas = collect($areas)->filter()->values();
+
+        if ($areas->isEmpty()) {
+            return collect();
+        }
+
+        return collect($this->crmConnections)->flatMap(function ($label, $connection) use ($areas) {
+            try {
+                $schema = DB::connection($connection)->getSchemaBuilder();
+
+                if (!$schema->hasTable('dealers') || !$schema->hasColumn('dealers', 'area')) {
+                    return collect();
+                }
+
+                $dealers = DB::connection($connection)->table('dealers')
+                    ->whereIn('area', $areas);
+
+                if ($schema->hasColumn('dealers', 'deleted_at')) {
+                    $dealers->whereNull('deleted_at');
+                }
+
+                return $dealers->get()->map(function ($dealer) use ($connection, $label) {
+                    $dealer = $this->normalizeAdCrmDealer($dealer, $connection, $label);
+                    $dealer->orders = $this->adCrmDealerItemTotals($connection, 'order_details', $dealer, true);
+                    $dealer->sales = $this->adCrmDealerItemTotals($connection, 'transaction_details', $dealer, false);
+
+                    return $dealer;
+                });
+            } catch (\Exception $exception) {
+                return collect();
+            }
+        })->values();
+    }
+
+    private function normalizeAdCrmDealer($dealer, $connection, $label)
+    {
+        $location = collect([
+            $dealer->street_address ?? null,
+            $dealer->location_barangay ?? null,
+            $dealer->location_city ?? null,
+            $dealer->location_province ?? null,
+            $dealer->location_region ?? null,
+        ])->filter()->implode(', ');
+
+        $dealer->source = $connection;
+        $dealer->source_label = $label;
+        $dealer->is_remote = true;
+        $dealer->dealer_reference = $dealer->dealer_reference ?? ('CRM-' . ($dealer->id ?? ''));
+        $dealer->dealer_type = $dealer->dealer_type ?? 'Project';
+        $dealer->name = $dealer->name ?? '-';
+        $dealer->store_name = $dealer->store_name ?? '-';
+        $dealer->store_type = $dealer->store_type ?? '-';
+        $dealer->number = $dealer->number ?? ($dealer->contact_number ?? '-');
+        $dealer->address = $dealer->address ?? ($location ?: '-');
+        $dealer->area = $dealer->area ?? ($dealer->sales_territory ?? '-');
+        $dealer->status = ucfirst(strtolower((string) ($dealer->status ?? 'Active')));
+        $dealer->user_id = $dealer->user_id ?? null;
+
+        return $dealer;
+    }
+
+    private function adCrmDealerItemTotals($connection, $table, $dealer, $completedOnly)
+    {
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (
+                !$schema->hasTable($table) ||
+                !$schema->hasColumn($table, 'dealer_id') ||
+                !$schema->hasColumn($table, 'qty')
+            ) {
+                return collect();
+            }
+
+            $itemColumn = collect(['item', 'product_name', 'product'])->first(function ($column) use ($schema, $table) {
+                return $schema->hasColumn($table, $column);
+            });
+
+            if (!$itemColumn) {
+                return collect();
+            }
+
+            $dealerIds = collect([$dealer->user_id ?? null, $dealer->id ?? null])
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($dealerIds->isEmpty()) {
+                return collect();
+            }
+
+            $query = DB::connection($connection)->table($table)
+                ->select($itemColumn . ' as item', DB::raw('SUM(qty) as total_qty'))
+                ->whereIn('dealer_id', $dealerIds)
+                ->groupBy($itemColumn);
+
+            if ($completedOnly && $schema->hasColumn($table, 'status')) {
+                $query->where('status', 'Completed');
+            }
+
+            return $query->get();
+        } catch (\Exception $exception) {
+            return collect();
+        }
+    }
+
+    private function adCrmProducts()
+    {
+        return collect(array_keys($this->crmConnections))->flatMap(function ($connection) {
+            try {
+                $schema = DB::connection($connection)->getSchemaBuilder();
+
+                if (!$schema->hasTable('products') || !$schema->hasColumn('products', 'product_name')) {
+                    return collect();
+                }
+
+                $query = DB::connection($connection)->table('products')->select('product_name');
+
+                if ($schema->hasColumn('products', 'status')) {
+                    $query->where(function ($query) {
+                        $query->where('status', 'Activate')->orWhereNull('status');
+                    });
+                }
+
+                return $query->get();
+            } catch (\Exception $exception) {
+                return collect();
+            }
+        });
     }
 
     public function megaDealers()

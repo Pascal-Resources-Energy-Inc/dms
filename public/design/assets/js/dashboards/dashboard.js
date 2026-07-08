@@ -1,4 +1,23 @@
 $(function () {
+  function renderChart(selector, options) {
+    var element = document.querySelector(selector);
+
+    if (!element || typeof ApexCharts === "undefined") {
+      return;
+    }
+
+    var chart = new ApexCharts(element, options);
+    var render = chart.render();
+
+    if (render && typeof render.catch === "function") {
+      render.catch(function (error) {
+        console.warn("Dashboard chart could not render:", selector, error);
+      });
+    }
+
+    return chart;
+  }
+
   // =====================================
   // netsells chart
   // =====================================
@@ -96,7 +115,7 @@ $(function () {
       theme: "dark",
     },
   };
-  new ApexCharts(document.querySelector("#netsells"), netsells).render();
+  renderChart("#netsells", netsells);
 
   // =====================================
   // total-orders chart
@@ -179,11 +198,7 @@ $(function () {
     },
   };
 
-  var chart_column_stacked = new ApexCharts(
-    document.querySelector("#total-orders"),
-    total_orders
-  );
-  chart_column_stacked.render();
+  renderChart("#total-orders", total_orders);
 
   // =====================================
   // products chart
@@ -227,8 +242,7 @@ $(function () {
     },
   };
 
-  var chart = new ApexCharts(document.querySelector("#products"), products);
-  chart.render();
+  renderChart("#products", products);
 
   // =====================================
   // customers chart
@@ -282,36 +296,39 @@ $(function () {
       },
     },
   };
-  new ApexCharts(document.querySelector("#customers"), options).render();
+  renderChart("#customers", options);
 
   // -----------------------------------------------------------------------
   // world map
   // -----------------------------------------------------------------------
-  $("#usa").vectorMap({
-    map: "us_aea_en",
-    backgroundColor: "transparent",
-    zoomOnScroll: false,
-    regionStyle: {
-      initial: {
-        fill: "#c9d6de",
+  var usaMap = $("#usa");
+  if (usaMap.length && $.fn.vectorMap) {
+    usaMap.vectorMap({
+      map: "us_aea_en",
+      backgroundColor: "transparent",
+      zoomOnScroll: false,
+      regionStyle: {
+        initial: {
+          fill: "#c9d6de",
+        },
       },
-    },
-    markers: [
-      {
-        latLng: [40.71, -74.0],
-        name: "LA: 250",
-        style: { fill: "var(--bs-info)" },
-      },
-      {
-        latLng: [39.01, -98.48],
-        name: "NY: 250",
-        style: { fill: "var(--bs-primary)" },
-      },
-      {
-        latLng: [37.38, -122.05],
-        name: "KA : 250",
-        style: { fill: "var(--bs-danger)" },
-      },
-    ],
-  });
+      markers: [
+        {
+          latLng: [40.71, -74.0],
+          name: "LA: 250",
+          style: { fill: "var(--bs-info)" },
+        },
+        {
+          latLng: [39.01, -98.48],
+          name: "NY: 250",
+          style: { fill: "var(--bs-primary)" },
+        },
+        {
+          latLng: [37.38, -122.05],
+          name: "KA : 250",
+          style: { fill: "var(--bs-danger)" },
+        },
+      ],
+    });
+  }
 });

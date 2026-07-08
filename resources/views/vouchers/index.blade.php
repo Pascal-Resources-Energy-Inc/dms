@@ -39,6 +39,28 @@
     .voucher-search .form-control { min-height: 40px; padding-left: 37px; border-color: #dfe4ea; border-radius: 8px; }
     .voucher-filter .form-select { min-height: 40px; border-color: #dfe4ea; border-radius: 8px; }
     .voucher-filter .form-control:focus, .voucher-filter .form-select:focus { border-color: #5BC2E7; box-shadow: 0 0 0 3px rgba(91, 194, 231, .1); }
+    .voucher-filter .select2-container { width: 100% !important; }
+    .voucher-filter .select2-container--default .select2-selection--single {
+        min-height: 40px;
+        border-color: #dfe4ea;
+        border-radius: 8px;
+    }
+    .voucher-filter .select2-container--default .select2-selection--single .select2-selection__rendered {
+        padding-left: 12px;
+        color: #344054;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 38px;
+    }
+    .voucher-filter .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 38px;
+        right: 7px;
+    }
+    .voucher-filter .select2-container--default.select2-container--open .select2-selection--single,
+    .voucher-filter .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #5BC2E7;
+        box-shadow: 0 0 0 3px rgba(91, 194, 231, .1);
+    }
     .voucher-filter-submit { min-height: 40px; padding: 8px 16px; color: #fff; font-size: 11px; font-weight: 900; background: #5BC2E7; border-color: #5BC2E7; border-radius: 8px; }
     .voucher-filter-submit:hover { color: #fff; background: #47bde8; border-color: #47bde8; }
     .voucher-filter-reset { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 13px; color: #667085; font-size: 11px; font-weight: 800; background: #fff; border: 1px solid #dfe4ea; border-radius: 8px; }
@@ -125,49 +147,43 @@
     .voucher-required-note span { color: #dc2626; font-weight: 900; }
     .voucher-cancel-btn, .voucher-submit-btn { min-height: 40px; padding-right: 18px; padding-left: 18px; font-weight: 800; }
     .voucher-form-modal .select2-container { width: 100% !important; }
-    .voucher-form-modal .select2-container--bootstrap-5 .select2-selection {
+    .voucher-form-modal .select2-container--default .select2-selection--single {
         min-height: 42px;
         border-color: #dfe4ea;
-        border-radius: .375rem;
-        font-size: 14px;
+        border-radius: 8px;
     }
-    .voucher-form-modal .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
-        padding-left: 0;
+    .voucher-form-modal .select2-container--default .select2-selection--single .select2-selection__rendered {
         line-height: 40px;
         color: #1f2937;
     }
-    .voucher-form-modal .select2-container--bootstrap-5 .select2-selection--single .select2-selection__placeholder {
-        color: #98a2b3;
+    .voucher-form-modal .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 40px;
+        right: 8px;
     }
-    .voucher-form-modal .select2-container--bootstrap-5.select2-container--focus .select2-selection,
-    .voucher-form-modal .select2-container--bootstrap-5.select2-container--open .select2-selection {
-        border-color: #ef4444;
-        box-shadow: 0 0 0 3px rgba(239, 68, 68, .11);
+    .voucher-form-modal .select2-container--default.select2-container--open .select2-selection--single,
+    .voucher-form-modal .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #5BC2E7;
+        box-shadow: 0 0 0 3px rgba(91, 194, 231, .14);
     }
-    .voucher-form-modal .select2-container--bootstrap-5 .select2-selection--multiple {
-        padding-top: 3px;
-        padding-bottom: 3px;
-    }
-    .voucher-form-modal .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
-        color: #991b1b;
-        background: #fee2e2;
-        border-color: #fecaca;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 800;
-    }
-    .voucher-form-modal .select2-container--bootstrap-5.select2-container--disabled .select2-selection {
-        background: #f2f4f7;
-    }
-    .select2-container--bootstrap-5 .select2-dropdown {
+    .voucher-form-modal .select2-container--default .select2-selection--single .select2-selection__placeholder { color: #98a2b3; }
+    .voucher-form-modal .select2-container--default.select2-container--disabled .select2-selection--single { background: #f2f4f7; }
+    .select2-container--bootstrap-5 .select2-dropdown,
+    .select2-container--default .select2-dropdown {
         z-index: 2000;
         border-color: #dfe4ea;
         border-radius: 8px;
         box-shadow: 0 18px 42px rgba(15, 23, 42, .16);
+        overflow: hidden;
     }
-    .select2-container--bootstrap-5 .select2-results__option--highlighted {
-        background: #ef4444;
-        color: #fff;
+    .select2-container--bootstrap-5 .select2-search--dropdown,
+    .select2-container--default .select2-search--dropdown { padding: 10px; background: #f8fafc; border-bottom: 1px solid #edf0f5; }
+    .select2-container--bootstrap-5 .select2-search--dropdown .select2-search__field,
+    .select2-container--default .select2-search--dropdown .select2-search__field { min-height: 38px; padding: 7px 10px; border: 1px solid #dfe4ea; border-radius: 8px; outline: 0; }
+    .voucher-select2-dropdown .select2-results__option { padding: 8px 10px; }
+    .voucher-select2-dropdown .select2-results__option--highlighted { background: #eaf9ff !important; color: #101828 !important; }
+    .select2-container--bootstrap-5 .select2-results__option--highlighted:not(.select2-results__message) {
+        background: #eaf9ff;
+        color: #101828;
     }
     @media (max-width: 768px) {
         .voucher-head { align-items: stretch; flex-direction: column; }
@@ -299,11 +315,13 @@
                 </div>
                 <div class="voucher-filter-field">
                     <label class="voucher-filter-label" for="voucherStatus">Voucher Status</label>
-                    <select id="voucherStatus" name="status" class="form-select">
+                    <select id="voucherStatus" name="status" class="form-select select2 voucher-status-select" data-placeholder="All statuses">
                         <option value="">All statuses</option>
                         <option value="active" @if(request('status') === 'active') selected @endif>Active</option>
+                        <option value="scheduled" @if(request('status') === 'scheduled') selected @endif>Scheduled</option>
                         <option value="inactive" @if(request('status') === 'inactive') selected @endif>Inactive</option>
                         <option value="expired" @if(request('status') === 'expired') selected @endif>Expired</option>
+                        <option value="used_up" @if(request('status') === 'used_up') selected @endif>Used Up</option>
                     </select>
                 </div>
                 <button class="btn voucher-filter-submit" type="submit">
@@ -326,7 +344,7 @@
                         <span class="voucher-filter-chip"><i class="bi bi-search"></i> Search: {{ request('search') }}</span>
                     @endif
                     @if(request()->filled('status'))
-                        <span class="voucher-filter-chip"><i class="bi bi-circle-fill"></i> Status: {{ ucfirst(request('status')) }}</span>
+                        <span class="voucher-filter-chip"><i class="bi bi-circle-fill"></i> Status: {{ ucwords(str_replace('_', ' ', request('status'))) }}</span>
                     @endif
                 </div>
             @endif
@@ -482,6 +500,9 @@
     </div>
 </div>
 
+@endsection
+
+@section('javascript')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         function parseJson(value, fallback) {
@@ -490,28 +511,6 @@
             } catch (error) {
                 return fallback;
             }
-        }
-
-        function initVoucherSelect2(modal) {
-            if (!window.jQuery || !jQuery.fn.select2) return;
-
-            jQuery(modal).find('select.select2').each(function () {
-                var $select = jQuery(this);
-
-                if ($select.hasClass('select2-hidden-accessible')) {
-                    $select.select2('destroy');
-                }
-
-                $select.select2({
-                    width: '100%',
-                    dropdownParent: jQuery(modal),
-                    placeholder: $select.data('placeholder') || 'Select option',
-                    allowClear: !$select.prop('multiple'),
-                    theme: 'bootstrap-5',
-                    selectionCssClass: 'form-select',
-                    dropdownCssClass: 'voucher-select2-dropdown'
-                });
-            });
         }
 
         function setAreaStatus(help, state, message) {
@@ -715,7 +714,6 @@
             });
 
             modal.addEventListener('shown.bs.modal', function () {
-                initVoucherSelect2(modal);
                 syncVoucherAreas(distributor, true);
             });
 
