@@ -9,6 +9,7 @@ use App\TransactionDetail;
 use App\Item;
 use App\Area;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -38,6 +39,7 @@ class DealerController extends Controller
                 ->map(function ($dealer) {
                     $dealer->source = 'Regular';
                     $dealer->source_label = 'Regular';
+                    $this->applyLocalDealerMetrics($dealer);
 
                     return $dealer;
                 });
@@ -46,7 +48,12 @@ class DealerController extends Controller
                 ->merge($adminRegularDealers)
                 ->values();
         } else {
-            $dealers = Dealer::with('user')->get();
+            $dealers = Dealer::with(['user', 'orders', 'sales'])->get()
+                ->map(function ($dealer) {
+                    $this->applyLocalDealerMetrics($dealer);
+
+                    return $dealer;
+                });
         }
 
         $activeDealers = $dealers->filter(function ($dealer) {
@@ -96,7 +103,10 @@ class DealerController extends Controller
 
             return $query->get()
                 ->map(function ($dealer) use ($connection, $label) {
-                    return $this->normalizeCrmDealer($dealer, $connection, $label);
+                    $dealer = $this->normalizeCrmDealer($dealer, $connection, $label);
+                    $this->applyCrmDealerMetrics($dealer, $connection);
+
+                    return $dealer;
                 });
         } catch (\Exception $exception) {
             return collect();
@@ -136,8 +146,86 @@ class DealerController extends Controller
         $dealer->signature = $dealer->signature ?? null;
         $dealer->orders = collect();
         $dealer->sales = collect();
+        $dealer->stock_qty = (float) ($dealer->stock_qty ?? 0);
+        $dealer->sold_qty = (float) ($dealer->sold_qty ?? 0);
 
         return $dealer;
+    }
+
+    private function applyLocalDealerMetrics($dealer)
+    {
+        $dealer->stock_qty = (float) $dealer->orders->sum('qty');
+        $dealer->sold_qty = (float) $dealer->sales->sum('qty');
+    }
+
+    private function applyCrmDealerMetrics($dealer, $connection)
+    {
+        $stockQty = $this->crmDealerQtySum($connection, 'order_details', $dealer);
+        $soldQty = $this->crmDealerQtySum($connection, 'transaction_details', $dealer);
+
+        $dealer->stock_qty = $stockQty;
+        $dealer->sold_qty = $soldQty;
+        $dealer->orders = collect([(object) ['qty' => $stockQty]]);
+        $dealer->sales = collect([(object) ['qty' => $soldQty]]);
+    }
+
+    private function crmDealerQtySum($connection, $table, $dealer)
+    {
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (!$schema->hasTable($table)) {
+                return 0;
+            }
+
+            $qtyColumn = collect(['qty', 'quantity'])
+                ->first(function ($column) use ($schema, $table) {
+                    return $schema->hasColumn($table, $column);
+                });
+
+            if (!$qtyColumn) {
+                return 0;
+            }
+
+            $dealerIds = collect([
+                    $dealer->user_id ?? null,
+                    $dealer->dealer_id ?? null,
+                    $dealer->id ?? null,
+                ])
+                ->filter(function ($value) {
+                    return $value !== null && $value !== '';
+                })
+                ->unique()
+                ->values()
+                ->all();
+
+            if (empty($dealerIds)) {
+                return 0;
+            }
+
+            $query = DB::connection($connection)->table($table);
+
+            if ($schema->hasColumn($table, 'dealer_id') && $schema->hasColumn($table, 'user_id')) {
+                $query->where(function ($inner) use ($dealerIds) {
+                    $inner->whereIn('dealer_id', $dealerIds)
+                        ->orWhereIn('user_id', $dealerIds);
+                });
+            } elseif ($schema->hasColumn($table, 'dealer_id')) {
+                $query->whereIn('dealer_id', $dealerIds);
+            } elseif ($schema->hasColumn($table, 'user_id')) {
+                $query->whereIn('user_id', $dealerIds);
+            } else {
+                return 0;
+            }
+
+            if ($schema->hasColumn($table, 'deleted_at')) {
+                $query->whereNull('deleted_at');
+            }
+
+            return (float) $query->sum($qtyColumn);
+        } catch (\Exception $exception) {
+            return 0;
+        }
     }
 
     private function crmTransactions($connection, $dealer)
@@ -184,6 +272,23 @@ class DealerController extends Controller
         }
     }
 
+    private function paginateCollection($items, Request $request, $perPage = 10)
+    {
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $items = collect($items);
+
+        return new LengthAwarePaginator(
+            $items->forPage($page, $perPage)->values(),
+            $items->count(),
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+    }
+
     public function viewAdminCrmDealer(Request $request, $source, $id)
     {
         abort_unless(auth()->user()->role === 'Admin', 403);
@@ -208,11 +313,21 @@ class DealerController extends Controller
         abort_unless($dealer, 404);
 
         $dealer = $this->normalizeCrmDealer($dealer, $source, $connections[$source]);
-        $transactions = $this->crmTransactions($source, $dealer);
+        $allTransactions = $this->crmTransactions($source, $dealer);
+        $transactions = $this->paginateCollection($allTransactions, $request);
+        $transactionStats = [
+            'count' => $allTransactions->count(),
+            'qty' => $allTransactions->sum('qty'),
+            'amount' => $allTransactions->sum(function ($transaction) {
+                return (float) $transaction->qty * (float) $transaction->price;
+            }),
+            'points' => $allTransactions->sum('points_client'),
+        ];
 
         return view('dealer', [
             'dealer' => $dealer,
             'transactions' => $transactions,
+            'transactionStats' => $transactionStats,
             'centers' => collect(),
             'areas' => collect(),
             'isRemoteDealer' => true,
@@ -240,7 +355,12 @@ class DealerController extends Controller
             ->whereHas('user', function ($q) {
                 $q->where('role', 'Mega Dealer');
             })
-            ->get();
+            ->get()
+            ->map(function ($dealer) {
+                $this->applyLocalDealerMetrics($dealer);
+
+                return $dealer;
+            });
 
         return view('dealers', [
             'dealers' => $dealers,
@@ -375,7 +495,17 @@ class DealerController extends Controller
     public function view(Request $request,$id)
     {
         $dealer = Dealer::with('user')->findOrfail($id);
-        $transactions = TransactionDetail::where('dealer_id',$dealer->user_id)->orderBy('id','desc')->get();
+        $transactionQuery = TransactionDetail::where('dealer_id',$dealer->user_id);
+        $transactionRows = (clone $transactionQuery)->get();
+        $transactionStats = [
+            'count' => $transactionRows->count(),
+            'qty' => $transactionRows->sum('qty'),
+            'amount' => $transactionRows->sum(function ($transaction) {
+                return (float) $transaction->qty * (float) $transaction->price;
+            }),
+            'points' => $transactionRows->sum('points_client'),
+        ];
+        $transactions = $transactionQuery->orderBy('id','desc')->paginate(10)->appends($request->query());
         $centers = Center::get();
         $areas = Area::with('areaAd.distributor')->get();
         // dd($dealer);
@@ -383,6 +513,7 @@ class DealerController extends Controller
             array(
                 'dealer' => $dealer,
                 'transactions' => $transactions,
+                'transactionStats' => $transactionStats,
                 'centers' => $centers,
                 'areas' => $areas,
             )
