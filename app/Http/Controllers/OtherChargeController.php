@@ -20,6 +20,7 @@ class OtherChargeController extends Controller
             'active' => (clone $summaryQuery)->where('is_active', 1)->count(),
             'fixed' => (clone $summaryQuery)->where('charge_type', 'fixed')->count(),
             'percentage' => (clone $summaryQuery)->where('charge_type', 'percentage')->count(),
+            'discount' => (clone $summaryQuery)->where('charge_type', 'discount')->count(),
         ];
 
         return view('other_charges.index', compact('charges', 'summary', 'adUsers'));
@@ -140,7 +141,7 @@ class OtherChargeController extends Controller
             ],
             'description' => ['nullable', 'string', 'max:1000'],
             'amount' => ['required', 'numeric', 'min:0'],
-            'charge_type' => ['required', Rule::in(['fixed', 'percentage'])],
+            'charge_type' => ['required', Rule::in(['fixed', 'percentage', 'discount'])],
             'applies_to' => ['required', Rule::in(['order', 'delivery', 'dealer', 'customer', 'ad_purchase_order'])],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -151,6 +152,9 @@ class OtherChargeController extends Controller
 
         $data['code'] = strtoupper(trim($data['code']));
         $data['name'] = trim($data['name']);
+        $data['amount'] = $data['charge_type'] === 'discount'
+            ? -abs((float) $data['amount'])
+            : abs((float) $data['amount']);
         $data['is_active'] = $request->has('is_active');
 
         return $data;

@@ -269,8 +269,13 @@ class AdPurchaseOrderController extends Controller
                 return (int) $id;
             })
             ->all();
+        $showPickupLubao = !$this->isRegionVText(
+            optional($ad)->address,
+            optional($ad)->delivery_address,
+            optional($ad)->location_region
+        );
 
-        return view('ad_purchase_orders.create', compact('ad', 'products', 'favoriteProductIds', 'userVouchers'));
+        return view('ad_purchase_orders.create', compact('ad', 'products', 'favoriteProductIds', 'userVouchers', 'showPickupLubao'));
     }
 
     public function toggleFavoriteProduct(Request $request, Item $item)
@@ -349,6 +354,21 @@ class AdPurchaseOrderController extends Controller
                 ->withErrors(['authorized_territory' => 'Please select a valid authorized territory.']);
         }
 
+        $isRegionVAd = $this->isRegionVText(
+            $request->delivery_address,
+            optional($ad)->address,
+            optional($ad)->delivery_address,
+            optional($ad)->location_region
+        );
+
+        if ($request->shipping_type === 'pickup_lubao' && $isRegionVAd) {
+            Alert::error('ADPO Error', 'Pick Up in Lubao Plant is not available for Region V or Albay addresses.');
+
+            return back()
+                ->withInput()
+                ->withErrors(['shipping_type' => 'Pick Up in Lubao Plant is not available for Region V or Albay addresses.']);
+        }
+
         $selectedProducts = collect($request->input('products'))
             ->filter(function ($row) {
                 $colorQty = collect($row['colors'] ?? [])->sum(function ($qty) {
@@ -388,7 +408,6 @@ class AdPurchaseOrderController extends Controller
             ? ($request->bank_name === 'Other Bank' ? trim($request->other_bank_name) : $request->bank_name)
             : null;
         $shippingType = $request->shipping_type;
-        $isRegionVAd = $this->isRegionVText($request->delivery_address, optional($ad)->delivery_address, optional($ad)->location_region);
         if (strpos($shippingType, 'pickup') === 0) {
             $shippingType = $isRegionVAd ? 'pickup_guinobatan' : 'pickup_lubao';
         }

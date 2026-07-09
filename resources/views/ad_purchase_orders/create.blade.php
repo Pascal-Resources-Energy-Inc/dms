@@ -168,6 +168,16 @@
         : $userVouchers->filter(fn($voucher) => $voucher->hasArea($selectedTerritory))->values();
     $defaultVoucherCode = old('voucher_code', $territoryVouchers->count() === 1 ? $territoryVouchers->first()->code : '');
     $useRebateVoucher = old('use_rebate_voucher', $territoryVouchers->isNotEmpty() ? 'yes' : 'no');
+    $showPickupLubao = $showPickupLubao ?? true;
+    $selectedShippingType = old('shipping_type', 'delivered');
+
+    if ($selectedShippingType === 'pickup') {
+        $selectedShippingType = $showPickupLubao ? 'pickup_lubao' : 'pickup_guinobatan';
+    }
+
+    if ($selectedShippingType === 'pickup_lubao' && !$showPickupLubao) {
+        $selectedShippingType = 'delivered';
+    }
 @endphp
 
 <form action="{{ route('ad-purchase-orders.store') }}" method="POST" id="adpoForm">
@@ -278,19 +288,21 @@
                             <div class="row g-2">
                                 <div class="col-sm-6">
                                     <label class="adpo-option">
-                                        <input type="radio" name="shipping_type" value="delivered" required @if(old('shipping_type', 'delivered') === 'delivered') checked @endif>
+                                        <input type="radio" name="shipping_type" value="delivered" required @if($selectedShippingType === 'delivered') checked @endif>
                                         <span><strong>Delivered</strong><small>Ship to authorized area</small></span>
                                     </label>
                                 </div>
+                                @if($showPickupLubao)
+                                    <div class="col-sm-6">
+                                        <label class="adpo-option">
+                                            <input type="radio" name="shipping_type" value="pickup_lubao" required @if($selectedShippingType === 'pickup_lubao') checked @endif>
+                                            <span><strong>Pick Up</strong><small>Pick Up in Lubao Plant - Type &quot;PICKUP&quot; in coupon for 2% discount on LPG Refill</small></span>
+                                        </label>
+                                    </div>
+                                @endif
                                 <div class="col-sm-6">
                                     <label class="adpo-option">
-                                        <input type="radio" name="shipping_type" value="pickup_lubao" required @if(old('shipping_type') === 'pickup_lubao') checked @endif>
-                                        <span><strong>Pick Up</strong><small>Pick Up in Lubao Plant - Type &quot;PICKUP&quot; in coupon for 2% discount on LPG Refill</small></span>
-                                    </label>
-                                </div>
-                                <div class="col-sm-6">
-                                    <label class="adpo-option">
-                                        <input type="radio" name="shipping_type" value="pickup_guinobatan" required @if(old('shipping_type') === 'pickup_guinobatan') checked @endif>
+                                        <input type="radio" name="shipping_type" value="pickup_guinobatan" required @if($selectedShippingType === 'pickup_guinobatan') checked @endif>
                                         <span><strong>Pick Up</strong><small>Pick Up in Guinobatan Warehouse</small></span>
                                     </label>
                                 </div>
