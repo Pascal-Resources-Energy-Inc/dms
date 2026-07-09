@@ -2,6 +2,7 @@
     $chargeTypes = [
         'fixed' => 'Fixed Amount',
         'percentage' => 'Percentage',
+        'discount' => 'Discount',
     ];
     $appliesToOptions = [
         'dealer' => 'Dealer',
@@ -12,6 +13,9 @@
     $selectedAppliesTo = old('applies_to', optional($charge)->applies_to ?? 'order');
     $selectedAdUserId = old('ad_user_id', optional($charge)->ad_user_id ?? optional(auth()->user())->id);
     $isActive = old('is_active', optional($charge)->is_active ?? true);
+    $displayAmount = old('amount', optional($charge)->charge_type === 'discount'
+        ? abs((float) optional($charge)->amount)
+        : optional($charge)->amount);
 @endphp
 
 <div class="modal fade charge-modal" id="{{ $modalId }}" tabindex="-1" aria-labelledby="{{ $modalId }}Label" aria-hidden="true">
@@ -68,7 +72,7 @@
                             <label class="form-label" for="{{ $modalId }}Amount">Amount <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text">PHP / %</span>
-                                <input type="number" id="{{ $modalId }}Amount" name="amount" class="form-control" value="{{ old('amount', optional($charge)->amount) }}" min="0" step="0.01" placeholder="0.00" required>
+                                <input type="number" id="{{ $modalId }}Amount" name="amount" class="form-control" value="{{ $displayAmount }}" min="0" step="0.01" placeholder="0.00" required>
                             </div>
                         </div>
                         <div class="col-md-4">

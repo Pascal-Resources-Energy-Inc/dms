@@ -8,7 +8,7 @@
     .charges-title { margin: 0; color: #101828; font-size: 24px; font-weight: 900; }
     .charges-copy { margin: 4px 0 0; max-width: 760px; color: #667085; font-size: 13px; }
     .charges-add-btn { min-height: 40px; padding: 9px 14px; font-size: 12px; font-weight: 900; border-radius: 8px; }
-    .charges-stats { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 12px; }
+    .charges-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
     .charges-stat { position: relative; display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 12px; min-height: 82px; padding: 15px; overflow: hidden; background: #fff; border: 1px solid #e6e9ef; border-radius: 8px; box-shadow: 0 10px 24px rgba(15, 23, 42, .05); }
     .charges-stat::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: #0f766e; }
     .charges-stat-icon { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; color: #0f766e; background: #ccfbf1; border-radius: 8px; font-size: 19px; }
@@ -20,6 +20,8 @@
     .charges-stat.is-fixed .charges-stat-icon { color: #2563eb; background: #dbeafe; }
     .charges-stat.is-percent::before { background: #c2410c; }
     .charges-stat.is-percent .charges-stat-icon { color: #c2410c; background: #ffedd5; }
+    .charges-stat.is-discount::before { background: #be123c; }
+    .charges-stat.is-discount .charges-stat-icon { color: #be123c; background: #ffe4e6; }
     .charges-filter { overflow: hidden; background: #fff; border: 1px solid #e6e9ef; border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, .045); }
     .charges-filter-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; background: #fcfcfd; border-bottom: 1px solid #edf0f5; }
     .charges-filter-title { display: flex; align-items: center; gap: 10px; }
@@ -46,9 +48,11 @@
     .charge-ad { color: #101828; font-size: 13px; font-weight: 900; white-space: nowrap; }
     .charge-ad-meta { color: #667085; font-size: 11px; font-weight: 700; white-space: nowrap; }
     .charge-amount { color: #0f766e; font-size: 16px; font-weight: 900; white-space: nowrap; }
+    .charge-amount.is-discount { color: #be123c; }
     .charge-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 900; white-space: nowrap; }
     .charge-pill.fixed { color: #1d4ed8; background: #dbeafe; }
     .charge-pill.percentage { color: #9a3412; background: #ffedd5; }
+    .charge-pill.discount { color: #be123c; background: #ffe4e6; }
     .charge-pill.active { color: #166534; background: #dcfce7; }
     .charge-pill.inactive { color: #991b1b; background: #fee2e2; }
     .charge-applies { color: #344054; font-size: 12px; font-weight: 800; white-space: nowrap; }
@@ -88,7 +92,7 @@
     <div class="charges-head">
         <div>
             <div class="charges-kicker"><i class="bi bi-receipt-cutoff"></i> Partners</div>
-            <h4 class="charges-title">Other Charges</h4>
+            <h4 class="charges-title">Charges and Discount</h4>
             <p class="charges-copy">Manage additional fees that can be applied to orders, delivery, dealers, customers, or AD purchase orders.</p>
         </div>
         <button class="btn btn-danger charges-add-btn" type="button" data-bs-toggle="modal" data-bs-target="#chargeCreateModal">
@@ -133,6 +137,13 @@
             <span>
                 <span class="charges-stat-label">Percentage</span>
                 <span class="charges-stat-value">{{ number_format($summary['percentage']) }}</span>
+            </span>
+        </div>
+        <div class="charges-stat is-discount">
+            <span class="charges-stat-icon"><i class="bi bi-tags"></i></span>
+            <span>
+                <span class="charges-stat-label">Discount</span>
+                <span class="charges-stat-value">{{ number_format($summary['discount']) }}</span>
             </span>
         </div>
     </div>
@@ -183,6 +194,7 @@
                         <option value="">All Types</option>
                         <option value="fixed" @if(request('type') === 'fixed') selected @endif>Fixed Amount</option>
                         <option value="percentage" @if(request('type') === 'percentage') selected @endif>Percentage</option>
+                        <option value="discount" @if(request('type') === 'discount') selected @endif>Discount</option>
                     </select>
                 </div>
                 <button type="submit" class="btn btn-primary charges-filter-submit"><i class="bi bi-search"></i> Filter</button>
@@ -219,10 +231,10 @@
                         <td>
                             <div class="charge-desc">{{ $charge->description ?: 'No description provided.' }}</div>
                         </td>
-                        <td><span class="charge-amount">{{ $charge->formattedAmount() }}</span></td>
+                        <td><span class="charge-amount {{ $charge->charge_type === 'discount' ? 'is-discount' : '' }}">{{ $charge->formattedAmount() }}</span></td>
                         <td>
                             <span class="charge-pill {{ $charge->charge_type }}">
-                                <i class="bi {{ $charge->charge_type === 'percentage' ? 'bi-percent' : 'bi-cash' }}"></i>
+                                <i class="bi {{ $charge->charge_type === 'percentage' ? 'bi-percent' : ($charge->charge_type === 'discount' ? 'bi-tags' : 'bi-cash') }}"></i>
                                 {{ $charge->typeLabel() }}
                             </span>
                         </td>
@@ -265,7 +277,7 @@
 
 @include('other_charges.partials.form-modal', [
     'modalId' => 'chargeCreateModal',
-    'modalTitle' => 'Add Other Charge',
+    'modalTitle' => 'Add Charges and Discount',
     'method' => 'POST',
     'action' => route('charges.store'),
     'charge' => null,

@@ -1315,7 +1315,7 @@
                             <div class="nav-icon">
                                 <i class="ti ti-shopping-cart-plus"></i>
                             </div>
-                            <span class="nav-text">Supplies</span>
+                            <span class="nav-text">Inventory and Pricing</span>
                             <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
@@ -1325,7 +1325,9 @@
                                 <li class="nav-item">
                                     <a href="{{ url('/products') }}" class="nav-link @if(Route::currentRouteName() == 'products') active @endif" style="font-size: 14px">Products</a>
                                 </li>
-
+                                <li class="nav-item">
+                                    <a href="{{ route('charges') }}" class="nav-link @if(Route::currentRouteName() == 'charges')active @endif" style="font-size: 14px">Charges and Discount</a>
+                                </li>
                                 <li class="nav-item">
                                     <a href="{{ route('inventory-transfers.index') }}" class="nav-link @if(Route::currentRouteName() == 'inventory-transfers.index') active @endif" style="font-size: 14px">Inventory Transfer</a>
                                 </li>
@@ -1345,14 +1347,18 @@
                             id="partnersMenu">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
-                                    <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif" style="font-size: 14px">My Dealers</a>
+                                    <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif" style="font-size: 14px">Mega Dealer</a>
+                                </li>
+                                 <li class="nav-item">
+                                    <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif" style="font-size: 14px">Dealer</a>
+                                </li>
+                                 <li class="nav-item">
+                                    <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif" style="font-size: 14px">Customers</a>
                                 </li>
                                 {{-- <li class="nav-item">
                                     <a href="{{url('/my-customers')}}" class="nav-link @if(Route::currentRouteName() == 'my-customers')active @endif" style="font-size: 14px">My Customers</a>
                                 </li> --}}
-                                <li class="nav-item">
-                                    <a href="{{ route('charges') }}" class="nav-link @if(Route::currentRouteName() == 'charges')active @endif" style="font-size: 14px">Other Charges</a>
-                                </li>
+                                
                             </ul>
                         </div>
                     </div>

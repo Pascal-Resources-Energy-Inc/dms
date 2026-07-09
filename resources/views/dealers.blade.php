@@ -519,9 +519,9 @@
             return empty($dealer->is_remote) && strcasecmp((string) ($dealer->dealer_type ?: 'Project'), 'Regular') !== 0;
         })->count();
         $dealerTabs = collect([
+            ['key' => 'Regular', 'label' => 'Regular', 'icon' => 'ti ti-building-store', 'count' => $regularDealerCount],
             ['key' => 'admin_crms', 'label' => 'Project Rise', 'icon' => 'ti ti-database', 'count' => $projectRiseDealerCount],
             ['key' => 'admin_crms2', 'label' => 'Project Genesis', 'icon' => 'ti ti-database-export', 'count' => $projectGenesisDealerCount],
-            ['key' => 'Regular', 'label' => 'Regular', 'icon' => 'ti ti-building-store', 'count' => $regularDealerCount],
             ['key' => 'Project', 'label' => 'Local Project', 'icon' => 'ti ti-building-community', 'count' => $localProjectDealerCount],
         ])->filter(function ($tab) {
             return $tab['count'] > 0 || in_array($tab['key'], ['admin_crms', 'admin_crms2', 'Regular']);

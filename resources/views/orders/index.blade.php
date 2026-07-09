@@ -7,22 +7,6 @@
     .transaction-table th {
         text-align: center;
     }
-    .btn-view {
-        width: 100px;
-        font-size: 14px;
-    }
-    .dashboard-stats {
-        display: flex;
-        justify-content: space-around;
-    }
-    .dashboard-stats div {
-        text-align: center;
-        padding: 20px;
-        background-color: #f8f9fa;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        width: 30%;
-    }
     .welcome {
         margin-top: auto !important;
     }
@@ -33,9 +17,6 @@
     .card-body {
         padding: 20px;
     }
-    .filter-container {
-        margin-bottom: 20px;
-    }
     .card {
       border-radius: 15px !important;
     }
@@ -44,66 +25,7 @@
             margin: 1rem;
             max-width: 100%;
         }
-
-        .chosen-container {
-            width: 100% !important;
-        }
-
-        .chosen-drop {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
     }
-
-    .search-name-responsive{
-        width: 180px !important;
-    }
-
-    @media (max-width: 576px) {
-        .search-name-responsive{
-            font-size: 12px !important;
-            width: 170px !important;
-            height: 43px !important; 
-        }
-    }
-
-.chosen-container .chosen-single {
-  height: calc(2.25rem + 2px);
-  padding: 0.375rem 0.75rem;
-  font-size: 1rem;
-  line-height: 1.5;
-  color: #495057;
-  background-color: #fff;
-  border: 1px solid #ced4da;
-  border-radius: 0.25rem;
-  box-shadow: none;
-}
-
-.chosen-container-active.chosen-with-drop .chosen-single {
-  border-color: #80bdff;
-  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
-}
-
-.chosen-container .chosen-drop {
-  border: 1px solid #ced4da;
-  border-top: none;
-  border-radius: 0 0 0.25rem 0.25rem;
-  box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
-}
-
-.chosen-container .chosen-results {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.chosen-container .chosen-search input {
-  height: calc(1.5em + 0.75rem + 2px);
-  padding: 0.375rem 0.75rem;
-  font-size: 1rem;
-  border: 1px solid #ced4da;
-  border-radius: 0.25rem;
-}
 
 .dataTables_length {
   float: left;
@@ -122,13 +44,6 @@
     outline: none;
 }
 
-.export-btn-custom {
-    width: 130px;
-    height: 38px;
-    font-size: 14px;
-    padding: 6px 12px;
-}
-
 .dataTables_wrapper .dataTables_length,
 .dataTables_wrapper .dataTables_filter {
     margin-bottom: 0 !important;
@@ -144,6 +59,68 @@ table.dataTable {
 
 .dataTables_wrapper .row:first-child {
     margin-bottom: 0 !important;
+}
+
+.orders-card {
+    border: 1px solid #e6e9ef;
+    border-radius: 12px !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
+}
+
+.orders-card > .card-body {
+    padding: 18px !important;
+}
+
+.order-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.order-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.order-panel-icon {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    border-radius: 10px;
+    color: #146c43;
+    background: #d1e7dd;
+    font-size: 20px;
+}
+
+.order-panel-title h5 {
+    color: #101828;
+    font-weight: 900;
+}
+
+.order-panel-subtitle {
+    display: block;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.order-export-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 40px;
+    border-radius: 8px;
+    font-weight: 800;
+    white-space: nowrap;
 }
 
 .order-summary-grid {
@@ -238,6 +215,108 @@ table.dataTable {
     font-weight: 700;
 }
 
+.order-toolbar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    align-items: end;
+    padding: 14px;
+    margin-bottom: 16px;
+    border: 1px solid #e6e9ef;
+    border-radius: 10px;
+    background: #f9fafb;
+}
+
+.order-filter-field {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+
+.order-filter-field:first-child {
+    grid-column: span 2;
+}
+
+.order-filter-label {
+    margin: 0;
+    color: #667085;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.order-search-wrap {
+    position: relative;
+}
+
+.order-search-wrap i {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    color: #98a2b3;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.order-search-wrap .form-control {
+    padding-left: 36px;
+}
+
+.order-toolbar .form-control,
+.order-toolbar .form-select,
+.order-toolbar .btn {
+    min-height: 40px;
+    border-radius: 8px;
+}
+
+.order-toolbar .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    white-space: nowrap;
+}
+
+.order-table-wrap {
+    border: 1px solid #e6e9ef;
+    border-radius: 10px;
+    background: #fff;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.order-table-wrap .table {
+    margin-bottom: 0;
+}
+
+.orders-data-table thead th {
+    border-bottom: 1px solid #dfe5ec !important;
+    background: #f8fafc;
+    color: #475467;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.orders-data-table tbody td {
+    color: #344054;
+    font-size: 13px;
+    vertical-align: middle;
+}
+
+.orders-data-table tbody tr:hover {
+    background: #fbfdff;
+}
+
+.orders-data-table .btn {
+    border-radius: 8px;
+}
+
 .order-stock-pill {
     display: inline-flex;
     align-items: center;
@@ -265,65 +344,13 @@ table.dataTable {
     background: #f8d7da;
 }
 
-.order-inventory-card {
-    margin-top: 8px;
-    border: 1px solid #e4e9f0;
-    border-radius: 8px;
-    overflow: hidden;
-    background: #fff;
-    min-width: 260px;
-}
-
-.order-inventory-card.is-out {
-    border-color: #f0a5a5;
-    background: #fff7f7;
-}
-
-.order-inventory-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(62px, 1fr));
-}
-
-.order-inventory-grid > div {
-    padding: 8px 10px;
-    border-right: 1px solid #edf1f5;
-}
-
-.order-inventory-grid > div:last-child {
-    border-right: 0;
-}
-
-.order-inventory-label {
-    display: block;
-    color: #6c757d;
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 1.1;
-    text-transform: uppercase;
-}
-
-.order-inventory-value {
-    display: block;
-    color: #212529;
-    font-size: 13px;
-    font-weight: 700;
-    margin-top: 4px;
-    white-space: nowrap;
-}
-
-.order-inventory-value.is-good {
-    color: #146c43;
-}
-
-.order-inventory-value.is-out {
-    color: #b02a37;
-}
-
 .order-source-shell {
     border: 1px solid #e6eaf0;
-    border-radius: 8px;
+    border-radius: 10px;
     background: #f8fafc;
     padding: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .order-source-tabs {
@@ -331,6 +358,7 @@ table.dataTable {
     grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
     gap: 10px;
     border-bottom: 0;
+    min-width: min(100%, 420px);
 }
 
 .order-source-tabs .nav-link {
@@ -450,7 +478,52 @@ table.dataTable {
     white-space: nowrap;
 }
 
+@media (max-width: 1199.98px) {
+    .order-toolbar {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .order-filter-field:first-child {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .order-toolbar {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .order-filter-field:first-child {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .order-toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+    }
+
+    .order-filter-field:first-child,
+    .order-filter-field:last-child {
+        grid-column: 1 / -1;
+    }
+}
+
 @media (max-width: 576px) {
+    .orders-card > .card-body {
+        padding: 14px !important;
+    }
+
+    .order-panel-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .order-export-btn {
+        width: 100%;
+    }
+
     .order-source-shell {
         padding: 8px;
     }
@@ -461,6 +534,24 @@ table.dataTable {
 
     .order-summary-card .card-body {
         min-height: 98px;
+    }
+
+    .order-toolbar {
+        grid-template-columns: 1fr;
+        padding: 12px;
+    }
+
+    .order-filter-field:first-child,
+    .order-filter-field:last-child {
+        grid-column: auto;
+    }
+
+    .order-tab-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .orders-data-table tbody td {
+        font-size: 12px;
     }
 }
 
@@ -534,19 +625,19 @@ table.dataTable {
         </div>
         
         <div class="col-12">
-            <div class="card w-100">  
+            <div class="card orders-card w-100">  
                 <div class="card-body">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                        <div>
-                            <h5 class="mb-0">Orders</h5>
-                            {{-- <small class="text-muted">Create and manage dealer purchase orders.</small> --}}
+                    <div class="order-panel-header">
+                        <div class="order-panel-title">
+                            <span class="order-panel-icon"><i class="bi bi-receipt"></i></span>
+                            <div>
+                                <h5 class="mb-0">Orders</h5>
+                                <span class="order-panel-subtitle">Track, filter, and manage dealer purchase orders.</span>
+                            </div>
                         </div>
-                        <a href="{{ route('orders.export') }}" class="btn btn-sm btn-success">
+                        <a href="{{ route('orders.export') }}" class="btn btn-success order-export-btn">
                             <i class="bi bi-file-earmark-excel me-1"></i> Download Excel
                         </a>
-                        {{-- <a href="{{ route('orders.purchase-order') }}" class="btn btn-success">
-                            <i class="bi bi-plus-circle me-1"></i> New Purchase Order
-                        </a> --}}
                     </div>
                     @php
                         $orderTabs = collect($orderTabs ?? [[
@@ -557,6 +648,58 @@ table.dataTable {
                             'orders' => $orders ?? collect(),
                         ]]);
                     @endphp
+
+                    <div class="order-toolbar" id="orderFilterToolbar">
+                        <div class="order-filter-field">
+                            <label class="order-filter-label" for="orderSearchInput">Search</label>
+                            <div class="order-search-wrap">
+                                <i class="bi bi-search"></i>
+                                <input type="search" id="orderSearchInput" class="form-control" placeholder="Transaction, name, area, item...">
+                            </div>
+                        </div>
+                        <div class="order-filter-field">
+                            <label class="order-filter-label" for="orderStatusFilter">Status</label>
+                            <select id="orderStatusFilter" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="so created">SO Created</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="order-filter-field">
+                            <label class="order-filter-label" for="orderPaymentFilter">Payment</label>
+                            <select id="orderPaymentFilter" class="form-select">
+                                <option value="">All Payments</option>
+                                <option value="cash">Cash</option>
+                                <option value="gcash">GCash</option>
+                                <option value="bank transfer">Bank Transfer</option>
+                                <option value="credit">Credit</option>
+                            </select>
+                        </div>
+                        <div class="order-filter-field">
+                            <label class="order-filter-label" for="orderDeliveryFilter">Delivery</label>
+                            <select id="orderDeliveryFilter" class="form-select">
+                                <option value="">All Types</option>
+                                <option value="delivery">Delivery</option>
+                                <option value="pickup">Pickup</option>
+                            </select>
+                        </div>
+                        <div class="order-filter-field">
+                            <label class="order-filter-label" for="orderDateFrom">Date From</label>
+                            <input type="date" id="orderDateFrom" class="form-control">
+                        </div>
+                        <div class="order-filter-field">
+                            <label class="order-filter-label" for="orderDateTo">Date To</label>
+                            <input type="date" id="orderDateTo" class="form-control">
+                        </div>
+                        <div class="order-filter-field">
+                            <label class="order-filter-label">&nbsp;</label>
+                            <button type="button" id="orderFilterReset" class="btn btn-light">
+                                <i class="bi bi-arrow-counterclockwise"></i> Reset
+                            </button>
+                        </div>
+                    </div>
 
                     <div class="order-source-shell mb-3">
                         <ul class="nav order-source-tabs" id="orderSourceTabs" role="tablist">
@@ -617,8 +760,8 @@ table.dataTable {
                                         <strong>{{ number_format($tabPending) }}</strong>
                                     </div>
                                 </div>
-                                <div class="table-responsive">
-                        <table class="table table-bordered table-striped transaction-table orders-data-table" id="ordersTable-{{ $orderTab['key'] }}" style="width:100%">
+                                <div class="table-responsive order-table-wrap">
+                        <table class="table table-hover align-middle transaction-table orders-data-table" id="ordersTable-{{ $orderTab['key'] }}" style="width:100%">
                             <thead>
                                 <tr>
                                     @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
@@ -648,7 +791,33 @@ table.dataTable {
                             </thead>
                             <tbody id="transactionBody-{{ $orderTab['key'] }}">
                                 @foreach($tabOrders as $order)
-                                    <tr id="transaction-row-{{ $orderTab['key'] }}-{{$order->id}}">
+                                    @php
+                                        $orderName = (($order->is_guest ?? false) || $order->guest_name)
+                                            ? ($order->guest_name ?: 'GUEST CUSTOMER')
+                                            : ($order->dealer->name ?? '');
+                                        $orderArea = (($order->is_guest ?? false) || $order->guest_name)
+                                            ? ($order->guest_authorized_territory ?: 'GUEST')
+                                            : ($order->adDealer->area ?? '');
+                                        $orderStatusFilter = strtolower(trim((string) $order->status));
+                                        $orderPaymentFilter = strtolower(trim(str_replace('_', ' ', (string) $order->payment_method)));
+                                        $orderDeliveryFilter = strtolower(trim((string) $order->delivery_type));
+                                        $orderDateFilter = date('Y-m-d', strtotime($order->date));
+                                        $orderSearchText = strtolower(collect([
+                                            $order->transaction_id,
+                                            $orderName,
+                                            $orderArea,
+                                            $order->item,
+                                            $order->payment_method,
+                                            $order->delivery_type,
+                                            $order->status,
+                                        ])->filter()->implode(' '));
+                                    @endphp
+                                    <tr id="transaction-row-{{ $orderTab['key'] }}-{{$order->id}}"
+                                        data-order-status="{{ $orderStatusFilter }}"
+                                        data-order-payment="{{ $orderPaymentFilter }}"
+                                        data-order-delivery="{{ $orderDeliveryFilter }}"
+                                        data-order-date="{{ $orderDateFilter }}"
+                                        data-order-search="{{ e($orderSearchText) }}">
                                         @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
                                             <td style="text-align: center;">
                                                 @if(empty($order->is_remote))
@@ -727,26 +896,6 @@ table.dataTable {
                                                             <i class="bi bi-check-circle-fill"></i> {{ number_format($rowStock) }} IN STOCK
                                                         </span>
                                                     @endif
-                                                    {{-- <div class="order-inventory-card {{ $rowStock <= 0 ? 'is-out' : '' }}">
-                                                        <div class="order-inventory-grid">
-                                                            <div>
-                                                                <span class="order-inventory-label">Stock</span>
-                                                                <span class="order-inventory-value">{{ number_format($rowStockAfterMovement) }} pcs</span>
-                                                            </div>
-                                                            <div>
-                                                                <span class="order-inventory-label">Sales</span>
-                                                                <span class="order-inventory-value">{{ number_format($rowSalesOrders) }} pcs</span>
-                                                            </div>
-                                                            <div>
-                                                                <span class="order-inventory-label">Available</span>
-                                                                <span class="order-inventory-value {{ $rowStock <= 0 ? 'is-out' : 'is-good' }}">{{ number_format($rowStock) }} pcs</span>
-                                                            </div>
-                                                            <div>
-                                                                <span class="order-inventory-label">Status</span>
-                                                                <span class="order-inventory-value {{ $rowStock <= 0 ? 'is-out' : 'is-good' }}">{{ strtoupper($rowInventoryStatus) }}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div> --}}
                                                 @endif
                                             @endif
                                         </td>
@@ -893,6 +1042,7 @@ table.dataTable {
 <script>
 $(document).ready(function() {
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
+    const orderTables = [];
     
     $.ajaxSetup({
         headers: {
@@ -900,34 +1050,108 @@ $(document).ready(function() {
         }
     });
 
+    const getOrderFilters = () => ({
+        search: ($('#orderSearchInput').val() || '').toLowerCase().trim(),
+        status: ($('#orderStatusFilter').val() || '').toLowerCase().trim(),
+        payment: ($('#orderPaymentFilter').val() || '').toLowerCase().trim(),
+        delivery: ($('#orderDeliveryFilter').val() || '').toLowerCase().trim(),
+        dateFrom: $('#orderDateFrom').val() || '',
+        dateTo: $('#orderDateTo').val() || ''
+    });
+
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        if (!$(settings.nTable).hasClass('orders-data-table')) {
+            return true;
+        }
+
+        const row = settings.aoData[dataIndex].nTr;
+        const filters = getOrderFilters();
+        const rowSearch = (row.dataset.orderSearch || '').toLowerCase();
+        const rowStatus = (row.dataset.orderStatus || '').toLowerCase();
+        const rowPayment = (row.dataset.orderPayment || '').toLowerCase();
+        const rowDelivery = (row.dataset.orderDelivery || '').toLowerCase();
+        const rowDate = row.dataset.orderDate || '';
+
+        if (filters.search && !rowSearch.includes(filters.search)) {
+            return false;
+        }
+
+        if (filters.status && rowStatus !== filters.status) {
+            return false;
+        }
+
+        if (filters.payment && rowPayment !== filters.payment) {
+            return false;
+        }
+
+        if (filters.delivery && rowDelivery !== filters.delivery) {
+            return false;
+        }
+
+        if (filters.dateFrom && rowDate < filters.dateFrom) {
+            return false;
+        }
+
+        if (filters.dateTo && rowDate > filters.dateTo) {
+            return false;
+        }
+
+        return true;
+    });
+
     $('.orders-data-table').each(function () {
+        const hasBulkColumn = $(this).find('thead th:first .select-all').length > 0;
+        const dateColumnIndex = hasBulkColumn ? 2 : 1;
+        const nonOrderableTargets = hasBulkColumn ? [0, -2, -1] : [-1];
+        const centerTargets = hasBulkColumn ? [0] : [];
+
         const table = $(this).DataTable({
-            dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+            dom: '<"row align-items-center"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6 text-md-right"i>>' +
                  '<"row"<"col-sm-12"tr>>' +
                  '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+            pageLength: 10,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
             buttons: [
                 {
                     extend: 'excelHtml5',
                     text: 'Export Excel',
-                    className: 'btn btn-sm btn-success export-btn-custom',
+                    className: 'btn btn-sm btn-success order-export-btn',
                     title: 'Transactions'
                 }
             ],
             columnDefs: [
                 { 
                     orderable: false, 
-                    targets: [0, -1]
+                    targets: nonOrderableTargets
                 },
                 {
                     className: 'text-center',
-                    targets: [0]
+                    targets: centerTargets
                 }
             ],
             destroy: true,
-            order: [[1, 'desc']]
+            order: [[dateColumnIndex, 'desc']]
         });
 
-        table.buttons().container().appendTo('#exportExcelContainer');
+        if ($('#exportExcelContainer').length) {
+            table.buttons().container().appendTo('#exportExcelContainer');
+        }
+
+        orderTables.push(table);
+    });
+
+    $('#orderSearchInput, #orderStatusFilter, #orderPaymentFilter, #orderDeliveryFilter, #orderDateFrom, #orderDateTo').on('input change', function() {
+        orderTables.forEach(table => table.draw());
+    });
+
+    $('#orderFilterReset').on('click', function() {
+        $('#orderSearchInput').val('');
+        $('#orderStatusFilter').val('');
+        $('#orderPaymentFilter').val('');
+        $('#orderDeliveryFilter').val('');
+        $('#orderDateFrom').val('');
+        $('#orderDateTo').val('');
+        orderTables.forEach(table => table.draw());
     });
 
     $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function () {
