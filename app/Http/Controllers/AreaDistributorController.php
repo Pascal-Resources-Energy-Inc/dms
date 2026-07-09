@@ -205,7 +205,15 @@ class AreaDistributorController extends Controller
 
     public function view($id)
     {
-        $ad = AreaDistributor::with(['areas', 'trashedAreas', 'userAds'])->findOrFail($id);
+        $ad = AreaDistributor::with([
+            'areas' => function ($query) {
+                $query->orderBy('project_type')->orderBy('area_name');
+            },
+            'trashedAreas' => function ($query) {
+                $query->orderByDesc('deleted_at');
+            },
+            'userAds',
+        ])->findOrFail($id);
 
         return view('area_distributor.view', compact('ad'));
     }
@@ -229,8 +237,8 @@ class AreaDistributorController extends Controller
 
         $request->validate([
             'delivery_address' => 'nullable|string|max:1000',
-            'tin' => 'nullable|string|max:50',
-            'store_picture' => 'nullable|image|max:2048',
+            // 'tin' => 'nullable|string|max:50',
+            // 'store_picture' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         DB::beginTransaction();
@@ -303,6 +311,17 @@ class AreaDistributorController extends Controller
             }
 
             if ($request->hasFile('store_picture')) {
+                $file = $request->file('store_picture');
+                $path = 'uploads/store_pictures';
+
+                if (!is_dir(public_path($path))) {
+                    mkdir(public_path($path), 0755, true);
+                }
+
+                $extension = $file->getClientOriginalExtension();
+                $filename = 'store_' . $ad->id . '_' . time() . '_' . uniqid() . '.' . $extension;
+
+                $file->move(public_path($path), $filename);
 
                 if (
                     $ad->store_picture &&
@@ -310,18 +329,6 @@ class AreaDistributorController extends Controller
                 ) {
                     unlink(public_path($ad->store_picture));
                 }
-
-                $file = $request->file('store_picture');
-
-                $filename = time() . '_' . $file->getClientOriginalName();
-
-                $path = 'uploads/store_pictures';
-
-                if (!is_dir(public_path($path))) {
-                    mkdir(public_path($path), 0755, true);
-                }
-
-                $file->move(public_path($path), $filename);
 
                 $storePicturePath = $path . '/' . $filename;
             }
@@ -614,6 +621,12 @@ class AreaDistributorController extends Controller
                 ->groupBy('dealer_id', 'item');
             }
         ])->whereIn('area', $areas)->get()->toBase();
+        $localDealers = $localDealers->map(function ($dealer) {
+            $dealer->stock_qty = (float) $dealer->orders->sum('total_qty');
+            $dealer->sold_qty = (float) $dealer->sales->sum('total_qty');
+
+            return $dealer;
+        });
 
         $crmDealers = $this->adCrmDealers($areas);
         $dealers = $localDealers
@@ -677,6 +690,8 @@ class AreaDistributorController extends Controller
                     $dealer = $this->normalizeAdCrmDealer($dealer, $connection, $label);
                     $dealer->orders = $this->adCrmDealerItemTotals($connection, 'order_details', $dealer, true);
                     $dealer->sales = $this->adCrmDealerItemTotals($connection, 'transaction_details', $dealer, false);
+                    $dealer->stock_qty = (float) $dealer->orders->sum('total_qty');
+                    $dealer->sold_qty = (float) $dealer->sales->sum('total_qty');
 
                     return $dealer;
                 });
@@ -719,10 +734,16 @@ class AreaDistributorController extends Controller
             $schema = DB::connection($connection)->getSchemaBuilder();
 
             if (
-                !$schema->hasTable($table) ||
-                !$schema->hasColumn($table, 'dealer_id') ||
-                !$schema->hasColumn($table, 'qty')
+                !$schema->hasTable($table)
             ) {
+                return collect();
+            }
+
+            $qtyColumn = collect(['qty', 'quantity'])->first(function ($column) use ($schema, $table) {
+                return $schema->hasColumn($table, $column);
+            });
+
+            if (!$qtyColumn) {
                 return collect();
             }
 
@@ -744,12 +765,28 @@ class AreaDistributorController extends Controller
             }
 
             $query = DB::connection($connection)->table($table)
-                ->select($itemColumn . ' as item', DB::raw('SUM(qty) as total_qty'))
-                ->whereIn('dealer_id', $dealerIds)
+                ->select($itemColumn . ' as item', DB::raw('SUM(' . $qtyColumn . ') as total_qty'))
                 ->groupBy($itemColumn);
+
+            if ($schema->hasColumn($table, 'dealer_id') && $schema->hasColumn($table, 'user_id')) {
+                $query->where(function ($inner) use ($dealerIds) {
+                    $inner->whereIn('dealer_id', $dealerIds)
+                        ->orWhereIn('user_id', $dealerIds);
+                });
+            } elseif ($schema->hasColumn($table, 'dealer_id')) {
+                $query->whereIn('dealer_id', $dealerIds);
+            } elseif ($schema->hasColumn($table, 'user_id')) {
+                $query->whereIn('user_id', $dealerIds);
+            } else {
+                return collect();
+            }
 
             if ($completedOnly && $schema->hasColumn($table, 'status')) {
                 $query->where('status', 'Completed');
+            }
+
+            if ($schema->hasColumn($table, 'deleted_at')) {
+                $query->whereNull('deleted_at');
             }
 
             return $query->get();

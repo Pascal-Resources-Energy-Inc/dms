@@ -32,6 +32,7 @@ class CustomerController extends Controller
                 ->map(function ($customer) {
                     $customer->source = 'Regular';
                     $customer->source_label = 'Regular';
+                    $this->applyLocalCustomerPoints($customer);
 
                     return $customer;
                 });
@@ -41,7 +42,12 @@ class CustomerController extends Controller
                 ->merge($regularCustomers)
                 ->values();
         } else {
-            $customers = Client::with(['transactions', 'serial'])->get();
+            $customers = Client::with(['transactions', 'serial'])->get()
+                ->map(function ($customer) {
+                    $this->applyLocalCustomerPoints($customer);
+
+                    return $customer;
+                });
         }
         
         $activeCustomers = $customers->filter(function ($customer) {
@@ -108,7 +114,10 @@ class CustomerController extends Controller
             }
 
             return $query->get()->map(function ($client) use ($connection, $label) {
-                return $this->normalizeCrmClient($client, $connection, $label);
+                $client = $this->normalizeCrmClient($client, $connection, $label);
+                $this->applyCrmCustomerPoints($client, $connection);
+
+                return $client;
             });
         } catch (\Exception $exception) {
             return collect();
@@ -169,6 +178,7 @@ class CustomerController extends Controller
         $client->signature = $client->signature ?? null;
         $client->user = null;
         $client->transactions = collect();
+        $client->total_points = (float) ($client->total_points ?? 0);
         $client->serial = (object) [
             'serial_number' => $client->stove_serial_number ?? ($client->serial_number ?? ($client->serial ?? null)),
             'remarks' => $client->stove_remarks ?? null,
@@ -176,6 +186,86 @@ class CustomerController extends Controller
         $client->serial_number = $client->serial->serial_number ?: '-';
 
         return $client;
+    }
+
+    private function applyLocalCustomerPoints($customer)
+    {
+        $customer->total_points = (float) $customer->transactions->sum('points_client');
+    }
+
+    private function applyCrmCustomerPoints($customer, $connection)
+    {
+        $totalPoints = $this->crmCustomerPointsSum($connection, $customer);
+
+        $customer->total_points = $totalPoints;
+        $customer->transactions = collect([(object) ['points_client' => $totalPoints]]);
+    }
+
+    private function crmCustomerPointsSum($connection, $customer)
+    {
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (!$schema->hasTable('transaction_details')) {
+                return 0;
+            }
+
+            $pointsColumn = collect(['points_client', 'customer_points', 'points', 'total_points'])
+                ->first(function ($column) use ($schema) {
+                    return $schema->hasColumn('transaction_details', $column);
+                });
+
+            if (!$pointsColumn) {
+                return 0;
+            }
+
+            $customerIds = collect([
+                    $customer->id ?? null,
+                    $customer->client_id ?? null,
+                    $customer->customer_id ?? null,
+                    $customer->user_id ?? null,
+                ])
+                ->filter(function ($value) {
+                    return $value !== null && $value !== '';
+                })
+                ->unique()
+                ->values()
+                ->all();
+
+            if (empty($customerIds)) {
+                return 0;
+            }
+
+            $query = DB::connection($connection)->table('transaction_details');
+
+            $idColumns = collect(['client_id', 'customer_id', 'user_id'])
+                ->filter(function ($column) use ($schema) {
+                    return $schema->hasColumn('transaction_details', $column);
+                })
+                ->values();
+
+            if ($idColumns->isEmpty()) {
+                return 0;
+            }
+
+            $query->where(function ($inner) use ($idColumns, $customerIds) {
+                foreach ($idColumns as $index => $column) {
+                    if ($index === 0) {
+                        $inner->whereIn($column, $customerIds);
+                    } else {
+                        $inner->orWhereIn($column, $customerIds);
+                    }
+                }
+            });
+
+            if ($schema->hasColumn('transaction_details', 'deleted_at')) {
+                $query->whereNull('deleted_at');
+            }
+
+            return (float) $query->sum($pointsColumn);
+        } catch (\Exception $exception) {
+            return 0;
+        }
     }
 
     private function crmClientTransactions($connection, $customer)
@@ -217,7 +307,7 @@ class CustomerController extends Controller
 
                 $transaction->item = $transaction->item ?? ($transaction->product ?? ($transaction->product_name ?? '-'));
                 $transaction->qty = $qty;
-                $transaction->points_client = $transaction->points_client ?? ($transaction->points ?? 0);
+                $transaction->points_client = $transaction->points_client ?? ($transaction->customer_points ?? ($transaction->points ?? ($transaction->total_points ?? 0)));
                 $transaction->price = $price;
                 $transaction->created_at = $transaction->created_at ?? ($transaction->date ?? now());
 

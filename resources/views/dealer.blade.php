@@ -364,11 +364,18 @@
       : asset('design/assets/images/profile/user-1.png');
   $status = $dealer->status ?: 'Active';
   $isActive = strcasecmp($status, 'Active') === 0;
-  $totalQty = $transactions->sum('qty');
-  $totalAmount = $transactions->sum(function ($transaction) {
-      return (float) $transaction->qty * (float) $transaction->price;
-  });
-  $totalPoints = $transactions->sum('points_client');
+  $transactionStats = $transactionStats ?? [
+      'count' => $transactions->count(),
+      'qty' => $transactions->sum('qty'),
+      'amount' => $transactions->sum(function ($transaction) {
+          return (float) $transaction->qty * (float) $transaction->price;
+      }),
+      'points' => $transactions->sum('points_client'),
+  ];
+  $totalTransactions = $transactionStats['count'];
+  $totalQty = $transactionStats['qty'];
+  $totalAmount = $transactionStats['amount'];
+  $totalPoints = $transactionStats['points'];
 @endphp
 
 <section class="dealer-view">
@@ -472,7 +479,7 @@
       <div class="dealer-stat-grid">
         <div class="dealer-stat">
           <span>Total Transactions</span>
-          <strong>{{ number_format($transactions->count()) }}</strong>
+          <strong>{{ number_format($totalTransactions) }}</strong>
         </div>
         <div class="dealer-stat">
           <span>Total Quantity</span>
@@ -580,6 +587,11 @@
               </tbody>
             </table>
           </div>
+          @if(method_exists($transactions, 'links') && $transactions->hasPages())
+            <div class="px-3 py-3 border-top">
+              {{ $transactions->links() }}
+            </div>
+          @endif
         </div>
       </div>
     </div>

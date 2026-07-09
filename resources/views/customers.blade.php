@@ -184,7 +184,6 @@
     }
 
     .customer-ref,
-    .customer-source,
     .customer-points {
         display: inline-flex;
         align-items: center;
@@ -199,21 +198,6 @@
     .customer-ref {
         color: #1d4ed8;
         background: #dbeafe;
-    }
-
-    .customer-source {
-        color: #075985;
-        background: #e0f2fe;
-    }
-
-    .customer-source.is-genesis {
-        color: #6d28d9;
-        background: #ede9fe;
-    }
-
-    .customer-source.is-regular {
-        color: #166534;
-        background: #dcfce7;
     }
 
     .customer-points {
@@ -279,158 +263,6 @@
         border-color: #2563eb;
         background: #eff6ff;
         color: #1d4ed8;
-    }
-
-    .customer-info-hero {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 18px;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        background: linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%);
-        margin-bottom: 16px;
-    }
-
-    .customer-info-person {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        min-width: 0;
-    }
-
-    .customer-info-avatar {
-        width: 54px;
-        height: 54px;
-        border-radius: 8px;
-        background: #2563eb;
-        color: #fff;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex: 0 0 auto;
-        font-size: 20px;
-        font-weight: 900;
-    }
-
-    .customer-info-title {
-        margin: 0;
-        color: #111827;
-        font-size: 20px;
-        font-weight: 900;
-        line-height: 1.2;
-    }
-
-    .customer-info-subtitle {
-        margin-top: 5px;
-        color: #64748b;
-        font-size: 13px;
-        font-weight: 700;
-    }
-
-    .customer-info-badges {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        gap: 8px;
-    }
-
-    .customer-info-badge {
-        display: inline-flex;
-        align-items: center;
-        min-height: 28px;
-        border-radius: 999px;
-        padding: 4px 10px;
-        font-size: 12px;
-        font-weight: 900;
-        white-space: nowrap;
-    }
-
-    .customer-info-badge.is-source {
-        color: #1d4ed8;
-        background: #dbeafe;
-    }
-
-    .customer-info-badge.is-status-active {
-        color: #166534;
-        background: #dcfce7;
-    }
-
-    .customer-info-badge.is-status-inactive {
-        color: #991b1b;
-        background: #fee2e2;
-    }
-
-    .customer-info-section {
-        margin-top: 16px;
-    }
-
-    .customer-info-section-title {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin: 0 0 10px;
-        color: #334155;
-        font-size: 12px;
-        font-weight: 900;
-        letter-spacing: .06em;
-        text-transform: uppercase;
-    }
-
-    .customer-info-section-title::before {
-        content: "";
-        width: 8px;
-        height: 8px;
-        border-radius: 999px;
-        background: #2563eb;
-    }
-
-    .customer-info-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-    }
-
-    .customer-info-item {
-        border: 1px solid #edf0f5;
-        border-radius: 8px;
-        background: #f8fafc;
-        padding: 11px 12px;
-    }
-
-    .customer-info-item span {
-        display: block;
-        color: #64748b;
-        font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
-    }
-
-    .customer-info-item strong {
-        display: block;
-        margin-top: 4px;
-        color: #111827;
-        font-size: 13px;
-        word-break: break-word;
-    }
-
-    .customer-info-item.is-wide {
-        grid-column: 1 / -1;
-    }
-
-    .customer-modal-close {
-        width: 36px;
-        height: 36px;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        background: #fff;
-        color: #475569;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 1;
-        text-shadow: none;
     }
 
     .customer-empty {
@@ -513,18 +345,6 @@
             margin-top: 12px;
         }
 
-        .customer-info-hero {
-            align-items: flex-start;
-            flex-direction: column;
-        }
-
-        .customer-info-badges {
-            justify-content: flex-start;
-        }
-
-        .customer-info-grid {
-            grid-template-columns: 1fr;
-        }
     }
 </style>
 @endsection
@@ -640,9 +460,6 @@
                             @php
                                 $customerTabKey = $isAdminCustomerPage ? ($customer->source ?? 'Regular') : 'All';
                                 $isRemoteCustomer = $isAdminCustomerPage && $customerTabKey !== 'Regular';
-                                $sourceLabel = $customer->source_label ?? ($customerTabKey === 'Regular' ? 'Regular' : $customerTabKey);
-                                $sourceClass = $customerTabKey === 'admin_crms2' ? 'is-genesis' : ($customerTabKey === 'Regular' ? 'is-regular' : '');
-                                $firstTransaction = $customer->transactions->sortBy('date')->first();
                                 $address = strtoupper(trim(implode(', ', array_filter([
                                     $customer->street_address,
                                     $customer->location_barangay,
@@ -650,39 +467,11 @@
                                     $customer->location_province,
                                 ])) . ' ' . $customer->postal_code));
                                 $status = $customer->status == 'Active' ? 'Active' : 'Inactive';
-                                $remarks = '';
-                                $customerName = $customer->name ?: '-';
                                 $serialNumber = $customer->serial && $customer->serial->serial_number ? $customer->serial->serial_number : '-';
-                                $points = $customer->transactions->sum('points_client');
+                                $points = $customer->total_points ?? $customer->transactions->sum('points_client');
                                 $customerViewUrl = $isRemoteCustomer
                                     ? url('admin-crm-customer/' . $customerTabKey . '/' . $customer->id)
                                     : url('view-client/' . $customer->id);
-
-                                if ($customer->serial && !empty($customer->serial->remarks)) {
-                                    $previousOwner = \App\Client::find($customer->serial->remarks);
-                                    $remarks = 'SN# ' . $customer->serial->serial_number . ' used to be owned by ' . ($previousOwner ? $previousOwner->name : 'Unknown Client');
-                                }
-
-                                $customerInfo = [
-                                    'source' => $sourceLabel,
-                                    'reference' => $customer->client_reference ?: '-',
-                                    'name' => $customerName,
-                                    'initials' => collect(explode(' ', $customerName))->filter()->map(function ($part) { return strtoupper(substr($part, 0, 1)); })->take(2)->implode(''),
-                                    'number' => $customer->number ?: '-',
-                                    'email' => $customer->email_address ?: '-',
-                                    'serial' => $serialNumber,
-                                    'points' => number_format($points),
-                                    'center' => $customer->center ?: '-',
-                                    'spo' => $customer->spo ?: '-',
-                                    'address' => $address ?: '-',
-                                    'region' => $customer->location_region ?: '-',
-                                    'province' => $customer->location_province ?: '-',
-                                    'city' => $customer->location_city ?: '-',
-                                    'barangay' => $customer->location_barangay ?: '-',
-                                    'first_transaction' => $firstTransaction ? date('M d, Y', strtotime($firstTransaction->date)) : 'No Data',
-                                    'remarks' => $remarks ?: '-',
-                                    'status' => $status,
-                                ];
                             @endphp
                             <tr data-customer-tab-key="{{ $customerTabKey }}" data-customer-status="{{ $status }}">
                                 <td><span class="customer-ref">{{ strtoupper($customer->client_reference) }}</span></td>
@@ -725,66 +514,6 @@
     </div>
 </section>
 
-<div class="modal fade" id="customerInfoModal" tabindex="-1" aria-labelledby="customerInfoModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h5 class="modal-title" id="customerInfoModalLabel">Customer Information</h5>
-                    <div class="small text-muted">Complete customer profile and source details</div>
-                </div>
-                <button type="button" class="close customer-modal-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="customer-info-hero">
-                    <div class="customer-info-person">
-                        <div class="customer-info-avatar" id="customerInfoInitials">CL</div>
-                        <div>
-                            <h4 class="customer-info-title" id="customerInfoName">-</h4>
-                            <div class="customer-info-subtitle">
-                                <span id="customerInfoReference">-</span>
-                                <span class="mx-1">/</span>
-                                <span id="customerInfoSerial">-</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="customer-info-badges">
-                        <span class="customer-info-badge is-source" id="customerInfoSource">Source</span>
-                        <span class="customer-info-badge" id="customerInfoStatus">Status</span>
-                    </div>
-                </div>
-
-                <div class="customer-info-section">
-                    <h6 class="customer-info-section-title">Account Details</h6>
-                    <div class="customer-info-grid">
-                        <div class="customer-info-item"><span>CRM Source</span><strong id="customerInfoSourceDetail">-</strong></div>
-                        <div class="customer-info-item"><span>Serial Number</span><strong id="customerInfoSerialDetail">-</strong></div>
-                        <div class="customer-info-item"><span>Contact Number</span><strong id="customerInfoNumber">-</strong></div>
-                        <div class="customer-info-item"><span>Email Address</span><strong id="customerInfoEmail">-</strong></div>
-                        <div class="customer-info-item"><span>Total Points</span><strong id="customerInfoPoints">-</strong></div>
-                        <div class="customer-info-item"><span>First Transaction</span><strong id="customerInfoFirstTransaction">-</strong></div>
-                        <div class="customer-info-item"><span>Center</span><strong id="customerInfoCenter">-</strong></div>
-                        <div class="customer-info-item"><span>SPO</span><strong id="customerInfoSpo">-</strong></div>
-                    </div>
-                </div>
-
-                <div class="customer-info-section">
-                    <h6 class="customer-info-section-title">Location</h6>
-                    <div class="customer-info-grid">
-                        <div class="customer-info-item"><span>Region</span><strong id="customerInfoRegion">-</strong></div>
-                        <div class="customer-info-item"><span>Province</span><strong id="customerInfoProvince">-</strong></div>
-                        <div class="customer-info-item"><span>City / Municipality</span><strong id="customerInfoCity">-</strong></div>
-                        <div class="customer-info-item"><span>Barangay</span><strong id="customerInfoBarangay">-</strong></div>
-                        <div class="customer-info-item is-wide"><span>Address</span><strong id="customerInfoAddress">-</strong></div>
-                        <div class="customer-info-item is-wide"><span>Remarks</span><strong id="customerInfoRemarks">-</strong></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 @endsection
 
 @include('new_customer')
@@ -977,55 +706,6 @@ $(document).ready(async function() {
         } else {
             console.warn('Customer DataTables failed to load. Using basic table tabs.');
         }
-
-        function showCustomerInfo(customer) {
-            const status = customer.status || '-';
-            const isActive = String(status).toLowerCase() === 'active';
-
-            $('#customerInfoInitials').text(customer.initials || 'CL');
-            $('#customerInfoName').text(customer.name || '-');
-            $('#customerInfoReference').text(customer.reference || '-');
-            $('#customerInfoSerial').text(customer.serial || '-');
-            $('#customerInfoSource').text(customer.source || 'Local');
-            $('#customerInfoSourceDetail').text(customer.source || 'Local');
-            $('#customerInfoSerialDetail').text(customer.serial || '-');
-            $('#customerInfoStatus')
-                .text(status)
-                .removeClass('is-status-active is-status-inactive')
-                .addClass(isActive ? 'is-status-active' : 'is-status-inactive');
-            $('#customerInfoNumber').text(customer.number || '-');
-            $('#customerInfoEmail').text(customer.email || '-');
-            $('#customerInfoPoints').text(customer.points || '0');
-            $('#customerInfoFirstTransaction').text(customer.first_transaction || '-');
-            $('#customerInfoCenter').text(customer.center || '-');
-            $('#customerInfoSpo').text(customer.spo || '-');
-            $('#customerInfoRegion').text(customer.region || '-');
-            $('#customerInfoProvince').text(customer.province || '-');
-            $('#customerInfoCity').text(customer.city || '-');
-            $('#customerInfoBarangay').text(customer.barangay || '-');
-            $('#customerInfoAddress').text(customer.address || '-');
-            $('#customerInfoRemarks').text(customer.remarks || '-');
-
-            const modalElement = document.getElementById('customerInfoModal');
-
-            if (window.bootstrap && bootstrap.Modal) {
-                bootstrap.Modal.getOrCreateInstance(modalElement).show();
-            } else {
-                $('#customerInfoModal').modal('show');
-            }
-        }
-
-        $(document).on('click', '.js-view-customer', function() {
-            let customer = {};
-
-            try {
-                customer = JSON.parse($(this).attr('data-customer') || '{}');
-            } catch (error) {
-                customer = {};
-            }
-
-            showCustomerInfo(customer);
-        });
 
         $('.customer-tab').on('click', function() {
             activateCustomerTab($(this));

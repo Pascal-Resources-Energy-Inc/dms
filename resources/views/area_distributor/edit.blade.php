@@ -250,7 +250,7 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label" for="store_picture_{{ $ad->id }}">Store Picture</label>
                             <div class="ad-store-picture-editor">
-                                <div class="ad-store-picture-preview">
+                                <div class="ad-store-picture-preview" id="storePicturePreview-{{ $ad->id }}">
                                     @if($ad->store_picture)
                                         <img src="{{ asset($ad->store_picture) }}" alt="{{ $ad->business_name ?: 'Store' }} picture">
                                     @else
@@ -267,8 +267,9 @@
                                         id="store_picture_{{ $ad->id }}"
                                         name="store_picture"
                                         accept="image/*"
+                                        onchange="previewAdStorePicture(this, {{ $ad->id }})"
                                     >
-                                    <small class="text-muted d-block mt-1">Optional. Upload JPG or PNG up to 2MB.</small>
+                                    <small class="text-muted d-block mt-1">Optional. Upload JPG, PNG, or WEBP up to 5MB.</small>
                                     @if($ad->store_picture)
                                         <a href="{{ asset($ad->store_picture) }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary mt-2">
                                             <i class="bi bi-image"></i> View current store picture
@@ -913,6 +914,31 @@
         const reader = new FileReader();
         reader.onload = e => {
             document.getElementById('avatar-' + id).src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function previewAdStorePicture(input, id) {
+        const file = input.files[0];
+        const preview = document.getElementById('storePicturePreview-' + id);
+
+        if (!file || !preview) return;
+
+        if (!file.type.startsWith('image/')) {
+            Swal.fire('Error', 'Please upload a valid store image.', 'error');
+            input.value = '';
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            Swal.fire('Error', 'Store picture must be less than 5MB.', 'error');
+            input.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = e => {
+            preview.innerHTML = `<img src="${e.target.result}" alt="Selected store picture">`;
         };
         reader.readAsDataURL(file);
     }

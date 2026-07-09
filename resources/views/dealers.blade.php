@@ -387,16 +387,6 @@
         background: #dbeafe;
     }
 
-    .dealer-metric.is-remaining {
-        color: #0f766e;
-        background: #ccfbf1;
-    }
-
-    .dealer-metric.is-negative {
-        color: #991b1b;
-        background: #fee2e2;
-    }
-
     .dealer-status {
         display: inline-flex;
         align-items: center;
@@ -630,204 +620,97 @@
                         <span>Add a dealer to start building this list.</span>
                     </div>
                     <div class="table-responsive" id="dealerTableWrap" style="display: {{ $dealers->count() ? 'block' : 'none' }};">
-                        @if(auth()->user()->role == 'Admin')
-                            <table class="table dealer-table transaction-table" style="width:100%">
-                                <thead>
-                                    <tr>
-                                        <th>{{ $dealerSingularTitle }} Reference</th>
-                                        <th>{{ $dealerSingularTitle }} Name</th>
-                                        <th>Store Name</th>
-                                        <th>Store Type</th>
-                                        <th>Number</th>
-                                        <th>Qty Stock</th>
-                                        <th>Qty Sold</th>
-                                        <th>Address</th>
-                                        <th>Sales Territory</th>
-                                        <th>Status</th>
-                                        <th>View</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="adBody">
-                                    @foreach($dealers as $dealer)
-                                    @php
-                                        $dealerType = strcasecmp((string) $dealer->dealer_type, 'Regular') === 0 ? 'Regular' : 'Project';
-                                        $dealerTabKey = $isAdminDealerPage ? ($dealer->source ?? 'admin_crms') : $dealerType;
-                                        $adminDealerViewUrl = $isAdminDealerPage
-                                            ? ($dealerTabKey === 'Regular'
-                                                ? url('view-dealer/' . $dealer->id)
-                                                : route('admin.crm.dealer.view', ['source' => $dealerTabKey, 'id' => $dealer->id]))
-                                            : null;
-                                    @endphp
-                                    <tr data-dealer-tab-key="{{ $dealerTabKey }}" data-dealer-type="{{ $dealerType }}">
-                                        <td scope="col"><span class="dealer-ref">{{  strtoupper($dealer->dealer_reference) }}</span></td>
-                                        <td scope="col">
-                                            @if($isAdminDealerPage)
-                                                <a href="{{ $adminDealerViewUrl }}" class="dealer-link">{{ strtoupper($dealer->name)}} </a>
-                                            @else
-                                                <a href='view-dealer/{{$dealer->id}}' class="dealer-link">{{ strtoupper($dealer->name)}} </a>
-                                            @endif
-                                        </td>
-                                        <td scope="col">{{ strtoupper($dealer->store_name ?? '-')}}</td>
-                                        <td scope="col">{{ strtoupper($dealer->store_type ?? '-')}}</td>
-                                        <td scope="col">{{ strtoupper($dealer->number)}}</td>
-                                        <td scope="col"><span class="dealer-metric is-stock">{{ number_format(($dealer->orders)->sum('qty')) }}</span></td>
-                                        <td scope="col"><span class="dealer-metric is-sold">{{ number_format(($dealer->sales)->sum('qty')) }}</span></td>
-                                        <td scope="col"><div class="dealer-muted">{{ strtoupper($dealer->address ?? '-') }}</div></td>
-                                        <td scope="col"><div class="dealer-muted">{{ strtoupper($dealer->area ?? '-') }}</div></td>
-                                        <td>
-                                            @if($dealer->status == 'Active')
-                                                <span class="dealer-status is-active">Active</span>
-                                            @else 
-                                                <span class="dealer-status is-inactive">Inactive</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @php
-                                                $dealerName = $dealer->name ?: '-';
-                                                $dealerInfo = [
-                                                    'source' => $dealer->source_label ?: 'Local',
-                                                    'reference' => $dealer->dealer_reference ?: '-',
-                                                    'name' => $dealerName,
-                                                    'initials' => collect(explode(' ', $dealerName))->filter()->map(function ($part) { return strtoupper(substr($part, 0, 1)); })->take(2)->implode(''),
-                                                    'store_name' => $dealer->store_name ?: '-',
-                                                    'store_type' => $dealer->store_type ?: '-',
-                                                    'number' => $dealer->number ?: '-',
-                                                    'address' => $dealer->address ?: '-',
-                                                    'area' => $dealer->area ?: '-',
-                                                    'status' => $dealer->status ?: '-',
-                                                ];
-                                            @endphp
-                                            @if($isAdminDealerPage)
-                                                <a href="{{ $adminDealerViewUrl }}" class="dealer-action-btn" title="View dealer">
-                                                    <i class="ti ti-eye"></i>
-                                                </a>
-                                            @else
-                                                <button type="button"
-                                                    class="dealer-action-btn js-view-dealer"
-                                                    title="View dealer"
-                                                    data-dealer="{{ e(json_encode($dealerInfo)) }}">
-                                                    <i class="ti ti-eye"></i>
-                                                </button>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table> 
-                        @elseif(auth()->user()->role == 'Area Distributor')
-                            <table class="table dealer-table transaction-table text-center" style="width:100%">
-                                <thead>
-                                    <tr>
-                                        <th rowspan="2">{{ $dealerSingularTitle }} Ref</th>
-                                        <th rowspan="2">{{ $dealerSingularTitle }} Name</th>
-                                        <th rowspan="2">Store</th>
-                                        <th rowspan="2">Type</th>
-                                        <th rowspan="2">Number</th>
-
-                                        @foreach($items as $item)
-                                            <th colspan="3">{{ $item->product_name }}</th>
-                                        @endforeach
-
-                                        <th rowspan="2">Address</th>
-                                        <th rowspan="2">Sales Territory</th>
-                                        <th rowspan="2">Status</th>
-                                        <th rowspan="2">View</th>
-                                    </tr>
-                                    <tr>
-                                        @foreach($items as $item)
-                                            <th class="text-success">Stock</th>
-                                            <th class="text-primary">Sold</th>
-                                            <th class="text-info">Remaining</th> 
-                                        @endforeach
-                                    </tr>
-                                </thead>
-
-                                <tbody id="adBody">
-                                    @foreach($dealers as $dealer)
-                                    @php
-                                        $dealerType = strcasecmp((string) $dealer->dealer_type, 'Regular') === 0 ? 'Regular' : 'Project';
-                                        $dealerTabKey = !empty($dealer->is_remote) ? ($dealer->source ?? 'admin_crms') : $dealerType;
-                                        $dealerName = $dealer->name ?: '-';
-                                        $dealerInfo = [
-                                            'source' => $dealer->source_label ?: 'Local',
-                                            'reference' => $dealer->dealer_reference ?: '-',
-                                            'name' => $dealerName,
-                                            'initials' => collect(explode(' ', $dealerName))->filter()->map(function ($part) { return strtoupper(substr($part, 0, 1)); })->take(2)->implode(''),
-                                            'store_name' => $dealer->store_name ?: '-',
-                                            'store_type' => $dealer->store_type ?: '-',
-                                            'number' => $dealer->number ?: '-',
-                                            'address' => $dealer->address ?: '-',
-                                            'area' => $dealer->area ?: '-',
-                                            'status' => $dealer->status ?: '-',
-                                        ];
-                                    @endphp
-                                    <tr data-dealer-tab-key="{{ $dealerTabKey }}" data-dealer-type="{{ $dealerType }}">
-                                        <td><span class="dealer-ref">{{ $dealer->dealer_reference }}</span></td>
-
-                                        <td>
-                                            @if(!empty($dealer->is_remote))
-                                                <button type="button"
-                                                    class="dealer-link btn btn-link p-0 js-view-dealer"
-                                                    data-dealer="{{ e(json_encode($dealerInfo)) }}">
-                                                    {{ $dealer->name }}
-                                                </button>
-                                            @else
-                                                <a href="view-dealer/{{$dealer->id}}" class="dealer-link">
-                                                    {{ $dealer->name }}
-                                                </a>
-                                            @endif
-                                        </td>
-
-                                        <td>{{ strtoupper($dealer->store_name ?? '-') }}</td>
-                                        <td>{{ strtoupper($dealer->store_type ?? '-') }}</td>
-                                        <td>{{ $dealer->number }}</td>
-
-                                        @foreach($items as $item)
-                                            @php
-                                                $stock = optional($dealer->orders->firstWhere('item', $item->product_name))->total_qty ?? 0;
-                                                $sold  = optional($dealer->sales->firstWhere('item', $item->product_name))->total_qty ?? 0;
-                                                $remaining = $stock - $sold;
-                                            @endphp
-
-                                            <!-- STOCK -->
-                                            <td>
-                                                <span class="dealer-metric is-stock">{{ number_format($stock) }}</span>
-                                            </td>
-
-                                            <!-- SOLD -->
-                                            <td>
-                                                <span class="dealer-metric is-sold">{{ number_format($sold) }}</span>
-                                            </td>
-
-                                            <!-- REMAINING -->
-                                            <td>
-                                                <span class="dealer-metric {{ $remaining < 0 ? 'is-negative' : 'is-remaining' }}">{{ number_format($remaining) }}</span>
-                                            </td>
-                                        @endforeach
-
-                                        <td><div class="dealer-muted">{{ strtoupper($dealer->address ?? '-') }}</div></td>
-                                        <td><div class="dealer-muted">{{ strtoupper($dealer->area ?? '-') }}</div></td>
-
-                                        <td>
-                                            @if($dealer->status == 'Active')
-                                                <span class="dealer-status is-active">Active</span>
-                                            @else 
-                                                <span class="dealer-status is-inactive">Inactive</span>
-                                            @endif
-                                        </td>
-                                        <td>
+                        <table class="table dealer-table transaction-table" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>{{ $dealerSingularTitle }} Reference</th>
+                                    <th>{{ $dealerSingularTitle }} Name</th>
+                                    <th>Store Name</th>
+                                    <th>Store Type</th>
+                                    <th>Number</th>
+                                    <th>Qty Stock</th>
+                                    <th>Qty Sold</th>
+                                    <th>Address</th>
+                                    <th>Sales Territory</th>
+                                    <th>Status</th>
+                                    <th>View</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adBody">
+                                @foreach($dealers as $dealer)
+                                @php
+                                    $dealerType = strcasecmp((string) $dealer->dealer_type, 'Regular') === 0 ? 'Regular' : 'Project';
+                                    $dealerTabKey = !empty($dealer->is_remote)
+                                        ? ($dealer->source ?? 'admin_crms')
+                                        : ($isAdminDealerPage ? ($dealer->source ?? 'Regular') : $dealerType);
+                                    $stockQty = $dealer->stock_qty ?? $dealer->orders->sum('qty') ?? $dealer->orders->sum('total_qty') ?? 0;
+                                    $soldQty = $dealer->sold_qty ?? $dealer->sales->sum('qty') ?? $dealer->sales->sum('total_qty') ?? 0;
+                                    $adminDealerViewUrl = $isAdminDealerPage
+                                        ? ($dealerTabKey === 'Regular'
+                                            ? url('view-dealer/' . $dealer->id)
+                                            : route('admin.crm.dealer.view', ['source' => $dealerTabKey, 'id' => $dealer->id]))
+                                        : null;
+                                    $dealerName = $dealer->name ?: '-';
+                                    $dealerInfo = [
+                                        'source' => $dealer->source_label ?: 'Local',
+                                        'reference' => $dealer->dealer_reference ?: '-',
+                                        'name' => $dealerName,
+                                        'initials' => collect(explode(' ', $dealerName))->filter()->map(function ($part) { return strtoupper(substr($part, 0, 1)); })->take(2)->implode(''),
+                                        'store_name' => $dealer->store_name ?: '-',
+                                        'store_type' => $dealer->store_type ?: '-',
+                                        'number' => $dealer->number ?: '-',
+                                        'address' => $dealer->address ?: '-',
+                                        'area' => $dealer->area ?: '-',
+                                        'status' => $dealer->status ?: '-',
+                                    ];
+                                @endphp
+                                <tr data-dealer-tab-key="{{ $dealerTabKey }}" data-dealer-type="{{ $dealerType }}">
+                                    <td scope="col"><span class="dealer-ref">{{ strtoupper($dealer->dealer_reference) }}</span></td>
+                                    <td scope="col">
+                                        @if($isAdminDealerPage)
+                                            <a href="{{ $adminDealerViewUrl }}" class="dealer-link">{{ strtoupper($dealer->name) }}</a>
+                                        @elseif(!empty($dealer->is_remote))
+                                            <button type="button"
+                                                class="dealer-link btn btn-link p-0 js-view-dealer"
+                                                data-dealer="{{ e(json_encode($dealerInfo)) }}">
+                                                {{ strtoupper($dealer->name) }}
+                                            </button>
+                                        @else
+                                            <a href="view-dealer/{{$dealer->id}}" class="dealer-link">{{ strtoupper($dealer->name) }}</a>
+                                        @endif
+                                    </td>
+                                    <td scope="col">{{ strtoupper($dealer->store_name ?? '-') }}</td>
+                                    <td scope="col">{{ strtoupper($dealer->store_type ?? '-') }}</td>
+                                    <td scope="col">{{ strtoupper($dealer->number ?? '-') }}</td>
+                                    <td scope="col"><span class="dealer-metric is-stock">{{ number_format($stockQty) }}</span></td>
+                                    <td scope="col"><span class="dealer-metric is-sold">{{ number_format($soldQty) }}</span></td>
+                                    <td scope="col"><div class="dealer-muted">{{ strtoupper($dealer->address ?? '-') }}</div></td>
+                                    <td scope="col"><div class="dealer-muted">{{ strtoupper($dealer->area ?? '-') }}</div></td>
+                                    <td>
+                                        @if($dealer->status == 'Active')
+                                            <span class="dealer-status is-active">Active</span>
+                                        @else 
+                                            <span class="dealer-status is-inactive">Inactive</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($isAdminDealerPage)
+                                            <a href="{{ $adminDealerViewUrl }}" class="dealer-action-btn" title="View dealer">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                        @else
                                             <button type="button"
                                                 class="dealer-action-btn js-view-dealer"
                                                 title="View dealer"
                                                 data-dealer="{{ e(json_encode($dealerInfo)) }}">
                                                 <i class="ti ti-eye"></i>
                                             </button>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        @endif
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
