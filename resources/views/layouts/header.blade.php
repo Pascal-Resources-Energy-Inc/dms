@@ -577,6 +577,15 @@
             box-shadow: 0 8px 18px rgba(220, 38, 38, .35);
         }
 
+        .main-layout .sidebar .nav-badge {
+            position: absolute;
+            top: -7px;
+            right: -9px;
+            z-index: 2;
+            font-size: 10px;
+            line-height: 1;
+        }
+
         .main-layout .sidebar-footer {
             position: static;
             flex: 0 0 auto;
@@ -1364,18 +1373,15 @@
                         </a>
                     </div> --}}
                     <div class="nav-item">
-                        <a href="{{ url('/orders') }}" 
-                        class="nav-link @if(Route::currentRouteName() == 'orders') active @endif position-relative">
-
+                        <a href="{{ route('orders') }}" class="nav-link {{ request()->routeIs('orders*') ? 'active' : '' }}">
                             <div class="nav-icon position-relative">
                                 <i class="ti ti-building-store"></i>
-                                @if(!empty($pendingOrdersCount) && $pendingOrdersCount > 0)
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                        {{ $pendingOrdersCount }}
+                                @if(($pendingOrdersCount ?? 0) > 0)
+                                    <span class="badge rounded-pill bg-danger nav-badge">
+                                        {{ $pendingOrdersCount > 99 ? '99+' : $pendingOrdersCount }}
                                     </span>
                                 @endif
                             </div>
-                            
                             <span class="nav-text">Orders</span>
                         </a>
                     </div>
