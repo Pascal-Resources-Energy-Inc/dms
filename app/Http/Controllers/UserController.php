@@ -6,6 +6,7 @@ use App\Dealer;
 use App\Client;
 use App\Stove;
 use App\Area;
+use App\Center;
 use App\TransactionDetail;
 use App\AreaDistributor;
 use App\AreaAd;
@@ -23,6 +24,7 @@ class UserController extends Controller
     {
         $stoves = Stove::whereNull('client_id')->get(['id', 'serial_number']);
         $areas = Area::get();
+        $centers = Center::orderBy('name')->get();
         $users = User::with([
                 'dealer:id,user_id,address,status',
                 'client:id,user_id,address,status',
@@ -32,16 +34,18 @@ class UserController extends Controller
             ->latest()
             ->paginate(20); // ✅ IMPORTANT
 
-        return view('users.index', compact('stoves', 'users', 'areas'));
+        return view('users.index', compact('stoves', 'users', 'areas', 'centers'));
     }
 
     public function store(Request $request)
     {
        $isAdmin = $request->role === 'Admin';
+       $isSedp = $request->role === 'SEDP';
+       $isAdminLike = $isAdmin || $isSedp;
        $needsDeliveryAddress = in_array($request->role, ['Area Distributor', 'Provincial Distributor'], true);
        $normalizedContactNumber = $this->normalizeMobileNumber($request->contact_number);
 
-       if ($isAdmin && $request->has('same_as_address')) {
+       if ($isAdminLike && $request->has('same_as_address')) {
             $request->merge([
                 'delivery_address' => $request->address,
             ]);
@@ -61,8 +65,10 @@ class UserController extends Controller
 
        $request->validate([
             'warehouse' => 'nullable|in:lubao,guinobatan',
+            'sedp_center' => 'required_if:role,SEDP|array',
+            'sedp_center.*' => 'string|max:255',
             'delivery_address' => 'nullable|string|max:1000',
-            'designation' => 'required_if:role,Admin|nullable|string|max:255',
+            'designation' => 'required_if:role,Admin|required_if:role,SEDP|nullable|string|max:255',
             'employee_number' => 'required_if:role,Admin|nullable|string|max:255',
             'department' => 'required_if:role,Admin|nullable|string|max:255',
             'contact_number' => 'nullable|regex:/^09[0-9]{9}$/',
@@ -72,7 +78,7 @@ class UserController extends Controller
             // 'store_picture' => 'nullable|image|max:2048',
         ]);
 
-       if (!$isAdmin && trim((string) $request->contact_number) === '' && trim((string) $request->facebook) === '') {
+       if (!$isAdminLike && trim((string) $request->contact_number) === '' && trim((string) $request->facebook) === '') {
             return back()
                 ->withErrors(['contact_number' => 'Mobile Number or Facebook is required.'])
                 ->withInput();
@@ -86,7 +92,7 @@ class UserController extends Controller
 
        $duplicate = false;
 
-       if (!$isAdmin) {
+       if (!$isAdminLike) {
             $duplicate = User::where('first_name', $request->first_name)
                 ->where('last_name', $request->last_name)
                 ->where('mothers_name', $request->mothers_name)
@@ -131,9 +137,12 @@ class UserController extends Controller
         $user->last_name = $request->last_name;
         $user->name = $fullName;
         $user->email = $request->email_address;
-        $user->address = $isAdmin ? null : $request->address;
+        $user->address = $isAdminLike ? null : $request->address;
         $user->warehouse = $isAdmin ? $request->warehouse : null;
-        $user->delivery_address = $isAdmin
+        if (Schema::hasColumn('users', 'territory')) {
+            $user->territory = $isSedp ? implode(', ', (array) $request->input('sedp_center', [])) : null;
+        }
+        $user->delivery_address = $isAdminLike
             ? ($request->has('same_as_address') ? $request->address : $request->delivery_address)
             : null;
         $user->role = $request->role;
@@ -146,10 +155,10 @@ class UserController extends Controller
             $user->project_tag = implode(', ', $projectTags);
         }
 
-        $user->birthdate = $isAdmin ? null : $request->birthdate;
-        $user->age = $isAdmin ? null : $request->age;
-        $user->mothers_name = $isAdmin ? null : $request->mothers_name;
-        $user->designation = $isAdmin ? $request->designation : null;
+        $user->birthdate = $isAdminLike ? null : $request->birthdate;
+        $user->age = $isAdminLike ? null : $request->age;
+        $user->mothers_name = $isAdminLike ? null : $request->mothers_name;
+        $user->designation = $isAdminLike ? $request->designation : null;
         $user->employee_number = $isAdmin ? $request->employee_number : null;
         $user->department = $isAdmin ? $request->department : null;
         $user->password = bcrypt('12345678');
@@ -160,12 +169,12 @@ class UserController extends Controller
 
         $user->save();
 
-        if ($request->role === 'Admin') {
+        if ($isAdminLike) {
             session()->forget('mobile_otp');
 
             return redirect()
                 ->route('users')
-                ->with('success', 'Admin successfully created');
+                ->with('success', $request->role . ' successfully created');
         }
 
         $latestAd = AreaDistributor::orderBy('id', 'desc')->first();
@@ -839,7 +848,7 @@ class UserController extends Controller
                 $role = strtoupper($user->role ?? 'N/A');
                 $roleClass = 'is-muted';
 
-                if ($user->role === 'Admin') {
+                if (in_array($user->role, ['Admin', 'SEDP'], true)) {
                     $roleClass = 'is-admin';
                 } elseif ($user->role === 'Client') {
                     $roleClass = 'is-client';
@@ -885,8 +894,9 @@ class UserController extends Controller
 
             ->addColumn('actions', function ($user) {
                 $currentUser = auth()->user();
-                $canEdit = $currentUser && $currentUser->role === 'Admin' && $currentUser->can_edit === 'on';
-                $canAdd = $currentUser && $currentUser->role === 'Admin' && $currentUser->can_add === 'on';
+                $currentUserIsAdminLike = $currentUser && in_array($currentUser->role, ['Admin', 'SEDP'], true);
+                $canEdit = $currentUserIsAdminLike && $currentUser->can_edit === 'on';
+                $canAdd = $currentUserIsAdminLike && $currentUser->can_add === 'on';
 
                 $status = optional($user->dealer)->status
                     ?? optional($user->client)->status
@@ -909,7 +919,7 @@ class UserController extends Controller
                     $buttons[] = '<button type="button" class="btn-custom btn-edit-custom btn-edit-user" data-id="'.$user->id.'" title="Edit User"><i class="fas fa-edit"></i></button>';
                 }
 
-                if ($user->role === 'Admin' && ($canEdit || $canAdd)) {
+                if (in_array($user->role, ['Admin', 'SEDP'], true) && ($canEdit || $canAdd)) {
                     $buttons[] = '<button type="button" class="btn-custom btn-access-custom btn-access-user" data-id="'.$user->id.'" title="Access Control"><i class="fas fa-key"></i></button>';
                 }
 
