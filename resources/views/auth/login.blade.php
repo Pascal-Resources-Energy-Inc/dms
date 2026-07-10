@@ -27,6 +27,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
         </div>
 
         <div class="brand-roles" aria-label="Supported partner levels">
+            <div class="role-pill">SEDP</div>
             <div class="role-pill">Provincial Distributor</div>
             <div class="role-pill">Area Distributor</div>
             {{-- <div class="role-pill">Mega Dealer</div>
@@ -93,6 +94,20 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
                         <span class="selected-indicator" aria-hidden="true">&#10003;</span>
                     </button>
 
+                    <button class="role-button" type="button" onclick="selectRole('sedp', this)">
+                        <span class="role-icon" aria-hidden="true">
+                            <svg width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8 1.5 1.75 4.25 8 7l6.25-2.75z"/>
+                                <path d="M1.75 5.75 8 8.5l6.25-2.75v4.5L8 13 1.75 10.25z"/>
+                            </svg>
+                        </span>
+                        <span>
+                            <strong>SEDP</strong>
+                            <small>Access assigned centers and admin tools</small>
+                        </span>
+                        <span class="selected-indicator" aria-hidden="true">&#10003;</span>
+                    </button>
+
                     <button class="role-button" type="button" onclick="selectRole('area distributor', this)">
                         <span class="role-icon" aria-hidden="true">
                             <svg width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
@@ -129,7 +144,13 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
 
                 <div class="role-indicator" id="roleIndicator" style="display: {{ $showLoginDirectly ? 'flex' : 'none' }};">
                     <span class="role-label">Signing in as</span>
-                    <strong class="role-name" id="selectedRoleName">{{ $hasSelectedRole ? ucfirst(old('selected_role')) : 'User' }}</strong>
+                    <strong class="role-name" id="selectedRoleName">
+                        @if(strtolower(old('selected_role')) === 'sedp')
+                            SEDP
+                        @else
+                            {{ $hasSelectedRole ? ucwords(old('selected_role')) : 'User' }}
+                        @endif
+                    </strong>
                 </div>
 
                 <form id="loginForm" aria-label="{{ __('Login') }}">
@@ -849,8 +870,15 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
         }
 
         document.getElementById('roleIndicator').style.display = 'flex';
-        document.getElementById('selectedRoleName').innerText =
-            currentRole.replace(/\b\w/g, letter => letter.toUpperCase());
+        document.getElementById('selectedRoleName').innerText = formatRoleName(currentRole);
+    }
+
+    function formatRoleName(role) {
+        if ((role || '').toLowerCase() === 'sedp') {
+            return 'SEDP';
+        }
+
+        return role.replace(/\b\w/g, letter => letter.toUpperCase());
     }
 
     document.getElementById('loginForm').addEventListener('submit', async function (e) {

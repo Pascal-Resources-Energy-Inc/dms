@@ -18,6 +18,7 @@
                             <select id="roleFilter2" name="role" class="form-control select2 shadow-sm mb-2" required>
                                 <option value="">Select Role</option>
                                 <option value="Admin">Admin</option>
+                                <option value="SEDP">SEDP</option>
                                 <option value="Provincial Distributor">Provincial Distributor</option>
                                 <option value="Area Distributor">Area Distributor</option>
                                 <option value="Mega Dealer">Mega Dealer</option>
@@ -245,25 +246,25 @@
                                             </div>
                                             <div>
                                                 <label class="form-label">Region <span class="text-danger">*</span></label>
-                                                <select class="form-control select2" id="location_region" name="location_region" data-placeholder="Select Region" required>
+                                                <select class="form-control" id="location_region" name="location_region" data-placeholder="Select Region" required>
                                                     <option value="">-- Select Region --</option>
                                                 </select>
                                             </div>
                                             <div>
                                                 <label class="form-label">Province <span class="text-danger">*</span></label>
-                                                <select class="form-control select2" id="location_province" name="location_province" data-placeholder="Select Province" required disabled>
+                                                <select class="form-control" id="location_province" name="location_province" data-placeholder="Select Province" required disabled>
                                                     <option value="">-- Select Region First --</option>
                                                 </select>
                                             </div>
                                             <div>
                                                 <label class="form-label">City/Municipality <span class="text-danger">*</span></label>
-                                                <select class="form-control select2" id="location_city" name="location_city" data-placeholder="Select City/Municipality" required disabled>
+                                                <select class="form-control" id="location_city" name="location_city" data-placeholder="Select City/Municipality" required disabled>
                                                     <option value="">-- Select Province First --</option>
                                                 </select>
                                             </div>
                                             <div>
                                                 <label class="form-label">Barangay <span class="text-danger">*</span></label>
-                                                <select class="form-control select2"
+                                                <select class="form-control"
                                                         name="location_barangay"
                                                         id="location_barangay"
                                                         data-placeholder="Select Barangay"
@@ -285,8 +286,8 @@
                                                     <strong>Exact Pin Location</strong>
                                                     <small>Drag the pin or click the map to adjust.</small>
                                                 </div>
-                                                <button type="button" class="btn btn-sm btn-outline-primary" id="refreshLocationMapBtn">
-                                                    <i class="bi bi-arrow-clockwise"></i> Locate
+                                                <button type="button" class="btn btn-sm btn-primary location-locate-btn" id="refreshLocationMapBtn">
+                                                    <i class="bi bi-crosshair"></i> Locate
                                                 </button>
                                             </div>
                                             <div id="location_map"></div>
@@ -304,7 +305,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-12 admin-fields" style="display:none;">
+                        <div class="col-md-12 admin-only-fields" style="display:none;">
                             <div class="warehouse-panel">
                                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
                                     <div>
@@ -342,6 +343,43 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="col-md-12 sedp-fields" style="display:none;">
+                            <div class="sedp-panel">
+                                <div class="sedp-panel-header">
+                                    <div>
+                                        <div class="sedp-panel-title">
+                                            <i class="bi bi-diagram-3 me-1"></i> SEDP Coverage
+                                        </div>
+                                        <small>Assign one or more centers this SEDP account can manage.</small>
+                                    </div>
+                                    <span class="sedp-center-count" id="sedpCenterCount">0 centers selected</span>
+                                </div>
+                                <label class="form-label" for="sedp_center">Centers&nbsp;<span class="text-danger">*</span></label>
+                                <select class="form-control select2 sedp-center-select"
+                                        id="sedp_center"
+                                        name="sedp_center[]"
+                                        data-placeholder="Search and select centers"
+                                        multiple>
+                                    @foreach($centers ?? [] as $center)
+                                        <option value="{{ $center->name }}">{{ $center->name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="sedp-center-toolbar">
+                                    <small class="text-muted">You can select multiple centers.</small>
+                                    <div class="sedp-center-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllSedpCenters">
+                                            <i class="bi bi-check2-square"></i> Select All
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clearSedpCenters">
+                                            <i class="bi bi-x-circle"></i> Clear
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="invalid-feedback sedp-center-feedback">
+                                    Please select at least one center.
+                                </div>
+                            </div>
+                        </div>
                         <div class="col-md-12 admin-fields" style="display:none;">
                             <div class="warehouse-panel">
                                 <div class="fs-6 fw-bold mb-3">
@@ -350,15 +388,34 @@
                                 <div class="row">
                                     <div class="col-md-4 mb-3">
                                         <label class="form-label" for="designation">Designation&nbsp;<span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control admin-required" id="designation" name="designation" placeholder="Enter Designation" data-uppercase>
+                                        <div class="admin-designation-wrapper">
+                                            <input type="text"
+                                                   class="form-control admin-required admin-like-required admin-designation-field"
+                                                   id="designation"
+                                                   name="designation"
+                                                   placeholder="Enter Designation"
+                                                   data-uppercase>
+                                        </div>
+                                        <div class="sedp-designation-wrapper" style="display:none;">
+                                            <select class="form-control select2 admin-required admin-like-required sedp-designation-field"
+                                                    id="sedp_designation"
+                                                    name="designation"
+                                                    data-placeholder="Select Designation"
+                                                    disabled>
+                                                <option value="">-- Select Designation --</option>
+                                                <option value="CDW">CDW</option>
+                                                <option value="CDW2">CDW2</option>
+                                                <option value="SPOM">SPOM</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div class="col-md-4 mb-3">
+                                    <div class="col-md-4 mb-3 admin-only-employment">
                                         <label class="form-label" for="employee_number">Employee Number&nbsp;<span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control admin-required" id="employee_number" name="employee_number" placeholder="Enter Employee Number" data-uppercase>
+                                        <input type="text" class="form-control admin-required admin-only-required" id="employee_number" name="employee_number" placeholder="Enter Employee Number" data-uppercase>
                                     </div>
-                                    <div class="col-md-4 mb-3">
+                                    <div class="col-md-4 mb-3 admin-only-employment">
                                         <label class="form-label" for="department">Department&nbsp;<span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control admin-required" id="department" name="department" placeholder="Enter Department" data-uppercase>
+                                        <input type="text" class="form-control admin-required admin-only-required" id="department" name="department" placeholder="Enter Department" data-uppercase>
                                     </div>
                                 </div>
                             </div>
@@ -611,7 +668,7 @@
     .location-panel {
         border: 1px solid #d7e3f1;
         border-radius: 8px;
-        background: #ffffff;
+        background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
         padding: 16px;
         margin-bottom: 16px;
         box-shadow: 0 8px 20px rgba(33, 37, 41, 0.04);
@@ -679,6 +736,13 @@
         margin-bottom: 8px;
     }
 
+    .location-locate-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
     .location-map-toolbar strong,
     .location-map-toolbar small {
         display: block;
@@ -705,6 +769,23 @@
         white-space: nowrap;
     }
 
+    .location-input-grid .select2-container--bootstrap-5 .select2-selection,
+    .location-input-grid .select2-container--default .select2-selection {
+        min-height: 38px;
+        border-color: #ced4da;
+    }
+
+    .location-input-grid .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+    .location-input-grid .select2-container--default.select2-container--focus .select2-selection {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.12);
+    }
+
+    .location-input-grid .select2-container--disabled .select2-selection {
+        background: #eef2f6;
+        cursor: not-allowed;
+    }
+
     .location-preview {
         background: #f8fafc;
         border-color: #d8e3ee;
@@ -713,6 +794,121 @@
 
     .select2-container {
         width: 100% !important;
+    }
+
+    .sedp-panel {
+        border: 1px solid #d7e3f1;
+        border-radius: 8px;
+        background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+        padding: 16px;
+        margin-top: 12px;
+        box-shadow: 0 8px 20px rgba(33, 37, 41, 0.04);
+    }
+
+    .sedp-panel-header,
+    .sedp-center-toolbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .sedp-panel-header {
+        border-bottom: 1px solid #e5edf5;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+    }
+
+    .sedp-panel-title {
+        color: #0f172a;
+        font-size: 15px;
+        font-weight: 900;
+    }
+
+    .sedp-panel-header small {
+        display: block;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    .sedp-center-count {
+        border-radius: 999px;
+        background: #e0f2fe;
+        color: #075985;
+        font-size: 11px;
+        font-weight: 900;
+        padding: 5px 9px;
+        white-space: nowrap;
+    }
+
+    .sedp-center-select + .select2-container .select2-selection--multiple {
+        min-height: 46px;
+        border-color: #d7e3f1;
+        border-radius: 8px;
+        padding: 4px 7px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, .04);
+    }
+
+    .sedp-center-select + .select2-container.select2-container--focus .select2-selection--multiple {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+    }
+
+    .sedp-center-select + .select2-container .select2-selection__choice {
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 800;
+        padding: 4px 8px;
+    }
+
+    .sedp-center-select.is-invalid + .select2-container .select2-selection--multiple {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12);
+    }
+
+    .sedp-center-toolbar {
+        align-items: center;
+        margin-top: 9px;
+    }
+
+    .sedp-center-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .sedp-center-toolbar .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 900;
+    }
+
+    .sedp-center-feedback {
+        display: none;
+    }
+
+    .sedp-center-feedback.is-visible {
+        display: block;
+    }
+
+    @media (max-width: 575.98px) {
+        .sedp-center-actions,
+        .sedp-center-actions .btn {
+            width: 100%;
+        }
+
+        .sedp-center-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
     }
 
     .mobile-verify-shell {
@@ -859,6 +1055,11 @@
         const mobileVerifyStatus = document.getElementById('mobileVerifyStatus');
         const locationMapStatus = document.getElementById('locationMapStatus');
         const refreshLocationMapBtn = document.getElementById('refreshLocationMapBtn');
+        const roleSelect = document.getElementById('roleFilter2');
+        const sedpCenterSelect = document.getElementById('sedp_center');
+        const sedpCenterCount = document.getElementById('sedpCenterCount');
+        const clearSedpCentersBtn = document.getElementById('clearSedpCenters');
+        const selectAllSedpCentersBtn = document.getElementById('selectAllSedpCenters');
         
         let map, marker;
         let currentLat = 14.6507, currentLng = 121.0494;
@@ -869,6 +1070,7 @@
         let geocodeCache = {};
         let geocodeTimeout = null;
         let lastGeocodedAddressKey = '';
+        let pendingLocationGeocode = false;
         // let mothersNameTimeout = null;
         // let hasDuplicateMothersName = false;
         let duplicateTimeout = null;
@@ -876,6 +1078,27 @@
         let mobileOtpVerified = false;
         let verifiedMobileNumber = '';
         let resendTimer = null;
+        let select2LoadPromise = null;
+
+        function ensureSelect2Loaded() {
+            if (window.jQuery && $.fn && $.fn.select2) {
+                return Promise.resolve();
+            }
+
+            if (select2LoadPromise) {
+                return select2LoadPromise;
+            }
+
+            select2LoadPromise = new Promise(function (resolve, reject) {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+
+            return select2LoadPromise;
+        }
 
         function initModalSelect2(parent = document) {
             if (!window.jQuery || !$.fn || !$.fn.select2) {
@@ -896,17 +1119,122 @@
                     return;
                 }
 
+                const isMultiple = $select.prop('multiple');
+
                 $select.select2({
                     width: '100%',
                     dropdownParent: $modal.length ? $modal : $(document.body),
                     placeholder: $select.data('placeholder') || 'Select Option',
-                    allowClear: true,
+                    allowClear: !isMultiple,
+                    closeOnSelect: !isMultiple,
                     theme: $select.data('select2-theme') || 'bootstrap-5'
                 });
             });
         }
 
         initModalSelect2(document.getElementById('new_users'));
+
+        function ensureSedpCenterSelect2() {
+            if (!sedpCenterSelect) return;
+
+            ensureSelect2Loaded().then(function () {
+                const $select = $(sedpCenterSelect);
+
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.select2('destroy');
+                }
+
+                $select.select2({
+                    width: '100%',
+                    dropdownParent: $('#new_users'),
+                    placeholder: $select.data('placeholder') || 'Search and select centers',
+                    allowClear: false,
+                    closeOnSelect: false,
+                    theme: $select.data('select2-theme') || 'bootstrap-5'
+                });
+
+                $select.off('change.sedpCenters').on('change.sedpCenters', function () {
+                    updateSedpCenterState();
+                    validateSedpCenters(false);
+                });
+
+                $select.off('select2:open.sedpFocus').on('select2:open.sedpFocus', function () {
+                    setTimeout(function () {
+                        const search = document.querySelector('.select2-container--open .select2-search__field');
+                        if (search) search.focus();
+                    }, 0);
+                });
+
+                updateSedpCenterState();
+            }).catch(function () {
+                console.error('Select2 could not be loaded for SEDP centers.');
+            });
+        }
+
+        window.ensureSedpCenterSelect2 = ensureSedpCenterSelect2;
+
+        function selectedSedpCenters() {
+            return sedpCenterSelect ? ($(sedpCenterSelect).val() || []) : [];
+        }
+
+        function updateSedpCenterState() {
+            const count = selectedSedpCenters().length;
+            const total = sedpCenterSelect ? sedpCenterSelect.options.length : 0;
+
+            if (sedpCenterCount) {
+                sedpCenterCount.textContent = count + (count === 1 ? ' center selected' : ' centers selected');
+            }
+
+            if (clearSedpCentersBtn) {
+                clearSedpCentersBtn.disabled = count === 0;
+            }
+
+            if (selectAllSedpCentersBtn) {
+                selectAllSedpCentersBtn.disabled = total === 0 || count === total;
+            }
+        }
+
+        function setSedpCenterInvalid(isInvalid) {
+            if (!sedpCenterSelect) return;
+
+            const feedback = document.querySelector('.sedp-center-feedback');
+
+            sedpCenterSelect.classList.toggle('is-invalid', isInvalid);
+            if (feedback) {
+                feedback.classList.toggle('is-visible', isInvalid);
+            }
+        }
+
+        function validateSedpCenters(shouldOpen) {
+            const isSedp = roleSelect && roleSelect.value === 'SEDP';
+            const isInvalid = isSedp && selectedSedpCenters().length === 0;
+
+            setSedpCenterInvalid(isInvalid);
+
+            if (isInvalid && shouldOpen && window.jQuery && $.fn && $.fn.select2 && $(sedpCenterSelect).hasClass('select2-hidden-accessible')) {
+                $(sedpCenterSelect).select2('open');
+            }
+
+            return !isInvalid;
+        }
+
+        if (clearSedpCentersBtn && sedpCenterSelect) {
+            clearSedpCentersBtn.addEventListener('click', function () {
+                $(sedpCenterSelect).val(null).trigger('change');
+            });
+        }
+
+        if (selectAllSedpCentersBtn && sedpCenterSelect) {
+            selectAllSedpCentersBtn.addEventListener('click', function () {
+                const allCenters = Array.from(sedpCenterSelect.options).map(function (option) {
+                    return option.value;
+                });
+
+                $(sedpCenterSelect).val(allCenters).trigger('change');
+            });
+        }
+
+        updateSedpCenterState();
 
         function setLocationStatus(message, state) {
             if (!locationMapStatus) return;
@@ -1289,6 +1617,11 @@
                     return;
                 }
 
+                if (!validateSedpCenters(true)) {
+                    event.preventDefault();
+                    return;
+                }
+
                 syncDeliveryAddress();
 
                 if (typeof show === 'function') {
@@ -1420,6 +1753,10 @@
             // 🔥 Fix rendering issue
             setTimeout(() => {
                 map.invalidateSize();
+                if (pendingLocationGeocode) {
+                    pendingLocationGeocode = false;
+                    scheduleLocationGeocode(true);
+                }
             }, 200);
 
             updateCoordinates(currentLat, currentLng);
@@ -1453,10 +1790,11 @@
             document.getElementById('display_lat').textContent = lat.toFixed(6);
             document.getElementById('display_lng').textContent = lng.toFixed(6);
 
-            document.getElementById('hidden_latitude').value = lat;
-            document.getElementById('hidden_longitude').value = lng;
+            document.getElementById('hidden_latitude').value = lat.toFixed(6);
+            document.getElementById('hidden_longitude').value = lng.toFixed(6);
 
-            updateZipCode(lat, lng); // ✅ ONLY SOURCE OF ZIP UPDATE
+            updateFullAddress();
+            updateZipCode(lat, lng);
         }
 
         function getSelectedText(selectId) {
@@ -1495,7 +1833,9 @@
                 return;
             }
 
-            initModalSelect2(selectElement);
+            if ($.fn.select2 && !$select.data('select2')) {
+                initModalSelect2(selectElement);
+            }
 
             $select.trigger('change.select2');
         }
@@ -1614,29 +1954,45 @@
             return Boolean(parts.street && parts.barangay && parts.city && provinceIsReady);
         }
 
-        function scheduleLocationGeocode(force) {
-            updateFullAddress();
-            const parts = getLocationParts();
-
-            if (!hasCompleteLocationDetails(parts)) {
-                lastGeocodedAddressKey = '';
-                setLocationStatus('Waiting for complete address', '');
-                return;
-            }
-
-            const addressKey = [
+        function getLocationAddressKey(parts) {
+            return [
                 parts.street,
                 parts.barangay,
                 parts.city,
                 parts.province,
                 parts.region
-            ].join('|').toLowerCase();
+            ].map(function (part) {
+                return (part || '').trim().toLowerCase();
+            }).join('|');
+        }
+
+        function scheduleLocationGeocode(force) {
+            updateFullAddress();
+            const parts = getLocationParts();
+
+            if (!hasCompleteLocationDetails(parts)) {
+                clearTimeout(geocodeTimeout);
+                pendingLocationGeocode = false;
+                lastGeocodedAddressKey = '';
+                setLocationStatus('Waiting for complete address', '');
+                return;
+            }
+
+            const addressKey = getLocationAddressKey(parts);
 
             if (!force && addressKey === lastGeocodedAddressKey) {
                 return;
             }
 
             clearTimeout(geocodeTimeout);
+
+            if (!map || !marker) {
+                pendingLocationGeocode = true;
+                lastGeocodedAddressKey = '';
+                setLocationStatus('Map is loading...', 'is-locating');
+                return;
+            }
+
             setLocationStatus('Locating address...', 'is-locating');
 
             geocodeTimeout = setTimeout(function () {
@@ -1647,6 +2003,7 @@
 
         async function geocodeAddress(parts) {
             if (!map || !marker) {
+                pendingLocationGeocode = true;
                 lastGeocodedAddressKey = '';
                 setLocationStatus('Map is loading...', 'is-locating');
                 return;
@@ -1778,6 +2135,7 @@
             const citySelect = document.getElementById('location_city');
             const barangaySelect = document.getElementById('location_barangay');
 
+            document.getElementById('location_zipcode').value = '';
             citySelect.innerHTML = '<option value="">-- Select City First --</option>';
             barangaySelect.innerHTML = '<option value="">-- Select City First --</option>';
             citySelect.disabled = true;
@@ -1879,6 +2237,7 @@
             const citySelect = document.getElementById('location_city');
             const barangaySelect = document.getElementById('location_barangay');
 
+            document.getElementById('location_zipcode').value = '';
             citySelect.innerHTML = '<option value="">-- Select City --</option>';
             barangaySelect.innerHTML = '<option value="">-- Select City First --</option>';
             barangaySelect.disabled = true;
@@ -1933,6 +2292,7 @@
             
             const barangaySelect = document.getElementById('location_barangay');
 
+            document.getElementById('location_zipcode').value = '';
             barangaySelect.innerHTML = '<option value="">-- Select Barangay --</option>';
             refreshSelect2Element(barangaySelect);
 
@@ -2030,13 +2390,15 @@
                 .catch(err => {
                     console.error("Zip error:", err);
                     document.getElementById('location_zipcode').value = '';
+                    updateFullAddress();
                 });
 
             }, 300);
         }
         
         document.getElementById('location_barangay').addEventListener('change', function () {
-            scheduleLocationGeocode(false);
+            document.getElementById('location_zipcode').value = '';
+            scheduleLocationGeocode(true);
         });
 
         document.getElementById('street_address').addEventListener('input', function () {
@@ -2123,6 +2485,9 @@
 
         $('#new_users').on('shown.bs.modal', function () {
             initModalSelect2(this);
+            if (roleSelect && roleSelect.value === 'SEDP') {
+                ensureSedpCenterSelect2();
+            }
             loadRegions();
 
             setTimeout(() => {

@@ -353,7 +353,7 @@
 @section('content')
 @php
     $currentUser = auth()->user();
-    $canShowAddAdmin = $currentUser && $currentUser->role === 'Admin' && $currentUser->can_add === 'on';
+    $canShowAddAdmin = $currentUser && in_array($currentUser->role, ['Admin', 'SEDP'], true) && $currentUser->can_add === 'on';
 @endphp
 
 <section class="users-page">
@@ -387,6 +387,7 @@
                     <select id="roleFilter" class="form-control custom-dropdown">
                         <option value="">All Roles</option>
                         <option value="Admin">Admin</option>
+                        <option value="SEDP">SEDP</option>
                         <option value="Dealer">Dealer</option>
                         <option value="Client">Client</option>
                         <option value="Provincial Distributor">Provincial Distributor</option>
@@ -676,6 +677,16 @@
         const attachmentFields = $('.attachment-field');
         const adminFields = $('.admin-fields');
         const adminRequiredFields = $('.admin-required');
+        const adminOnlyFields = $('.admin-only-fields');
+        const adminOnlyEmploymentFields = $('.admin-only-employment');
+        const adminLikeRequiredFields = $('.admin-like-required');
+        const adminOnlyRequiredFields = $('.admin-only-required');
+        const adminDesignationWrapper = $('.admin-designation-wrapper');
+        const adminDesignationField = $('.admin-designation-field');
+        const sedpDesignationWrapper = $('.sedp-designation-wrapper');
+        const sedpDesignationField = $('.sedp-designation-field');
+        const sedpFields = $('.sedp-fields');
+        const sedpCenterSelect = $('#sedp_center');
         const nonAdminPersonalFields = $('.non-admin-personal-fields');
         const locationFields = $('.location-fields');
         const nonAdminPersonalInputs = nonAdminPersonalFields.find('input, select, textarea');
@@ -700,6 +711,12 @@
 
         function hasSelectedProjectTag() {
             return $('input[name="type[]"]:checked').length > 0;
+        }
+
+        function clearSedpCenters() {
+            sedpCenterSelect.val(null).trigger('change');
+            sedpCenterSelect.removeClass('is-invalid');
+            $('.sedp-center-feedback').removeClass('is-visible');
         }
 
         function clearProjectAreas() {
@@ -771,6 +788,9 @@
                 businessFields.hide();
                 attachmentFields.hide();
                 adminFields.hide();
+                adminOnlyFields.hide();
+                adminOnlyEmploymentFields.hide();
+                sedpFields.hide();
                 nonAdminPersonalFields.show();
                 locationFields.show();
                 distributorDeliveryFields.hide();
@@ -780,6 +800,12 @@
                 businessType.prop('required', false);
                 partnerCode.prop('required', false);
                 adminRequiredFields.prop('required', false);
+                adminLikeRequiredFields.prop('required', false);
+                adminOnlyRequiredFields.prop('required', false);
+                adminDesignationWrapper.show();
+                adminDesignationField.prop('disabled', false).prop('required', false).val('');
+                sedpDesignationWrapper.hide();
+                sedpDesignationField.prop('disabled', true).prop('required', false).val(null).trigger('change');
                 nonAdminPersonalInputs.prop('disabled', false);
                 locationInputs.prop('disabled', false);
                 distributorDeliveryRequiredFields.prop('required', false);
@@ -788,6 +814,7 @@
 
                 partnerCode.val('');
                 $('input[name="warehouse"]').prop('checked', false);
+                clearSedpCenters();
                 $('#delivery_address').val('').prop('readonly', false);
                 $('#same_as_address').prop('checked', false);
                 $('#same_as_delivery_address').prop('checked', false);
@@ -795,27 +822,45 @@
             }
 
             const isAdmin = selectedRole === 'Admin';
+            const isSedp = selectedRole === 'SEDP';
+            const isAdminLike = isAdmin || isSedp;
             const isProvincialDistributor = selectedRole === 'Provincial Distributor';
             const isAreaDistributor = selectedRole === 'Area Distributor';
             const canShowAreas = canHaveAwardedAreas(selectedRole);
             const needsDeliveryAddress = isProvincialDistributor || isAreaDistributor;
 
-            businessFields.toggle(!isAdmin);
+            businessFields.toggle(!isAdminLike);
             projectTagFields.toggle(canShowAreas);
             attachmentFields.toggle(isProvincialDistributor || isAreaDistributor);
-            adminFields.toggle(isAdmin);
-            nonAdminPersonalFields.toggle(!isAdmin);
-            locationFields.toggle(!isAdmin);
+            adminFields.toggle(isAdminLike);
+            adminOnlyFields.toggle(isAdmin);
+            adminOnlyEmploymentFields.toggle(isAdmin);
+            sedpFields.toggle(isSedp);
+            if (isSedp && typeof window.ensureSedpCenterSelect2 === 'function') {
+                setTimeout(window.ensureSedpCenterSelect2, 0);
+            }
+            nonAdminPersonalFields.toggle(!isAdminLike);
+            locationFields.toggle(!isAdminLike);
             distributorDeliveryFields.toggle(needsDeliveryAddress);
             areaField.toggle(canShowAreas);
 
-            businessName.prop('required', !isAdmin);
-            businessType.prop('required', !isAdmin);
-            partnerCode.prop('required', !isAdmin);
-            adminRequiredFields.prop('required', isAdmin);
-            nonAdminPersonalInputs.prop('disabled', isAdmin);
-            locationInputs.prop('disabled', isAdmin);
+            businessName.prop('required', !isAdminLike);
+            businessType.prop('required', !isAdminLike);
+            partnerCode.prop('required', !isAdminLike);
+            adminRequiredFields.prop('required', false);
+            adminLikeRequiredFields.prop('required', isAdminLike);
+            adminOnlyRequiredFields.prop('required', isAdmin);
+            adminDesignationWrapper.toggle(isAdmin);
+            sedpDesignationWrapper.toggle(isSedp);
+            adminDesignationField.prop('disabled', !isAdmin).prop('required', isAdmin);
+            sedpDesignationField.prop('disabled', !isSedp).prop('required', isSedp);
+            nonAdminPersonalInputs.prop('disabled', isAdminLike);
+            locationInputs.prop('disabled', isAdminLike);
             distributorDeliveryRequiredFields.prop('required', needsDeliveryAddress);
+
+            if (isSedp && typeof initSelect2 === 'function') {
+                initSelect2(sedpDesignationField.parent());
+            }
 
             areaSelect.prop('required', canShowAreas);
             areaSelect.prop('disabled', !canShowAreas);
@@ -828,13 +873,25 @@
                 clearProjectAreas();
             }
 
-            if (!isAdmin) {
+            if (!isAdminLike) {
                 $('input[name="warehouse"]').prop('checked', false);
                 $('#same_as_address').prop('checked', false);
                 adminRequiredFields.val('');
+                adminDesignationField.val('');
+                sedpDesignationField.val(null).trigger('change');
+                clearSedpCenters();
             } else {
                 nonAdminPersonalInputs.filter(':not([type="hidden"])').val('');
                 locationInputs.filter(':not([type="hidden"])').val('');
+                if (!isAdmin) {
+                    $('input[name="warehouse"]').prop('checked', false);
+                    adminOnlyRequiredFields.val('');
+                    adminDesignationField.val('');
+                }
+                if (!isSedp) {
+                    sedpDesignationField.val(null).trigger('change');
+                    clearSedpCenters();
+                }
                 if (typeof toggleContactRequired === 'function') {
                     toggleContactRequired();
                 }
@@ -845,7 +902,7 @@
                 $('#same_as_delivery_address').prop('checked', false);
             }
 
-            if (!isAdmin) {
+            if (!isAdminLike) {
                 generatePartnerCode();
             }
         }
@@ -854,7 +911,7 @@
 
             const role = roleFilter.val();
 
-            if (!role || role === 'Admin') {
+            if (!role || role === 'Admin' || role === 'SEDP') {
                 partnerCode.val('');
                 return;
             }

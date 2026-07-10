@@ -2134,6 +2134,7 @@
                 const $this = $(this);
                 const $modal = $this.closest('.modal');
                 const isArea = $this.hasClass('select2-area');
+                const isMultiple = $this.prop('multiple');
                 const hasAreaFormatter = isArea && typeof window.formatArea === 'function';
 
                 // ✅ Destroy ONLY if already initialized (prevents duplication bug)
@@ -2145,7 +2146,8 @@
                     width: '100%',
                     dropdownParent: $modal.length ? $modal : $(document.body),
                     placeholder: $this.data('placeholder') || 'Select Option',
-                    allowClear: true,
+                    allowClear: !isMultiple,
+                    closeOnSelect: !isMultiple,
                     theme: $this.data('select2-theme') || 'bootstrap-5',
                     selectionCssClass: $this.data('selection-css-class') || ':all:',
                     dropdownCssClass: $this.data('dropdown-css-class') || '',
@@ -2202,6 +2204,7 @@
                 const $this = $(this);
                 const $modal = $this.closest('.modal');
                 const isArea = $this.hasClass('select2-area');
+                const isMultiple = $this.prop('multiple');
 
                 // ✅ Destroy ONLY if already initialized (prevents duplication bug)
                 if ($this.hasClass('select2-hidden-accessible')) {
@@ -2212,7 +2215,8 @@
                     width: '100%',
                     dropdownParent: $modal.length ? $modal : $(document.body),
                     placeholder: $this.data('placeholder') || 'Select Option',
-                    allowClear: true,
+                    allowClear: !isMultiple,
+                    closeOnSelect: !isMultiple,
                     theme: $this.data('select2-theme') || 'bootstrap-5',
                     selectionCssClass: $this.data('selection-css-class') || ':all:',
                     dropdownCssClass: $this.data('dropdown-css-class') || '',
