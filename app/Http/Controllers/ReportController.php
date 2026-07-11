@@ -13,6 +13,8 @@ use App\AdPurchaseOrder;
 use App\AdPurchaseOrderItem;
 use App\AdPurchaseOrderPartialReceipt;
 use App\AreaDistributor;
+use App\Center;
+use App\User;
 use App\Exports\DailySalesExport;
 use App\Exports\InventoryStockLevelExport;
 use App\Exports\MonthlySalesExport;
@@ -22,6 +24,1055 @@ use Illuminate\Support\Facades\Schema;
 
 class ReportController extends Controller
 {
+    private $signupIncentiveMonths = [
+        1 => 'JANUARY',
+        2 => 'FEBRUARY',
+        3 => 'MARCH',
+        4 => 'APRIL',
+        5 => 'MAY',
+        6 => 'JUNE',
+        7 => 'JULY',
+        8 => 'AUGUST',
+        9 => 'SEPTEMBER',
+        10 => 'OCTOBER',
+        11 => 'NOVEMBER',
+        12 => 'DECEMBER',
+    ];
+
+    private $signupIncentiveRates = [
+        'CDW' => 50,
+        'CDW2' => 50,
+        'SPOM' => 50,
+    ];
+
+    private $signupIncentiveCrmConnections = [
+        'admin_crms',
+    ];
+
+    private function authorizeSedpReports()
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            abort(403);
+        }
+
+        $role = strtolower(trim((string) ($user->role ?? '')));
+
+        if ($role === 'admin') {
+            return;
+        }
+
+        if ($role !== 'sedp') {
+            abort(403);
+        }
+
+        $permissions = json_decode($user->access_permissions ?? '{}', true);
+        $permissions = is_array($permissions) ? $permissions : [];
+        $sedpReportActions = $permissions['reports']['sedp'] ?? [];
+        $hasSedpReportAccess = is_array($sedpReportActions)
+            && in_array('view', $sedpReportActions, true);
+        $hasLegacyReportAccess = empty($permissions)
+            && (($user->can_access_reports ?? null) === 'on');
+
+        if (!$hasSedpReportAccess && !$hasLegacyReportAccess) {
+            abort(403);
+        }
+    }
+
+    public function signupIncentivesReport(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $year = (int) ($request->year ?: Carbon::now()->year);
+        $center = trim((string) $request->center);
+        $rates = $this->signupIncentiveRatesFromRequest($request);
+        $report = $this->buildSignupIncentivesReport($year, $center, $rates);
+
+        return view('reports.signup_incentives', array_merge($report, [
+            'year' => $year,
+            'selectedCenter' => $center,
+            'rates' => $rates,
+        ]));
+    }
+
+    public function signupIncentiveClients(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $year = (int) $request->input('year');
+        $month = (int) $request->input('month');
+        $center = trim((string) $request->input('center'));
+
+        if ($year < 2000 || $year > 2100 || $month < 1 || $month > 12 || $center === '') {
+            return response()->json(['message' => 'Invalid client list request.'], 422);
+        }
+
+        $centerKey = $this->normalizeSignupCenter($center);
+        $authUser = auth()->user();
+
+        if (strtolower(trim((string) ($authUser->role ?? ''))) === 'sedp') {
+            $territoryKeys = $this->splitSignupTerritories($authUser->territory ?? '')
+                ->map(function ($territoryCenter) {
+                    return $this->normalizeSignupCenter($territoryCenter);
+                })
+                ->filter()
+                ->flip();
+
+            if (!$territoryKeys->has($centerKey)) {
+                abort(403);
+            }
+        }
+
+        try {
+            $connection = 'admin_crms';
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (!$schema->hasTable('clients')
+                || !$schema->hasColumn('clients', 'center')
+                || !$schema->hasColumn('clients', 'created_at')) {
+                return response()->json(['clients' => []]);
+            }
+
+            $columns = ['id', 'center', 'created_at'];
+
+            foreach (['name', 'first_name', 'middle_name', 'last_name', 'email', 'mobile', 'contact_number', 'phone'] as $column) {
+                if ($schema->hasColumn('clients', $column)) {
+                    $columns[] = $column;
+                }
+            }
+
+            $clients = DB::connection($connection)->table('clients')
+                ->select(array_unique($columns))
+                ->whereNotNull('created_at')
+                ->whereYear('created_at', $year)
+                ->whereMonth('created_at', $month)
+                ->whereRaw('UPPER(TRIM(center)) = ?', [$centerKey])
+                ->when($schema->hasColumn('clients', 'deleted_at'), function ($query) {
+                    $query->whereNull('deleted_at');
+                })
+                ->orderBy('created_at')
+                ->get()
+                ->map(function ($client) {
+                    $name = trim((string) ($client->name ?? ''));
+
+                    if ($name === '') {
+                        $name = trim(collect([
+                            $client->first_name ?? '',
+                            $client->middle_name ?? '',
+                            $client->last_name ?? '',
+                        ])->filter()->implode(' '));
+                    }
+
+                    $contact = collect([
+                        $client->mobile ?? null,
+                        $client->contact_number ?? null,
+                        $client->phone ?? null,
+                        $client->email ?? null,
+                    ])->filter()->first();
+
+                    return [
+                        'id' => $client->id,
+                        'name' => $name !== '' ? $name : 'Unnamed Client',
+                        'contact' => $contact ?: '—',
+                        'created_at' => Carbon::parse($client->created_at)->format('M d, Y h:i A'),
+                    ];
+                })->values();
+
+            return response()->json(['clients' => $clients]);
+        } catch (\Exception $exception) {
+            return response()->json(['message' => 'Unable to load the client list.'], 500);
+        }
+    }
+
+    public function exportSignupIncentives(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $year = (int) ($request->year ?: Carbon::now()->year);
+        $center = trim((string) $request->center);
+        $rates = $this->signupIncentiveRatesFromRequest($request);
+        $report = $this->buildSignupIncentivesReport($year, $center, $rates);
+        $months = $this->signupIncentiveMonths;
+        $filename = 'signup-incentives-' . $year . '.csv';
+
+        return response()->streamDownload(function () use ($report, $months) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, array_merge([
+                'Center',
+                'Location',
+                'Designation',
+                'Name',
+            ], array_values($months), ['Total']));
+
+            foreach ($report['rows'] as $centerRow) {
+                fputcsv($handle, array_merge([
+                    $centerRow['center'],
+                    $centerRow['location'],
+                    'Total Incentive Earned',
+                    '',
+                ], array_map(function ($month) use ($centerRow) {
+                    return $centerRow['signups'][$month] ?: 0;
+                }, array_keys($months)), [$centerRow['total_signups']]));
+
+                foreach ($centerRow['people'] as $person) {
+                    fputcsv($handle, array_merge([
+                        '',
+                        '',
+                        $person['designation'],
+                        $person['name'],
+                    ], array_map(function ($month) use ($person) {
+                        return $person['amounts'][$month]
+                            ? number_format($person['amounts'][$month], 2, '.', '')
+                            : '';
+                    }, array_keys($months)), [number_format($person['total'], 2, '.', '')]));
+                }
+
+                fputcsv($handle, array_merge([
+                    '',
+                    '',
+                    '',
+                    '',
+                ], array_map(function ($month) use ($centerRow) {
+                    return $centerRow['monthly_total_amounts'][$month]
+                        ? number_format($centerRow['monthly_total_amounts'][$month], 2, '.', '')
+                        : '-';
+                }, array_keys($months)), [number_format($centerRow['total_amount'], 2, '.', '')]));
+            }
+
+            fputcsv($handle, array_merge([
+                '',
+                '',
+                'Grand Total Sign Up',
+                '',
+            ], array_map(function ($month) use ($report) {
+                return $report['grandSignups'][$month] ?: 0;
+            }, array_keys($months)), [$report['grandTotalSignups']]));
+
+            fputcsv($handle, array_merge([
+                '',
+                '',
+                'Grand Total Php',
+                '',
+            ], array_map(function ($month) use ($report) {
+                return $report['grandAmounts'][$month]
+                    ? number_format($report['grandAmounts'][$month], 2, '.', '')
+                    : '-';
+            }, array_keys($months)), [number_format($report['grandTotalAmount'], 2, '.', '')]));
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    public function repeatPurchaseIncentivesReport(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $year = (int) ($request->year ?: Carbon::now()->year);
+        $center = trim((string) $request->center);
+        $rate = max((float) $request->input('rate', 1), 0);
+        $lowRepeatThreshold = max((float) $request->input('low_repeat_threshold', 5), 0);
+        $report = $this->buildRepeatPurchaseIncentivesReport($year, $center, $rate, $lowRepeatThreshold);
+       
+        return view('reports.repeat_purchase_incentives', array_merge($report, [
+            'year' => $year,
+            'selectedCenter' => $center,
+            'rate' => $rate,
+            'lowRepeatThreshold' => $lowRepeatThreshold,
+        ]));
+    }
+
+    public function repeatPurchaseTransactions(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $year = (int) $request->input('year');
+        $month = (int) $request->input('month');
+        $clientId = (int) $request->input('client_id');
+        $center = trim((string) $request->input('center'));
+
+        if ($year < 2000 || $year > 2100 || $month < 1 || $month > 12 || $clientId < 1 || $center === '') {
+            return response()->json(['message' => 'Invalid transaction list request.'], 422);
+        }
+
+        try {
+            $connection = 'admin_crms';
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (!$schema->hasTable('clients') || !$schema->hasTable('transaction_details')) {
+                return response()->json(['transactions' => []]);
+            }
+
+            $clientQuery = DB::connection($connection)->table('clients')->where('id', $clientId);
+
+            if ($schema->hasColumn('clients', 'status')) {
+                $clientQuery->whereRaw("LOWER(TRIM(status)) = 'active'");
+            }
+
+            if ($schema->hasColumn('clients', 'deleted_at')) {
+                $clientQuery->whereNull('deleted_at');
+            }
+
+            $client = $clientQuery->first();
+
+            if (!$client || $this->normalizeSignupCenter($client->center ?? '') !== $this->normalizeSignupCenter($center)) {
+                return response()->json(['message' => 'You are not allowed to view these transactions.'], 403);
+            }
+
+            $authUser = auth()->user();
+
+            if (strtolower(trim((string) ($authUser->role ?? ''))) === 'sedp') {
+                $territoryKeys = $this->splitSignupTerritories($authUser->territory ?? '')
+                    ->map(function ($territoryCenter) {
+                        return $this->normalizeSignupCenter($territoryCenter);
+                    })->filter()->flip();
+
+                if (!$territoryKeys->has($this->normalizeSignupCenter($center))) {
+                    return response()->json(['message' => 'You are not allowed to view these transactions.'], 403);
+                }
+            }
+
+            $dateColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['date', 'created_at', 'updated_at']);
+            $clientColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['client_id', 'customer_id', 'user_id']);
+            $qtyColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['qty', 'quantity']);
+
+            if (!$dateColumn || !$clientColumn) {
+                return response()->json(['transactions' => []]);
+            }
+
+            $transactionColumns = [DB::raw($dateColumn . ' as transaction_date')];
+            $transactionColumns[] = DB::raw($qtyColumn ? 'COALESCE(' . $qtyColumn . ', 1) as transaction_quantity' : '1 as transaction_quantity');
+
+            $itemColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['product_name', 'item_name', 'description', 'product', 'name']);
+            $referenceColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['reference_no', 'transaction_no', 'invoice_no', 'receipt_no']);
+
+            if ($itemColumn) {
+                $transactionColumns[] = $itemColumn . ' as transaction_item';
+            }
+
+            if ($referenceColumn) {
+                $transactionColumns[] = $referenceColumn . ' as transaction_reference';
+            }
+
+            $transactions = DB::connection($connection)->table('transaction_details')
+                ->select($transactionColumns)
+                ->where($clientColumn, $clientId)
+                ->whereNotNull($dateColumn)
+                ->whereYear($dateColumn, $year)
+                ->whereMonth($dateColumn, $month)
+                ->when($schema->hasColumn('transaction_details', 'deleted_at'), function ($query) {
+                    $query->whereNull('deleted_at');
+                })
+                ->when($schema->hasColumn('transaction_details', 'status'), function ($query) {
+                    $query->whereRaw("LOWER(TRIM(status)) NOT IN ('cancelled', 'canceled', 'void')");
+                })
+                ->orderBy($dateColumn)
+                ->get()
+                ->map(function ($transaction) {
+                    return [
+                        'date' => Carbon::parse($transaction->transaction_date)->format('M d, Y h:i A'),
+                        'item' => trim((string) ($transaction->transaction_item ?? 'Repeat purchase')) ?: 'Repeat purchase',
+                        'reference' => trim((string) ($transaction->transaction_reference ?? '—')) ?: '—',
+                        'quantity' => (float) $transaction->transaction_quantity,
+                    ];
+                })->values();
+            
+            return response()->json(['transactions' => $transactions]);
+        } catch (\Exception $exception) {
+            return response()->json(['message' => 'Unable to load transactions.'], 500);
+        }
+    }
+
+    public function exportRepeatPurchaseIncentives(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $year = (int) ($request->year ?: Carbon::now()->year);
+        $center = trim((string) $request->center);
+        $rate = max((float) $request->input('rate', 1), 0);
+        $lowRepeatThreshold = max((float) $request->input('low_repeat_threshold', 5), 0);
+        $report = $this->buildRepeatPurchaseIncentivesReport($year, $center, $rate, $lowRepeatThreshold);
+        $months = $this->signupIncentiveMonths;
+        $filename = 'repeat-purchase-incentives-' . $year . '.csv';
+
+        return response()->streamDownload(function () use ($report, $months) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, array_merge([
+                'Center',
+                'Location',
+                'Members',
+            ], array_values($months), ['Total']));
+
+            foreach ($report['rows'] as $centerRow) {
+                $firstMember = true;
+
+                foreach ($centerRow['members'] as $member) {
+                    fputcsv($handle, array_merge([
+                        $firstMember ? $centerRow['center'] : '',
+                        $firstMember ? $centerRow['location'] : '',
+                        $member['name'],
+                    ], array_map(function ($month) use ($member) {
+                        return $member['monthly_refills'][$month] ?: 0;
+                    }, array_keys($months)), [$member['total_refills']]));
+
+                    $firstMember = false;
+                }
+
+                if (!$centerRow['members']) {
+                    fputcsv($handle, array_merge([
+                        $centerRow['center'],
+                        $centerRow['location'],
+                        'No repeat purchases found',
+                    ], array_fill(0, count($months), 0), [0]));
+                }
+
+                fputcsv($handle, array_merge([
+                    '',
+                    '',
+                    'Average',
+                ], array_map(function ($month) use ($centerRow) {
+                    return number_format($centerRow['monthly_average_refills'][$month], 2, '.', '');
+                }, array_keys($months)), [number_format($centerRow['average_refills'], 2, '.', '')]));
+
+                fputcsv($handle, array_merge([
+                    '',
+                    '',
+                    'Total Refill',
+                ], array_map(function ($month) use ($centerRow) {
+                    return $centerRow['monthly_total_refills'][$month] ?: 0;
+                }, array_keys($months)), [$centerRow['total_refills']]));
+
+                fputcsv($handle, array_merge([
+                    '',
+                    '',
+                    'Computed Incentive',
+                ], array_map(function ($month) use ($centerRow) {
+                    return number_format($centerRow['monthly_computed_incentives'][$month], 2, '.', '');
+                }, array_keys($months)), [number_format($centerRow['computed_incentive'], 2, '.', '')]));
+            }
+
+            fputcsv($handle, array_merge([
+                '',
+                '',
+                'Grand Total Refill',
+            ], array_map(function ($month) use ($report) {
+                return $report['grandMonthlyRefills'][$month] ?: 0;
+            }, array_keys($months)), [$report['grandTotalRefills']]));
+
+            fputcsv($handle, array_merge([
+                '',
+                '',
+                'Grand Computed Incentive',
+            ], array_map(function ($month) use ($report) {
+                return number_format($report['grandMonthlyIncentives'][$month], 2, '.', '');
+            }, array_keys($months)), [number_format($report['grandComputedIncentive'], 2, '.', '')]));
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    private function signupIncentiveRatesFromRequest(Request $request)
+    {
+        return [
+            'CDW' => max((float) $request->input('rate_cdw', $this->signupIncentiveRates['CDW']), 0),
+            'CDW2' => max((float) $request->input('rate_cdw2', $this->signupIncentiveRates['CDW2']), 0),
+            'SPOM' => max((float) $request->input('rate_spom', $this->signupIncentiveRates['SPOM']), 0),
+        ];
+    }
+
+    private function formatSignupIncentiveRate($rate)
+    {
+        return rtrim(rtrim(number_format((float) $rate, 2, '.', ''), '0'), '.');
+    }
+
+    private function joinSignupLabels($values)
+    {
+        $values = collect($values)->filter()->unique()->values();
+
+        if ($values->count() <= 1) {
+            return (string) $values->first();
+        }
+
+        return $values->slice(0, -1)->implode(', ') . ' and ' . $values->last();
+    }
+
+    private function normalizeSignupCenter($center)
+    {
+        return strtoupper(preg_replace('/\s+/', ' ', trim((string) $center)));
+    }
+
+    private function splitSignupTerritories($territory)
+    {
+        return collect(preg_split('/[,;|\/\r\n]+/', (string) $territory))
+            ->map(function ($item) {
+                return trim($item);
+            })
+            ->filter()
+            ->values();
+    }
+
+    private function crmClientTable($connection)
+    {
+        $schema = DB::connection($connection)->getSchemaBuilder();
+
+        if ($schema->hasTable('clients')) {
+            return 'clients';
+        }
+
+        if ($schema->hasTable('customers')) {
+            return 'customers';
+        }
+
+        return null;
+    }
+
+    private function firstExistingCrmColumn($schema, $table, array $columns)
+    {
+        foreach ($columns as $column) {
+            if ($schema->hasColumn($table, $column)) {
+                return $column;
+            }
+        }
+
+        return null;
+    }
+
+    private function crmClientSignups($year, $centerFilterKey, array &$centerKeyToName)
+    {
+        $months = $this->signupIncentiveMonths;
+        $emptyMonths = array_fill_keys(array_keys($months), 0);
+        $signups = [];
+
+        try {
+            $connection = 'admin_crms';
+            $table = 'clients';
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (!$schema->hasTable($table) || !$schema->hasColumn($table, 'center') || !$schema->hasColumn($table, 'created_at')) {
+                return $signups;
+            }
+
+            $query = DB::connection($connection)->table($table)
+                ->select(
+                    'center as signup_area',
+                    DB::raw('MONTH(created_at) as signup_month'),
+                    DB::raw('COUNT(*) as signup_count')
+                )
+                ->whereNotNull('center')
+                ->where('center', '<>', '')
+                ->whereNotNull('created_at')
+                ->whereYear('created_at', $year)
+                ->groupBy('center', DB::raw('MONTH(created_at)'));
+
+            if ($schema->hasColumn($table, 'deleted_at')) {
+                $query->whereNull('deleted_at');
+            }
+
+            foreach ($query->get() as $client) {
+                $centerName = trim((string) $client->signup_area);
+                $centerKey = $this->normalizeSignupCenter($centerName);
+
+                if ($centerKey === '' || ($centerFilterKey !== '' && $centerKey !== $centerFilterKey)) {
+                    continue;
+                }
+
+                $centerName = $centerKeyToName[$centerKey] ?? $centerName;
+                $centerKeyToName[$centerKey] = $centerName;
+                $month = (int) $client->signup_month;
+
+                $signups[$centerName] = $signups[$centerName] ?? $emptyMonths;
+                $signups[$centerName][$month] += (int) $client->signup_count;
+            }
+        } catch (\Exception $exception) {
+            return $signups;
+        }
+
+        return $signups;
+    }
+
+    private function repeatPurchaseLocation($client)
+    {
+        $parts = collect([
+            $client->location_barangay ?? null,
+            $client->location_city ?? null,
+            $client->location_province ?? null,
+        ])->filter()->map(function ($value) {
+            return trim((string) $value);
+        })->filter()->values();
+
+        if ($parts->isNotEmpty()) {
+            return $parts->implode(', ');
+        }
+
+        return trim((string) ($client->address ?? $client->street_address ?? ''));
+    }
+
+    private function crmRepeatPurchaseClients($year, $centerFilterKey, array &$centerKeyToName)
+    {
+        try {
+            $connection = 'admin_crms';
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (!$schema->hasTable('clients')
+                || !$schema->hasColumn('clients', 'center')
+                || !$schema->hasTable('transaction_details')) {
+                return collect();
+            }
+
+            $dateColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['date', 'created_at', 'updated_at']);
+            $clientColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['client_id', 'customer_id', 'user_id']);
+            $qtyColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['qty', 'quantity']);
+
+            if (!$dateColumn || !$clientColumn) {
+                return collect();
+            }
+
+            $clientSelect = ['id', 'center'];
+
+            foreach (['user_id', 'name', 'first_name', 'middle_name', 'last_name', 'address', 'street_address', 'location_barangay', 'location_city', 'location_province'] as $column) {
+                if ($schema->hasColumn('clients', $column)) {
+                    $clientSelect[] = $column;
+                }
+            }
+
+            $clients = DB::connection($connection)->table('clients')
+                ->select(array_unique($clientSelect))
+                ->whereNotNull('center')
+                ->where('center', '<>', '')
+                ->when($schema->hasColumn('clients', 'status'), function ($query) {
+                    $query->whereRaw("LOWER(TRIM(status)) = 'active'");
+                })
+                ->when($schema->hasColumn('clients', 'deleted_at'), function ($query) {
+                    $query->whereNull('deleted_at');
+                })
+                ->get()
+                ->filter(function ($client) use ($centerFilterKey) {
+                    $centerKey = $this->normalizeSignupCenter($client->center ?? '');
+
+                    return $centerKey !== '' && ($centerFilterKey === '' || $centerKey === $centerFilterKey);
+                })
+                ->values();
+
+            if ($clients->isEmpty()) {
+                return collect();
+            }
+
+            $clientIds = $clients->pluck('id')
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($clientIds->isEmpty()) {
+                return collect();
+            }
+
+            $transactionQuery = DB::connection($connection)->table('transaction_details')
+                ->select(
+                    $clientColumn . ' as repeat_client_id',
+                    DB::raw('MONTH(' . $dateColumn . ') as repeat_month'),
+                    DB::raw($qtyColumn ? 'SUM(COALESCE(' . $qtyColumn . ', 1)) as repeat_count' : 'COUNT(*) as repeat_count')
+                )
+                ->whereIn($clientColumn, $clientIds->all())
+                ->whereNotNull($dateColumn)
+                ->whereYear($dateColumn, $year)
+                ->groupBy($clientColumn, DB::raw('MONTH(' . $dateColumn . ')'));
+
+            if ($schema->hasColumn('transaction_details', 'deleted_at')) {
+                $transactionQuery->whereNull('deleted_at');
+            }
+
+            if ($schema->hasColumn('transaction_details', 'status')) {
+                $transactionQuery->whereRaw("LOWER(TRIM(status)) NOT IN ('cancelled', 'canceled', 'void')");
+            }
+
+            $transactions = $transactionQuery->get()->groupBy('repeat_client_id');
+
+            return $clients->map(function ($client) use ($transactions, &$centerKeyToName) {
+                $centerName = trim((string) $client->center);
+                $centerKey = $this->normalizeSignupCenter($centerName);
+                $centerName = $centerKeyToName[$centerKey] ?? $centerName;
+                $centerKeyToName[$centerKey] = $centerName;
+
+                $monthlyRows = $transactions->get($client->id, collect());
+
+                $name = trim((string) ($client->name ?? ''));
+
+                if ($name === '') {
+                    $name = trim(collect([
+                        $client->first_name ?? '',
+                        $client->middle_name ?? '',
+                        $client->last_name ?? '',
+                    ])->filter()->implode(' '));
+                }
+
+                return (object) [
+                    'id' => $client->id,
+                    'center_key' => $centerKey,
+                    'center' => $centerName,
+                    'location' => $this->repeatPurchaseLocation($client),
+                    'name' => $name !== '' ? $name : 'Unnamed Member',
+                    'monthly_rows' => $monthlyRows,
+                ];
+            })->filter(function ($client) {
+                return $client->monthly_rows->sum('repeat_count') > 0;
+            })->values();
+        } catch (\Exception $exception) {
+            return collect();
+        }
+    }
+
+    private function buildRepeatPurchaseIncentivesReport($year, $centerFilter, $rate, $lowRepeatThreshold = 5)
+    {
+        $months = $this->signupIncentiveMonths;
+        $monthKeys = array_keys($months);
+        $emptyMonths = array_fill_keys($monthKeys, 0.0);
+        $centers = Center::orderBy('name')->get();
+        $centerOptions = $centers->pluck('name')->filter()->values();
+        $centerKeyToName = [];
+
+        foreach ($centerOptions as $centerOption) {
+            $centerKey = $this->normalizeSignupCenter($centerOption);
+
+            if ($centerKey !== '') {
+                $centerKeyToName[$centerKey] = trim((string) $centerOption);
+            }
+        }
+
+        $centerFilterKey = $this->normalizeSignupCenter($centerFilter);
+        $clients = $this->crmRepeatPurchaseClients($year, $centerFilterKey, $centerKeyToName);
+
+        foreach ($clients->pluck('center')->filter()->unique() as $centerName) {
+            if (!$centerOptions->contains($centerName)) {
+                $centerOptions->push($centerName);
+            }
+        }
+
+        $rows = $clients->groupBy('center_key')->map(function ($centerClients) use ($monthKeys, $emptyMonths, $rate, $lowRepeatThreshold) {
+            $firstClient = $centerClients->first();
+            $members = $centerClients->sortBy('name')->map(function ($client) use ($monthKeys, $emptyMonths, $lowRepeatThreshold) {
+                $monthlyRefills = $emptyMonths;
+
+                foreach ($client->monthly_rows as $row) {
+                    $month = (int) $row->repeat_month;
+
+                    if (array_key_exists($month, $monthlyRefills)) {
+                        $monthlyRefills[$month] += (float) $row->repeat_count;
+                    }
+                }
+
+                return [
+                    'client_id' => $client->id,
+                    'name' => $client->name,
+                    'monthly_refills' => $monthlyRefills,
+                    'total_refills' => array_sum($monthlyRefills),
+                    'low_repeat_months' => collect($monthKeys)->filter(function ($month) use ($monthlyRefills, $lowRepeatThreshold) {
+                        return $monthlyRefills[$month] <= $lowRepeatThreshold;
+                    })->count(),
+                ];
+            })->values()->all();
+        
+            $memberCount = max(count($members), 1);
+            $monthlyTotalRefills = $emptyMonths;
+
+            foreach ($members as $member) {
+                foreach ($monthKeys as $month) {
+                    $monthlyTotalRefills[$month] += $member['monthly_refills'][$month];
+                }
+            }
+
+            $monthlyAverageRefills = [];
+            $monthlyComputedIncentives = [];
+
+            foreach ($monthKeys as $month) {
+                $monthlyAverageRefills[$month] = $monthlyTotalRefills[$month] / $memberCount;
+                $monthlyComputedIncentives[$month] = $monthlyAverageRefills[$month] * $rate;
+            }
+
+            $totalRefills = array_sum($monthlyTotalRefills);
+            $averageRefills = $totalRefills / $memberCount;
+
+            return [
+                'center' => $firstClient->center,
+                'location' => $centerClients->pluck('location')->filter()->unique()->implode(' / '),
+                'members' => $members,
+                'member_count' => count($members),
+                'low_repeat_months' => collect($members)->sum('low_repeat_months'),
+                'monthly_total_refills' => $monthlyTotalRefills,
+                'monthly_average_refills' => $monthlyAverageRefills,
+                'monthly_computed_incentives' => $monthlyComputedIncentives,
+                'total_refills' => $totalRefills,
+                'average_refills' => $averageRefills,
+                'computed_incentive' => $averageRefills * $rate,
+            ];
+        })->sortBy('center')->values();
+        
+        $grandMonthlyRefills = $emptyMonths;
+        $grandMonthlyIncentives = $emptyMonths;
+        $lowRepeatMonths = 0;
+
+        foreach ($rows as $row) {
+            $lowRepeatMonths += $row['low_repeat_months'];
+
+            foreach ($monthKeys as $month) {
+                $grandMonthlyRefills[$month] += $row['monthly_total_refills'][$month];
+                $grandMonthlyIncentives[$month] += $row['monthly_computed_incentives'][$month];
+            }
+        }
+        
+        return [
+            'months' => $months,
+            'rows' => $rows,
+            'centers' => $centerOptions->unique()->sort()->values(),
+            'grandMonthlyRefills' => $grandMonthlyRefills,
+            'grandMonthlyIncentives' => $grandMonthlyIncentives,
+            'grandTotalRefills' => array_sum($grandMonthlyRefills),
+            'grandComputedIncentive' => array_sum($grandMonthlyIncentives),
+            'lowRepeatMonths' => $lowRepeatMonths,
+        ];
+    }
+
+    private function buildSignupIncentivesReport($year, $centerFilter, array $rates)
+    {
+        $months = $this->signupIncentiveMonths;
+        $monthKeys = array_keys($months);
+        $emptyMonths = array_fill_keys($monthKeys, 0);
+        $centers = Center::orderBy('name')->get();
+        $centerOptions = $centers->pluck('name')->filter()->values();
+        $centerKeyToName = [];
+        $authUser = auth()->user();
+        $authIsSedp = strtolower(trim((string) ($authUser->role ?? ''))) === 'sedp';
+        $allowedCenterKeys = null;
+        $territoryCenters = collect();
+
+        foreach ($centerOptions as $centerOption) {
+            $centerKey = $this->normalizeSignupCenter($centerOption);
+
+            if ($centerKey !== '') {
+                $centerKeyToName[$centerKey] = trim((string) $centerOption);
+            }
+        }
+
+        if ($authIsSedp) {
+            $territoryCenters = $this->splitSignupTerritories($authUser->territory ?? '');
+            $allowedCenterKeys = [];
+
+            foreach ($territoryCenters as $territoryCenter) {
+                $territoryCenterKey = $this->normalizeSignupCenter($territoryCenter);
+
+                if ($territoryCenterKey === '') {
+                    continue;
+                }
+
+                $allowedCenterKeys[$territoryCenterKey] = true;
+                $centerKeyToName[$territoryCenterKey] = $centerKeyToName[$territoryCenterKey] ?? trim((string) $territoryCenter);
+            }
+
+            $centerOptions = $centerOptions->filter(function ($centerOption) use ($allowedCenterKeys) {
+                return isset($allowedCenterKeys[$this->normalizeSignupCenter($centerOption)]);
+            })->values();
+
+            foreach ($territoryCenters as $territoryCenter) {
+                $territoryCenterKey = $this->normalizeSignupCenter($territoryCenter);
+                $territoryCenterName = $centerKeyToName[$territoryCenterKey] ?? trim((string) $territoryCenter);
+
+                if ($territoryCenterKey !== '' && !$centerOptions->contains($territoryCenterName)) {
+                    $centerOptions->push($territoryCenterName);
+                }
+            }
+        }
+
+        $centerMeta = $centers->mapWithKeys(function ($center) {
+            $location = $center->location
+                ?? $center->address
+                ?? $center->area
+                ?? '';
+
+            return [trim((string) $center->name) => [
+                'location' => trim((string) $location),
+            ]];
+        });
+        $centerFilterKey = $this->normalizeSignupCenter($centerFilter);
+
+        if ($allowedCenterKeys !== null && $centerFilterKey !== '' && !isset($allowedCenterKeys[$centerFilterKey])) {
+            $centerFilterKey = '__NO_ACCESS__';
+        }
+
+        $signups = $this->crmClientSignups($year, $centerFilterKey, $centerKeyToName);
+
+        foreach (array_keys($signups) as $centerName) {
+            $centerKey = $this->normalizeSignupCenter($centerName);
+
+            if ($allowedCenterKeys !== null && !isset($allowedCenterKeys[$centerKey])) {
+                continue;
+            }
+
+            if (!$centerOptions->contains($centerName)) {
+                $centerOptions->push($centerName);
+            }
+        }
+
+        $sedpUsers = User::whereRaw('LOWER(TRIM(role)) = ?', ['sedp'])
+            ->whereIn('designation', ['CDW', 'CDW2', 'SPOM'])
+            ->orderBy('designation')
+            ->orderBy('name')
+            ->get(['name', 'designation', 'territory']);
+
+        $peopleByCenter = [];
+        $includedSedpKeys = [];
+
+        foreach ($sedpUsers as $user) {
+            $assignedCenters = $this->splitSignupTerritories($user->territory);
+
+            foreach ($assignedCenters as $assignedCenter) {
+                $assignedCenterKey = $this->normalizeSignupCenter($assignedCenter);
+
+                if ($assignedCenterKey === '') {
+                    continue;
+                }
+
+                $assignedCenter = $centerKeyToName[$assignedCenterKey] ?? trim((string) $assignedCenter);
+                $centerKeyToName[$assignedCenterKey] = $assignedCenter;
+
+                if ($allowedCenterKeys !== null && !isset($allowedCenterKeys[$assignedCenterKey])) {
+                    continue;
+                }
+
+                if ($centerFilterKey !== '' && $assignedCenterKey !== $centerFilterKey) {
+                    continue;
+                }
+
+                $sedpKey = $assignedCenterKey . '|' . $user->designation . '|' . $user->name;
+
+                if (isset($includedSedpKeys[$sedpKey])) {
+                    continue;
+                }
+
+                $includedSedpKeys[$sedpKey] = true;
+
+                $peopleByCenter[$assignedCenterKey][] = [
+                    'designation' => $user->designation,
+                    'name' => $user->name,
+                    'rate' => $rates[$user->designation] ?? 0,
+                ];
+
+                if (!$centerOptions->contains($assignedCenter)) {
+                    $centerOptions->push($assignedCenter);
+                }
+            }
+        }
+
+        $filterCenters = $centerOptions->unique()->sort()->values();
+        $centerNamesByKey = [];
+        $signupsByCenterKey = [];
+
+        foreach ($signups as $centerName => $monthlySignups) {
+            $centerKey = $this->normalizeSignupCenter($centerName);
+
+            if ($centerKey === '' || ($centerFilterKey !== '' && $centerKey !== $centerFilterKey)) {
+                continue;
+            }
+
+            if ($allowedCenterKeys !== null && !isset($allowedCenterKeys[$centerKey])) {
+                continue;
+            }
+
+            $centerNamesByKey[$centerKey] = $centerKeyToName[$centerKey] ?? trim((string) $centerName);
+            $signupsByCenterKey[$centerKey] = $signupsByCenterKey[$centerKey] ?? $emptyMonths;
+
+            foreach ($monthKeys as $month) {
+                $signupsByCenterKey[$centerKey][$month] += $monthlySignups[$month] ?? 0;
+            }
+        }
+
+        foreach (array_keys($peopleByCenter) as $centerKey) {
+            if ($centerKey === '' || ($centerFilterKey !== '' && $centerKey !== $centerFilterKey)) {
+                continue;
+            }
+
+            if ($allowedCenterKeys !== null && !isset($allowedCenterKeys[$centerKey])) {
+                continue;
+            }
+
+            $centerNamesByKey[$centerKey] = $centerKeyToName[$centerKey] ?? $centerKey;
+        }
+
+        $centerKeys = collect($centerNamesByKey)->keys()->sortBy(function ($centerKey) use ($centerNamesByKey) {
+            return $centerNamesByKey[$centerKey];
+        })->values();
+
+        $rows = [];
+        $grandSignups = $emptyMonths;
+        $grandAmounts = array_fill_keys($monthKeys, 0.0);
+
+        foreach ($centerKeys as $centerKey) {
+            $centerName = $centerNamesByKey[$centerKey];
+            $monthlySignups = $signupsByCenterKey[$centerKey] ?? $emptyMonths;
+            $people = collect($peopleByCenter[$centerKey] ?? [])->sortBy(function ($person) {
+                $designationOrder = ['CDW' => 1, 'CDW2' => 2, 'SPOM' => 3];
+
+                return sprintf(
+                    '%02d-%s',
+                    $designationOrder[$person['designation']] ?? 99,
+                    $person['name']
+                );
+            })->map(function ($person) {
+                $person['display_rate'] = $this->formatSignupIncentiveRate($person['rate']);
+
+                return $person;
+            })->values();
+
+            $personRows = [];
+            $monthlyTotalAmounts = array_fill_keys($monthKeys, 0.0);
+
+            foreach ($people as $person) {
+                $amounts = [];
+
+                foreach ($monthKeys as $month) {
+                    $amounts[$month] = $monthlySignups[$month] * $person['rate'];
+                    $monthlyTotalAmounts[$month] += $amounts[$month];
+                }
+
+                $personRows[] = array_merge($person, [
+                    'amounts' => $amounts,
+                    'total' => array_sum($amounts),
+                ]);
+            }
+
+            foreach ($monthKeys as $month) {
+                $grandSignups[$month] += $monthlySignups[$month];
+                $grandAmounts[$month] += $monthlyTotalAmounts[$month];
+            }
+
+            $rows[] = [
+                'center' => $centerName,
+                'location' => $centerMeta[$centerName]['location'] ?? '',
+                'signups' => $monthlySignups,
+                'total_signups' => array_sum($monthlySignups),
+                'people' => $personRows,
+                'monthly_total_amounts' => $monthlyTotalAmounts,
+                'total_amount' => array_sum($monthlyTotalAmounts),
+            ];
+        }
+
+        return [
+            'months' => $months,
+            'rows' => $rows,
+            'centers' => $filterCenters,
+            'grandSignups' => $grandSignups,
+            'grandAmounts' => $grandAmounts,
+            'grandTotalSignups' => array_sum($grandSignups),
+            'grandTotalAmount' => array_sum($grandAmounts),
+            'isSedpTerritoryView' => $authIsSedp,
+            'territoryCenters' => $authIsSedp
+                ? $territoryCenters->map(function ($center) use ($centerKeyToName) {
+                    $centerKey = $this->normalizeSignupCenter($center);
+
+                    return $centerKeyToName[$centerKey] ?? trim((string) $center);
+                })->filter()->unique()->sort()->values()
+                : collect(),
+        ];
+    }
+
     public function dpoReport(Request $request)
     {
         $from = $request->from ?? Carbon::now()->startOfMonth()->format('Y-m-d');

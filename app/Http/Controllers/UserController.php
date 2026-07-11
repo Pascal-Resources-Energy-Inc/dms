@@ -724,6 +724,7 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name ?? '',
                 'email' => $user->email ?? '',
+                'role' => $user->role ?? '',
                 'can_edit' => $user->can_edit,
                 'can_add' => $user->can_add,
                 'can_delete' => $user->can_delete,
@@ -731,6 +732,15 @@ class UserController extends Controller
                 'can_edit_rewards' => $user->can_edit_rewards,
                 'can_add_rewards' => $user->can_add_rewards,
                 'can_delete_rewards' => $user->can_delete_rewards,
+                'can_access_transactions' => $user->can_access_transactions,
+                'can_access_distributors' => $user->can_access_distributors,
+                'can_access_dealers' => $user->can_access_dealers,
+                'can_access_customers' => $user->can_access_customers,
+                'can_access_purchase_orders' => $user->can_access_purchase_orders,
+                'can_access_inventory' => $user->can_access_inventory,
+                'can_access_reports' => $user->can_access_reports,
+                'can_access_settings' => $user->can_access_settings,
+                'access_permissions' => $this->decodeAccessPermissions($user->access_permissions ?? null),
                 'address' => optional($user->dealer)->address
                     ?? optional($user->client)->address
                     ?? $user->address
@@ -802,21 +812,135 @@ class UserController extends Controller
 
     public function updateAccess(Request $request)
     {
+        $request->validate([
+            'id' => 'required|exists:users,id',
+            'can_edit' => 'nullable|in:on,off',
+            'can_add' => 'nullable|in:on,off',
+            'can_delete' => 'nullable|in:on,off',
+            'can_edit_rewards' => 'nullable|in:on,off',
+            'can_add_rewards' => 'nullable|in:on,off',
+            'can_delete_rewards' => 'nullable|in:on,off',
+            'can_access_transactions' => 'nullable|in:on,off',
+            'can_access_distributors' => 'nullable|in:on,off',
+            'can_access_dealers' => 'nullable|in:on,off',
+            'can_access_customers' => 'nullable|in:on,off',
+            'can_access_purchase_orders' => 'nullable|in:on,off',
+            'can_access_inventory' => 'nullable|in:on,off',
+            'can_access_reports' => 'nullable|in:on,off',
+            'can_access_settings' => 'nullable|in:on,off',
+            'access_permissions' => 'nullable|string',
+        ]);
+
         $user = User::findOrFail($request->id);
 
-        $user->can_edit = $request->can_edit;
-        $user->can_add = $request->can_add;
-        $user->can_delete = $request->can_delete;
+        if (!in_array($user->role, ['Admin', 'SEDP'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access can only be assigned to Admin or SEDP users.'
+            ], 422);
+        }
 
-        $user->can_edit_rewards = $request->can_edit_rewards;
-        $user->can_add_rewards = $request->can_add_rewards;
-        $user->can_delete_rewards = $request->can_delete_rewards;
+        $permissions = $this->sanitizeAccessPermissions(
+            json_decode($request->input('access_permissions', '{}'), true) ?: []
+        );
+
+        $hasPermission = function ($module, $submodule = null, $action = null) use ($permissions) {
+            if (!isset($permissions[$module]) || !is_array($permissions[$module])) {
+                return false;
+            }
+
+            foreach ($permissions[$module] as $key => $actions) {
+                if ($submodule !== null && $key !== $submodule) {
+                    continue;
+                }
+
+                if (!is_array($actions)) {
+                    continue;
+                }
+
+                if ($action === null && !empty($actions)) {
+                    return true;
+                }
+
+                if ($action !== null && in_array($action, $actions, true)) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        $user->can_edit = $hasPermission('users', 'accounts', 'edit') ? 'on' : null;
+        $user->can_add = $hasPermission('users', 'accounts', 'add') ? 'on' : null;
+        $user->can_delete = $hasPermission('users', 'accounts', 'delete') ? 'on' : null;
+
+        $user->can_edit_rewards = $hasPermission('settings', 'rewards', 'edit') ? 'on' : null;
+        $user->can_add_rewards = $hasPermission('settings', 'rewards', 'add') ? 'on' : null;
+        $user->can_delete_rewards = $hasPermission('settings', 'rewards', 'delete') ? 'on' : null;
+        $user->can_access_transactions = $hasPermission('transactions') ? 'on' : null;
+        $user->can_access_distributors = $hasPermission('distributors') ? 'on' : null;
+        $user->can_access_dealers = $hasPermission('dealers') ? 'on' : null;
+        $user->can_access_customers = $hasPermission('customers') ? 'on' : null;
+        $user->can_access_purchase_orders = $hasPermission('purchase_orders') ? 'on' : null;
+        $user->can_access_inventory = $hasPermission('inventory') ? 'on' : null;
+        $user->can_access_reports = $hasPermission('reports') ? 'on' : null;
+        $user->can_access_settings = $hasPermission('settings') ? 'on' : null;
+        $user->access_permissions = json_encode($permissions);
 
         $user->save();
 
         return response()->json([
-            'success' => true
+            'success' => true,
+            'message' => 'User access updated successfully.'
         ]);
+    }
+
+    private function decodeAccessPermissions($permissions)
+    {
+        if (!$permissions) {
+            return [];
+        }
+
+        $decoded = json_decode($permissions, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function sanitizeAccessPermissions(array $permissions)
+    {
+        $allowed = [
+            'users' => ['accounts'],
+            'distributors' => ['records'],
+            'dealers' => ['records'],
+            'customers' => ['records'],
+            'transactions' => ['sales'],
+            'purchase_orders' => ['adpo'],
+            'inventory' => ['stock'],
+            'settings' => ['items', 'rewards', 'campaigns'],
+            'reports' => ['sales', 'operations', 'sedp'],
+        ];
+        $allowedActions = ['view', 'add', 'edit', 'delete'];
+        $clean = [];
+
+        foreach ($allowed as $module => $submodules) {
+            if (!isset($permissions[$module]) || !is_array($permissions[$module])) {
+                continue;
+            }
+
+            foreach ($submodules as $submodule) {
+                if (!isset($permissions[$module][$submodule]) || !is_array($permissions[$module][$submodule])) {
+                    continue;
+                }
+
+                $actions = array_values(array_intersect($allowedActions, $permissions[$module][$submodule]));
+
+                if (!empty($actions)) {
+                    $clean[$module][$submodule] = $actions;
+                }
+            }
+        }
+
+        return $clean;
     }
 
     public function datatable(Request $request)

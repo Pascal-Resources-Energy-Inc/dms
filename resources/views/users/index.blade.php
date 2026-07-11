@@ -557,6 +557,147 @@
             $(selector).modal('hide');
         }
 
+        function showAccessMessage(title, message, type) {
+            if (window.Swal) {
+                Swal.fire(title, message, type);
+                return;
+            }
+
+            alert(message);
+        }
+
+        function userInitials(name) {
+            const words = (name || '').trim().split(/\s+/).filter(Boolean);
+
+            if (!words.length) {
+                return '--';
+            }
+
+            return words.slice(0, 2).map(function (word) {
+                return word.charAt(0).toUpperCase();
+            }).join('');
+        }
+
+        function setAccessLoading(isLoading) {
+            const button = $('#saveAccess');
+            const label = button.find('span');
+
+            button.prop('disabled', isLoading);
+            label.text(isLoading ? 'Saving...' : 'Save Access');
+        }
+
+        const accessFields = [
+            'can_edit',
+            'can_add',
+            'can_delete',
+            'can_edit_rewards',
+            'can_add_rewards',
+            'can_delete_rewards',
+            'can_access_transactions',
+            'can_access_distributors',
+            'can_access_dealers',
+            'can_access_customers',
+            'can_access_purchase_orders',
+            'can_access_inventory',
+            'can_access_reports',
+            'can_access_settings'
+        ];
+
+        function setAccessFieldsFromResponse(res) {
+            accessFields.forEach(function (field) {
+                $('#' + field).prop('checked', res[field] === 'on');
+            });
+
+            $('.access-permission-check').prop('checked', false);
+
+            if (res.access_permissions && Object.keys(res.access_permissions).length) {
+                Object.keys(res.access_permissions).forEach(function (module) {
+                    Object.keys(res.access_permissions[module] || {}).forEach(function (submodule) {
+                        (res.access_permissions[module][submodule] || []).forEach(function (action) {
+                            $('.access-permission-check[data-module="' + module + '"][data-submodule="' + submodule + '"][data-action="' + action + '"]').prop('checked', true);
+                        });
+                    });
+                });
+                return;
+            }
+
+            $('#can_add').prop('checked', res.can_add === 'on');
+            $('#can_edit').prop('checked', res.can_edit === 'on');
+            $('#can_delete').prop('checked', res.can_delete === 'on');
+            $('#can_add_rewards').prop('checked', res.can_add_rewards === 'on');
+            $('#can_edit_rewards').prop('checked', res.can_edit_rewards === 'on');
+            $('#can_delete_rewards').prop('checked', res.can_delete_rewards === 'on');
+            setLegacyModuleView('transactions', res.can_access_transactions);
+            setLegacyModuleView('distributors', res.can_access_distributors);
+            setLegacyModuleView('dealers', res.can_access_dealers);
+            setLegacyModuleView('customers', res.can_access_customers);
+            setLegacyModuleView('purchase_orders', res.can_access_purchase_orders);
+            setLegacyModuleView('inventory', res.can_access_inventory);
+            setLegacyModuleView('reports', res.can_access_reports);
+            setLegacyModuleView('settings', res.can_access_settings);
+        }
+
+        function setLegacyModuleView(module, value) {
+            if (value !== 'on') {
+                return;
+            }
+
+            $('.access-permission-check[data-module="' + module + '"][data-action="view"]').prop('checked', true);
+        }
+
+        function getDetailedAccessPermissions() {
+            const permissions = {};
+
+            $('.access-permission-check:checked').each(function () {
+                const module = $(this).data('module');
+                const submodule = $(this).data('submodule');
+                const action = $(this).data('action');
+
+                if (!permissions[module]) {
+                    permissions[module] = {};
+                }
+
+                if (!permissions[module][submodule]) {
+                    permissions[module][submodule] = [];
+                }
+
+                permissions[module][submodule].push(action);
+            });
+
+            return permissions;
+        }
+
+        function getAccessPayload() {
+            const payload = {
+                id: $('#access_user_id').val(),
+                access_permissions: JSON.stringify(getDetailedAccessPermissions())
+            };
+
+            accessFields.forEach(function (field) {
+                payload[field] = $('#' + field).is(':checked') ? 'on' : 'off';
+            });
+
+            return payload;
+        }
+
+        $('#checkAllAccess').on('click', function () {
+            $('.access-permission-check').prop('checked', true);
+        });
+
+        $('#clearAllAccess').on('click', function () {
+            $('.access-permission-check').prop('checked', false);
+        });
+
+        $(document).on('change', '.access-permission-check', function () {
+            const action = $(this).data('action');
+
+            if (!this.checked || action === 'view') {
+                return;
+            }
+
+            $('.access-permission-check[data-module="' + $(this).data('module') + '"][data-submodule="' + $(this).data('submodule') + '"][data-action="view"]').prop('checked', true);
+        });
+
         $(document).on('click', '.btn-edit-user', function () {
 
             let id = $(this).data('id');
@@ -597,42 +738,40 @@
             $.get('/users/' + id + '/show', function (res) {
 
                 $('#access_user_id').val(res.id);
+                $('#accessUserName').text(res.name || 'Unnamed user');
+                $('#accessUserEmail').text(res.email || 'No email');
+                $('#accessUserRole').text(res.role || 'Role');
+                $('#accessUserInitials').text(userInitials(res.name));
 
-                $('#can_edit').prop('checked', res.can_edit === 'on');
-                $('#can_add').prop('checked', res.can_add === 'on');
-                $('#can_delete').prop('checked', res.can_delete === 'on');
-
-                $('#can_edit_rewards').prop('checked', res.can_edit_rewards === 'on');
-                $('#can_add_rewards').prop('checked', res.can_add_rewards === 'on');
-                $('#can_delete_rewards').prop('checked', res.can_delete_rewards === 'on');
+                setAccessFieldsFromResponse(res);
 
                 showModal('#accessUserModal');
+            }).fail(function () {
+                showAccessMessage('Error', 'Unable to load user access.', 'error');
             });
         });
 
         $('#saveAccess').click(function () {
+            setAccessLoading(true);
 
-            $.post('/users/access-update', {
-                id: $('#access_user_id').val(),
-
-                can_edit: $('#can_edit').is(':checked') ? 'on' : 'off',
-                can_add: $('#can_add').is(':checked') ? 'on' : 'off',
-                can_delete: $('#can_delete').is(':checked') ? 'on' : 'off',
-
-                can_edit_rewards: $('#can_edit_rewards').is(':checked') ? 'on' : 'off',
-                can_add_rewards: $('#can_add_rewards').is(':checked') ? 'on' : 'off',
-                can_delete_rewards: $('#can_delete_rewards').is(':checked') ? 'on' : 'off',
-
-            }, function (res) {
+            $.post('/users/access-update', getAccessPayload(), function (res) {
 
                 if (res.success) {
                     hideModal('#accessUserModal');
                     $('#example').DataTable().ajax.reload(null, false);
+                    showAccessMessage('Saved', res.message || 'User access updated successfully.', 'success');
                 } else {
-                    alert(res.message);
+                    showAccessMessage('Error', res.message || 'Unable to update user access.', 'error');
                 }
-            });
+            }).fail(function (xhr) {
+                const message = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Unable to update user access.';
 
+                showAccessMessage('Error', message, 'error');
+            }).always(function () {
+                setAccessLoading(false);
+            });
         });
 
     });
