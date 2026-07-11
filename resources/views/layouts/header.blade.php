@@ -1282,9 +1282,67 @@
             </a>
         </div>
         <div class="sidebar-nav">
+            @php
+                $sidebarUser = auth()->user();
+                $sidebarRole = $sidebarUser->role ?? '';
+                $sidebarWarehouse = strtolower((string) ($sidebarUser->warehouse ?? ''));
+                $sidebarIsAdmin = $sidebarRole === 'Admin';
+                $sidebarIsSedp = $sidebarRole === 'SEDP';
+                $sedpCanAccess = function ($field) use ($sidebarUser, $sidebarIsAdmin, $sidebarIsSedp) {
+                    if ($sidebarIsAdmin) {
+                        return true;
+                    }
+
+                    return $sidebarIsSedp && (($sidebarUser->{$field} ?? null) === 'on');
+                };
+                $sidebarAccessPermissions = json_decode($sidebarUser->access_permissions ?? '{}', true);
+                $sidebarAccessPermissions = is_array($sidebarAccessPermissions) ? $sidebarAccessPermissions : [];
+                $sedpCanAccessPermission = function ($module, $submodule, $action = 'view') use ($sidebarAccessPermissions, $sidebarIsAdmin, $sidebarIsSedp) {
+                    if ($sidebarIsAdmin) {
+                        return true;
+                    }
+
+                    if (!$sidebarIsSedp) {
+                        return false;
+                    }
+
+                    $actions = $sidebarAccessPermissions[$module][$submodule] ?? [];
+
+                    return is_array($actions) && in_array($action, $actions, true);
+                };
+                $hasDetailedSidebarAccess = !empty($sidebarAccessPermissions);
+                $canAccessStandardReports = $sidebarIsAdmin || (
+                    $sidebarIsSedp && (
+                        $sedpCanAccessPermission('reports', 'sales') ||
+                        $sedpCanAccessPermission('reports', 'operations') ||
+                        (!$hasDetailedSidebarAccess && $sedpCanAccess('can_access_reports'))
+                    )
+                );
+                $canAccessSedpReports = $sidebarIsAdmin || (
+                    $sidebarIsSedp && (
+                        $sedpCanAccessPermission('reports', 'sedp') ||
+                        (!$hasDetailedSidebarAccess && $sedpCanAccess('can_access_reports'))
+                    )
+                );
+                $canAccessAnyReports = $canAccessStandardReports || $canAccessSedpReports;
+                $standardReportRoutes = ['dsr', 'aging', 'dpo', 'isl', 'monthly-sales', 'voucher-history'];
+                $sedpReportRoutes = ['signup-incentives', 'repeat-purchase-incentives'];
+                $visibleReportRoutes = array_merge(
+                    $canAccessStandardReports ? $standardReportRoutes : [],
+                    $canAccessSedpReports ? $sedpReportRoutes : []
+                );
+                $canAccessUsersModule = $sidebarIsAdmin || (
+                    $sidebarIsSedp &&
+                    (
+                        ($sidebarUser->can_add ?? null) === 'on' ||
+                        ($sidebarUser->can_edit ?? null) === 'on' ||
+                        ($sidebarUser->can_delete ?? null) === 'on'
+                    )
+                );
+            @endphp
             <div class="nav-section">
                 <div class="nav-section-title">HOME</div>
-                @if((auth()->user()->role == "Admin"))
+                @if($sidebarIsAdmin || $sidebarIsSedp)
                 <div class="nav-item">
                     <a href="{{url('/')}}" class="nav-link @if(Route::currentRouteName() == 'home')active @endif">
                         <div class="nav-icon">
@@ -1422,7 +1480,7 @@
                         </div>
                     </div>
                 @endif
-                @if(auth()->user()->role == "Admin" && strtolower((string) auth()->user()->warehouse) === 'guinobatan')
+                @if($sidebarIsAdmin && $sidebarWarehouse === 'guinobatan')
                     @php
                         $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')
                             ->where(function ($query) {
@@ -1485,7 +1543,7 @@
                             </ul>
                         </div>
                     </div>
-                @elseif(auth()->user()->role == "Admin" && strtolower((string) auth()->user()->warehouse) === 'lubao')
+                @elseif($sidebarIsAdmin && $sidebarWarehouse === 'lubao')
                     @php
                         $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')->count();
                     @endphp
@@ -1504,7 +1562,26 @@
                         </a>
                     </div>
                 @endif
-                @if(auth()->user()->role === 'Admin' && strtolower((string) auth()->user()->warehouse) === 'lubao')
+                @if($sidebarIsSedp && $sedpCanAccess('can_access_purchase_orders'))
+                    @php
+                        $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')->count();
+                    @endphp
+                    <div class="nav-item">
+                        <a href="{{ route('ad-purchase-orders.index') }}"
+                            class="nav-link @if(in_array(Route::currentRouteName(), ['ad-purchase-orders.index','ad-purchase-orders.create','ad-purchase-orders.show'])) active @endif position-relative">
+                            <div class="nav-icon position-relative">
+                                <i class="ti ti-receipt"></i>
+                                @if($pendingAdPurchaseOrdersCount > 0)
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        {{ $pendingAdPurchaseOrdersCount > 99 ? '99+' : $pendingAdPurchaseOrdersCount }}
+                                    </span>
+                                @endif
+                            </div>
+                            <span class="nav-text">Purchase Orders</span>
+                        </a>
+                    </div>
+                @endif
+                @if(($sidebarIsAdmin && $sidebarWarehouse === 'lubao') || ($sidebarIsSedp && $sedpCanAccess('can_access_inventory')))
                     <div class="nav-item">
                         <a href="{{ route('isl') }}" class="nav-link @if(Route::currentRouteName() == 'isl') active @endif">
                             <div class="nav-icon">
@@ -1515,7 +1592,7 @@
                     </div>
                 @endif
                 {{-- @if((auth()->user()->role == "Admin") || (auth()->user()->role == "Dealer") && !in_array(auth()->user()->warehouse, ['lubao', 'guinobatan'])) --}}
-                @if((auth()->user()->role == "Admin" || auth()->user()->role == "Dealer") && !in_array(strtolower(auth()->user()->warehouse), ['lubao', 'guinobatan']))
+                @if((($sidebarIsAdmin || auth()->user()->role == "Dealer") && !in_array($sidebarWarehouse, ['lubao', 'guinobatan'])) || ($sidebarIsSedp && $sedpCanAccess('can_access_transactions')))
                     <div class="nav-item">
                         <a href="{{url('/transactions')}}" class="nav-link @if(Route::currentRouteName() == 'transactions')active @endif">
                             <div class="nav-icon">
@@ -1527,7 +1604,15 @@
                 @endif
                 
                 {{-- @if(auth()->user()->role == "Admin" && auth()->user()->warehouse != ["lubao", "guinobatan"]) --}}
-                @if(auth()->user()->role === "Admin" && !in_array(auth()->user()->warehouse, ['lubao', 'guinobatan']))
+                @if(($sidebarIsAdmin && !in_array($sidebarWarehouse, ['lubao', 'guinobatan'])) || ($sidebarIsSedp && (
+                    $sedpCanAccess('can_access_distributors') ||
+                    $sedpCanAccess('can_access_dealers') ||
+                    $sedpCanAccess('can_access_customers') ||
+                    $sedpCanAccess('can_access_settings') ||
+                    $canAccessAnyReports ||
+                    $canAccessUsersModule
+                )))
+                    @if($sidebarIsAdmin || $sedpCanAccess('can_access_distributors'))
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#partnersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['ads','pds','mds']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
@@ -1549,6 +1634,8 @@
                             </ul>
                         </div>
                     </div>
+                    @endif
+                    @if($sidebarIsAdmin || $sedpCanAccess('can_access_dealers'))
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#dealersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['ads','pds','mds']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
@@ -1574,6 +1661,7 @@
                             </ul>
                         </div>
                     </div>
+                    @endif
                     {{-- <div class="nav-item">
                         <a href="{{url('/dealers')}}" class="nav-link @if(Route::currentRouteName() == 'dealers')active @endif">
                             <div class="nav-icon">
@@ -1582,6 +1670,7 @@
                             <span class="nav-text">Dealers</span>
                         </a>
                     </div> --}}
+                    @if($sidebarIsAdmin || $sedpCanAccess('can_access_customers'))
                     <div class="nav-item">
                         <a href="{{url('/customers')}}" class="nav-link @if(Route::currentRouteName() == 'customers')active @endif">
                             <div class="nav-icon">
@@ -1590,6 +1679,8 @@
                             <span class="nav-text">Customers</span>
                         </a>
                     </div>
+                    @endif
+                    @if($canAccessUsersModule)
                     <div class="nav-item">
                         <a href="{{url('/users')}}" class="nav-link @if(Route::currentRouteName() == 'users')active @endif">
                             <div class="nav-icon">
@@ -1598,6 +1689,7 @@
                             <span class="nav-text">Users</span>
                         </a>
                     </div>
+                    @endif
                     {{-- <div class="nav-item">
                         <a href="{{url('/rewards')}}" class="nav-link @if(Route::currentRouteName() == 'rewards')active @endif">
                             <div class="nav-icon">
@@ -1606,6 +1698,7 @@
                             <span class="nav-text">Rewards</span>
                         </a>
                     </div> --}}
+                    @if($sidebarIsAdmin || $sedpCanAccess('can_access_settings'))
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#settingsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['vouchers', 'rewards', 'items', 'raffles']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
@@ -1636,8 +1729,10 @@
                             </ul>
                         </div>
                     </div>
+                    @endif
+                    @if($canAccessAnyReports)
                     <div class="nav-item">
-                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['aging','dpo','isl','monthly-sales','voucher-history']) ? 'true' : 'false' }}">
+                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), $visibleReportRoutes) ? 'true' : 'false' }}">
                             <div class="nav-icon">
                                 <i class="ti ti-clipboard-data"></i>
                             </div>
@@ -1645,12 +1740,13 @@
                             <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
-                        <div class="collapse @if(in_array(Route::currentRouteName(), ['dsr','aging', 'dpo', 'isl', 'monthly-sales', 'voucher-history'])) show @endif"
+                        <div class="collapse @if(in_array(Route::currentRouteName(), $visibleReportRoutes)) show @endif"
                             id="reportsMenu">
                             <ul class="nav flex-column ms-3">
                                 {{-- <li class="nav-item">
                                     <a href="{{ url('/reports/daily-sales') }}" class="nav-link @if(Route::currentRouteName() == 'dsr') active @endif" style="font-size: 14px">Daily Sales & Remittance Report</a>
                                 </li> --}}
+                                @if($canAccessStandardReports)
                                 <li class="nav-item">
                                     <a href="{{ url('/reports/dpo-report') }}" class="nav-link @if(Route::currentRouteName() == 'dpo') active @endif" style="font-size: 14px">Distributor Purchase Order Report</a>
                                 </li>
@@ -1666,9 +1762,19 @@
                                 <li class="nav-item">
                                     <a href="{{ url('/reports/voucher-history') }}" class="nav-link @if(Route::currentRouteName() == 'voucher-history') active @endif" style="font-size: 14px">Voucher History Report</a>
                                 </li>
+                                @endif
+                                @if($canAccessSedpReports)
+                                <li class="nav-item">
+                                    <a href="{{ url('/reports/signup-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'signup-incentives') active @endif" style="font-size: 14px">Sign Up Incentives Report</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ url('/reports/repeat-purchase-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'repeat-purchase-incentives') active @endif" style="font-size: 14px">Repeat Purchase Incentives Report</a>
+                                </li>
+                                @endif
                             </ul>
                         </div>
                     </div>  
+                    @endif
                     {{-- <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#suppliesMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['areas','centers']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
