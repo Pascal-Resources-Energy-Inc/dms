@@ -26,6 +26,7 @@ class AdPurchaseOrder extends Model implements Auditable
         'reference_no',
         'proof_of_payment',
         'so_number',
+        'payment_date',
         'delivery_date',
         'dr_number',
         'si_number',
@@ -47,6 +48,7 @@ class AdPurchaseOrder extends Model implements Auditable
 
     protected $dates = [
         'delivery_date',
+        'payment_date',
         'submitted_at',
         'deleted_at',
     ];
