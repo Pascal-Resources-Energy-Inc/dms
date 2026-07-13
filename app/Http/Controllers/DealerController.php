@@ -22,7 +22,7 @@ class DealerController extends Controller
         $items = Item::select('item')->get(); // master list of items
         $centers = Center::get();
         $areas = Area::with('areaAd.distributor')->get();
-
+        
         $adminCrmDealers = collect();
         $adminCrm2Dealers = collect();
         $adminRegularDealers = collect();

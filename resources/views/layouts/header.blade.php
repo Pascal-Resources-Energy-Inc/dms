@@ -1360,14 +1360,14 @@
                             <span class="nav-text">Dashboard</span>
                         </a>
                     </div>
-                    <div class="nav-item">
+                    {{-- <div class="nav-item">
                         <a href="{{url('/ad-transactions')}}" class="nav-link @if(Route::currentRouteName() == 'ad-transactions') active @endif">
                             <div class="nav-icon">
                                 <i class="ti ti-cash"></i>
                             </div>
                             <span class="nav-text">Transactions</span>
                         </a>
-                    </div>
+                    </div> --}}
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#suppliesMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['product','inventories','inventory-transfers.index']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
@@ -1393,7 +1393,7 @@
                         </div>
                     </div>
                     <div class="nav-item">
-                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#partnersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['dealer-ads','my-customers','charges']) ? 'true' : 'false' }}">
+                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#partnersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['md-ads','dealer-ads','customer-ads','my-customers','charges']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
                                 <i class="ti ti-id-badge-2"></i>
                             </div>
@@ -1401,17 +1401,17 @@
                             <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
-                        <div class="collapse @if(in_array(Route::currentRouteName(), ['dealer-ads','my-customers','charges'])) show @endif"
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['md-ads','dealer-ads','customer-ads','my-customers','charges'])) show @endif"
                             id="partnersMenu">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
-                                    <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif" style="font-size: 14px">Mega Dealer</a>
+                                    <a href="{{url('/md-ads')}}" class="nav-link @if(Route::currentRouteName() == 'md-ads')active @endif" style="font-size: 14px">Mega Dealer</a>
                                 </li>
-                                 <li class="nav-item">
+                                <li class="nav-item">
                                     <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif" style="font-size: 14px">Dealer</a>
                                 </li>
-                                 <li class="nav-item">
-                                    <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif" style="font-size: 14px">Customers</a>
+                                <li class="nav-item">
+                                    <a href="{{ route('customer-ads') }}" class="nav-link @if(Route::currentRouteName() == 'customer-ads') active @endif" style="font-size: 14px">Customers</a>
                                 </li>
                                 {{-- <li class="nav-item">
                                     <a href="{{url('/my-customers')}}" class="nav-link @if(Route::currentRouteName() == 'my-customers')active @endif" style="font-size: 14px">My Customers</a>
@@ -1762,14 +1762,17 @@
                                 <li class="nav-item">
                                     <a href="{{ url('/reports/voucher-history') }}" class="nav-link @if(Route::currentRouteName() == 'voucher-history') active @endif" style="font-size: 14px">Voucher History Report</a>
                                 </li>
+                                <li class="nav-item">
+                                    <a href="{{ url('/reports/distributor-other-charges') }}" class="nav-link @if(Route::currentRouteName() == 'distributor-other-charges') active @endif" style="font-size: 14px">Distributor Other Charges Report</a>
+                                </li>
                                 @endif
                                 @if($canAccessSedpReports)
-                                <li class="nav-item">
-                                    <a href="{{ url('/reports/signup-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'signup-incentives') active @endif" style="font-size: 14px">Sign Up Incentives Report</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="{{ url('/reports/repeat-purchase-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'repeat-purchase-incentives') active @endif" style="font-size: 14px">Repeat Purchase Incentives Report</a>
-                                </li>
+                                    <li class="nav-item">
+                                        <a href="{{ url('/reports/signup-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'signup-incentives') active @endif" style="font-size: 14px">Sign Up Incentives Report</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="{{ url('/reports/repeat-purchase-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'repeat-purchase-incentives') active @endif" style="font-size: 14px">Repeat Purchase Incentives Report</a>
+                                    </li>
                                 @endif
                             </ul>
                         </div>

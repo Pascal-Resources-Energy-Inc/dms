@@ -498,6 +498,10 @@
     $adminCrmDealers = $adminCrmDealers ?? collect();
     $adminCrm2Dealers = $adminCrm2Dealers ?? collect();
     $adminRegularDealers = $adminRegularDealers ?? collect();
+    $canCreateDealer = $canCreateDealer ?? (
+        auth()->user()->role == 'Admin'
+        || (auth()->user()->role == 'Area Distributor' && Route::currentRouteName() !== 'mds')
+    );
 
     if ($isAdminDealerPage) {
         $dealerTabs = collect([
@@ -542,7 +546,7 @@
                 <div class="text-muted">Monitor dealer status, territory, stock, and sales performance.</div>
             </div>
             <div class="dealer-actions">
-                @if(auth()->user()->role == 'Admin' && Route::currentRouteName() !== 'mds')
+                @if($canCreateDealer)
                     <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#new_dealer">
                         <i class="ti ti-plus"></i>
                         Add {{ $dealerSingularTitle }}

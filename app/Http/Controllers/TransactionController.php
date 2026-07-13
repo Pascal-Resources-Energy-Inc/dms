@@ -79,6 +79,79 @@ class TransactionController extends Controller
         );
     }
 
+    public function customerAds(Request $request)
+    {
+        $user = auth()->user();
+
+        if (!in_array($user->role, ['Area Distributor', 'Admin'], true)) {
+            abort(403);
+        }
+
+        $centers = [];
+
+        if ($user->role === 'Area Distributor' && optional($user->ad)->areas) {
+            $centers = $user->ad->areas->pluck('area_name')->toArray();
+        }
+
+        $dealersQuery = Dealer::query();
+
+        if (!empty($centers)) {
+            $dealersQuery->whereIn('area', $centers);
+        }
+
+        $dealers = $dealersQuery->orderBy('name')->get();
+
+        $dealerCenters = $dealers->pluck('center')->filter()->unique()->values()->toArray();
+        $customersQuery = Client::where('status', 'Active')->whereHas('serial');
+
+        if (!empty($dealerCenters)) {
+            $customersQuery->whereIn('center', $dealerCenters);
+        }
+
+        $customers = $customersQuery->orderBy('name')->get();
+        $items = Item::orderBy('item')->get();
+
+        $transactionsQuery = TransactionDetail::with(['customer', 'dealer', 'adDealer'])
+            ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc');
+
+        if (!empty($centers)) {
+            $transactionsQuery->whereHas('adDealer', function ($query) use ($centers) {
+                $query->whereIn('area', $centers);
+            });
+        }
+
+        if ($request->filled('dealer')) {
+            $transactionsQuery->where('dealer_id', $request->input('dealer'));
+        }
+
+        if ($request->filled('customer')) {
+            $transactionsQuery->where('client_id', $request->input('customer'));
+        }
+
+        if ($request->filled('date_from')) {
+            $transactionsQuery->whereDate('date', '>=', $request->input('date_from'));
+        }
+
+        if ($request->filled('date_to')) {
+            $transactionsQuery->whereDate('date', '<=', $request->input('date_to'));
+        }
+
+        $transactions = $transactionsQuery->get();
+
+        $adUser = optional($user->ad)->id;
+        $pendingOrdersCount = OrderDetail::where('ad_id', $adUser)
+            ->where('status', 'Pending')
+            ->count();
+
+        return view('area_distributor.customer_transactions', array(
+            'transactions' => $transactions,
+            'items' => $items,
+            'customers' => $customers,
+            'dealers' => $dealers,
+            'pendingOrdersCount' => $pendingOrdersCount
+        ));
+    }
 
     public function store(Request $request)
     {

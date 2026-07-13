@@ -33,6 +33,7 @@ Route::group(['middleware' => 'auth'], function () {
 Route::get('/home', 'HomeController@index')->name('home');
 Route::get('/transactions','TransactionController@index')->name('transactions');
 Route::get('/ad-transactions','TransactionController@adTransactions')->name('ad-transactions');
+Route::get('/customer-ads','TransactionController@customerAds')->name('customer-ads');
 Route::delete('/transactions/{id}', 'TransactionController@destroy')->name('transactions.destroy');
 Route::post('/transactions/bulk-delete', 'TransactionController@bulkDelete')->name('transactions.bulkDelete');
 
@@ -104,6 +105,7 @@ Route::get('/pds','ProvincialDistributorController@index')->name('pds');
 
 // Dealers Area Distributor
 Route::get('/dealer-ads','AreaDistributorController@myDealer')->name('dealer-ads');
+Route::get('/md-ads','AreaDistributorController@myMegaDealer')->name('md-ads');
 Route::get('/charges', 'OtherChargeController@index')->name('charges');
 Route::post('/charges', 'OtherChargeController@store')->name('charges.store');
 Route::put('/charges/{charge}', 'OtherChargeController@update')->name('charges.update');
