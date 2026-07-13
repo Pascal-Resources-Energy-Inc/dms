@@ -206,6 +206,7 @@ Route::post('/get-zipcode', [UserController::class, 'getZipCode'])->name('get.zi
 // Reports
 Route::get('/reports/daily-sales', 'ReportController@dailySalesReport')->name('dsr');
 Route::get('/reports/daily-sales/export', 'ReportController@exportDailySales')->name('reports.daily.export');
+Route::get('/reports/distributor-other-charges', 'ReportController@distributorOtherChargesReport')->name('reports.distributor-other-charges');
 Route::get('/reports/aging', 'ReportController@agingReport')->name('aging');
 Route::get('/reports/dpo-report', 'ReportController@dpoReport')->name('dpo');
 Route::get('/reports/isl-report', 'ReportController@inventoryStockLevelReport')->name('isl');
