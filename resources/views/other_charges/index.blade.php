@@ -247,6 +247,9 @@
                         </td>
                         <td>
                             <div class="charge-actions">
+                                <a href="{{ route('reports.distributor-other-charges', ['charge_id' => $charge->id]) }}" class="btn btn-sm btn-outline-secondary charge-icon-btn" title="View transactions">
+                                    <i class="bi bi-receipt"></i>
+                                </a>
                                 <button type="button" class="btn btn-sm btn-outline-primary charge-icon-btn" data-bs-toggle="modal" data-bs-target="#chargeEditModal{{ $charge->id }}" title="Edit charge">
                                     <i class="bi bi-pencil"></i>
                                 </button>
