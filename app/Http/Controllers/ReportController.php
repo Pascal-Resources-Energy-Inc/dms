@@ -282,6 +282,199 @@ class ReportController extends Controller
         ]));
     }
 
+    public function distributorOtherChargesReport(Request $request)
+    {
+        $user = auth()->user();
+
+        if (!$user || !in_array($user->role, ['Admin', 'Area Distributor', 'Provincial Distributor'], true)) {
+            abort(403);
+        }
+
+        $from = $request->input('from', Carbon::now()->subMonth(1)->format('Y-m-d'));
+        $to = $request->input('to', Carbon::now()->format('Y-m-d'));
+        $from = trim((string) $from);
+        $to = trim((string) $to);
+
+        $summaryQuery = $this->baseDistributorChargesQuery($user);
+        $summary = [
+            'total' => (clone $summaryQuery)->count(),
+            'active' => (clone $summaryQuery)->where('is_active', 1)->count(),
+            'fixed' => (clone $summaryQuery)->where('charge_type', 'fixed')->count(),
+            'percentage' => (clone $summaryQuery)->where('charge_type', 'percentage')->count(),
+            'discount' => (clone $summaryQuery)->where('charge_type', 'discount')->count(),
+        ];
+
+        $charges = $this->distributorChargesQuery($request, $user)->get();
+        $adUsers = $this->availableAdUsersForReport($user);
+
+        $selectedCharge = null;
+        $transactions = collect();
+        $transactionSummary = [
+            'count' => 0,
+            'total_charge' => 0,
+            'total_amount' => 0,
+            'dealers' => 0,
+            'customers' => 0,
+        ];
+
+        if ($request->filled('charge_id')) {
+            $selectedCharge = OtherCharge::with('adUser.ad')
+                ->when($user->role !== 'Admin', function ($query) use ($user) {
+                    $query->where('ad_user_id', $user->id);
+                })
+                ->find($request->charge_id);
+
+            if ($selectedCharge) {
+                $adId = optional($selectedCharge->adUser->ad)->id ?: optional($user->ad)->id;
+
+                if ($adId) {
+                    $transactions = OrderDetail::with(['dealer'])
+                        ->where('ad_id', $adId)
+                        ->where('status', 'Completed')
+                        ->when($selectedCharge->applies_to === 'delivery', function ($query) {
+                            $query->where('delivery_type', 'delivery');
+                        })
+                        ->when($from !== '', function ($query) use ($from) {
+                            $query->whereDate('date', '>=', $from);
+                        })
+                        ->when($to !== '', function ($query) use ($to) {
+                            $query->whereDate('date', '<=', $to);
+                        })
+                        ->when($request->filled('search'), function ($query) use ($request) {
+                            $search = trim((string) $request->search);
+
+                            $query->where(function ($inner) use ($search) {
+                                $inner->where('transaction_id', 'like', '%' . $search . '%')
+                                    ->orWhere('item', 'like', '%' . $search . '%')
+                                    ->orWhere('payment_method', 'like', '%' . $search . '%')
+                                    ->orWhere('guest_name', 'like', '%' . $search . '%')
+                                    ->orWhereHas('dealer', function ($dealerQuery) use ($search) {
+                                        $dealerQuery->where('name', 'like', '%' . $search . '%');
+                                    });
+                            });
+                        })
+                        ->orderBy('date', 'desc')
+                        ->get()
+                        ->map(function ($order) use ($selectedCharge) {
+                            $quantity = (float) ($order->qty ?? 0);
+                            $price = (float) ($order->price ?? 0);
+                            $subtotal = $quantity * $price;
+                            $deliveryFee = (float) ($order->delivery_fee ?? 0);
+                            $chargeAmount = $selectedCharge->charge_type === 'percentage'
+                                ? round($subtotal * ((float) $selectedCharge->amount / 100), 2)
+                                : (float) $selectedCharge->amount;
+                            $total = $subtotal + $deliveryFee + $chargeAmount;
+                            $customerName = $order->guest_name ?: 'Walk-in Customer';
+
+                            return [
+                                'id' => $order->id,
+                                'date' => $order->date ? Carbon::parse($order->date)->format('M d, Y') : optional($order->created_at)->format('M d, Y') ?? 'N/A',
+                                'transaction_id' => $order->transaction_id ?: $order->id,
+                                'dealer' => optional($order->dealer)->name ?: 'N/A',
+                                'customer' => $customerName,
+                                'item' => $order->item ?: 'N/A',
+                                'qty' => $quantity,
+                                'price' => $price,
+                                'subtotal' => $subtotal,
+                                'delivery_fee' => $deliveryFee,
+                                'charge_amount' => $chargeAmount,
+                                'total' => $total,
+                                'payment_method' => strtoupper(str_replace('_', ' ', (string) ($order->payment_method ?? 'Cash'))),
+                            ];
+                        });
+
+                    $transactionSummary = [
+                        'count' => $transactions->count(),
+                        'total_charge' => $transactions->sum('charge_amount'),
+                        'total_amount' => $transactions->sum('total'),
+                        'dealers' => $transactions->pluck('dealer')->filter(function ($dealer) {
+                            return $dealer && $dealer !== 'N/A';
+                        })->unique()->count(),
+                        'customers' => $transactions->pluck('customer')->filter(function ($customer) {
+                            return $customer && $customer !== 'N/A';
+                        })->unique()->count(),
+                    ];
+                }
+            }
+        }
+
+        return view('reports.distributor_other_charges', compact(
+            'charges',
+            'summary',
+            'adUsers',
+            'from',
+            'to',
+            'selectedCharge',
+            'transactions',
+            'transactionSummary'
+        ));
+    }
+
+    private function distributorChargesQuery(Request $request, $user)
+    {
+        return OtherCharge::with('adUser.ad')
+            ->when($user->role !== 'Admin', function ($query) use ($user) {
+                $query->where('ad_user_id', $user->id);
+            })
+            ->when($request->filled('ad_user_id') && $user->role === 'Admin', function ($query) use ($request) {
+                $query->where('ad_user_id', $request->ad_user_id);
+            })
+            ->when($request->filled('status'), function ($query) use ($request) {
+                if ($request->status === 'active') {
+                    $query->where('is_active', 1);
+                } elseif ($request->status === 'inactive') {
+                    $query->where('is_active', 0);
+                }
+            })
+            ->when($request->filled('type'), function ($query) use ($request) {
+                $query->where('charge_type', $request->type);
+            })
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $search = trim($request->search);
+
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('code', 'like', '%' . $search . '%')
+                        ->orWhere('description', 'like', '%' . $search . '%')
+                        ->orWhereHas('adUser', function ($adQuery) use ($search) {
+                            $adQuery->where('name', 'like', '%' . $search . '%')
+                                ->orWhereHas('ad', function ($adProfileQuery) use ($search) {
+                                    $adProfileQuery->where('business_name', 'like', '%' . $search . '%')
+                                        ->orWhere('store_code', 'like', '%' . $search . '%');
+                                });
+                        });
+                });
+            })
+            ->orderBy('ad_user_id')
+            ->orderBy('is_active', 'desc')
+            ->orderBy('name');
+    }
+
+    private function baseDistributorChargesQuery($user)
+    {
+        $query = OtherCharge::query();
+
+        if ($user && in_array($user->role, ['Area Distributor', 'Provincial Distributor'], true)) {
+            $query->where('ad_user_id', $user->id);
+        }
+
+        return $query;
+    }
+
+    private function availableAdUsersForReport($user)
+    {
+        if ($user && in_array($user->role, ['Area Distributor', 'Provincial Distributor'], true)) {
+            return User::with('ad')
+                ->where('id', $user->id)
+                ->get();
+        }
+
+        return User::with('ad')
+            ->whereIn('role', ['Area Distributor', 'Provincial Distributor'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'role']);
+    }
+
     public function repeatPurchaseTransactions(Request $request)
     {
         $this->authorizeSedpReports();
