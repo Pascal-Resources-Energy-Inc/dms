@@ -223,11 +223,17 @@
                             </div>
                             <span class="status-details-badge">Required for SO Created</span>
                         </div>
-                        <div class="row g-3">
+                        <div class="row">
                             <div class="col-md-4">
                                 <div class="status-input-card">
                                     <label class="form-label small fw-bold text-uppercase text-muted">SO Number</label>
                                     <input type="text" name="so_number" id="soNumber" class="form-control form-control-sm" value="{{ old('so_number', $order->so_number) }}" placeholder="Enter SO number" data-uppercase @if(old('status', $order->status) === 'SO Created') required @endif @if($isFinalStatus) readonly @endif>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="status-input-card">
+                                    <label class="form-label small fw-bold text-uppercase text-muted">Payment Date</label>
+                                    <input type="date" name="payment_date" id="paymentDate" class="form-control form-control-sm" value="{{ old('payment_date', optional($order->payment_date)->format('Y-m-d')) }}" @if(old('status', $order->status) === 'SO Created') required @endif @if($isFinalStatus) readonly @endif>
                                 </div>
                             </div>
                         </div>

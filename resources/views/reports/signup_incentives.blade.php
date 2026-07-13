@@ -507,7 +507,7 @@
                 <tbody>
                     @forelse($rows as $row)
                         <tr class="sir-center-row">
-                            <td>{{ $row['center'] }}</td>
+                            <td rowspan="{{ count($row['people']) + 1 }}">{{ $row['center'] }}</td>
                             <td></td>
                             <td></td>
                             @foreach(array_keys($months) as $month)
@@ -528,7 +528,6 @@
 
                         @forelse($row['people'] as $person)
                             <tr class="sir-person-row">
-                                <td></td>
                                 <td>{{ $person['designation'] }}</td>
                                 <td>{{ $person['name'] }}</td>
                                 @foreach(array_keys($months) as $month)
@@ -538,7 +537,6 @@
                             </tr>
                         @empty
                             <tr class="sir-person-row">
-                                <td></td>
                                 <td colspan="2" class="sir-label">No SEDP CDW/CDW2/SPOM assigned to this center</td>
                                 @foreach(array_keys($months) as $month)
                                     <td class="sir-number">-</td>

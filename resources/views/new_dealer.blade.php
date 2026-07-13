@@ -1,3 +1,8 @@
+@php
+    $dealerAreaOptions = collect($areas ?? []);
+    $selectedDealerArea = old('area', $dealerAreaOptions->count() === 1 ? optional($dealerAreaOptions->first())->name : '');
+@endphp
+
 <div id="new_dealer" class="modal fade modal-select2" tabindex="-1">
   <div class="modal-dialog modal-xl">
     <div class="modal-content">
@@ -98,9 +103,10 @@
 
               <select class="form-select select2 select2-area" id="area" name="area" required data-placeholder="Select Area" data-select2-theme="bootstrap-5">
                 <option value="">Select Area</option>
-                @foreach($areas ?? [] as $area)
+                @foreach($dealerAreaOptions as $area)
                   <option value="{{ $area->name }}"
-                      data-user="{{ $area->areaAd->distributor->name ?? 'No User' }}">
+                      data-user="{{ $area->areaAd->distributor->name ?? 'No User' }}"
+                      {{ $selectedDealerArea === $area->name ? 'selected' : '' }}>
                       {{ $area->name }}
                   </option>
                 @endforeach

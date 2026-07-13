@@ -599,13 +599,26 @@ class AreaDistributorController extends Controller
     public function myDealer(Request $request)
     {
         $user = auth()->user();
+        $user->loadMissing('ad.areas.distributor');
 
-        // $centers = $user->ad->areas->pluck('area_name')->toArray();
-        $areas = optional($user->ad)
-            ->areas
-            ? $user->ad->areas->pluck('area_name')->toArray()
-            : [];
+        $assignedAreaAds = $user->ad
+            ? $user->ad->areas
+                ->filter(function ($area) {
+                    return filled($area->area_name);
+                })
+                ->unique('area_name')
+                ->values()
+            : collect();
 
+        $areaNames = $assignedAreaAds->pluck('area_name')->values()->toArray();
+        $areaOptions = $assignedAreaAds->map(function ($areaAd) {
+            return (object) [
+                'name' => $areaAd->area_name,
+                'areaAd' => $areaAd,
+            ];
+        });
+        $centers = Center::whereIn('name', $areaNames)->orderBy('name')->get();
+        
         $adUser = optional(auth()->user()->ad)->id;
         $pendingOrdersCount = OrderDetail::where('ad_id', $adUser)
             ->where('status', 'Pending')
@@ -620,7 +633,7 @@ class AreaDistributorController extends Controller
                 $q->select('dealer_id', 'item', \DB::raw('SUM(qty) as total_qty'))
                 ->groupBy('dealer_id', 'item');
             }
-        ])->whereIn('area', $areas)->get()->toBase();
+        ])->whereIn('area', $areaNames)->get()->toBase();
         $localDealers = $localDealers->map(function ($dealer) {
             $dealer->stock_qty = (float) $dealer->orders->sum('total_qty');
             $dealer->sold_qty = (float) $dealer->sales->sum('total_qty');
@@ -628,7 +641,7 @@ class AreaDistributorController extends Controller
             return $dealer;
         });
 
-        $crmDealers = $this->adCrmDealers($areas);
+        $crmDealers = $this->adCrmDealers($areaNames);
         $dealers = $localDealers
             ->merge($crmDealers)
             ->sortBy('name')
@@ -657,9 +670,96 @@ class AreaDistributorController extends Controller
         return view('dealers', [
             'dealers' => $dealers,
             'items' => $items,
+            'centers' => $centers,
+            'areas' => $areaOptions,
             'activeDealers' => $activeDealers,
             'inactiveDealers' => $inactiveDealers,
             'pendingOrdersCount' => $pendingOrdersCount
+        ]);
+    }
+
+    public function myMegaDealer(Request $request)
+    {
+        $user = auth()->user();
+        $user->loadMissing('ad.areas.distributor');
+
+        $assignedAreaAds = $user->ad
+            ? $user->ad->areas
+                ->filter(function ($area) {
+                    return filled($area->area_name);
+                })
+                ->unique('area_name')
+                ->values()
+            : collect();
+
+        $areaNames = $assignedAreaAds->pluck('area_name')->values()->toArray();
+        $areaOptions = $assignedAreaAds->map(function ($areaAd) {
+            return (object) [
+                'name' => $areaAd->area_name,
+                'areaAd' => $areaAd,
+            ];
+        });
+        $centers = Center::whereIn('name', $areaNames)->orderBy('name')->get();
+
+        $dealers = Dealer::with([
+            'user',
+            'orders' => function ($q) {
+                $q->where('status', 'Completed')
+                    ->select('dealer_id', 'item', \DB::raw('SUM(qty) as total_qty'))
+                    ->groupBy('dealer_id', 'item');
+            },
+            'sales' => function ($q) {
+                $q->select('dealer_id', 'item', \DB::raw('SUM(qty) as total_qty'))
+                    ->groupBy('dealer_id', 'item');
+            },
+        ])
+            ->whereIn('area', $areaNames)
+            ->whereHas('user', function ($q) {
+                $q->where('role', 'Mega Dealer');
+            })
+            ->get()
+            ->map(function ($dealer) {
+                $dealer->stock_qty = (float) $dealer->orders->sum('total_qty');
+                $dealer->sold_qty = (float) $dealer->sales->sum('total_qty');
+
+                return $dealer;
+            })
+            ->sortBy('name')
+            ->values();
+
+        $items = Product::select('product_name')
+            ->where('ad_user_id', $user->id)
+            ->where('status', 'Activate')
+            ->get()
+            ->toBase()
+            ->filter(function ($item) {
+                return !empty($item->product_name);
+            })
+            ->unique(function ($item) {
+                return strtolower(trim((string) $item->product_name));
+            })
+            ->sortBy('product_name')
+            ->values();
+
+        $activeDealers = $dealers->filter(function ($dealer) {
+            return strcasecmp((string) $dealer->status, 'Active') === 0;
+        })->count();
+
+        $inactiveDealers = $dealers->filter(function ($dealer) {
+            return strcasecmp((string) $dealer->status, 'Inactive') === 0;
+        })->count();
+
+        return view('dealers', [
+            'dealers' => $dealers,
+            'items' => $items,
+            'centers' => $centers,
+            'areas' => $areaOptions,
+            'activeDealers' => $activeDealers,
+            'inactiveDealers' => $inactiveDealers,
+            'dealerPageTitle' => 'Mega Dealers',
+            'dealerSingularTitle' => 'Mega Dealer',
+            'dealerRouteName' => 'md-ads',
+            'canCreateDealer' => false,
         ]);
     }
 

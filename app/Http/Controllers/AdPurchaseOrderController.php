@@ -577,6 +577,7 @@ class AdPurchaseOrderController extends Controller
             'payment_method' => 'sometimes|required|in:voucher,cash,gcash,bank_transfer,credit',
             'proof_of_payment' => (auth()->user()->role === 'Area Distributor' || $order->proof_of_payment ? 'nullable' : 'required') . '|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'so_number' => 'nullable|required_if:status,SO Created|string|max:255',
+            'payment_date' => 'nullable|required_if:status,SO Created|date',
             'delivery_date' => 'nullable|required_if:status,For Delivery|date',
             'dr_number' => 'nullable|required_if:status,For Delivery|string|max:255',
             'si_number' => 'nullable|required_if:status,For Delivery|string|max:255',
@@ -908,6 +909,10 @@ class AdPurchaseOrderController extends Controller
 
             if ($request->has('so_number')) {
                 $order->so_number = $request->so_number;
+            }
+
+            if ($request->has('payment_date')) {
+                $order->payment_date = $request->payment_date;
             }
 
             if ($request->has('delivery_date')) {
