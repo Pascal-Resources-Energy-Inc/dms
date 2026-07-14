@@ -1733,6 +1733,19 @@
                         </div>
                     </div>
                     @endif
+                    <div class="nav-item">
+                        <a href="{{url('/stock-requests')}}" class="nav-link @if(Route::currentRouteName() == 'admin.stock.requests')active @endif">
+                            <div class="nav-icon position-relative">
+                                <i class="ti ti-checkbox"></i>
+                                @if(($pendingStockRequestsCount ?? 0) > 0)
+                                    <span class="badge rounded-pill bg-danger nav-badge">
+                                        {{ $pendingStockRequestsCount > 99 ? '99+' : $pendingStockRequestsCount }}
+                                    </span>
+                                @endif
+                            </div>
+                            <span class="nav-text">Stock Request Approvals</span>
+                        </a>
+                    </div>
                     @if($canAccessAnyReports)
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), $visibleReportRoutes) ? 'true' : 'false' }}">
