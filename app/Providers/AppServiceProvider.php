@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\DealerStockRequest;
 use App\OrderDetail;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
     {
         View::composer('layouts.header', function ($view) {
             $pendingOrdersCount = 0;
+            $pendingStockRequestsCount = 0;
 
             if (auth()->check()) {
                 $user = auth()->user();
@@ -47,9 +49,16 @@ class AppServiceProvider extends ServiceProvider
                         $pendingOrdersCount += $this->remotePendingOrdersCount($connection, $adId);
                     }
                 }
+
+                if ($user->role === 'Admin') {
+                    $pendingStockRequestsCount = DealerStockRequest::where('status', 'Pending')->count();
+                }
             }
 
-            $view->with('pendingOrdersCount', $pendingOrdersCount);
+            $view->with([
+                'pendingOrdersCount' => $pendingOrdersCount,
+                'pendingStockRequestsCount' => $pendingStockRequestsCount,
+            ]);
         });
     }
 
