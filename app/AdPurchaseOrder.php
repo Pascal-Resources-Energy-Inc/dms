@@ -42,6 +42,7 @@ class AdPurchaseOrder extends Model implements Auditable
         'withholding_tax',
         'status',
         'remarks',
+        'is_on_hold',
         'submitted_at',
         'created_by',
     ];

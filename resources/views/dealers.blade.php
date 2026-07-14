@@ -703,12 +703,13 @@
                                                 <i class="ti ti-eye"></i>
                                             </a>
                                         @else
-                                            <button type="button"
+                                            {{-- <button type="button"
                                                 class="dealer-action-btn js-view-dealer"
                                                 title="View dealer"
                                                 data-dealer="{{ e(json_encode($dealerInfo)) }}">
                                                 <i class="ti ti-eye"></i>
-                                            </button>
+                                            </button> --}}
+                                            <a href="view-dealer/{{$dealer->id}}" class="dealer-link dealer-action-btn"><i class="ti ti-eye"></i></a>
                                         @endif
                                     </td>
                                 </tr>
