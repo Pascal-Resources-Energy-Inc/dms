@@ -205,6 +205,11 @@ Route::post('/check-mothers-name', 'UserController@checkMothersName')->name('che
 Route::post('/check-user-duplicate', 'UserController@checkDuplicate')->name('check.user.duplicate');
 Route::post('/get-zipcode', [UserController::class, 'getZipCode'])->name('get.zipcode');
 
+Route::get('/stock-requests', 'DealerStockRequestController@adminIndex')->name('admin.stock.requests');
+Route::post('/stock-requests', 'DealerStockRequestController@store')->name('dealer.stock.requests.store');
+Route::post('/stock-requests/{id}/approve', 'DealerStockRequestController@approve')->name('admin.stock.requests.approve');
+Route::post('/stock-requests/{id}/reject', 'DealerStockRequestController@reject')->name('admin.stock.requests.reject');
+
 // Reports
 Route::get('/reports/daily-sales', 'ReportController@dailySalesReport')->name('dsr');
 Route::get('/reports/daily-sales/export', 'ReportController@exportDailySales')->name('reports.daily.export');

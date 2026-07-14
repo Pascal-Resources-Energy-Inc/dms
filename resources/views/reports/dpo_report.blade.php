@@ -26,6 +26,15 @@
     .dpo-table tbody tr:last-child td { border-bottom: 0; }
     .dpo-ref, .dpo-doc { color: #101828; font-weight: 900; white-space: nowrap; }
     .dpo-sub { display: block; margin-top: 2px; color: #667085; font-size: 11px; font-weight: 700; }
+    .dpo-item-ratio { display: grid; gap: 2px; justify-items: center; }
+    .dpo-item-ratio strong { font-size: 14px; }
+    .dpo-item-ratio span { color: #667085; font-size: 11px; font-weight: 700; text-transform: capitalize; }
+    .dpo-counting-days { display: inline-flex; align-items: center; gap: 8px; font-weight: 900; }
+    .dpo-counting-days.ongoing { color: #b45309; }
+    .dpo-counting-days.complete { color: #047857; }
+    .dpo-counting-status { color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .dpo-progress { width: 100%; max-width: 140px; height: 10px; background: rgba(15, 23, 42, 0.08); border-radius: 999px; overflow: hidden; margin-top: 4px; }
+    .dpo-progress-bar { height: 100%; background: #22c55e; border-radius: 999px 0 0 999px; transition: width 0.2s ease; }
     .dpo-status { display: inline-flex; align-items: center; justify-content: center; min-width: 100px; border-radius: 999px; padding: 6px 10px; font-size: 11px; font-weight: 900; white-space: nowrap; }
     .dpo-status.pending { background: #fff7ed; color: #c2410c; }
     .dpo-status.for-delivery, .dpo-status.so-created { background: #eff6ff; color: #1d4ed8; }
@@ -128,8 +137,9 @@
                         <th>SO Number</th>
                         <th>Latest Date</th>
                         <th>Business</th>
-                        <th class="text-center">DPOs</th>
-                        <th class="text-center">Documents</th>
+                        {{-- <th class="text-center">DPOs</th> --}}
+                        <th class="text-center">Items Received / Total</th>
+                        <th>Days to Full Receipt</th>
                         <th class="text-end">Total Qty</th>
                         <th class="text-end">Total Amount</th>
                         <th>Status</th>
@@ -148,8 +158,40 @@
                             </td>
                             <td><span class="dpo-doc">{{ optional($row->latest_date)->format('M d, Y') ?: 'N/A' }}</span></td>
                             <td>{{ $row->business_name ?: 'N/A' }}</td>
-                            <td class="text-center">{{ number_format($row->order_count) }}</td>
-                            <td class="text-center">{{ number_format($row->document_count) }}</td>
+                            {{-- <td class="text-center">{{ number_format($row->order_count) }}</td> --}}
+                            <td class="text-center">
+                                @if(isset($row->item_count) && $row->item_count > 0)
+                                    @php
+                                        $receiptProgress = $row->item_count > 0
+                                            ? min(100, max(0, round(($row->fully_received_item_count / $row->item_count) * 100)))
+                                            : 0;
+                                    @endphp
+                                    <div class="dpo-item-ratio" title="{{ number_format($row->fully_received_item_count) }} of {{ number_format($row->item_count) }} items fully received">
+                                        <strong>{{ number_format($row->fully_received_item_count) }} / {{ number_format($row->item_count) }}</strong>
+                                        <div class="dpo-progress">
+                                            <div class="dpo-progress-bar" style="width: {{ $receiptProgress }}%;"></div>
+                                        </div>
+                                        <span>{{ $receiptProgress }}% received</span>
+                                    </div>
+                                @else
+                                    <span class="dpo-doc">N/A</span>
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                @if(isset($row->counting_days) && $row->counting_days !== null)
+                                    <div class="dpo-counting-days {{ $row->counting_status ?? 'ongoing' }}">
+                                        {{ number_format($row->counting_days) }} day(s)
+                                        @if(isset($row->counting_status) && $row->counting_status === 'ongoing')
+                                            <span class="dpo-counting-status">ongoing</span>
+                                        @elseif(isset($row->counting_status) && $row->counting_status === 'complete')
+                                            <span class="dpo-counting-status">completed</span>
+                                        @endif
+                                    </div>
+                                @else
+                                    <span class="dpo-doc">N/A</span>
+                                @endif
+                            </td>
+                            
                             <td class="text-end">{{ number_format($row->total_qty) }}</td>
                             <td class="text-end"><span class="dpo-doc">PHP {{ number_format($row->total_amount, 2) }}</span></td>
                             <td>
@@ -238,12 +280,28 @@
                 modalTitle.textContent = history.so_number
                     ? 'SO History - ' + history.so_number
                     : 'Sales Order History';
-                modalMeta.textContent = [
+                const modalMetaParts = [
                     history.business_name || 'N/A',
                     numberFormat(history.order_count) + ' DPO(s)',
                     numberFormat(history.total_qty) + ' total qty',
-                    'PHP ' + numberFormat(history.total_amount, 2)
-                ].join(' | ');
+                    'PHP ' + numberFormat(history.total_amount, 2),
+                ];
+
+                if (typeof history.item_count === 'number') {
+                    modalMetaParts.push(numberFormat(history.fully_received_item_count) + ' / ' + numberFormat(history.item_count) + ' items fully received');
+                }
+
+                if (typeof history.counting_days === 'number') {
+                    var countingLabel = numberFormat(history.counting_days) + ' day(s)';
+                    if (history.counting_status === 'ongoing') {
+                        countingLabel += ' (ongoing)';
+                    } else if (history.counting_status === 'complete') {
+                        countingLabel += ' (completed)';
+                    }
+                    modalMetaParts.push(countingLabel);
+                }
+
+                modalMeta.textContent = modalMetaParts.join(' | ');
 
                 if (!orders.length) {
                     historyWrap.innerHTML = '<div class="dpo-history-empty">No order history found for this SO Number.</div>';

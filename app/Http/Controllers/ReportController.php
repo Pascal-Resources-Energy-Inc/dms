@@ -1397,6 +1397,44 @@ class ReportController extends Controller
                 return optional($order->submitted_at ?: $order->created_at)->timestamp ?: 0;
             })->first();
 
+            $paymentDate = $soOrders->pluck('payment_date')->filter()->sort()->first();
+            $itemCount = $soOrders->sum(function ($order) {
+                return $order->items->count();
+            });
+            $fullyReceivedItemCount = $soOrders->sum(function ($order) {
+                return $order->items->filter(function ($item) {
+                    return $this->isFullyReceivedItem($item);
+                })->count();
+            });
+            $fullyReceivedDates = $soOrders->flatMap(function ($order) {
+                return $order->items;
+            })->map(function ($item) {
+                return $this->itemFullyReceivedDate($item);
+            })->filter();
+
+            $countingDays = null;
+            $countingStatus = null;
+
+            if ($paymentDate && $itemCount > 0) {
+                $startDate = Carbon::parse($paymentDate);
+                $endDate = null;
+                $isComplete = $fullyReceivedItemCount === $itemCount;
+
+                if ($isComplete && $fullyReceivedDates->count()) {
+                    $endDate = $fullyReceivedDates->max();
+                    $countingStatus = 'complete';
+                } else {
+                    $endDate = Carbon::now();
+                    $countingStatus = 'ongoing';
+                }
+
+                if ($endDate instanceof \Carbon\Carbon) {
+                    $countingDays = $startDate->greaterThan($endDate)
+                        ? 0
+                        : $startDate->diffInDays($endDate);
+                }
+            }
+
             return (object) [
                 'so_key' => $soNumber,
                 'so_number' => $soNumber,
@@ -1406,6 +1444,10 @@ class ReportController extends Controller
                 'document_count' => $soOrders->sum(function ($order) {
                     return 1 + $order->partialReceipts->count();
                 }),
+                'item_count' => $itemCount,
+                'fully_received_item_count' => $fullyReceivedItemCount,
+                'counting_days' => $countingDays,
+                'counting_status' => $countingStatus,
                 'total_qty' => (int) $soOrders->sum('total_qty'),
                 'total_amount' => (float) $soOrders->sum('total_amount'),
                 'status' => $latestOrder->status,
@@ -1420,6 +1462,44 @@ class ReportController extends Controller
                 return optional($order->submitted_at ?: $order->created_at)->timestamp ?: 0;
             })->values();
 
+            $paymentDate = $soOrders->pluck('payment_date')->filter()->sort()->first();
+            $itemCount = $soOrders->sum(function ($order) {
+                return $order->items->count();
+            });
+            $fullyReceivedItemCount = $soOrders->sum(function ($order) {
+                return $order->items->filter(function ($item) {
+                    return $this->isFullyReceivedItem($item);
+                })->count();
+            });
+            $fullyReceivedDates = $soOrders->flatMap(function ($order) {
+                return $order->items;
+            })->map(function ($item) {
+                return $this->itemFullyReceivedDate($item);
+            })->filter();
+
+            $countingDays = null;
+            $countingStatus = null;
+
+            if ($paymentDate && $itemCount > 0) {
+                $startDate = Carbon::parse($paymentDate);
+                $endDate = null;
+                $isComplete = $fullyReceivedItemCount === $itemCount;
+
+                if ($isComplete && $fullyReceivedDates->count()) {
+                    $endDate = $fullyReceivedDates->max();
+                    $countingStatus = 'complete';
+                } else {
+                    $endDate = Carbon::now();
+                    $countingStatus = 'ongoing';
+                }
+
+                if ($endDate instanceof \Carbon\Carbon) {
+                    $countingDays = $startDate->greaterThan($endDate)
+                        ? 0
+                        : $startDate->diffInDays($endDate);
+                }
+            }
+
             return [
                 $soNumber => [
                     'so_number' => $soNumber,
@@ -1427,6 +1507,16 @@ class ReportController extends Controller
                     'order_count' => $soOrders->count(),
                     'total_qty' => (int) $soOrders->sum('total_qty'),
                     'total_amount' => (float) $soOrders->sum('total_amount'),
+                    'item_count' => $soOrders->sum(function ($order) {
+                        return $order->items->count();
+                    }),
+                    'fully_received_item_count' => $soOrders->sum(function ($order) {
+                        return $order->items->filter(function ($item) {
+                            return $this->isFullyReceivedItem($item);
+                        })->count();
+                    }),
+                    'counting_days' => $countingDays,
+                    'counting_status' => $countingStatus,
                     'orders' => $sortedOrders->map($buildOrderHistory)->values(),
                 ],
             ];
@@ -1442,6 +1532,46 @@ class ReportController extends Controller
         ];
 
         return view('reports.dpo_report', compact('orders', 'rows', 'from', 'to', 'statusOptions', 'summary', 'itemHistories'));
+    }
+
+    private function isFullyReceivedItem($item)
+    {
+        $qty = max(0, (int) $item->qty);
+        $receivedQty = min($qty, max((int) ($item->partial_received_qty ?? 0), (int) $item->partialReceipts->sum('received_qty')));
+        $confirmedQty = min($qty, (int) $item->partialReceipts->sum('confirmed_qty'));
+
+        return $qty > 0 && max($receivedQty, $confirmedQty) >= $qty;
+    }
+
+    private function itemFullyReceivedDate($item)
+    {
+        $qty = max(0, (int) $item->qty);
+
+        if ($qty <= 0) {
+            return null;
+        }
+
+        $cumulativeReceived = 0;
+        $cumulativeConfirmed = 0;
+        $receipts = $item->partialReceipts->sortBy(function ($receipt) {
+            return optional($receipt->delivery_date)->timestamp ?: optional($receipt->confirmed_at)->timestamp ?: $receipt->id;
+        });
+
+        foreach ($receipts as $receipt) {
+            $cumulativeReceived += (int) $receipt->received_qty;
+            $cumulativeConfirmed += (int) $receipt->confirmed_qty;
+
+            if (max(min($qty, $cumulativeReceived), min($qty, $cumulativeConfirmed)) >= $qty) {
+                $completeDate = $receipt->delivery_date ?: $receipt->confirmed_at;
+                return $completeDate ? Carbon::parse($completeDate) : null;
+            }
+        }
+
+        if ((int) ($item->partial_received_qty ?? 0) >= $qty) {
+            return $item->partial_delivery_date ? Carbon::parse($item->partial_delivery_date) : null;
+        }
+
+        return null;
     }
 
     public function dailySalesReport(Request $request)

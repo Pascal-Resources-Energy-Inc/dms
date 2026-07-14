@@ -247,15 +247,29 @@ class OrderController extends Controller
             ->where('status', 'Activate')
             ->orderBy('product_name')
             ->get();
-        $authorizedTerritories = Schema::hasTable('ad_areas')
-            ? DB::table('ad_areas')
+
+        $user = auth()->user();
+        $authorizedTerritories = collect();
+
+        if ($user && $user->role !== 'Admin' && optional($user->ad)->exists()) {
+            $authorizedTerritories = optional($user->ad)->areas
+                ->pluck('area_name')
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values();
+        }
+
+        if ($authorizedTerritories->isEmpty() && Schema::hasTable('ad_areas')) {
+            $authorizedTerritories = DB::table('ad_areas')
                 ->whereNull('deleted_at')
                 ->whereNotNull('area_name')
                 ->where('area_name', '<>', '')
                 ->distinct()
                 ->orderBy('area_name')
-                ->pluck('area_name')
-            : collect();
+                ->pluck('area_name');
+        }
+
         $prefillClient = null;
 
         if ($request->filled('client_id')) {

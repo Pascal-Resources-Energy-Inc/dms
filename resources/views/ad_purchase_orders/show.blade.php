@@ -23,6 +23,8 @@
     .update-proof-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .update-action-card { width: 100%; height: 100%; display: flex; align-items: flex-end; }
     .update-action-card .btn { min-height: 38px; font-weight: 800; }
+    .form-check-inline { margin-bottom: 0; }
+    .form-check-input { cursor: pointer; width: 18px; height: 18px; border-radius: 4px; margin-top: 2px; }
     .status-details { display: none; padding: 16px; border: 1px solid #dbe4f0; border-radius: 8px; background: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, .06); }
     .status-details.is-visible { display: block; }
     .status-details-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #eef2f7; }
@@ -195,6 +197,23 @@
                             </div>
                         </div>
                     </div>
+                    @if($order->payment_date)
+                        <div class="col-md-2">
+                            <div class="update-field-card">
+                                <label class="update-field-label">
+                                    <i class="bi bi-pause-circle"></i>
+                                    Order Hold
+                                </label>
+                                <div class="form-check form-check-inline w-100">
+                                    <input type="checkbox" name="is_on_hold" id="isOnHold" class="form-check-input" value="1" @if(old('is_on_hold', $order->is_on_hold)) checked @endif @if($isFinalStatus) disabled @endif>
+                                    <label class="form-check-label small" for="isOnHold">Place on hold</label>
+                                </div>
+                                @if($order->is_on_hold)
+                                    <small class="d-block text-warning mt-2"><i class="bi bi-exclamation-triangle"></i> On Hold</small>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
                     @if(!$isFinalStatus)
                         <div class="col-md-2 d-grid">
                             <div class="update-action-card">

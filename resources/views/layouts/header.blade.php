@@ -2850,6 +2850,7 @@
             }, 5000);
         });
     </script>
-    
+
+    @yield('js')
 </body>
 </html>

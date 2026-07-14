@@ -410,10 +410,12 @@
                 <i class="fas fa-camera"></i>
                 <span class="sr-only">Upload Avatar</span>
               </button>
-              <button type="button" class="btn btn-warning dealer-icon-btn" data-toggle="modal" data-target="#editDealerModal" data-bs-toggle="modal" data-bs-target="#editDealerModal" title="Edit Dealer">
-                <i class="fas fa-edit"></i>
-                <span class="sr-only">Edit Dealer</span>
-              </button>
+              @if(($canEditDealer ?? false) || auth()->user()->role == 'Admin')
+                <button type="button" class="btn btn-warning dealer-icon-btn" data-toggle="modal" data-target="#editDealerModal" data-bs-toggle="modal" data-bs-target="#editDealerModal" title="Edit Dealer">
+                  <i class="fas fa-edit"></i>
+                  <span class="sr-only">Edit Dealer</span>
+                </button>
+              @endif
             </div>
           @endunless
 

@@ -5,6 +5,7 @@ use RealRashid\SweetAlert\Facades\Alert;
 use App\User;
 use App\Dealer;
 use App\Center;
+use App\AreaDistributor;
 use App\TransactionDetail;
 use App\Item;
 use App\Area;
@@ -380,6 +381,68 @@ class DealerController extends Controller
         return view('dashboard-dealer');
     }
 
+    public function canManageDealerForAuthUser($dealer, $user = null)
+    {
+        $user = $user ?: auth()->user();
+
+        if (!$user) {
+            return false;
+        }
+
+        if (strtolower((string) $user->role) === 'admin') {
+            return true;
+        }
+
+        if (strtolower((string) $user->role) !== 'area distributor') {
+            return false;
+        }
+
+        $dealer = $dealer instanceof Dealer ? $dealer : Dealer::find($dealer);
+
+        if (!$dealer) {
+            return false;
+        }
+
+        if (strcasecmp((string) $dealer->dealer_type, 'Regular') !== 0) {
+            return false;
+        }
+
+        $ad = $user->relationLoaded('ad') ? $user->getRelation('ad') : $user->ad;
+
+        if (!$ad) {
+            return false;
+        }
+
+        $assignedAreas = $ad->relationLoaded('areas')
+            ? $ad->getRelation('areas')
+            : ($ad->areas ?? collect());
+
+        if (!$assignedAreas instanceof \Illuminate\Support\Collection && !$assignedAreas instanceof \Illuminate\Database\Eloquent\Collection) {
+            $assignedAreas = collect($assignedAreas);
+        }
+
+        $areaNames = $assignedAreas
+            ->filter(function ($area) {
+                return filled(optional($area)->area_name);
+            })
+            ->pluck('area_name')
+            ->map(function ($areaName) {
+                return trim((string) $areaName);
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($areaNames)) {
+            return false;
+        }
+
+        $dealerArea = trim((string) ($dealer->area ?? ''));
+
+        return in_array($dealerArea, $areaNames, true);
+    }
+
     public function newDealer(Request $request)
     {
         $dealerType = 'Regular';
@@ -495,6 +558,12 @@ class DealerController extends Controller
     public function view(Request $request,$id)
     {
         $dealer = Dealer::with('user')->findOrfail($id);
+        $user = auth()->user();
+
+        if ($user && strtolower((string) $user->role) === 'area distributor' && !$this->canManageDealerForAuthUser($dealer, $user)) {
+            abort(403, 'You are not authorized to view this dealer.');
+        }
+
         $transactionQuery = TransactionDetail::where('dealer_id',$dealer->user_id);
         $transactionRows = (clone $transactionQuery)->get();
         $transactionStats = [
@@ -516,6 +585,7 @@ class DealerController extends Controller
                 'transactionStats' => $transactionStats,
                 'centers' => $centers,
                 'areas' => $areas,
+                'canEditDealer' => $this->canManageDealerForAuthUser($dealer, $user),
             )
         );
     }
@@ -618,7 +688,14 @@ class DealerController extends Controller
     public function update(Request $request, $id)
     {
         $dealer = Dealer::findOrFail($id);
-        $isAdmin = auth()->user()->role === 'Admin';
+        $user = auth()->user();
+        $isAdmin = $user && $user->role === 'Admin';
+
+        if (!$this->canManageDealerForAuthUser($dealer, $user)) {
+            Alert::error('Unauthorized', 'You are not authorized to update this dealer.');
+
+            return redirect()->back();
+        }
         $existingDealerType = Schema::hasColumn('dealers', 'dealer_type')
             ? ($dealer->dealer_type ?: 'Project')
             : 'Project';

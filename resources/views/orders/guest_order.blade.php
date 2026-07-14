@@ -36,6 +36,7 @@
     .guest-label { margin-bottom: 6px; color: #344054; font-size: 12px; font-weight: 800; }
     .guest-panel .form-control, .guest-panel .form-select { min-height: 42px; border-color: #d0d5dd; border-radius: 8px; }
     .guest-panel .form-control:focus, .guest-panel .form-select:focus { border-color: var(--gl-red); box-shadow: 0 0 0 3px rgba(193, 18, 31, .1); }
+    .guest-readonly-field { min-height: 42px; display: flex; align-items: center; padding: 10px 14px; border: 1px solid #d0d5dd; border-radius: 8px; background: #f8fafc; color: #0f172a; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
 
     .guest-payments { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
     .guest-radio { position: relative; display: flex; align-items: center; justify-content: center; min-height: 42px; padding: 8px; color: #475467; font-size: 12px; font-weight: 800; cursor: pointer; background: var(--gl-soft); border: 1px solid var(--gl-line); border-radius: 8px; }
@@ -184,19 +185,27 @@
                                 </div>
                                 <div class="col-md-6">
                                     @php
-                                        $selectedTerritory = old('guest_authorized_territory');
+                                        $defaultTerritory = old('guest_authorized_territory', $authorizedTerritories->count() === 1 ? $authorizedTerritories->first() : '');
+                                        $hasSingleTerritory = $authorizedTerritories->count() === 1;
                                     @endphp
                                     <label class="guest-label" for="guestAuthorizedTerritory">Authorized Territory</label>
-                                    <select name="guest_authorized_territory" id="guestAuthorizedTerritory" class="form-select {{ $errors->has('guest_authorized_territory') ? 'is-invalid' : '' }}">
-                                        <option value="">Select territory</option>
-                                        @if($selectedTerritory && !$authorizedTerritories->contains($selectedTerritory))
-                                            <option value="{{ $selectedTerritory }}" selected>{{ strtoupper($selectedTerritory) }}</option>
-                                        @endif
-                                        @foreach($authorizedTerritories as $territory)
-                                            <option value="{{ $territory }}" @if($selectedTerritory === $territory) selected @endif>{{ strtoupper($territory) }}</option>
-                                        @endforeach
-                                    </select>
-                                    @if($errors->has('guest_authorized_territory'))<div class="invalid-feedback">{{ $errors->first('guest_authorized_territory') }}</div>@endif
+                                    @if($hasSingleTerritory)
+                                        <div class="guest-readonly-field{{ $errors->has('guest_authorized_territory') ? ' is-invalid' : '' }}">{{ strtoupper($defaultTerritory) }}</div>
+                                        <input type="hidden" name="guest_authorized_territory" value="{{ $defaultTerritory }}">
+                                        <div class="form-text text-muted">Your assigned territory has been pre-filled.</div>
+                                        @if($errors->has('guest_authorized_territory'))<div class="invalid-feedback d-block">{{ $errors->first('guest_authorized_territory') }}</div>@endif
+                                    @else
+                                        <select name="guest_authorized_territory" id="guestAuthorizedTerritory" class="form-select {{ $errors->has('guest_authorized_territory') ? 'is-invalid' : '' }}">
+                                            <option value="">Select territory</option>
+                                            @if($defaultTerritory && !$authorizedTerritories->contains($defaultTerritory))
+                                                <option value="{{ $defaultTerritory }}" selected>{{ strtoupper($defaultTerritory) }}</option>
+                                            @endif
+                                            @foreach($authorizedTerritories as $territory)
+                                                <option value="{{ $territory }}" @if($defaultTerritory === $territory) selected @endif>{{ strtoupper($territory) }}</option>
+                                            @endforeach
+                                        </select>
+                                        @if($errors->has('guest_authorized_territory'))<div class="invalid-feedback">{{ $errors->first('guest_authorized_territory') }}</div>@endif
+                                    @endif
                                 </div>
                                 <div class="col-12">
                                     <label class="guest-label" for="guestNotes">Notes</label>
