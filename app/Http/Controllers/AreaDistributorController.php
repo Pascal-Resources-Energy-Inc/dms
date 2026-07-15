@@ -624,7 +624,7 @@ class AreaDistributorController extends Controller
             ->where('status', 'Pending')
             ->count();
 
-        $localDealers = Dealer::with([
+        $localDealers = Dealer::where('dealer_reference', 'LIKE', 'DL%')->with([
             'orders' => function ($q) {
                 $q->where('status', 'Completed')->select('dealer_id', 'item', \DB::raw('SUM(qty) as total_qty'))
                 ->groupBy('dealer_id', 'item');
@@ -759,7 +759,8 @@ class AreaDistributorController extends Controller
             'dealerPageTitle' => 'Mega Dealers',
             'dealerSingularTitle' => 'Mega Dealer',
             'dealerRouteName' => 'md-ads',
-            'canCreateDealer' => false,
+            'dealerRole' => 'Mega Dealer',
+            'canCreateDealer' => true,
         ]);
     }
 

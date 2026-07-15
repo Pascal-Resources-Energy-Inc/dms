@@ -446,12 +446,28 @@ class DealerController extends Controller
     public function newDealer(Request $request)
     {
         $dealerType = 'Regular';
+        $partnerRole = $request->input('partner_role') === 'Mega Dealer' ? 'Mega Dealer' : 'Dealer';
 
         $request->validate([
             'dealer_type' => 'nullable|in:Regular',
+            'partner_role' => 'nullable|in:Dealer,Mega Dealer',
             'spo' => 'nullable',
             'center' => 'nullable',
         ]);
+
+        if (auth()->user()->role === 'Area Distributor') {
+            $assignedAreas = collect(optional(auth()->user()->ad)->areas)
+                ->pluck('area_name')
+                ->map(function ($area) {
+                    return trim((string) $area);
+                })
+                ->filter()
+                ->all();
+
+            if (!in_array(trim((string) $request->area), $assignedAreas, true)) {
+                abort(403, 'The selected sales territory is not assigned to you.');
+            }
+        }
 
         if ($this->dealerDuplicateExists(
             $request->first_name,
@@ -480,7 +496,7 @@ class DealerController extends Controller
         $user->last_name = $request->last_name;
         $user->mothers_name = $request->mothers_name;
         $user->email = $request->email_address;
-        $user->role = 'Dealer';
+        $user->role = $partnerRole;
         $user->birthdate = $request->birthdate;
         $user->age = $request->age;
         $user->password = bcrypt('12345678');
@@ -488,7 +504,7 @@ class DealerController extends Controller
 
         $dealer = new Dealer;
         $dealer->user_id = $user->id;
-        $dealer->dealer_reference = $this->nextDealerReference($dealerType);
+        $dealer->dealer_reference = $this->nextDealerReference($partnerRole === 'Mega Dealer' ? 'Mega Dealer' : $dealerType);
         $dealer->name = $fullName;
         if (Schema::hasColumn('dealers', 'dealer_type')) {
             $dealer->dealer_type = $dealerType;
@@ -518,7 +534,7 @@ class DealerController extends Controller
         $dealer->save();
         
 
-        Alert::success('Successfully encoded')->persistent('Dismiss');
+        Alert::success($partnerRole . ' successfully encoded')->persistent('Dismiss');
         return redirect('view-dealer/' . $dealer->id);
     }
 
@@ -548,7 +564,7 @@ class DealerController extends Controller
             return false;
         }
 
-        return User::where('role', 'Dealer')
+        return User::whereIn('role', ['Dealer', 'Mega Dealer'])
             ->whereRaw('LOWER(TRIM(first_name)) = ?', [mb_strtolower($firstName)])
             ->whereRaw('LOWER(TRIM(last_name)) = ?', [mb_strtolower($lastName)])
             ->whereRaw('LOWER(TRIM(mothers_name)) = ?', [mb_strtolower($mothersName)])
@@ -758,7 +774,11 @@ class DealerController extends Controller
 
     private function nextDealerReference($dealerType)
     {
-        if (strcasecmp((string) $dealerType, 'Regular') === 0) {
+        if (strcasecmp((string) $dealerType, 'Mega Dealer') === 0) {
+            $year = date('Y');
+            $prefix = 'MD' . $year;
+            $padding = 4;
+        } elseif (strcasecmp((string) $dealerType, 'Regular') === 0) {
             $year = date('Y');
             $prefix = 'DL' . $year;
             $padding = 4;

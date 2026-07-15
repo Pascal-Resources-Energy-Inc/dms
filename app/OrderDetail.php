@@ -28,6 +28,7 @@ class OrderDetail extends Model implements Auditable
         'guest_address',
         'guest_authorized_territory',
         'guest_notes',
+        'remarks',
         'status'
     ];
     public function dealer()

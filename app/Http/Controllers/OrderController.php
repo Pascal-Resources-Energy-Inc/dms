@@ -655,6 +655,10 @@ class OrderController extends Controller
 
         $isRegularDealer = strtolower((string) optional($order->adDealer)->dealer_type) === 'regular';
 
+        $remarksRules = $request->input('status') === 'Cancelled'
+            ? 'required|string|max:1000'
+            : 'nullable|string|max:1000';
+
         $request->validate([
             'qty' => 'required|numeric|min:1',
             'payment_method' => 'required|in:voucher,cash,gcash,credit,bank_transfer',
@@ -663,6 +667,7 @@ class OrderController extends Controller
                 ? 'required|numeric|min:0'
                 : 'nullable|numeric|min:0',
             'status' => 'required|in:Pending,For Verification,For Delivery,Completed,Cancelled',
+            'remarks' => $remarksRules,
         ]);
 
         if ($user->role !== 'Admin' && $request->status !== 'Cancelled') {
@@ -687,6 +692,10 @@ class OrderController extends Controller
         $order->payment_method = $request->payment_method;
         $order->delivery_type = $request->delivery_type;
         $order->status = $request->status;
+
+        if (Schema::hasColumn('order_details', 'remarks')) {
+            $order->remarks = $request->remarks;
+        }
 
         if (Schema::hasColumn('order_details', 'delivery_fee')) {
             $order->delivery_fee = $request->delivery_type === 'delivery' && $isRegularDealer
@@ -716,6 +725,7 @@ class OrderController extends Controller
             'delivery_type' => $order->delivery_type,
             'delivery_fee' => $order->delivery_fee,
             'status' => $order->status,
+            'remarks' => $order->remarks,
             'points_dealer' => $order->points_dealer,
         ]);
     }
@@ -760,12 +770,17 @@ class OrderController extends Controller
             ], 404);
         }
 
+        $remarksRules = $request->input('status') === 'Cancelled'
+            ? 'required|string|max:1000'
+            : 'nullable|string|max:1000';
+
         $request->validate([
             'qty' => 'required|numeric|min:1',
             'payment_method' => 'required|in:voucher,cash,gcash,credit,bank_transfer',
             'delivery_type' => 'required|in:pickup,delivery',
             'delivery_fee' => 'nullable|numeric|min:0',
             'status' => 'required|in:Pending,For Verification,For Delivery,SO Created,Completed,Cancelled',
+            'remarks' => $remarksRules,
         ]);
 
         $updates = [];
@@ -785,6 +800,10 @@ class OrderController extends Controller
             $updates['delivery_fee'] = $request->delivery_type === 'delivery'
                 ? ($request->delivery_fee ?: 0)
                 : null;
+        }
+
+        if ($schema->hasColumn('order_details', 'remarks')) {
+            $updates['remarks'] = $request->remarks;
         }
 
         if ($schema->hasColumn('order_details', 'points_dealer')) {
@@ -812,6 +831,7 @@ class OrderController extends Controller
             'delivery_type' => $updatedOrder->delivery_type ?? $request->delivery_type,
             'delivery_fee' => $updatedOrder->delivery_fee ?? null,
             'status' => $updatedOrder->status ?? $request->status,
+            'remarks' => $updatedOrder->remarks ?? null,
             'points_dealer' => $updatedOrder->points_dealer ?? 0,
         ]);
     }
