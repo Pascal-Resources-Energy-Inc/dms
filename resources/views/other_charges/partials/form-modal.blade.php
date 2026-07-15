@@ -1,21 +1,22 @@
 @php
+    $types = [
+        'charge' => 'Charge',
+        'discount' => 'Discount',
+    ];
     $chargeTypes = [
         'fixed' => 'Fixed Amount',
         'percentage' => 'Percentage',
-        'discount' => 'Discount',
     ];
     $appliesToOptions = [
         'dealer' => 'Dealer',
         'customer' => 'Customer',
-        'ad_purchase_order' => 'AD Purchase Order',
     ];
-    $selectedType = old('charge_type', optional($charge)->charge_type ?? 'fixed');
+    $selectedType = old('type', optional($charge)->type ?? 'charge');
+    $selectedChargeType = old('charge_type', optional($charge)->charge_type ?? 'fixed');
     $selectedAppliesTo = old('applies_to', optional($charge)->applies_to ?? 'order');
     $selectedAdUserId = old('ad_user_id', optional($charge)->ad_user_id ?? optional(auth()->user())->id);
     $isActive = old('is_active', optional($charge)->is_active ?? true);
-    $displayAmount = old('amount', optional($charge)->charge_type === 'discount'
-        ? abs((float) optional($charge)->amount)
-        : optional($charge)->amount);
+    $displayAmount = old('amount', abs((float) optional($charge)->amount));
 @endphp
 
 <div class="modal fade charge-modal" id="{{ $modalId }}" tabindex="-1" aria-labelledby="{{ $modalId }}Label" aria-hidden="true">
@@ -61,17 +62,25 @@
                             @endif
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label" for="{{ $modalId }}Type">Charge Type <span class="text-danger">*</span></label>
-                            <select id="{{ $modalId }}Type" name="charge_type" class="form-select" required data-uppercase>
-                                @foreach($chargeTypes as $value => $label)
+                            <label class="form-label" for="{{ $modalId }}Type">Type <span class="text-danger">*</span></label>
+                            <select id="{{ $modalId }}Type" name="type" class="form-select" required>
+                                @foreach($types as $value => $label)
                                     <option value="{{ $value }}" @if($selectedType === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="{{ $modalId }}ChargeType">Charge Type <span class="text-danger">*</span></label>
+                            <select id="{{ $modalId }}ChargeType" name="charge_type" class="form-select" required>
+                                @foreach($chargeTypes as $value => $label)
+                                    <option value="{{ $value }}" @if($selectedChargeType === $value) selected @endif>{{ $label }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="{{ $modalId }}Amount">Amount <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <span class="input-group-text">PHP / %</span>
+                                <span class="input-group-text" id="{{ $modalId }}AmountUnit">PHP</span>
                                 <input type="number" id="{{ $modalId }}Amount" name="amount" class="form-control" value="{{ $displayAmount }}" min="0" step="0.01" placeholder="0.00" required>
                             </div>
                         </div>
@@ -107,3 +116,29 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var chargeType = document.getElementById(@json($modalId . 'ChargeType'));
+    var amount = document.getElementById(@json($modalId . 'Amount'));
+    var amountUnit = document.getElementById(@json($modalId . 'AmountUnit'));
+
+    function syncAmountField() {
+        var isPercentage = chargeType && chargeType.value === 'percentage';
+        amountUnit.textContent = isPercentage ? '%' : 'PHP';
+
+        if (isPercentage) {
+            amount.setAttribute('max', '100');
+            amount.setAttribute('placeholder', '0.00 - 100.00');
+        } else {
+            amount.removeAttribute('max');
+            amount.setAttribute('placeholder', '0.00');
+        }
+    }
+
+    if (chargeType && amount && amountUnit) {
+        chargeType.addEventListener('change', syncAmountField);
+        syncAmountField();
+    }
+});
+</script>

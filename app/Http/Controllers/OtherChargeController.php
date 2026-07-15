@@ -20,7 +20,7 @@ class OtherChargeController extends Controller
             'active' => (clone $summaryQuery)->where('is_active', 1)->count(),
             'fixed' => (clone $summaryQuery)->where('charge_type', 'fixed')->count(),
             'percentage' => (clone $summaryQuery)->where('charge_type', 'percentage')->count(),
-            'discount' => (clone $summaryQuery)->where('charge_type', 'discount')->count(),
+            'discount' => (clone $summaryQuery)->where('type', 'discount')->count(),
         ];
 
         return view('other_charges.index', compact('charges', 'summary', 'adUsers'));
@@ -68,7 +68,10 @@ class OtherChargeController extends Controller
                 }
             })
             ->when($request->filled('type'), function ($query) use ($request) {
-                $query->where('charge_type', $request->type);
+                $query->where('type', $request->type);
+            })
+            ->when($request->filled('charge_type'), function ($query) use ($request) {
+                $query->where('charge_type', $request->charge_type);
             })
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->search);
@@ -123,6 +126,11 @@ class OtherChargeController extends Controller
     {
         $user = auth()->user();
         $isDistributor = $user && in_array($user->role, ['Area Distributor', 'Provincial Distributor'], true);
+        $amountRules = ['required', 'numeric', 'min:0'];
+
+        if ($request->input('charge_type') === 'percentage') {
+            $amountRules[] = 'max:100';
+        }
 
         $data = $request->validate([
             'ad_user_id' => [
@@ -140,8 +148,9 @@ class OtherChargeController extends Controller
                 Rule::unique('other_charges', 'code')->ignore($ignoreId),
             ],
             'description' => ['nullable', 'string', 'max:1000'],
-            'amount' => ['required', 'numeric', 'min:0'],
-            'charge_type' => ['required', Rule::in(['fixed', 'percentage', 'discount'])],
+            'amount' => $amountRules,
+            'type' => ['required', Rule::in(['charge', 'discount'])],
+            'charge_type' => ['required', Rule::in(['fixed', 'percentage'])],
             'applies_to' => ['required', Rule::in(['order', 'delivery', 'dealer', 'customer', 'ad_purchase_order'])],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -152,7 +161,7 @@ class OtherChargeController extends Controller
 
         $data['code'] = strtoupper(trim($data['code']));
         $data['name'] = trim($data['name']);
-        $data['amount'] = $data['charge_type'] === 'discount'
+        $data['amount'] = $data['type'] === 'discount'
             ? -abs((float) $data['amount'])
             : abs((float) $data['amount']);
         $data['is_active'] = $request->has('is_active');
