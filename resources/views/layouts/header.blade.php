@@ -1387,7 +1387,7 @@
                                     <a href="{{ route('charges') }}" class="nav-link @if(Route::currentRouteName() == 'charges')active @endif" style="font-size: 14px">Charges and Discount</a>
                                 </li>
                                 <li class="nav-item">
-                                    <a href="{{ route('inventory-transfers.index') }}" class="nav-link @if(Route::currentRouteName() == 'inventory-transfers.index') active @endif" style="font-size: 14px">Inventory Transfer</a>
+                                    <a href="{{ route('inventory-transfers.index') }}" class="nav-link @if(Route::currentRouteName() == 'inventory-transfers.index') active @endif" style="font-size: 14px">Inventory Movement</a>
                                 </li>
                             </ul>
                         </div>

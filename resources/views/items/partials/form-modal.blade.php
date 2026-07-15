@@ -83,8 +83,23 @@
                     </div>
 
                     <div>
-                        <label class="form-label">Price <span class="text-danger">*</span></label>
+                        <label class="form-label">SRP Price <span class="text-danger">*</span></label>
                         <input type="number" name="price" class="form-control" value="{{ old('price', $item->price ?? 0) }}" min="0" step="0.01" required>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Dealer Price <span class="text-danger">*</span></label>
+                        <input type="number" name="dealer_price" class="form-control" value="{{ old('dealer_price', $item->dealer_price ?? 0) }}" min="0" step="0.01" required>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Mega Dealer Price <span class="text-danger">*</span></label>
+                        <input type="number" name="md_price" class="form-control" value="{{ old('md_price', $item->md_price ?? 0) }}" min="0" step="0.01" required>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Distributor Price <span class="text-danger">*</span></label>
+                        <input type="number" name="dprice" class="form-control" value="{{ old('dprice', $item->dprice ?? 0) }}" min="0" step="0.01" required>
                     </div>
 
                     <div>

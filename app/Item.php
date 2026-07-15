@@ -24,6 +24,9 @@ class Item extends Model implements Auditable
         'item',
         'item_description',
         'price',
+        'dealer_price',
+        'md_price',
+        'dprice',
         'item_image',
         'dealer_points',
         'customer_points',
@@ -35,6 +38,9 @@ class Item extends Model implements Auditable
 
     protected $casts = [
         'price' => 'decimal:2',
+        'dealer_price' => 'decimal:2',
+        'md_price' => 'decimal:2',
+        'dprice' => 'decimal:2',
         'dealer_points' => 'integer',
         'customer_points' => 'integer',
         'for_ad' => 'boolean',

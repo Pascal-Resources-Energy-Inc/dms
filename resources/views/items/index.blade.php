@@ -150,7 +150,12 @@
                             <div class="item-name">{{ $item->item }}</div>
                             <div class="item-description">{{ \Illuminate\Support\Str::limit($item->item_description, 120) ?: 'No description' }}</div>
                         </td>
-                        <td><span class="item-price">PHP {{ number_format($item->price, 2) }}</span></td>
+                        <td>
+                            <div class="item-price">SRP: PHP {{ number_format($item->price, 2) }}</div>
+                            <div class="small text-muted">Dealer: PHP {{ number_format($item->dealer_price ?? 0, 2) }}</div>
+                            <div class="small text-muted">Mega Dealer: PHP {{ number_format($item->md_price ?? 0, 2) }}</div>
+                            <div class="small text-muted">Distributor: PHP {{ number_format($item->dprice ?? 0, 2) }}</div>
+                        </td>
                         <td>
                             <div class="small text-muted">Dealer: {{ number_format($item->dealer_points ?? 0) }}</div>
                             <div class="small text-muted">Customer: {{ number_format($item->customer_points ?? 0) }}</div>
