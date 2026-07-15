@@ -527,7 +527,7 @@
               @endif
             </div>
 
-            <div class="dealer-doc-card">
+            {{-- <div class="dealer-doc-card">
               <div class="dealer-doc-main">
                 <span class="dealer-doc-icon"><i class="bi bi-file-earmark-text"></i></span>
                 <div>
@@ -546,7 +546,7 @@
                   Sign
                 </button>
               @endif
-            </div>
+            </div> --}}
           </div>
         </div>
       </div>

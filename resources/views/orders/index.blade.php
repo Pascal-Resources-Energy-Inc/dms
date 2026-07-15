@@ -954,6 +954,7 @@ table.dataTable {
                                                 data-payment="{{ $order->payment_method }}"
                                                 data-delivery="{{ $order->delivery_type }}"
                                                 data-delivery-fee="{{ $order->delivery_fee }}"
+                                                data-remarks="{{ $order->remarks }}"
                                                 data-dealer-type="{{ optional($order->adDealer)->dealer_type ?: 'Project' }}"
                                                 @if(empty($order->is_remote) && auth()->user()->role !== 'Admin')
                                                     data-track-stock="1"
@@ -1622,6 +1623,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const deliveryFeeWrapper = document.getElementById('edit-delivery-fee-wrapper');
     const deliveryFeeInput = document.getElementById('edit-delivery-fee');
     const statusSelect = document.getElementById('edit-status');
+    const cancellationRemarksWrapper = document.getElementById('edit-cancellation-remarks-wrapper');
+    const cancellationRemarksInput = document.getElementById('edit-cancellation-remarks');
     const stockPanel = document.getElementById('edit-stock-panel');
     const stockAlert = document.getElementById('edit-stock-alert');
     const stockIcon = document.getElementById('edit-stock-icon');
@@ -1653,6 +1656,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!shouldShowDeliveryFee) {
             deliveryFeeInput.value = '';
+        }
+    }
+
+    function toggleCancellationRemarks() {
+        const isCancelled = statusSelect.value === 'Cancelled';
+
+        cancellationRemarksWrapper.classList.toggle('d-none', !isCancelled);
+        cancellationRemarksInput.required = isCancelled;
+
+        if (!isCancelled) {
+            cancellationRemarksInput.value = '';
         }
     }
 
@@ -1793,6 +1807,7 @@ document.addEventListener('DOMContentLoaded', function () {
             deliverySelect.value = this.dataset.delivery;
             deliveryFeeInput.value = this.dataset.deliveryFee || '';
             statusSelect.value = this.dataset.status;
+            cancellationRemarksInput.value = this.dataset.remarks || '';
             editTracksStock = this.dataset.trackStock === '1';
             editAvailableStock = editTracksStock ? parseFloat(this.dataset.stock || 0) : null;
             editStockLimit = editTracksStock ? parseFloat(this.dataset.editableStock || this.dataset.stock || 0) : null;
@@ -1804,6 +1819,7 @@ document.addEventListener('DOMContentLoaded', function () {
             editOrderSource = this.dataset.source || 'dms_prei';
             editRowId = this.dataset.rowId || ('transaction-row-' + this.dataset.id);
             toggleDeliveryFee();
+            toggleCancellationRemarks();
             refreshEditStockState();
 
             modal.show();
@@ -1812,12 +1828,19 @@ document.addEventListener('DOMContentLoaded', function () {
     deliverySelect.addEventListener('change', toggleDeliveryFee);
     qtyInput.addEventListener('input', refreshEditStockState);
     statusSelect.addEventListener('change', refreshEditStockState);
+    statusSelect.addEventListener('change', toggleCancellationRemarks);
 
     // UPDATE FUNCTION
     updateButton.addEventListener('click', async function () {
 
         if (!refreshEditStockState()) {
             Swal.fire('Out of stock', 'Please reduce the quantity or cancel the order before updating.', 'warning');
+            return;
+        }
+
+        if (statusSelect.value === 'Cancelled' && cancellationRemarksInput.value.trim() === '') {
+            Swal.fire('Remarks required', 'Please provide a reason for cancelling this order.', 'warning');
+            cancellationRemarksInput.focus();
             return;
         }
 
@@ -1829,6 +1852,7 @@ document.addEventListener('DOMContentLoaded', function () {
         formData.append('delivery_type', deliverySelect.value);
         formData.append('delivery_fee', deliveryFeeInput.disabled ? '' : deliveryFeeInput.value);
         formData.append('status', statusSelect.value);
+        formData.append('remarks', cancellationRemarksInput.value.trim());
         formData.append('order_source', editOrderSource);
         formData.append('_method', 'PUT');
 
@@ -1875,6 +1899,7 @@ document.addEventListener('DOMContentLoaded', function () {
             editButton.dataset.delivery = data.delivery_type;
             editButton.dataset.deliveryFee = data.delivery_fee || '';
             editButton.dataset.status = data.status;
+            editButton.dataset.remarks = data.remarks || '';
 
             modal.hide();
 

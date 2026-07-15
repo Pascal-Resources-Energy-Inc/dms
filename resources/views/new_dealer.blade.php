@@ -1,17 +1,19 @@
 @php
     $dealerAreaOptions = collect($areas ?? []);
     $selectedDealerArea = old('area', $dealerAreaOptions->count() === 1 ? optional($dealerAreaOptions->first())->name : '');
+    $partnerRole = $dealerRole ?? 'Dealer';
 @endphp
 
 <div id="new_dealer" class="modal fade modal-select2" tabindex="-1">
   <div class="modal-dialog modal-xl">
     <div class="modal-content">
       <div class="modal-header d-flex align-items-center">
-        <h4 class="modal-title" id="myModalLabel">New Dealer</h4>
+        <h4 class="modal-title" id="myModalLabel">New {{ $partnerRole }}</h4>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form id="newDealerForm" method='POST' action='{{url('new-dealer')}}' data-duplicate-url="{{ route('check.dealer.duplicate') }}" onsubmit='show()' enctype="multipart/form-data">
         @csrf
+        <input type="hidden" name="partner_role" value="{{ $partnerRole }}">
         <input type="hidden" name="latitude" id="hidden_latitude">
         <input type="hidden" name="longitude" id="hidden_longitude">
         <div class="modal-body">

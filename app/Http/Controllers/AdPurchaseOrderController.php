@@ -323,6 +323,12 @@ class AdPurchaseOrderController extends Controller
 
         $territoryOptions = $this->territoryOptions($ad);
 
+        $remarksRules = ['nullable', 'string', 'max:1000'];
+
+        if (in_array($request->input('status'), ['Cancelled', 'Partial Received'], true)) {
+            $remarksRules = ['required', 'string', 'max:1000'];
+        }
+
         $request->validate([
             'phone_number' => 'nullable|string|max:50',
             'email_address' => 'nullable|email|max:255',
@@ -581,7 +587,7 @@ class AdPurchaseOrderController extends Controller
             'delivery_date' => 'nullable|required_if:status,For Delivery|date',
             'dr_number' => 'nullable|required_if:status,For Delivery|string|max:255',
             'si_number' => 'nullable|required_if:status,For Delivery|string|max:255',
-            'remarks' => 'nullable|required_if:status,Cancelled|required_if:status,Partial Received|string',
+            'remarks' => $remarksRules,
             'items' => 'sometimes|array',
             'items.*.qty' => 'required_with:items|integer|min:0',
             'partial_items' => 'sometimes|array',

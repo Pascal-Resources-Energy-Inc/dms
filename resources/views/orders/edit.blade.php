@@ -85,6 +85,12 @@
             <option value="Cancelled">Cancelled</option>
           </select>
         </div>
+
+        <div class="mb-3 d-none" id="edit-cancellation-remarks-wrapper">
+            <label class="form-label" for="edit-cancellation-remarks">Cancellation Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" id="edit-cancellation-remarks" rows="3" maxlength="1000" placeholder="State the reason for cancelling this order."></textarea>
+            <div class="form-text">Remarks are required when the order is cancelled.</div>
+        </div>
       </div>
 
       <div class="modal-footer border-0">
