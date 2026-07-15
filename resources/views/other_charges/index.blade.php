@@ -192,9 +192,16 @@
                     <label class="charges-label" for="chargeType">Type</label>
                     <select id="chargeType" name="type" class="form-select">
                         <option value="">All Types</option>
-                        <option value="fixed" @if(request('type') === 'fixed') selected @endif>Fixed Amount</option>
-                        <option value="percentage" @if(request('type') === 'percentage') selected @endif>Percentage</option>
+                        <option value="charge" @if(request('type') === 'charge') selected @endif>Charge</option>
                         <option value="discount" @if(request('type') === 'discount') selected @endif>Discount</option>
+                    </select>
+                </div>
+                <div class="charges-field">
+                    <label class="charges-label" for="chargeCalculationType">Charge Type</label>
+                    <select id="chargeCalculationType" name="charge_type" class="form-select">
+                        <option value="">All Charge Types</option>
+                        <option value="fixed" @if(request('charge_type') === 'fixed') selected @endif>Fixed Amount</option>
+                        <option value="percentage" @if(request('charge_type') === 'percentage') selected @endif>Percentage</option>
                     </select>
                 </div>
                 <button type="submit" class="btn btn-primary charges-filter-submit"><i class="bi bi-search"></i> Filter</button>
@@ -231,11 +238,11 @@
                         <td>
                             <div class="charge-desc">{{ $charge->description ?: 'No description provided.' }}</div>
                         </td>
-                        <td><span class="charge-amount {{ $charge->charge_type === 'discount' ? 'is-discount' : '' }}">{{ $charge->formattedAmount() }}</span></td>
+                        <td><span class="charge-amount {{ $charge->type === 'discount' ? 'is-discount' : '' }}">{{ $charge->formattedAmount() }}</span></td>
                         <td>
-                            <span class="charge-pill {{ $charge->charge_type }}">
-                                <i class="bi {{ $charge->charge_type === 'percentage' ? 'bi-percent' : ($charge->charge_type === 'discount' ? 'bi-tags' : 'bi-cash') }}"></i>
-                                {{ $charge->typeLabel() }}
+                            <span class="charge-pill {{ $charge->type === 'discount' ? 'discount' : $charge->charge_type }}">
+                                <i class="bi {{ $charge->type === 'discount' ? 'bi-tags' : ($charge->charge_type === 'percentage' ? 'bi-percent' : 'bi-cash') }}"></i>
+                                {{ $charge->typeLabel() }} · {{ $charge->chargeTypeLabel() }}
                             </span>
                         </td>
                         <td><span class="charge-applies">{{ $charge->appliesToLabel() }}</span></td>

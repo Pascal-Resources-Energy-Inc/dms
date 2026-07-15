@@ -15,6 +15,7 @@ class OtherCharge extends Model implements Auditable
         'code',
         'description',
         'amount',
+        'type',
         'charge_type',
         'applies_to',
         'is_active',
@@ -33,15 +34,12 @@ class OtherCharge extends Model implements Auditable
 
     public function typeLabel()
     {
-        if ($this->charge_type === 'percentage') {
-            return 'Percentage';
-        }
+        return $this->type === 'discount' ? 'Discount' : 'Charge';
+    }
 
-        if ($this->charge_type === 'discount') {
-            return 'Discount';
-        }
-
-        return 'Fixed Amount';
+    public function chargeTypeLabel()
+    {
+        return $this->charge_type === 'percentage' ? 'Percentage' : 'Fixed Amount';
     }
 
     public function appliesToLabel()
@@ -51,16 +49,13 @@ class OtherCharge extends Model implements Auditable
 
     public function formattedAmount()
     {
-        if ($this->charge_type === 'percentage') {
-            return rtrim(rtrim(number_format((float) $this->amount, 2), '0'), '.') . '%';
-        }
-
         $amount = (float) $this->amount;
+        $prefix = $this->type === 'discount' ? '-' : '';
 
-        if ($this->charge_type === 'discount') {
-            return '-PHP ' . number_format(abs($amount), 2);
+        if ($this->charge_type === 'percentage') {
+            return $prefix . rtrim(rtrim(number_format(abs($amount), 2), '0'), '.') . '%';
         }
 
-        return 'PHP ' . number_format($amount, 2);
+        return $prefix . 'PHP ' . number_format(abs($amount), 2);
     }
 }

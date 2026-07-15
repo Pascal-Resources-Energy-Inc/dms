@@ -180,7 +180,7 @@
                             <div class="input-group price-input">
                                 <span class="input-group-text">PHP</span>
                                 {{-- <input type="number" class="form-control js-role-price" name="items[{{ $index }}][mega_dealer_price]" value="{{ $megaDealerPrice }}" min="0" step="0.01" placeholder="0.00"> --}}
-                                <input type="number" class="form-control js-role-price" name="items[{{ $index }}][md_price]" value="{{ $megaDealerPrice }}" min="0" step="0.01" placeholder="0.00" readonly>
+                                <input type="number" class="form-control js-role-price" name="items[{{ $index }}][mega_dealer_price]" value="{{ $megaDealerPrice }}" min="0" step="0.01" placeholder="0.00" readonly>
                             </div>
                             <div class="price-note"></div>
                         </td>
