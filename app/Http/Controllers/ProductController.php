@@ -18,6 +18,7 @@ class ProductController extends Controller
             $query->where('for_ad', '!=', 1)
                 ->orWhereNull('for_ad');
         })->orderBy('item')->get();
+        
         $products = Product::with('item')->where('ad_user_id', $user)->get();
         $maxNewProducts = 5;
         $newProductCount = $products->where('is_new', 1)->where('status', 'Activate')->count();
@@ -48,7 +49,7 @@ class ProductController extends Controller
             $query->where('for_ad', '!=', 1)
                 ->orWhereNull('for_ad');
         })->get();
-
+        
         // KEY FIX: index products by item_id
         $productItems = Product::where('ad_user_id', $userId)
             ->get()

@@ -81,7 +81,7 @@
     <div class="dpo-head">
         <div>
             <h4 class="dpo-title">Distributor Purchase Order Report</h4>
-            <p class="dpo-copy">One register row per SO Number, with the complete DPO and receiving history.</p>
+            <p class="dpo-copy">One register row per DPO, with its complete receiving history.</p>
         </div>
     </div>
 
@@ -127,17 +127,20 @@
 
     <div class="dpo-panel">
         <div class="dpo-panel-head">
-            <h6 class="dpo-panel-title">Sales Order Register</h6>
-            <div class="dpo-panel-count">{{ number_format($rows->count()) }} SO numbers</div>
+            <h6 class="dpo-panel-title">DPO Register</h6>
+            <div class="dpo-panel-count">{{ number_format($rows->count()) }} DPO(s)</div>
         </div>
         <div class="table-responsive">
             <table class="table dpo-table align-middle">
                 <thead>
                     <tr>
+                        <th>DPO Number</th>
                         <th>SO Number</th>
-                        <th>Latest Date</th>
+                        <th>Date Created</th>
                         <th>Business</th>
                         {{-- <th class="text-center">DPOs</th> --}}
+                        <th>DR Number</th>
+                        <th>SI Number</th>
                         <th class="text-center">Items Received / Total</th>
                         <th>Days to Full Receipt</th>
                         <th class="text-end">Total Qty</th>
@@ -152,12 +155,15 @@
                             $statusClass = strtolower(str_replace(' ', '-', $row->status));
                         @endphp
                         <tr>
+                            <td>{{ $row->po_number }}</td>
                             <td>
                                 <span class="dpo-ref">{{ $row->so_number }}</span>
-                                <span class="dpo-sub">{{ number_format($row->order_count) }} linked order(s)</span>
+                                <span class="dpo-sub">{{ number_format($row->order_count) }} DPO</span>
                             </td>
                             <td><span class="dpo-doc">{{ optional($row->latest_date)->format('M d, Y') ?: 'N/A' }}</span></td>
                             <td>{{ $row->business_name ?: 'N/A' }}</td>
+                            <td>{{ $row->dr_number ?: 'N/A' }}</td>
+                            <td>{{ $row->si_number ?: 'N/A' }}</td>
                             {{-- <td class="text-center">{{ number_format($row->order_count) }}</td> --}}
                             <td class="text-center">
                                 @if(isset($row->item_count) && $row->item_count > 0)

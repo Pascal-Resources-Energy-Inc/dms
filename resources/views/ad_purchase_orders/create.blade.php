@@ -443,6 +443,7 @@
 
                     @php
                         $regularProducts = $products->filter(fn($product) => (int) ($product->for_ad ?? 0) !== 1);
+                        // dd($regularProducts);
                         $adProducts = $products->filter(fn($product) => (int) ($product->for_ad ?? 0) === 1);
                         $hasSelectedAdProduct = $adProducts->contains(function ($product) {
                             $oldQty = old('products.' . $product->id . '.qty', 0);
@@ -456,7 +457,7 @@
                         <div class="product-list" data-product-list>
                         @forelse($regularProducts as $product)
                             @php
-                                $unitPrice = ($product->price !== null && $product->price !== '') ? (float) $product->price : 0;
+                                $unitPrice = ($product->dprice !== null && $product->dprice !== '') ? (float) $product->dprice : 0;
                                 $oldQty = old('products.' . $product->id . '.qty', 0);
                                 $oldSelected = old('products.' . $product->id . '.selected') || (int) $oldQty > 0;
                                 $productName = $product->item ?: $product->product_name;

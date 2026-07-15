@@ -129,11 +129,10 @@
                 @foreach($items as $index => $item)
                     @php
                         $product = $productItems[$item->id] ?? null;
-                        $srpPrice = $item->price ?? null;
-                        $megaDealerPrice = $product->mega_dealer_price ?? null;
-                        $dealerPrice = $product->dealer_price ?? null;
-                        $clientPrice = $product->client_price ?? $product->price ?? null;
-                        $rowMegaDealerPrice = $megaDealerPrice ?? $srpPrice;
+                        $srpPrice = $item->dprice ?? null;
+                        $megaDealerPrice = $item->md_price ?? null;
+                        $dealerPrice = $item->dealer_price ?? null;
+                        $clientPrice = $item->price ?? null;
                         $rowDealerPrice = $dealerPrice ?? $srpPrice;
                         $rowClientPrice = $clientPrice ?? $srpPrice;
                         $sku = $product->sku ?? 'AD' . auth()->id() . '-ITEM' . $item->id;
@@ -173,7 +172,7 @@
                         <td class="srp-cell">
                             <div class="input-group price-input">
                                 <span class="input-group-text">PHP</span>
-                                <input type="number" class="form-control js-srp" name="items[{{ $index }}][srp_price]" value="{{ $srpPrice }}" min="0" step="0.01" placeholder="0.00" readonly>
+                                <input type="number" class="form-control js-srp" name="items[{{ $index }}][dprice]" value="{{ $srpPrice }}" min="0" step="0.01" placeholder="0.00" readonly>
                             </div>
                             <div class="srp-note">Reference only</div>
                         </td>
@@ -181,7 +180,7 @@
                             <div class="input-group price-input">
                                 <span class="input-group-text">PHP</span>
                                 {{-- <input type="number" class="form-control js-role-price" name="items[{{ $index }}][mega_dealer_price]" value="{{ $megaDealerPrice }}" min="0" step="0.01" placeholder="0.00"> --}}
-                                <input type="number" class="form-control js-role-price" name="items[{{ $index }}][mega_dealer_price]" value="{{ $rowMegaDealerPrice }}" min="0" step="0.01" placeholder="0.00" readonly>
+                                <input type="number" class="form-control js-role-price" name="items[{{ $index }}][md_price]" value="{{ $megaDealerPrice }}" min="0" step="0.01" placeholder="0.00" readonly>
                             </div>
                             <div class="price-note"></div>
                         </td>
