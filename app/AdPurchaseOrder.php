@@ -78,4 +78,11 @@ class AdPurchaseOrder extends Model implements Auditable
     {
         return $this->belongsTo(Voucher::class, 'voucher_id');
     }
+
+    public function vouchers()
+    {
+        return $this->belongsToMany(Voucher::class, 'ad_purchase_order_vouchers')
+            ->withPivot('rebate_amount')
+            ->withTimestamps();
+    }
 }

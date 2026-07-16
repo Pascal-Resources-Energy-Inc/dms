@@ -31,6 +31,20 @@
     .adpo-option input { margin-top: 4px; flex: 0 0 auto; }
     .adpo-option strong { display: block; color: #111827; font-size: 13px; line-height: 1.3; }
     .adpo-option small { color: #667085; line-height: 1.35; }
+    .voucher-picker { overflow: hidden; border: 1px solid #dfe4ea; border-radius: 10px; background: #fff; }
+    .voucher-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; border-bottom: 1px solid #edf0f5; background: #f8fafc; }
+    .voucher-picker-head strong { color: #344054; font-size: 12px; }
+    .voucher-picker-head small { color: #667085; font-size: 11px; }
+    .voucher-selection-count { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 999px; background: #fee2e2; color: #b42318; font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .voucher-selection-list { display: grid; gap: 8px; max-height: 250px; padding: 10px; overflow-y: auto; }
+    .voucher-choice { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: center; padding: 11px; border: 1px solid #e4e7ec; border-radius: 8px; background: #fff; cursor: pointer; transition: .16s ease; }
+    .voucher-choice:hover { border-color: #fda4af; background: #fffafb; }
+    .voucher-choice.is-selected { border-color: #dc2626; background: #fff1f2; box-shadow: inset 0 0 0 1px rgba(220, 38, 38, .08); }
+    .voucher-choice input { width: 17px; height: 17px; margin: 0; accent-color: #dc2626; cursor: pointer; }
+    .voucher-choice-code { display: block; color: #101828; font-size: 13px; font-weight: 800; letter-spacing: .02em; }
+    .voucher-choice-value { display: block; margin-top: 2px; color: #667085; font-size: 12px; }
+    .voucher-picker-empty { padding: 14px; color: #667085; font-size: 12px; text-align: center; }
+    .voucher-native-select { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .adpo-bank-panel { margin-top: 12px; padding: 14px; background: linear-gradient(135deg, #f8fafc, #fff); border: 1px solid #dfe4ea; border-radius: 10px; }
     .adpo-bank-panel-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; color: #344054; font-size: 12px; font-weight: 800; }
     .adpo-bank-panel-head i { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; color: #1d4ed8; background: #dbeafe; border-radius: 8px; }
@@ -112,6 +126,12 @@
     .summary-title { margin: 0 0 14px; color: #101828; font-size: 16px; font-weight: 800; }
     .summary-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; color: #475467; font-size: 13px; border-bottom: 1px solid #f1f3f6; }
     .summary-row strong { color: #101828; }
+    .voucher-summary-breakdown { margin: -1px 0 0; padding: 10px 11px; border-bottom: 1px solid #f1f3f6; background: #fff7f8; }
+    .voucher-summary-breakdown-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; color: #9f1239; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+    .voucher-summary-breakdown-list { display: grid; gap: 5px; }
+    .voucher-summary-breakdown-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #475467; font-size: 12px; }
+    .voucher-summary-breakdown-item code { padding: 1px 5px; border-radius: 4px; background: #ffe4e6; color: #9f1239; font-size: 11px; font-weight: 800; }
+    .voucher-summary-breakdown-item strong { color: #b42318; white-space: nowrap; }
     .summary-total { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; color: #101828; font-size: 18px; font-weight: 800; }
     .adpo-help { margin-top: 12px; color: #667085; font-size: 12px; line-height: 1.55; }
     .empty-products { grid-column: 1 / -1; margin: 0; }
@@ -167,6 +187,7 @@
         ? collect()
         : $userVouchers->filter(fn($voucher) => $voucher->hasArea($selectedTerritory))->values();
     $defaultVoucherCode = old('voucher_code', $territoryVouchers->count() === 1 ? $territoryVouchers->first()->code : '');
+    $selectedVoucherCodes = old('voucher_codes', $defaultVoucherCode ? [$defaultVoucherCode] : []);
     $useRebateVoucher = old('use_rebate_voucher', $territoryVouchers->isNotEmpty() ? 'yes' : 'no');
     $showPickupLubao = $showPickupLubao ?? true;
     $selectedShippingType = old('shipping_type', 'delivered');
@@ -314,7 +335,7 @@
                             <div class="adpo-section-head">
                                 <div>
                                     <h6 class="adpo-section-title">I would like to utilize my rebate voucher for this transaction</h6>
-                                    <p class="adpo-section-copy">Choose Yes to enter the voucher code for this order.</p>
+                                    <p class="adpo-section-copy">Choose Yes to select one or more voucher codes for this order.</p>
                                 </div>
                             </div>
                             {{-- <input type="hidden" name="payment_method" id="paymentMethod" value="{{ $useRebateVoucher === 'yes' ? 'voucher' : 'cash' }}"> --}}
@@ -333,17 +354,29 @@
                                 </div>
                             </div>
                             <div id="voucherCodeWrap" class="mt-3 {{ $useRebateVoucher === 'yes' ? '' : 'd-none' }}">
-                                <label class="form-label">Voucher Code</label>
-                                <select name="voucher_code" id="voucherCode" class="form-select" data-default-voucher-code="{{ $defaultVoucherCode }}" @if($useRebateVoucher === 'yes') required @else disabled @endif>
-                                    <option value="">Select voucher code</option>
+                                <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                    <label class="form-label mb-0">Choose Voucher Codes <span class="text-danger">*</span></label>
+                                    <small class="text-muted">You can combine available vouchers.</small>
+                                </div>
+                                <select name="voucher_codes[]" id="voucherCode" class="voucher-native-select" multiple data-default-voucher-code="{{ $defaultVoucherCode }}" @if($useRebateVoucher === 'yes') required @else disabled @endif>
                                     @foreach($userVouchers as $voucher)
-                                        <option value="{{ $voucher->code }}" @if($defaultVoucherCode === $voucher->code) selected @endif>
+                                        <option value="{{ $voucher->code }}" @if(in_array($voucher->code, $selectedVoucherCodes)) selected @endif>
                                             {{ $voucher->code }} - {{ $voucher->discount_type === 'percent' ? number_format($voucher->discount_value, 2) . '%' : 'PHP ' . number_format($voucher->discount_value, 2) }}
                                         </option>
                                     @endforeach
                                 </select>
+                                <div class="voucher-picker" id="voucherPicker">
+                                    <div class="voucher-picker-head">
+                                        <div>
+                                            <strong>Available vouchers</strong>
+                                            <small class="d-block">Select every voucher you want to apply.</small>
+                                        </div>
+                                        <span class="voucher-selection-count" id="voucherSelectionCount">0 selected</span>
+                                    </div>
+                                    <div class="voucher-selection-list" id="voucherSelectionList" aria-live="polite"></div>
+                                </div>
                                 <input type="hidden" name="rebate_amount" id="rebateAmount" value="{{ $useRebateVoucher === 'yes' ? old('rebate_amount', 0) : 0 }}">
-                                <small class="text-muted d-block mt-1" id="voucherFeedback">Select an authorized territory to see its active vouchers.</small>
+                                <small class="text-muted d-block mt-2" id="voucherFeedback">Select vouchers from the list to calculate your combined discount.</small>
                             </div>
                             {{-- <div class="row g-2">
                                 @foreach(['cash' => 'Cash', 'gcash' => 'GCash', 'bank_transfer' => 'Bank Transfer', 'credit' => 'Credit'] as $value => $label)
@@ -710,6 +743,13 @@
                         <span>Rebate Voucher</span>
                         <strong>- PHP <span id="rebateTotal">0.00</span></strong>
                     </div>
+                    <div class="voucher-summary-breakdown d-none" id="voucherBreakdownWrap">
+                        <div class="voucher-summary-breakdown-head">
+                            <span>Voucher breakdown</span>
+                            <span id="voucherBreakdownCount">0 applied</span>
+                        </div>
+                        <div class="voucher-summary-breakdown-list" id="voucherBreakdownList"></div>
+                    </div>
                     <div class="summary-row d-none" id="pickupDiscountSummaryRow">
                         <span>Pick Up Lubao Discount</span>
                         <strong>- PHP <span id="pickupDiscountTotal">0.00</span></strong>
@@ -761,6 +801,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const deliveryFee = document.getElementById('deliveryFee');
     const voucherCodeWrap = document.getElementById('voucherCodeWrap');
     const voucherCode = document.getElementById('voucherCode');
+    const voucherSelectionList = document.getElementById('voucherSelectionList');
+    const voucherSelectionCount = document.getElementById('voucherSelectionCount');
     const rebateAmount = document.getElementById('rebateAmount');
     const voucherFeedback = document.getElementById('voucherFeedback');
     const territorySelect = document.querySelector('[name="authorized_territory"]');
@@ -776,6 +818,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const deliveryTotalEl = document.getElementById('deliveryTotal');
     const rebateSummaryRow = document.getElementById('rebateSummaryRow');
     const rebateTotalEl = document.getElementById('rebateTotal');
+    const voucherBreakdownWrap = document.getElementById('voucherBreakdownWrap');
+    const voucherBreakdownList = document.getElementById('voucherBreakdownList');
+    const voucherBreakdownCount = document.getElementById('voucherBreakdownCount');
     const pickupDiscountSummaryRow = document.getElementById('pickupDiscountSummaryRow');
     const pickupDiscountTotalEl = document.getElementById('pickupDiscountTotal');
     const withholdingTotalEl = document.getElementById('withholdingTotal');
@@ -785,6 +830,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentVoucherSubtotal = 0;
     let voucherCheckTimer = null;
     let lastVoucherKey = '';
+    let voucherDiscounts = [];
     let voucherChoiceTouched = false;
     let showFavoritesOnly = false;
 
@@ -838,13 +884,98 @@ document.addEventListener('DOMContentLoaded', function () {
         return selected ? selected.value : 'no';
     }
 
+    function renderVoucherChoices() {
+        if (!voucherSelectionList || !voucherSelectionCount) {
+            return;
+        }
+
+        const options = Array.from(voucherCode.options);
+        const selectedCount = options.filter(function (option) { return option.selected; }).length;
+        voucherSelectionCount.textContent = selectedCount + ' selected';
+        voucherSelectionList.innerHTML = '';
+
+        if (!options.length) {
+            const empty = document.createElement('div');
+            empty.className = 'voucher-picker-empty';
+            empty.textContent = 'No vouchers are currently available for this territory.';
+            voucherSelectionList.appendChild(empty);
+            return;
+        }
+
+        options.forEach(function (option) {
+            const choice = document.createElement('label');
+            choice.className = 'voucher-choice' + (option.selected ? ' is-selected' : '');
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'js-voucher-choice';
+            checkbox.value = option.value;
+            checkbox.checked = option.selected;
+            checkbox.disabled = voucherCode.disabled;
+            checkbox.setAttribute('aria-label', 'Use voucher ' + option.value);
+
+            const details = document.createElement('span');
+            const code = document.createElement('span');
+            const value = document.createElement('span');
+            const optionText = option.textContent.trim();
+            const prefix = option.value + ' - ';
+            code.className = 'voucher-choice-code';
+            code.textContent = option.value;
+            value.className = 'voucher-choice-value';
+            value.textContent = optionText.indexOf(prefix) === 0 ? optionText.substring(prefix.length) : optionText;
+            details.appendChild(code);
+            details.appendChild(value);
+            choice.appendChild(checkbox);
+            choice.appendChild(details);
+            voucherSelectionList.appendChild(choice);
+        });
+    }
+
+    function renderVoucherBreakdown(subtotal) {
+        if (!voucherBreakdownWrap || !voucherBreakdownList || !voucherBreakdownCount) {
+            return;
+        }
+
+        const selectedCodes = Array.from(voucherCode.selectedOptions).map(function (option) {
+            return option.value;
+        });
+        const selectedDiscounts = voucherDiscounts.filter(function (voucher) {
+            return selectedCodes.includes(voucher.code);
+        });
+
+        voucherBreakdownList.innerHTML = '';
+        voucherBreakdownWrap.classList.toggle('d-none', selectedVoucherOption() !== 'yes' || !selectedDiscounts.length);
+        voucherBreakdownCount.textContent = selectedDiscounts.length + ' applied';
+
+        let remainingRebate = Math.max(0, Number(subtotal || 0));
+        selectedDiscounts.forEach(function (voucher) {
+            const appliedDiscount = Math.min(Number(voucher.discount || 0), remainingRebate);
+            remainingRebate -= appliedDiscount;
+
+            const row = document.createElement('div');
+            row.className = 'voucher-summary-breakdown-item';
+            const code = document.createElement('code');
+            const amount = document.createElement('strong');
+            code.textContent = voucher.code;
+            amount.textContent = '- PHP ' + money(appliedDiscount);
+            row.appendChild(code);
+            row.appendChild(amount);
+            voucherBreakdownList.appendChild(row);
+        });
+    }
+
     function syncTerritoryVouchers() {
         const selectedArea = territorySelect ? territorySelect.value.trim() : '';
-        const currentCode = voucherCode.value;
+        const currentCodes = Array.from(voucherCode.selectedOptions).map(function (option) {
+            return option.value;
+        });
 
-        voucherCode.innerHTML = '<option value="">Select voucher code</option>';
+        voucherCode.innerHTML = '';
         rebateAmount.value = 0;
         lastVoucherKey = '';
+        voucherDiscounts = [];
+        renderVoucherChoices();
+        renderVoucherBreakdown(0);
 
         if (!selectedArea) {
             if (voucherFeedback) {
@@ -877,8 +1008,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 voucherCode.appendChild(option);
             });
 
-            const currentExists = vouchers.some(function (voucher) { return voucher.code === currentCode; });
-            voucherCode.value = currentExists ? currentCode : (vouchers.length === 1 ? vouchers[0].code : '');
+            const selectedCodes = currentCodes.length
+                ? currentCodes
+                : (voucherCode.dataset.defaultVoucherCode ? [voucherCode.dataset.defaultVoucherCode] : []);
+
+            Array.from(voucherCode.options).forEach(function (option) {
+                option.selected = selectedCodes.includes(option.value);
+            });
+            renderVoucherChoices();
 
             if (voucherFeedback) {
                 voucherFeedback.textContent = vouchers.length
@@ -892,6 +1029,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return vouchers.length;
         })
         .catch(function (data) {
+            renderVoucherChoices();
             if (voucherFeedback) {
                 voucherFeedback.textContent = data.message || 'Unable to load vouchers.';
                 voucherFeedback.className = 'text-danger d-block mt-1';
@@ -927,7 +1065,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (!useVoucher) {
-            voucherCode.value = '';
+            Array.from(voucherCode.options).forEach(function (option) {
+                option.selected = false;
+            });
             rebateAmount.value = 0;
             rebateTotalEl.textContent = money(0);
             rebateSummaryRow.classList.add('d-none');
@@ -936,15 +1076,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 voucherFeedback.className = 'text-muted d-block mt-1';
             }
         } else {
-            if (!voucherCode.value && voucherCode.dataset.defaultVoucherCode) {
-                const defaultOption = Array.prototype.find.call(voucherCode.options, function (option) {
-                    return option.value === voucherCode.dataset.defaultVoucherCode && !option.disabled;
+            if (!voucherCode.selectedOptions.length && voucherCode.dataset.defaultVoucherCode) {
+                Array.from(voucherCode.options).forEach(function (option) {
+                    option.selected = option.value === voucherCode.dataset.defaultVoucherCode && !option.disabled;
                 });
-                voucherCode.value = defaultOption ? defaultOption.value : '';
             }
             rebateSummaryRow.classList.toggle('d-none', parseFloat(rebateAmount.value || '0') <= 0);
         }
 
+        renderVoucherChoices();
         scheduleVoucherCheck();
         recalc();
     }
@@ -955,15 +1095,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function checkVoucherCode() {
-        if (selectedVoucherOption() !== 'yes' || !voucherCode.value.trim()) {
+        const voucherCodes = Array.from(voucherCode.selectedOptions).map(function (option) {
+            return option.value.trim();
+        }).filter(Boolean);
+
+        if (selectedVoucherOption() !== 'yes' || !voucherCodes.length) {
             rebateAmount.value = 0;
             lastVoucherKey = '';
+            voucherDiscounts = [];
             recalc();
             return;
         }
 
         const selectedArea = territorySelect ? territorySelect.value : '';
-        const key = voucherCode.value.trim().toUpperCase() + '|' + currentVoucherSubtotal.toFixed(2) + '|' + selectedArea;
+        const key = voucherCodes.map(function (code) { return code.toUpperCase(); }).sort().join(',')
+            + '|' + currentVoucherSubtotal.toFixed(2) + '|' + selectedArea;
         if (key === lastVoucherKey) {
             return;
         }
@@ -974,37 +1120,47 @@ document.addEventListener('DOMContentLoaded', function () {
             voucherFeedback.className = 'text-muted d-block mt-1';
         }
 
-        fetch("{{ route('vouchers.check') }}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                code: voucherCode.value,
-                subtotal: currentVoucherSubtotal,
-                area_name: selectedArea
-            })
-        })
-        .then(function (response) {
-            return response.json().then(function (data) {
-                if (!response.ok) {
-                    throw data;
-                }
-                return data;
+        Promise.all(voucherCodes.map(function (code) {
+            return fetch("{{ route('vouchers.check') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ code: code, subtotal: currentVoucherSubtotal, area_name: selectedArea })
+            }).then(function (response) {
+                return response.json().then(function (data) {
+                    if (!response.ok) throw data;
+                    return data;
+                });
             });
-        })
-        .then(function (data) {
-            rebateAmount.value = data.discount || 0;
+        }))
+        .then(function (results) {
+            if (key !== lastVoucherKey) {
+                return;
+            }
+
+            const discount = results.reduce(function (total, result) {
+                return total + Number(result.discount || 0);
+            }, 0);
+            voucherDiscounts = voucherCodes.map(function (code, index) {
+                return { code: code, discount: Number((results[index] || {}).discount || 0) };
+            });
+            rebateAmount.value = discount;
             if (voucherFeedback) {
-                voucherFeedback.textContent = data.message + ' Discount: PHP ' + money(data.discount || 0);
+                voucherFeedback.textContent = results.length + ' voucher(s) selected. Total discount: PHP ' + money(discount);
                 voucherFeedback.className = 'text-success d-block mt-1';
             }
             recalc();
         })
         .catch(function (data) {
+            if (key !== lastVoucherKey) {
+                return;
+            }
+
             rebateAmount.value = 0;
+            voucherDiscounts = [];
             if (voucherFeedback) {
                 voucherFeedback.textContent = data.message || 'Voucher could not be applied.';
                 voucherFeedback.className = 'text-danger d-block mt-1';
@@ -1116,6 +1272,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // deliveryTotalEl.textContent = money(delivery);
         rebateTotalEl.textContent = money(rebate);
         rebateSummaryRow.classList.toggle('d-none', !useVoucher || rebate <= 0);
+        renderVoucherBreakdown(subtotal);
         pickupDiscountTotalEl.textContent = money(pickupDiscount);
         pickupDiscountSummaryRow.classList.toggle('d-none', pickupDiscount <= 0);
         if (withholdingTotalEl) {
@@ -1123,7 +1280,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         grandTotalEl.textContent = money(grandTotal);
 
-        if (useVoucher && voucherCode.value.trim()) {
+        if (useVoucher && voucherCode.selectedOptions.length) {
             scheduleVoucherCheck();
         }
     }
@@ -1212,12 +1369,27 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (event.target === voucherCode) {
+            renderVoucherChoices();
             scheduleVoucherCheck();
         }
 
     });
 
     document.addEventListener('change', function (event) {
+        if (event.target.classList.contains('js-voucher-choice')) {
+            Array.from(voucherCode.options).forEach(function (option) {
+                if (option.value === event.target.value) {
+                    option.selected = event.target.checked;
+                }
+            });
+            lastVoucherKey = '';
+            voucherDiscounts = [];
+            renderVoucherChoices();
+            scheduleVoucherCheck();
+            recalc();
+            return;
+        }
+
         if (event.target.classList.contains('js-product-check')) {
             const card = event.target.closest('.product-card');
             const qty = card.querySelector('.js-product-qty');
@@ -1271,6 +1443,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (event.target === voucherCode) {
+            renderVoucherChoices();
             scheduleVoucherCheck();
         }
 

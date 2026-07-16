@@ -323,19 +323,14 @@ class AdPurchaseOrderController extends Controller
 
         $territoryOptions = $this->territoryOptions($ad);
 
-        $remarksRules = ['nullable', 'string', 'max:1000'];
-
-        if (in_array($request->input('status'), ['Cancelled', 'Partial Received'], true)) {
-            $remarksRules = ['required', 'string', 'max:1000'];
-        }
-
         $request->validate([
             'phone_number' => 'nullable|string|max:50',
             'email_address' => 'nullable|email|max:255',
             'authorized_territory' => ($territoryOptions->isNotEmpty() ? 'required' : 'nullable') . '|string|max:255',
             'shipping_type' => 'required|in:delivered,pickup,pickup_lubao,pickup_guinobatan',
             'use_rebate_voucher' => 'required|in:yes,no',
-            'voucher_code' => 'nullable|required_if:use_rebate_voucher,yes|string|max:100',
+            'voucher_codes' => 'nullable|required_if:use_rebate_voucher,yes|array|min:1',
+            'voucher_codes.*' => 'required|string|max:100|distinct',
             'rebate_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'required|in:voucher,cash,gcash,bank_transfer,credit',
             'bank_name' => 'nullable|required_if:payment_method,bank_transfer|string|max:255',
@@ -424,7 +419,7 @@ class AdPurchaseOrderController extends Controller
             $totalQty = 0;
             $adUserId = optional($ad)->user_id ?: $user->id;
             $rebateAmount = 0;
-            $voucher = null;
+            $vouchers = collect();
 
             $po = AdPurchaseOrder::create([
                 'po_number' => $poNumber,
@@ -496,42 +491,41 @@ class AdPurchaseOrderController extends Controller
             }
 
             if ($request->use_rebate_voucher === 'yes') {
-                $voucher = Voucher::where('code', strtoupper(trim($request->voucher_code)))
-                    ->where('name', optional($ad)->store_code)
-                    ->lockForUpdate()
-                    ->first();
+                $voucherCodes = collect($request->input('voucher_codes', []))
+                    ->map(function ($code) {
+                        return strtoupper(trim((string) $code));
+                    })
+                    ->filter()
+                    ->unique()
+                    ->values();
 
-                if (!$voucher) {
-                    throw ValidationException::withMessages([
-                        'voucher_code' => 'Voucher code was not found.',
-                    ]);
+                foreach ($voucherCodes as $voucherCode) {
+                    $voucher = Voucher::where('code', $voucherCode)
+                        ->where('name', optional($ad)->store_code)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$voucher || !$voucher->isUsable($subtotal) || !$voucher->hasArea($authorizedTerritory)) {
+                        throw ValidationException::withMessages([
+                            'voucher_codes' => 'Voucher ' . $voucherCode . ' is invalid, unavailable, or does not meet its minimum order amount.',
+                        ]);
+                    }
+
+                    $discount = $voucher->discountFor($subtotal);
+                    $rebateAmount += $discount;
+                    $voucher->used_count = (int) $voucher->used_count + 1;
+                    $voucher->save();
+                    $vouchers->push(['model' => $voucher, 'rebate_amount' => $discount]);
                 }
-
-                if (!$voucher->isUsable($subtotal)) {
-                    $message = (float) $subtotal < (float) $voucher->minimum_order_amount
-                        ? 'A minimum order of PHP ' . number_format($voucher->minimum_order_amount, 2) . ' is required for this voucher.'
-                        : 'Voucher is ' . strtolower($voucher->statusLabel($subtotal)) . '.';
-
-                    throw ValidationException::withMessages([
-                        'voucher_code' => $message,
-                    ]);
-                }
-
-                if (!$voucher->hasArea($authorizedTerritory)) {
-                    throw ValidationException::withMessages([
-                        'voucher_code' => 'Voucher is not available for the selected authorized territory.',
-                    ]);
-                }
-
-                $rebateAmount = $voucher->discountFor($subtotal);
-                $voucher->used_count = (int) $voucher->used_count + 1;
-                $voucher->save();
             }
 
             $po->subtotal = $subtotal;
             $po->total_qty = $totalQty;
-            $po->voucher_id = $voucher ? $voucher->id : null;
-            $po->voucher_code = $voucher ? $voucher->code : null;
+            $firstVoucher = $vouchers->isNotEmpty() ? $vouchers->first()['model'] : null;
+            $po->voucher_id = $firstVoucher ? $firstVoucher->id : null;
+            $po->voucher_code = $vouchers->map(function ($voucherData) {
+                return $voucherData['model']->code;
+            })->implode(', ');
             $po->rebate_amount = min($rebateAmount, $subtotal);
             $po->pickup_discount = $this->pickupLubaoDiscount($shippingType, $po->items()->get());
             $taxableTotal = max(0, $subtotal - (float) $po->rebate_amount - (float) $po->pickup_discount);
@@ -540,6 +534,18 @@ class AdPurchaseOrderController extends Controller
             $po->withholding_tax = $withholdingTax;
             $po->total_amount = max(0, $taxableTotal - $withholdingTax);
             $po->save();
+
+            $remainingRebate = (float) $po->rebate_amount;
+
+            $vouchers->each(function ($voucherData) use ($po, &$remainingRebate) {
+                $appliedRebate = min((float) $voucherData['rebate_amount'], max(0, $remainingRebate));
+
+                $po->vouchers()->attach($voucherData['model']->id, [
+                    'rebate_amount' => $appliedRebate,
+                ]);
+
+                $remainingRebate -= $appliedRebate;
+            });
 
             return $po;
         });
@@ -578,10 +584,19 @@ class AdPurchaseOrderController extends Controller
             return back();
         }
 
+        $remarksRules = in_array($request->input('status'), ['Cancelled', 'Partial Received'], true)
+            ? ['required', 'string', 'max:1000']
+            : ['nullable', 'string', 'max:1000'];
+        $proofOfPaymentRules = ($request->input('status') === 'Cancelled'
+            || auth()->user()->role === 'Area Distributor'
+            || $order->proof_of_payment)
+            ? 'nullable'
+            : 'required';
+
         $request->validate([
             'status' => 'required|in:Pending,For Delivery,SO Created,Partial Received,For Verification,Completed,Cancelled',
             'payment_method' => 'sometimes|required|in:voucher,cash,gcash,bank_transfer,credit',
-            'proof_of_payment' => (auth()->user()->role === 'Area Distributor' || $order->proof_of_payment ? 'nullable' : 'required') . '|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'proof_of_payment' => $proofOfPaymentRules . '|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'so_number' => 'nullable|required_if:status,SO Created|string|max:255',
             'payment_date' => 'nullable|required_if:status,SO Created|date',
             'delivery_date' => 'nullable|required_if:status,For Delivery|date',
@@ -895,6 +910,23 @@ class AdPurchaseOrderController extends Controller
 
         DB::transaction(function () use ($request, $order, $oldStatus, $postedPartialItems, $postedPartialReceipts) {
             $order->status = $request->status;
+
+            if ($request->status === 'Cancelled' && $oldStatus !== 'Cancelled') {
+                $voucherIds = $order->vouchers()->pluck('vouchers.id');
+
+                // Keep compatibility with purchase orders created before multiple vouchers were supported.
+                if ($voucherIds->isEmpty() && $order->voucher_id) {
+                    $voucherIds->push($order->voucher_id);
+                }
+
+                Voucher::whereIn('id', $voucherIds->unique()->values())
+                    ->lockForUpdate()
+                    ->get()
+                    ->each(function ($voucher) {
+                        $voucher->used_count = max(0, (int) $voucher->used_count - 1);
+                        $voucher->save();
+                    });
+            }
 
             if ($request->has('payment_method')) {
                 $order->payment_method = $request->payment_method;

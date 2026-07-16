@@ -2966,6 +2966,7 @@ class ReportController extends Controller
                     }
                 })
                 ->whereBetween(DB::raw('COALESCE(submitted_at, created_at)'), [$from, $to])
+                ->where('status', '<>', 'Cancelled')
                 ->when($request->filled('order_status'), function ($query) use ($request) {
                     $query->where('status', $request->order_status);
                 })
