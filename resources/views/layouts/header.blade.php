@@ -1446,7 +1446,7 @@
                                     </span>
                                 @endif
                             </div>
-                            <span class="nav-text">Orders</span>
+                            <span class="nav-text">Sales Orders</span>
                         </a>
                     </div>
                     <div class="nav-item">
