@@ -1769,19 +1769,21 @@
                         </div>
                     </div>
                     @endif
-                    <div class="nav-item">
-                        <a href="{{url('/stock-requests')}}" class="nav-link @if(Route::currentRouteName() == 'admin.stock.requests')active @endif">
-                            <div class="nav-icon position-relative">
-                                <i class="ti ti-checkbox"></i>
-                                @if(($pendingStockRequestsCount ?? 0) > 0)
-                                    <span class="badge rounded-pill bg-danger nav-badge">
-                                        {{ $pendingStockRequestsCount > 99 ? '99+' : $pendingStockRequestsCount }}
-                                    </span>
-                                @endif
-                            </div>
-                            <span class="nav-text">Stock Request Approvals</span>
-                        </a>
-                    </div>
+                    @if($sidebarIsAdmin || $sedpCanAccess('can_access_stock_requests'))
+                        <div class="nav-item">
+                            <a href="{{url('/stock-requests')}}" class="nav-link @if(Route::currentRouteName() == 'admin.stock.requests')active @endif">
+                                <div class="nav-icon position-relative">
+                                    <i class="ti ti-checkbox"></i>
+                                    @if(($pendingStockRequestsCount ?? 0) > 0)
+                                        <span class="badge rounded-pill bg-danger nav-badge">
+                                            {{ $pendingStockRequestsCount > 99 ? '99+' : $pendingStockRequestsCount }}
+                                        </span>
+                                    @endif
+                                </div>
+                                <span class="nav-text">Stock Request Approvals</span>
+                            </a>
+                        </div>
+                    @endif
                     @if($canAccessAnyReports)
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), $visibleReportRoutes) ? 'true' : 'false' }}">
@@ -2151,12 +2153,12 @@
                             </div>
                         </li>
                         @if(auth()->user()->role != "Admin" && auth()->user()->role != "Area Distributor")
-                        <li><a class="dropdown-item" href="{{url('user-profile')}}">
+                        {{-- <li><a class="dropdown-item" href="{{url('user-profile')}}">
                             <i class="ti ti-user"></i>
                             <span>My Profile</span>
-                        </a></li>
+                        </a></li> --}}
                         @endif
-                        <li><hr class="dropdown-divider"></li>
+                        {{-- <li><hr class="dropdown-divider"></li> --}}
                         <li><a class="dropdown-item" href="#" onclick="logout(); show();">
                             <i class="ti ti-logout text-danger"></i>
                             <span>Log Out</span>

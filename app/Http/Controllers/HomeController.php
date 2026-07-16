@@ -39,6 +39,10 @@ class HomeController extends Controller
      */
     public function index(Request $request)
     {
+        if (strtolower((string) auth()->user()->role) === 'sedp') {
+            return $this->sedpDashboard($request);
+        }
+
         $warehouseDashboard = null;
         if (auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse)) {
             $warehouseDashboard = $this->buildWarehouseDashboard(auth()->user());
@@ -187,6 +191,90 @@ class HomeController extends Controller
                 'warehouseDashboard' => $warehouseDashboard
             )
         );
+    }
+
+    /**
+     * Impact dashboard for Social Enterprise Development Program users.
+     */
+    private function sedpDashboard(Request $request)
+    {
+        $asOf = Carbon::parse($request->get('as_of', Carbon::today()->toDateString()))->endOfDay();
+        $projects = collect([
+            ['key' => 'rise', 'label' => 'Project Rise', 'connection' => 'admin_crms', 'accent' => 'rise'],
+            ['key' => 'genesis', 'label' => 'Project Genesis', 'connection' => 'admin_crms2', 'accent' => 'genesis'],
+        ])->map(function ($project) use ($asOf) {
+            $project['beneficiaries'] = $this->sedpTableCount($project['connection'], ['clients', 'customers'], $asOf);
+            $project['entrepreneurs'] = $this->sedpDealerCount($project['connection'], $asOf);
+            $project['refills'] = $this->sedpRefillCount($project['connection'], $asOf);
+
+            return $project;
+        });
+
+        return view('dashboards.sedp', [
+            'projects' => $projects,
+            'asOf' => $asOf,
+            'totals' => [
+                'beneficiaries' => $projects->sum('beneficiaries'),
+                'entrepreneurs' => $projects->sum('entrepreneurs'),
+                'refills' => $projects->sum('refills'),
+            ],
+        ]);
+    }
+
+    private function sedpTableCount($connection, array $tables, Carbon $asOf)
+    {
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+            $table = collect($tables)->first(function ($table) use ($schema) { return $schema->hasTable($table); });
+            if (!$table) return 0;
+
+            $query = DB::connection($connection)->table($table);
+            if ($schema->hasColumn($table, 'deleted_at')) $query->whereNull('deleted_at');
+            foreach (['created_at', 'date_registered', 'registration_date'] as $column) {
+                if ($schema->hasColumn($table, $column)) {
+                    $query->where($column, '<=', $asOf);
+                    break;
+                }
+            }
+            return $query->count();
+        } catch (\Exception $exception) {
+            return 0;
+        }
+    }
+
+    private function sedpDealerCount($connection, Carbon $asOf)
+    {
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+            if (!$schema->hasTable('dealers')) return 0;
+            $query = DB::connection($connection)->table('dealers');
+            if ($schema->hasColumn('dealers', 'deleted_at')) $query->whereNull('deleted_at');
+            if ($schema->hasColumn('dealers', 'dealer_type')) $query->whereRaw("LOWER(COALESCE(dealer_type, 'project')) <> 'regular'");
+            if ($schema->hasColumn('dealers', 'created_at')) $query->where('created_at', '<=', $asOf);
+            return $query->count();
+        } catch (\Exception $exception) {
+            return 0;
+        }
+    }
+
+    private function sedpRefillCount($connection, Carbon $asOf)
+    {
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+            if (!$schema->hasTable('transaction_details')) return 0;
+            $query = DB::connection($connection)->table('transaction_details');
+            if ($schema->hasColumn('transaction_details', 'deleted_at')) $query->whereNull('deleted_at');
+            $dateColumn = collect(['date', 'transaction_date', 'created_at'])->first(function ($column) use ($schema) {
+                return $schema->hasColumn('transaction_details', $column);
+            });
+            if ($dateColumn) $query->where($dateColumn, '<=', $asOf);
+            $qtyColumn = collect(['qty', 'quantity'])->first(function ($column) use ($schema) {
+                return $schema->hasColumn('transaction_details', $column);
+            });
+            return (int) ($qtyColumn ? $query->sum($qtyColumn) : $query->count());
+        } catch (\Exception $exception) {
+            return 0;
+        }
     }
   
     private function buildWarehouseDashboard(User $user)
