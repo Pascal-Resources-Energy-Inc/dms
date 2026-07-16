@@ -2107,6 +2107,164 @@ class ReportController extends Controller
         ));
     }
 
+    /**
+     * Measures the elapsed time from a dealer's order submission to its latest
+     * recorded status update at the Area Distributor.
+     */
+    public function dealerAgingReport(Request $request)
+    {
+        $asOf = $request->filled('as_of')
+            ? Carbon::parse($request->as_of)->endOfDay()
+            : Carbon::today()->endOfDay();
+
+        $project = $request->get('project', 'all');
+        $sources = collect([
+            ['key' => 'rise', 'label' => 'Project Rise', 'connection' => 'admin_crms'],
+            ['key' => 'genesis', 'label' => 'Project Genesis', 'connection' => 'admin_crms2'],
+        ]);
+
+        if ($project !== 'all') {
+            $sources = $sources->where('key', $project);
+        }
+
+        $orders = $sources->flatMap(function ($source) use ($asOf) {
+            return $this->dealerAgingOrders($source, $asOf);
+        })->sortByDesc('age_days')->values();
+
+        $dealerOptions = $orders->pluck('dealer_name')->filter()->unique()->sort()->values();
+        $statusOptions = $orders->pluck('status')->filter()->unique()->sort()->values();
+
+        if ($request->filled('dealer')) {
+            $orders = $orders->where('dealer_name', $request->dealer)->values();
+        }
+
+        if ($request->filled('status')) {
+            $orders = $orders->where('status', $request->status)->values();
+        }
+
+        $summary = (object) [
+            'total' => $orders->count(),
+            'open' => $orders->whereNotIn('status', ['Completed', 'Cancelled'])->count(),
+            'completed' => $orders->where('status', 'Completed')->count(),
+            'average_days' => round((float) $orders->avg('age_days'), 1),
+            'longest_days' => (int) ($orders->max('age_days') ?: 0),
+        ];
+
+        $bucketTotals = collect(['0-2', '3-7', '8-14', '15+'])->mapWithKeys(function ($bucket) use ($orders) {
+            return [$bucket => $orders->where('bucket', $bucket)->count()];
+        });
+
+        return view('reports.dealer_aging', compact(
+            'asOf', 'project', 'orders', 'dealerOptions', 'statusOptions', 'summary', 'bucketTotals'
+        ));
+    }
+
+    private function dealerAgingOrders(array $source, Carbon $asOf)
+    {
+        try {
+            $database = DB::connection($source['connection']);
+            $schema = $database->getSchemaBuilder();
+
+            if (!$schema->hasTable('order_details')) {
+                return collect();
+            }
+
+            $dateColumn = collect(['date', 'created_at'])->first(function ($column) use ($schema) {
+                return $schema->hasColumn('order_details', $column);
+            });
+
+            if (!$dateColumn) {
+                return collect();
+            }
+
+            $orders = $database->table('order_details')
+                ->where($dateColumn, '<=', $asOf)
+                ->when($schema->hasColumn('order_details', 'deleted_at'), function ($query) {
+                    $query->whereNull('deleted_at');
+                })
+                ->orderByDesc($dateColumn)
+                ->get();
+
+            $dealerIds = $orders->pluck('dealer_id')->filter()->unique()->values();
+            $adIds = $orders->pluck('ad_id')->filter()->unique()->values();
+            $dealerNames = $this->dealerAgingDealerNames($database, $schema, $dealerIds);
+            $adNames = $this->dealerAgingAdNames($database, $schema, $adIds);
+
+            return $orders->map(function ($order) use ($source, $asOf, $dateColumn, $dealerNames, $adNames) {
+                $orderedAt = Carbon::parse($order->{$dateColumn});
+                $status = $order->status ?: 'Pending';
+                $completed = strcasecmp($status, 'Completed') === 0;
+                $endDate = $completed && !empty($order->updated_at)
+                    ? Carbon::parse($order->updated_at)
+                    : $asOf->copy();
+                $ageDays = max(0, $orderedAt->startOfDay()->diffInDays($endDate->copy()->startOfDay()));
+
+                return (object) [
+                    'id' => $order->id ?? null,
+                    'project_key' => $source['key'],
+                    'project_label' => $source['label'],
+                    'dealer_name' => $dealerNames->get((string) ($order->dealer_id ?? ''), 'Unknown Dealer'),
+                    'ad_name' => $adNames->get((string) ($order->ad_id ?? ''), 'Area Distributor'),
+                    'item' => $order->item ?? $order->product_name ?? '—',
+                    'qty' => (float) ($order->qty ?? $order->quantity ?? 0),
+                    'status' => $status,
+                    'ordered_at' => $orderedAt,
+                    'last_updated_at' => !empty($order->updated_at) ? Carbon::parse($order->updated_at) : null,
+                    'age_days' => $ageDays,
+                    'bucket' => $this->dealerAgingBucket($ageDays),
+                    'is_completed' => $completed,
+                ];
+            });
+        } catch (\Exception $exception) {
+            return collect();
+        }
+    }
+
+    private function dealerAgingDealerNames($database, $schema, $dealerIds)
+    {
+        if ($dealerIds->isEmpty()) return collect();
+
+        $names = collect();
+        if ($schema->hasTable('dealers')) {
+            $key = $schema->hasColumn('dealers', 'user_id') ? 'user_id' : 'id';
+            if ($schema->hasColumn('dealers', $key)) {
+                $names = $database->table('dealers')->whereIn($key, $dealerIds)->get()->mapWithKeys(function ($dealer) use ($key) {
+                    return [(string) $dealer->{$key} => $dealer->name ?? $dealer->store_name ?? 'Unknown Dealer'];
+                });
+            }
+        }
+
+        if ($schema->hasTable('users') && $schema->hasColumn('users', 'id')) {
+            $userNames = $database->table('users')->whereIn('id', $dealerIds)->pluck('name', 'id');
+            foreach ($userNames as $id => $name) {
+                if (!$names->has((string) $id)) $names->put((string) $id, $name);
+            }
+        }
+
+        return $names;
+    }
+
+    private function dealerAgingAdNames($database, $schema, $adIds)
+    {
+        if ($adIds->isEmpty() || !$schema->hasTable('area_distributors')) return collect();
+
+        $nameColumn = $schema->hasColumn('area_distributors', 'business_name')
+            ? 'business_name'
+            : ($schema->hasColumn('area_distributors', 'name') ? 'name' : null);
+
+        return $database->table('area_distributors')->whereIn('id', $adIds)->get()->mapWithKeys(function ($ad) use ($nameColumn) {
+            return [(string) $ad->id => $nameColumn ? $ad->{$nameColumn} : 'Area Distributor'];
+        });
+    }
+
+    private function dealerAgingBucket($days)
+    {
+        if ($days <= 2) return '0-2';
+        if ($days <= 7) return '3-7';
+        if ($days <= 14) return '8-14';
+        return '15+';
+    }
+
     private function agingLedgerRow($date, $area, $movement, $qty, $source, $distributorId = null, $distributorName = null)
     {
         return (object) [

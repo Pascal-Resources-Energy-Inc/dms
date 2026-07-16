@@ -1326,7 +1326,7 @@
                 );
                 $canAccessAnyReports = $canAccessStandardReports || $canAccessSedpReports;
                 $standardReportRoutes = ['dsr', 'aging', 'dpo', 'isl', 'monthly-sales', 'voucher-history'];
-                $sedpReportRoutes = ['signup-incentives', 'repeat-purchase-incentives'];
+                $sedpReportRoutes = ['signup-incentives', 'repeat-purchase-incentives', 'aging-report-dealer'];
                 $visibleReportRoutes = array_merge(
                     $canAccessStandardReports ? $standardReportRoutes : [],
                     $canAccessSedpReports ? $sedpReportRoutes : []
@@ -1826,6 +1826,9 @@
                                     </li>
                                     <li class="nav-item">
                                         <a href="{{ url('/reports/repeat-purchase-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'repeat-purchase-incentives') active @endif" style="font-size: 14px">Repeat Purchase Incentives Report</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="{{ url('/reports/aging-report-dealer') }}" class="nav-link @if(Route::currentRouteName() == 'aging-report-dealer') active @endif" style="font-size: 14px">Aging Report - Dealer</a>
                                     </li>
                                 @endif
                             </ul>
