@@ -324,7 +324,7 @@
 @endsection
 
 @section('content')
-<div class="container-fluid rpi-page">
+<div class="container-fluid rpi-page" style="margin-top: 5.5em;">
     <div class="rpi-hero">
         <div>
             <div class="rpi-eyebrow">Reports</div>
