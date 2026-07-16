@@ -180,11 +180,11 @@
                         <div class="update-field-card">
                             <label class="update-field-label">
                                 <i class="bi bi-file-earmark-arrow-up"></i>
-                                Proof of Payment @if(!$order->proof_of_payment)<span class="text-danger">*</span>@endif
+                                Proof of Payment <span class="text-danger @if($order->proof_of_payment || old('status', $order->status) === 'Cancelled') d-none @endif" id="proofRequiredMarker">*</span>
                             </label>
                             @if(!$isFinalStatus)
-                                <input type="file" name="proof_of_payment" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.pdf" @if(!$order->proof_of_payment) required @endif>
-                                <div class="form-text">JPG, PNG, or PDF. Maximum size: 5 MB.</div>
+                                <input type="file" name="proof_of_payment" id="adpoProofOfPayment" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.pdf" data-has-current-proof="{{ $order->proof_of_payment ? '1' : '0' }}" @if(!$order->proof_of_payment && old('status', $order->status) !== 'Cancelled') required @endif>
+                                <div class="form-text" id="proofOfPaymentHelp">JPG, PNG, or PDF. Maximum size: 5 MB.</div>
                             @endif
                             <div class="update-proof-actions">
                                 @if($order->proof_of_payment)
@@ -600,6 +600,9 @@
                 const loading = document.getElementById('adpoLoading');
                 const updateButton = form.querySelector('button[type="submit"]');
                 const status = document.getElementById('adpoStatus');
+                const proofOfPayment = document.getElementById('adpoProofOfPayment');
+                const proofRequiredMarker = document.getElementById('proofRequiredMarker');
+                const proofOfPaymentHelp = document.getElementById('proofOfPaymentHelp');
                 const remarksWrap = document.getElementById('statusRemarksWrap');
                 const remarksLabel = document.getElementById('statusRemarksLabel');
                 const remarks = document.getElementById('statusRemarks');
@@ -839,6 +842,21 @@
                     const needsDeliveryDetails = status.value === 'For Delivery';
                     const needsPartialDetails = status.value === 'Partial Received';
                     const needsWarehousePartialDr = needsPartialDetails && @json(filled(auth()->user()->warehouse));
+                    const proofIsRequired = proofOfPayment
+                        && proofOfPayment.dataset.hasCurrentProof !== '1'
+                        && status.value !== 'Cancelled';
+
+                    if (proofOfPayment) {
+                        proofOfPayment.required = proofIsRequired;
+                    }
+                    if (proofRequiredMarker) {
+                        proofRequiredMarker.classList.toggle('d-none', !proofIsRequired);
+                    }
+                    if (proofOfPaymentHelp) {
+                        proofOfPaymentHelp.textContent = status.value === 'Cancelled'
+                            ? 'Proof of payment is optional when cancelling an order.'
+                            : 'JPG, PNG, or PDF. Maximum size: 5 MB.';
+                    }
 
                     remarksWrap.classList.toggle('is-visible', needsRemarks);
                     remarks.required = needsRemarks;
