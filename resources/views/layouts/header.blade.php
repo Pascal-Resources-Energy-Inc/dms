@@ -1459,6 +1459,42 @@
                         </a>
                     </div>
                     <div class="nav-item">
+                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#formsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['md-ads','dealer-ads','customer-ads','my-customers','charges']) ? 'true' : 'false' }}">
+                            <div class="nav-icon">
+                                <i class="ti ti-clipboard"></i>
+                            </div>
+                            <span class="nav-text">Forms</span>
+                            <i class="ti ti-chevron-down ms-auto"></i>
+                        </a>
+
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['arf','ir','borrowing','layout','referral', 'application', 'training'])) show @endif"
+                            id="formsMenu">
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a href="https://docs.google.com/forms/d/e/1FAIpQLScJ3kuD2UiWAMXyvQe3r4AZHlvY39N5_2bz68jY868uqjCxyQ/viewform?usp=send_form" target="_blank" class="nav-link @if(Route::currentRouteName() == 'arf')active @endif" style="font-size: 14px">Access Request Form</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="https://docs.google.com/forms/d/e/1FAIpQLSdlOeSHBVOcAASbWkVOQpeVNbI1R36oVlEln-BctX7ekDlUnw/viewform" target="_blank" class="nav-link @if(Route::currentRouteName() == 'ir')active @endif" style="font-size: 14px">Incident Report</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="https://form.jotform.com/241338243724050" target="_blank" class="nav-link @if(Route::currentRouteName() == 'borrowing') active @endif" style="font-size: 14px">Borrowing Marketing Collateral Form</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="https://form.jotform.com/240291186323048" target="_blank" class="nav-link @if(Route::currentRouteName() == 'layout') active @endif" style="font-size: 14px">Layout Design Request Form</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="https://docs.google.com/forms/d/e/1FAIpQLScDxCoJdMlFDfr12wcrFcG2K7F1djvSJl3JKs-aAozqAp8bww/viewform" target="_blank" class="nav-link @if(Route::currentRouteName() == 'referral') active @endif" style="font-size: 14px">Area Distributor Referral Sheet</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="https://www.jotform.com/form/233230867016048#preview" target="_blank" class="nav-link @if(Route::currentRouteName() == 'application')active @endif" style="font-size: 14px">Area Distributor Application</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="https://docs.google.com/forms/d/e/1FAIpQLSe_o7mnARbbttceB-vlm5P7_HjHZ1QGFKgq9AGIMZTRwbixgA/viewform" target="_blank" class="nav-link @if(Route::currentRouteName() == 'training')active @endif" style="font-size: 14px">Sign Up Sheet | Repair Training Course</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['dsr','aging','reports.distributor-other-charges']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
                                 <i class="ti ti-clipboard-data"></i>

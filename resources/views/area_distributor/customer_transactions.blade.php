@@ -17,9 +17,22 @@
                         </div>
                     </div>
 
+                    <?php $tabQuery = request()->except(['project', 'page']); ?>
+                    <ul class="nav nav-tabs mb-4" aria-label="Project filter">
+                        @foreach($projects as $project)
+                            <li class="nav-item">
+                                <a class="nav-link {{ $selectedProject === $project ? 'active' : '' }}"
+                                   href="{{ route('customer-ads', array_merge($tabQuery, ['project' => $project])) }}">
+                                    {{ $project }}
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+
                     <form method="GET" action="{{ route('customer-ads') }}" class="row g-3 align-items-end mb-4">
+                        <input type="hidden" name="project" value="{{ $selectedProject }}">
                         <div class="col-md-3">
-                            <label class="form-label small fw-semibold">Dealer</label>
+                            <label class="form-label small fw-semibold">Dealer Name</label>
                             <select name="dealer" class="form-select form-select-sm">
                                 <option value="">All Dealers</option>
                                 @foreach($dealers as $dealer)
@@ -30,12 +43,16 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label small fw-semibold">Customer</label>
+                            <label class="form-label small fw-semibold">Customer Name</label>
                             <select name="customer" class="form-select form-select-sm">
                                 <option value="">All Customers</option>
                                 @foreach($customers as $customer)
+                                    <?php
+                                        $customerTag = strtolower(trim((string) ($customer->client_tag ?? $customer->tag ?? '')));
+                                        $customerLabel = $customerTag === 'guest' ? 'GUEST' : $customer->name;
+                                    ?>
                                     <option value="{{ $customer->id }}" {{ request('customer') == $customer->id ? 'selected' : '' }}>
-                                        {{ $customer->name }}
+                                        {{ $customerLabel }}
                                     </option>
                                 @endforeach
                             </select>
@@ -60,8 +77,8 @@
                             <thead class="table-light">
                                 <tr>
                                     <th>Date</th>
-                                    <th>Dealer</th>
-                                    <th>Customer</th>
+                                    <th>Dealer Name</th>
+                                    <th>Customer Name</th>
                                     <th>Item</th>
                                     <th>Qty</th>
                                     <th>Amount</th>
@@ -71,10 +88,16 @@
                             </thead>
                             <tbody>
                                 @forelse($transactions as $transaction)
+                                    <?php
+                                        $transactionCustomerTag = strtolower(trim((string) ($transaction->customer->client_tag ?? $transaction->customer->tag ?? '')));
+                                        $transactionCustomerName = $transactionCustomerTag === 'guest'
+                                            ? 'GUEST'
+                                            : ($transaction->customer->name ?? '-');
+                                    ?>
                                     <tr>
                                         <td>{{ $transaction->date ? date('M d, Y', strtotime($transaction->date)) : '-' }}</td>
                                         <td>{{ $transaction->dealer->name ?? '-' }}</td>
-                                        <td>{{ $transaction->customer->name ?? '-' }}</td>
+                                        <td>{{ $transactionCustomerName }}</td>
                                         <td>{{ $transaction->item ?: '-' }}</td>
                                         <td>{{ number_format($transaction->qty ?? 0, 2) }}</td>
                                         <td>PHP {{ number_format(($transaction->qty ?? 0) * ($transaction->price ?? 0), 2) }}</td>
