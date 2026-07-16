@@ -82,8 +82,8 @@
                                     <th>Item</th>
                                     <th>Qty</th>
                                     <th>Amount</th>
-                                    <th>Dealer Points</th>
-                                    <th>Customer Points</th>
+                                    {{-- <th>Dealer Points</th>
+                                    <th>Customer Points</th> --}}
                                 </tr>
                             </thead>
                             <tbody>
@@ -101,8 +101,8 @@
                                         <td>{{ $transaction->item ?: '-' }}</td>
                                         <td>{{ number_format($transaction->qty ?? 0, 2) }}</td>
                                         <td>PHP {{ number_format(($transaction->qty ?? 0) * ($transaction->price ?? 0), 2) }}</td>
-                                        <td><span class="badge bg-success-subtle text-success">{{ $transaction->points_dealer ?? 0 }}</span></td>
-                                        <td><span class="badge bg-info-subtle text-info">{{ $transaction->points_client ?? 0 }}</span></td>
+                                        {{-- <td><span class="badge bg-success-subtle text-success">{{ $transaction->points_dealer ?? 0 }}</span></td>
+                                        <td><span class="badge bg-info-subtle text-info">{{ $transaction->points_client ?? 0 }}</span></td> --}}
                                     </tr>
                                 @empty
                                     <tr>
