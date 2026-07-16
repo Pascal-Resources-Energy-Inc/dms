@@ -167,14 +167,18 @@
                 </div>
                 <div class="card-body">
                     <div class="soft-note mb-3">
-                        Use IN for new supply, OUT for pull-out or adjustment, and TRANSFER when moving stock between your assigned areas.
+                        Use IN to establish or correct stock, OUT for pull-out or return, and TRANSFER to move stock between assigned areas.
                     </div>
                     <form method="POST" action="{{ route('inventory-transfers.store') }}">
                         @csrf
 
                         <div class="mb-3">
                             <label class="form-label">Movement Type</label>
-                            @php $oldMovementType = old('movement_type', 'out'); @endphp
+                            @php
+                                $transferDisabled = !$canTransfer;
+                                $oldMovementType = old('movement_type', 'out');
+                                $oldMovementType = $transferDisabled && $oldMovementType === 'transfer' ? 'in' : $oldMovementType;
+                            @endphp
                             <div class="movement-type-grid" id="movementTypeGrid">
                                 <label class="movement-type-option {{ $oldMovementType == 'in' ? 'active' : '' }}">
                                     <input type="radio" name="movement_type" value="in" {{ $oldMovementType == 'in' ? 'checked' : '' }}>
@@ -186,12 +190,15 @@
                                     <div class="fw-bold text-danger">OUT</div>
                                     <div class="small text-muted">Remove stock from area</div>
                                 </label>
-                                <label class="movement-type-option {{ $oldMovementType == 'transfer' ? 'active' : '' }}">
-                                    <input type="radio" name="movement_type" value="transfer" {{ $oldMovementType == 'transfer' ? 'checked' : '' }}>
+                                <label class="movement-type-option {{ $oldMovementType == 'transfer' ? 'active' : '' }} {{ $transferDisabled ? 'is-disabled' : '' }}" @if($transferDisabled) title="Transfer requires at least two assigned areas." aria-disabled="true" @endif>
+                                    <input type="radio" name="movement_type" value="transfer" {{ $oldMovementType == 'transfer' ? 'checked' : '' }} {{ $transferDisabled ? 'disabled' : '' }}>
                                     <div class="fw-bold text-primary">TRANSFER</div>
-                                    <div class="small text-muted">Move area to area</div>
+                                    <div class="small text-muted">{{ $transferDisabled ? 'Requires 2 assigned areas' : 'Move area to area' }}</div>
                                 </label>
                             </div>
+                            @if($transferDisabled)
+                                <div class="movement-type-help">Transfer becomes available when a second area is assigned to your account.</div>
+                            @endif
                         </div>
 
                         <div class="mb-3">
@@ -213,10 +220,13 @@
                                 <label class="form-label">From Area</label>
                                 <span class="available-pill" id="availableQty">Available: 0</span>
                             </div>
+                            @php
+                                $defaultFromArea = old('from_area') ?: ($areas->count() === 1 ? $areas->first() : null);
+                            @endphp
                             <select name="from_area" id="fromAreaSelect" class="form-control select2">
                                 <option value="">Select source area</option>
                                 @foreach($areas as $area)
-                                    <option value="{{ $area }}" {{ old('from_area') == $area ? 'selected' : '' }}>{{ $area }}</option>
+                                    <option value="{{ $area }}" {{ $defaultFromArea === $area ? 'selected' : '' }}>{{ $area }}</option>
                                 @endforeach
                             </select>
                             <div class="stock-warning" id="stockWarning"></div>
@@ -224,10 +234,13 @@
 
                         <div class="mb-3 js-to-area">
                             <label class="form-label">To Area</label>
+                            @php
+                                $defaultToArea = old('to_area') ?: ($areas->count() === 1 ? $areas->first() : null);
+                            @endphp
                             <select name="to_area" id="toAreaSelect" class="form-control select2">
                                 <option value="">Select receiving area</option>
                                 @foreach($areas as $area)
-                                    <option value="{{ $area }}" {{ old('to_area') == $area ? 'selected' : '' }}>{{ $area }}</option>
+                                    <option value="{{ $area }}" {{ $defaultToArea === $area ? 'selected' : '' }}>{{ $area }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -248,15 +261,10 @@
                             <input type="text" name="reference_no" class="form-control" value="{{ old('reference_no') }}" placeholder="DR, invoice, or memo no." data-uppercase> 
                         </div> --}}
 
-                        <div class="mb-3 js-out-type">
-                            <label class="form-label">Out Type</label>
-                            <select name="out_type" id="outTypeSelect" class="form-control select2">
-                                <option value="">Select Type</option>
-                                <option value="Inventory Adjustment" {{ old('out_type') == 'Inventory Adjustment' ? 'selected' : '' }} data-uppercase>Inventory Adjustment</option>
-                                <option value="Return and Refund" {{ old('out_type') == 'Return and Refund' ? 'selected' : '' }} data-uppercase>Return and Refund</option>
-                                <option value="Pull Out" {{ old('out_type') == 'Pull Out' ? 'selected' : '' }} data-uppercase>Pull Out</option>
-                                <option value="Replace" {{ old('out_type') == 'Replace' ? 'selected' : '' }} data-uppercase>Replace</option>
-                            </select>
+                        <div class="mb-3 js-movement-reason">
+                            <label class="form-label" id="movementReasonLabel">Movement Type</label>
+                            <select name="out_type" id="outTypeSelect" class="form-control select2" data-selected-value="{{ old('out_type') }}"></select>
+                            <div class="form-text" id="movementReasonHelp"></div>
                         </div>
 
                         <div class="mb-3">
@@ -687,8 +695,26 @@
         background: #eff6ff;
     }
 
+    .movement-type-option.is-disabled {
+        cursor: not-allowed;
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        opacity: .7;
+    }
+
+    .movement-type-option.is-disabled:hover {
+        transform: none;
+        border-color: #e2e8f0;
+    }
+
     .movement-type-option input {
         display: none;
+    }
+
+    .movement-type-help {
+        color: #64748b;
+        font-size: 12px;
+        margin-top: 8px;
     }
 
     .movement-preview {
@@ -835,6 +861,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const balanceLookup = @json($balanceLookup ?? []);
+        const singleArea = @json($areas->count() === 1 ? $areas->first() : null);
         const stockProducts = @json($productOptions ?? []);
         const adProducts = @json($adProductOptions ?? $productOptions ?? []);
         const movementInputs = document.querySelectorAll('input[name="movement_type"]');
@@ -845,8 +872,10 @@
         const qtyInput = document.getElementById('qtyInput');
         const fromArea = document.querySelector('.js-from-area');
         const toArea = document.querySelector('.js-to-area');
-        const outType = document.querySelector('.js-out-type');
+        const movementReason = document.querySelector('.js-movement-reason');
         const outTypeSelect = document.getElementById('outTypeSelect');
+        const movementReasonLabel = document.getElementById('movementReasonLabel');
+        const movementReasonHelp = document.getElementById('movementReasonHelp');
         const availableQty = document.getElementById('availableQty');
         const stockWarning = document.getElementById('stockWarning');
         const movementPreview = document.getElementById('movementPreview');
@@ -856,6 +885,10 @@
         let syncingMovementFields = false;
         let activeProducts = [];
         let renderedProductType = null;
+        const movementReasons = {
+            in: ['Beginning Balance', 'Inventory Adjustment'],
+            out: ['Return and Refund', 'Pull Out', 'Replace']
+        };
 
         if (window.jQuery && window.jQuery.fn.DataTable) {
             stockBalanceTable = window.jQuery('#stockBalanceTable').DataTable({
@@ -965,6 +998,30 @@
             });
         }
 
+        function renderMovementReasons(type) {
+            const reasons = movementReasons[type] || [];
+            const selectedValue = outTypeSelect.value || outTypeSelect.dataset.selectedValue || '';
+
+            movementReason.style.display = reasons.length ? '' : 'none';
+            outTypeSelect.disabled = !reasons.length;
+            outTypeSelect.required = reasons.length > 0;
+            outTypeSelect.innerHTML = '<option value="">Select type</option>';
+            reasons.forEach(function (reason) {
+                const option = document.createElement('option');
+                option.value = reason;
+                option.textContent = reason;
+                option.selected = reason === selectedValue;
+                outTypeSelect.appendChild(option);
+            });
+            if (!reasons.includes(selectedValue)) {
+                outTypeSelect.value = '';
+            }
+            outTypeSelect.dataset.selectedValue = '';
+            movementReasonLabel.textContent = type === 'in' ? 'IN Type' : 'OUT Type';
+            movementReasonHelp.textContent = type === 'in' ? 'Choose why stock is being added to this area.' : 'Choose why stock is being removed from this area.';
+            syncSelect2(outTypeSelect);
+        }
+
         function updateAvailableQty() {
             const type = selectedType();
             const available = sourceAvailableQty();
@@ -1035,29 +1092,35 @@
 
             const needsFromArea = type === 'out' || type === 'transfer';
             const needsToArea = type === 'in' || type === 'transfer';
-            const needsOutType = type === 'out';
+            const needsMovementReason = type === 'in' || type === 'out';
 
             fromArea.style.display = needsFromArea ? '' : 'none';
             toArea.style.display = needsToArea ? '' : 'none';
-            outType.style.display = needsOutType ? '' : 'none';
 
             fromAreaSelect.disabled = !needsFromArea;
             fromAreaSelect.required = needsFromArea;
             toAreaSelect.disabled = !needsToArea;
             toAreaSelect.required = needsToArea;
-            outTypeSelect.disabled = !needsOutType;
 
-            if (!needsFromArea) {
+            if (!needsFromArea && !singleArea) {
                 setSelectValue(fromAreaSelect, '');
             }
 
-            if (!needsToArea) {
+            if (!needsToArea && !singleArea) {
                 setSelectValue(toAreaSelect, '');
             }
 
-            if (!needsOutType) {
-                setSelectValue(outTypeSelect, '');
+            // Keep the source area selected whenever the OUT tab is active.
+            if (singleArea && type === 'out') {
+                setSelectValue(fromAreaSelect, singleArea);
             }
+
+            // Keep the receiving area selected whenever the IN tab is active.
+            if (singleArea && type === 'in') {
+                setSelectValue(toAreaSelect, singleArea);
+            }
+
+            renderMovementReasons(needsMovementReason ? type : '');
 
             if (type === 'transfer' && fromAreaSelect.value && fromAreaSelect.value === toAreaSelect.value) {
                 setSelectValue(toAreaSelect, '');
@@ -1116,7 +1179,7 @@
             option.addEventListener('click', function () {
                 const input = option.querySelector('input[name="movement_type"]');
 
-                if (!input || input.checked) {
+                if (!input || input.disabled || input.checked) {
                     return;
                 }
 

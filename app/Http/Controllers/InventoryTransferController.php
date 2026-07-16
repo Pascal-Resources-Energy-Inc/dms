@@ -19,6 +19,8 @@ class InventoryTransferController extends Controller
         $user = auth()->user();
         $ad = $user->ad;
         $areas = $ad ? $ad->areas->pluck('area_name')->filter()->values() : collect();
+        $canTransfer = $areas->count() > 1;
+        $singleArea = $areas->count() === 1 ? $areas->first() : null;
 
         $adItems = $this->completedAdPurchaseOrderItems($user->id);
 
@@ -181,6 +183,8 @@ class InventoryTransferController extends Controller
 
         return view('inventory_transfers.index', compact(
             'areas',
+            'canTransfer',
+            'singleArea',
             'products',
             'movements',
             'balances',
@@ -197,6 +201,24 @@ class InventoryTransferController extends Controller
 
     public function store(Request $request)
     {
+        $user = auth()->user();
+        $ad = $user->ad;
+        $areas = $ad ? $ad->areas->pluck('area_name')->filter()->values()->toArray() : [];
+
+        // A single-area AD always uses their assigned area. This also covers
+        // submissions made without the browser-side form behaviour.
+        if (count($areas) === 1) {
+            $singleArea = $areas[0];
+
+            if ($request->input('movement_type') === 'in' && !$request->filled('to_area')) {
+                $request->merge(['to_area' => $singleArea]);
+            }
+
+            if ($request->input('movement_type') === 'out' && !$request->filled('from_area')) {
+                $request->merge(['from_area' => $singleArea]);
+            }
+        }
+
         $request->validate([
             'movement_type' => 'required|in:in,out,transfer',
             'product_id' => 'required|integer',
@@ -210,10 +232,20 @@ class InventoryTransferController extends Controller
             'remarks' => 'nullable|string',
         ]);
 
-        $user = auth()->user();
-        $ad = $user->ad;
-        $areas = $ad ? $ad->areas->pluck('area_name')->toArray() : [];
         $type = $request->movement_type;
+
+        if ($type === 'transfer' && count($areas) < 2) {
+            return back()->withInput()->with('error', 'Transfer is unavailable because your account has only one assigned area.');
+        }
+
+        $allowedReasons = [
+            'in' => ['Beginning Balance', 'Inventory Adjustment'],
+            'out' => ['Return and Refund', 'Pull Out', 'Replace'],
+        ];
+
+        if (in_array($type, ['in', 'out'], true) && !in_array($request->out_type, $allowedReasons[$type], true)) {
+            return back()->withInput()->with('error', 'Please select a valid movement type.');
+        }
         $adItems = $this->completedAdPurchaseOrderItems($user->id);
         $adItem = $adItems->firstWhere('id', (int) $request->product_id);
         $stockProduct = Product::where('ad_user_id', $user->id)
