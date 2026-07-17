@@ -362,6 +362,12 @@
                         <div class="sedp-project-metric"><small>330g refills</small><strong>{{ number_format($project['refills']) }}</strong></div>
                     </div>
                 @endforeach
+                <div class="sedp-project-row {{ $project['accent'] }}">
+                    <div class="sedp-project-name"><span class="sedp-project-dot"></span>Total</div>
+                    <div class="sedp-project-metric"><small>Changed lives</small><strong>{{ number_format($totalBeneficiaries) }}</strong></div>
+                    <div class="sedp-project-metric"><small>Entrepreneurs</small><strong>{{ number_format($totalEntrepreneurs) }}</strong></div>
+                    <div class="sedp-project-metric"><small>330g refills</small><strong>{{ number_format($totalRefills) }}</strong></div>
+                </div>
             </div>
         </article>
 
