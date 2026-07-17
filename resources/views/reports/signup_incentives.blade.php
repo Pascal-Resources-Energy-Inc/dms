@@ -1,63 +1,70 @@
 @extends('layouts.header')
 
 @section('css')
-<link href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.40.0/tabler-icons.min.css" rel="stylesheet">
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.40.0/tabler-icons.min.css"
+>
+
 <style>
     .sir-page {
-        --sir-blue: #2f6fa4;
-        --sir-blue-dark: #284f99;
-        --sir-ink: #17324d;
-        --sir-border: #dbe4ef;
-        --sir-muted: #64748b;
-        --sir-grid: #273449;
-        --sir-center: #ddebf7;
-        --sir-total: #e2f0d9;
-        --sir-soft: #f8fafc;
+        --primary: #2f6fa4;
+        --primary-dark: #284f99;
+        --text: #17324d;
+        --muted: #64748b;
+        --border: #d1d5db;
+        --background: #f6f8fb;
+        --total-background: #e2f0d9;
+
+        min-height: 100vh;
         padding: 18px 12px 32px;
-        background: #f6f8fb;
+        margin-top: 5.5em;
+        background: var(--background);
     }
 
-    .sir-hero,
     .sir-card,
+    .sir-hero,
     .sir-kpi {
-        background: #fff;
-        border: 1px solid var(--sir-border);
+        background: #ffffff;
+        border: 1px solid var(--border);
         border-radius: 8px;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
     }
 
+    /* Header */
     .sir-hero {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 14px;
-        padding: 16px 18px;
+        gap: 16px;
+        padding: 18px;
         margin-bottom: 14px;
-        border-left: 5px solid var(--sir-blue);
+        border-left: 5px solid var(--primary);
     }
 
     .sir-eyebrow {
-        color: var(--sir-blue);
-        font-size: 10px;
-        font-weight: 900;
+        margin-bottom: 3px;
+        color: var(--primary);
+        font-size: 11px;
+        font-weight: 800;
         text-transform: uppercase;
+        letter-spacing: 0.08em;
     }
 
     .sir-hero h3 {
-        color: var(--sir-ink);
+        margin: 0 0 4px;
+        color: var(--text);
         font-size: 23px;
-        font-weight: 900;
-        margin: 3px 0;
+        font-weight: 800;
     }
 
     .sir-hero p {
-        color: var(--sir-muted);
         margin: 0;
+        color: var(--muted);
         font-size: 13px;
     }
 
-    .sir-actions,
-    .sir-kpis {
+    .sir-actions {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -65,20 +72,21 @@
     }
 
     .sir-actions .btn,
-    .sir-card .btn {
+    .sir-filter-actions .btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 7px;
-        border-radius: 8px;
-        font-weight: 800;
+        gap: 6px;
         min-height: 38px;
+        border-radius: 7px;
+        font-weight: 700;
     }
 
+    /* KPI cards */
     .sir-kpis {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
+        gap: 10px;
         margin-bottom: 14px;
     }
 
@@ -86,19 +94,20 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 13px 14px;
+        padding: 14px;
     }
 
     .sir-kpi-icon {
-        width: 42px;
-        height: 42px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
         border-radius: 8px;
         background: #eef5ff;
-        color: var(--sir-blue);
-        font-size: 20px;
+        color: var(--primary);
+        font-size: 21px;
     }
 
     .sir-kpi small,
@@ -107,277 +116,169 @@
     }
 
     .sir-kpi small {
-        color: var(--sir-muted);
+        margin-bottom: 2px;
+        color: var(--muted);
         font-size: 11px;
         font-weight: 800;
         text-transform: uppercase;
     }
 
     .sir-kpi strong {
-        color: var(--sir-ink);
+        color: var(--text);
         font-size: 21px;
-        font-weight: 900;
+        font-weight: 800;
     }
 
-    .sir-card {
+    /* Filters */
+    .sir-filter-card {
         padding: 14px;
         margin-bottom: 14px;
     }
 
-    .sir-card .form-label {
+    .sir-filter-card label {
         color: #334e68;
         font-size: 12px;
-        font-weight: 900;
+        font-weight: 800;
     }
 
-    .sir-card .form-control {
-        border-color: #cbd5e1;
-        border-radius: 8px;
-        font-size: 13px;
+    .sir-filter-card .form-control {
         min-height: 38px;
+        border-color: #cbd5e1;
+        border-radius: 7px;
+        font-size: 13px;
     }
 
-    .sir-card .form-control:focus {
-        border-color: var(--sir-blue);
-        box-shadow: 0 0 0 .18rem rgba(47, 111, 164, .14);
+    .sir-filter-card .form-control:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 0.18rem rgba(47, 111, 164, 0.14);
     }
 
     .sir-filter-actions {
-        display: grid;
-        grid-template-columns: 1fr auto;
+        display: flex;
         gap: 8px;
     }
 
-    .sir-filter-actions .btn-outline-secondary {
-        width: 42px;
-        padding-left: 0;
-        padding-right: 0;
-    }
-
+    /* Report table */
     .sir-report-card {
         padding: 0;
         overflow: hidden;
     }
 
-    .sir-meta {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 10px 14px;
-        border-bottom: 1px solid var(--sir-border);
-        background: var(--sir-soft);
-        color: #334155;
-        font-size: 12px;
-        font-weight: 800;
-        flex-wrap: wrap;
-    }
-
-    .sir-territory-note {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        color: var(--sir-blue-dark);
-    }
-
     .sir-table-wrap {
+        width: 100%;
+        max-height: 72vh;
         overflow: auto;
-        max-height: 74vh;
-        background: #fff;
+        background: #ffffff;
     }
 
     .sir-table {
         width: 100%;
-        min-width: 1510px;
-        border-collapse: separate;
-        border-spacing: 0;
-        font-size: 13px;
+        min-width: 1400px;
+        border-collapse: collapse;
         table-layout: fixed;
+        color: #111827;
+        font-size: 13px;
     }
 
     .sir-table th,
     .sir-table td {
-        border-right: 1px solid var(--sir-grid);
-        border-bottom: 1px solid var(--sir-grid);
-        padding: 4px 7px;
-        height: 28px;
-        white-space: nowrap;
+        height: 31px;
+        padding: 5px 8px;
+        border: 1px solid var(--border);
         vertical-align: middle;
+        white-space: nowrap;
     }
 
     .sir-table thead th {
-        color: #000;
-        background: #fff;
-        font-weight: 800;
-        text-align: center;
         position: sticky;
         top: 0;
         z-index: 3;
+        background: #ffffff;
+        color: #111827;
+        font-size: 11px;
+        font-weight: 800;
+        text-align: center;
+        text-transform: uppercase;
     }
 
-    .sir-table th:first-child,
-    .sir-table td:first-child {
-        border-left: 1px solid var(--sir-grid);
+    .sir-designation-column {
+        width: 130px;
     }
 
-    .sir-table thead tr:first-child th {
-        border-top: 1px solid var(--sir-grid);
-    }
-
-    .sir-col-center {
-        width: 100px;
-    }
-
-    .sir-col-location {
-        width: 205px;
-    }
-
-    .sir-col-designation {
+    .sir-center-column {
         width: 170px;
     }
 
-    .sir-col-name {
-        width: 150px;
+    .sir-month-column {
+        width: 82px;
     }
 
-    .sir-col-month {
-        width: 74px;
+    .sir-total-column {
+        width: 105px;
     }
 
-    .sir-summary-title {
-        background: var(--sir-blue-dark) !important;
-        color: #fff !important;
-        text-align: center !important;
-        height: 42px;
-    }
-
-    .sir-month-title {
-        font-size: 14px;
-    }
-
-    .sir-center-row td {
-        background: var(--sir-center);
-        color: #f00;
-        font-weight: 700;
-    }
-
-    .sir-person-row td {
-        color: #f00;
-        background: #fff;
-    }
-
-    .sir-total-row td {
-        background: var(--sir-total);
-        color: #f00;
+    .sir-designation-cell {
+        background: #f8fafc;
         font-weight: 800;
+        text-align: center;
     }
 
-    .sir-grand-signups td {
-        background: var(--sir-center);
-        color: #000;
-        font-weight: 800;
-    }
-
-    .sir-grand-amounts td {
-        background: var(--sir-total);
-        color: #000;
-        font-weight: 800;
+    .sir-center-cell {
+        font-weight: 600;
+        text-align: left;
     }
 
     .sir-number {
         text-align: right;
+        font-variant-numeric: tabular-nums;
     }
 
-    .sir-signup-link {
-        width: 100%;
-        min-width: 32px;
-        padding: 0;
-        border: 0;
-        background: transparent;
-        color: inherit;
-        font: inherit;
-        font-weight: 900;
-        line-height: 20px;
-        text-align: right;
-        cursor: pointer;
-        text-decoration: underline;
-        text-decoration-color: rgba(47, 111, 164, .35);
-        text-underline-offset: 3px;
+    .sir-row-total {
+        background: #f8fafc;
+        font-weight: 800;
+    }
+    .sir-designation-total-row td {
+        background: #ddebf7;
+        border-top: 2px solid #5b9bd5;
+        font-weight: 800;
     }
 
-    .sir-signup-link:hover,
-    .sir-signup-link:focus {
-        color: var(--sir-blue-dark);
-        outline: none;
-        text-decoration-color: currentColor;
+    .sir-designation-total-label {
+        color: #17324d;
+        text-align: left;
+    }
+    /* .sir-grand-total-row td {
+        background: var(--total-background);
+        border-top: 2px solid #548235;
+        font-weight: 800;
     }
 
-    .sir-client-modal .modal-content {
-        border: 0;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 18px 42px rgba(15, 23, 42, .2);
-    }
-
-    .sir-client-modal .modal-header {
-        background: var(--sir-blue-dark);
-        color: #fff;
-        border: 0;
-    }
-
-    /* .sir-client-modal .btn-close {
-        filter: invert(1) grayscale(1) brightness(3);
+    .sir-empty-state {
+        padding: 32px !important;
+        color: var(--muted);
+        text-align: center;
     } */
 
-    .sir-client-modal .table {
-        margin-bottom: 0;
-    }
-
-    .sir-client-modal .table th {
-        color: #475569;
-        font-size: 11px;
-        text-transform: uppercase;
-    }
-
-    .sir-client-state {
-        padding: 30px 16px;
-        color: var(--sir-muted);
-        text-align: center;
-    }
-
-    .sir-center-empty {
-        padding: 30px;
-        text-align: center;
-        color: var(--sir-muted);
-    }
-
-    .sir-label {
-        text-align: left;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .sir-location {
-        color: #334155;
-        font-weight: 600;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
     @media (max-width: 767.98px) {
-        .sir-hero,
-        .sir-actions {
+        .sir-hero {
             align-items: stretch;
             flex-direction: column;
         }
 
-        .sir-kpis {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+        .sir-actions {
+            width: 100%;
         }
-    }
 
-    @media (max-width: 575.98px) {
+        .sir-actions .btn {
+            flex: 1;
+        }
+
         .sir-kpis {
             grid-template-columns: 1fr;
+        }
+
+        .sir-filter-actions {
+            margin-top: 10px;
         }
     }
 
@@ -385,23 +286,37 @@
         .sidebar,
         .topbar,
         .sir-actions,
-        .sir-filters {
+        .sir-filter-card {
             display: none !important;
         }
 
         .sir-page {
             padding: 0;
+            margin: 0;
+            background: #ffffff;
         }
 
         .sir-hero,
-        .sir-card {
+        .sir-card,
+        .sir-kpi {
             border: 0;
             box-shadow: none;
         }
 
         .sir-table-wrap {
-            overflow: visible;
             max-height: none;
+            overflow: visible;
+        }
+
+        .sir-table {
+            min-width: 100%;
+            font-size: 9px;
+        }
+
+        .sir-table th,
+        .sir-table td {
+            height: 22px;
+            padding: 2px 3px;
         }
 
         .sir-table thead th {
@@ -412,265 +327,340 @@
 @endsection
 
 @section('content')
-<div class="container-fluid sir-page" style="margin-top: 5.5em;">
-    <div class="sir-hero">
+@php
+    /*
+    |--------------------------------------------------------------------------
+    | Prepare report records
+    |--------------------------------------------------------------------------
+    |
+    | Ideally, move this processing to the controller.
+    | This remains here so the template works with your existing $rows data.
+    |
+    */
+
+    $monthKeys = array_keys($months);
+    $reportRecords = collect();
+
+    foreach ($rows as $row) {
+        $center = isset($row['center']) ? $row['center'] : 'Unassigned Center';
+        $people = isset($row['people']) ? $row['people'] : [];
+
+        foreach ($people as $person) {
+            $designation = !empty($person['designation'])
+                ? trim($person['designation'])
+                : 'Unassigned';
+
+            $recordKey = $designation . '|' . $center;
+
+            if (!$reportRecords->has($recordKey)) {
+                $amounts = array_fill_keys($monthKeys, 0);
+
+                $reportRecords->put($recordKey, [
+                    'designation' => $designation,
+                    'center'      => $center,
+                    'amounts'     => $amounts,
+                    'total'       => 0,
+                ]);
+            }
+
+            $record = $reportRecords->get($recordKey);
+
+            foreach ($monthKeys as $monthNumber) {
+                $amount = isset($person['amounts'][$monthNumber])
+                    ? (float) $person['amounts'][$monthNumber]
+                    : 0;
+
+                $record['amounts'][$monthNumber] += $amount;
+            }
+
+            $record['total'] = array_sum($record['amounts']);
+
+            $reportRecords->put($recordKey, $record);
+        }
+    }
+
+    $reportRecords = $reportRecords
+        ->values()
+        ->sortBy(function ($record) {
+            return strtolower($record['designation'] . '|' . $record['center']);
+        });
+
+    $designationGroups = $reportRecords->groupBy('designation');
+
+    $monthlyTotals = array_fill_keys($monthKeys, 0);
+
+    foreach ($reportRecords as $record) {
+        foreach ($monthKeys as $monthNumber) {
+            $monthlyTotals[$monthNumber] += $record['amounts'][$monthNumber];
+        }
+    }
+
+    $reportGrandTotal = array_sum($monthlyTotals);
+@endphp
+
+<div class="container-fluid sir-page">
+    <section class="sir-hero">
         <div>
             <div class="sir-eyebrow">Reports</div>
+
             <h3>Sign Up Incentives Report</h3>
-            <p>Monthly sign up counts and computed incentives per center, designation, and SEDP account.</p>
+
+            <p>
+                Monthly incentive totals grouped by designation and center.
+            </p>
         </div>
+
         <div class="sir-actions">
-            <a class="btn btn-outline-primary" href="{{ route('signup-incentives.export', request()->query()) }}">
-                <i class="ti ti-download"></i> Export CSV
+            <a
+                href="{{ route('signup-incentives.export', request()->query()) }}"
+                class="btn btn-outline-primary"
+            >
+                <i class="ti ti-download"></i>
+                Export CSV
             </a>
-            <button type="button" class="btn btn-primary" onclick="window.print()">
-                <i class="ti ti-printer"></i> Print
+
+            <button
+                type="button"
+                class="btn btn-primary"
+                onclick="window.print()"
+            >
+                <i class="ti ti-printer"></i>
+                Print
             </button>
         </div>
-    </div>
+    </section>
 
-    <div class="sir-kpis">
-        <div class="sir-kpi">
-            <span class="sir-kpi-icon"><i class="ti ti-building-store"></i></span>
-            <div><small>Centers</small><strong>{{ count($rows) }}</strong></div>
-        </div>
-        <div class="sir-kpi">
-            <span class="sir-kpi-icon"><i class="ti ti-user-plus"></i></span>
-            <div><small>Total Sign Ups</small><strong>{{ number_format($grandTotalSignups) }}</strong></div>
-        </div>
-        <div class="sir-kpi">
-            <span class="sir-kpi-icon"><i class="ti ti-cash"></i></span>
-            <div><small>Total Incentives</small><strong>{{ number_format($grandTotalAmount, 2) }}</strong></div>
-        </div>
-    </div>
+    <section class="sir-kpis">
+        <article class="sir-kpi">
+            <span class="sir-kpi-icon">
+                <i class="ti ti-building-store"></i>
+            </span>
 
-    <div class="sir-card sir-filters">
-        <form method="GET" action="{{ route('signup-incentives') }}" class="row g-3 align-items-end">
-            <div class="col-lg-2 col-md-4">
-                <label class="form-label">Year</label>
-                <input type="number" class="form-control" name="year" value="{{ $year }}" min="2000" max="2100">
+            <div>
+                <small>Centers</small>
+                <strong>{{ number_format(count($rows)) }}</strong>
             </div>
-            <div class="col-lg-3 col-md-8">
-                <label class="form-label">{{ $isSedpTerritoryView ? 'My Territory Centers' : 'Center' }}</label>
-                <select class="form-control" name="center">
-                    <option value="">{{ $isSedpTerritoryView ? 'All My Centers' : 'All Centers' }}</option>
-                    @foreach($centers as $center)
-                        <option value="{{ $center }}" {{ $selectedCenter === $center ? 'selected' : '' }}>{{ $center }}</option>
-                    @endforeach
-                </select>
+        </article>
+
+        <article class="sir-kpi">
+            <span class="sir-kpi-icon">
+                <i class="ti ti-user-plus"></i>
+            </span>
+
+            <div>
+                <small>Total Sign Ups</small>
+                <strong>{{ number_format($grandTotalSignups) }}</strong>
             </div>
-            <div class="col-lg-2 col-md-12">
-                <div class="sir-filter-actions">
-                    <button type="submit" class="btn btn-primary"><i class="ti ti-filter"></i> Apply</button>
-                    <a href="{{ route('signup-incentives') }}" class="btn btn-outline-secondary" title="Reset filters"><i class="ti ti-refresh"></i></a>
+        </article>
+
+        <article class="sir-kpi">
+            <span class="sir-kpi-icon">
+                <i class="ti ti-cash"></i>
+            </span>
+
+            <div>
+                <small>Total Incentives</small>
+                <strong>₱{{ number_format($reportGrandTotal, 2) }}</strong>
+            </div>
+        </article>
+    </section>
+
+    <section class="sir-card sir-filter-card">
+        <form
+            method="GET"
+            action="{{ route('signup-incentives') }}"
+        >
+            <div class="row align-items-end">
+                <div class="col-lg-2 col-md-4 mb-2">
+                    <label for="year">Year</label>
+
+                    <input
+                        type="number"
+                        id="year"
+                        name="year"
+                        class="form-control"
+                        value="{{ $year }}"
+                        min="2000"
+                        max="2100"
+                        required
+                    >
+                </div>
+
+                <div class="col-lg-3 col-md-5 mb-2">
+                    <label for="center">
+                        {{ $isSedpTerritoryView ? 'My Territory Centers' : 'Center' }}
+                    </label>
+
+                    <select
+                        id="center"
+                        name="center"
+                        class="form-control"
+                    >
+                        <option value="">
+                            {{ $isSedpTerritoryView ? 'All My Centers' : 'All Centers' }}
+                        </option>
+
+                        @foreach($centers as $center)
+                            <option
+                                value="{{ $center }}"
+                                {{ $selectedCenter === $center ? 'selected' : '' }}
+                            >
+                                {{ $center }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-lg-3 col-md-3 mb-2">
+                    <div class="sir-filter-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-filter"></i>
+                            Apply
+                        </button>
+
+                        <a
+                            href="{{ route('signup-incentives') }}"
+                            class="btn btn-outline-secondary"
+                            title="Reset filters"
+                        >
+                            <i class="ti ti-refresh"></i>
+                            Reset
+                        </a>
+                    </div>
                 </div>
             </div>
         </form>
-    </div>
+    </section>
 
-    <div class="sir-card sir-report-card">
-        {{-- <div class="sir-meta">
-            <span>Year: {{ $year }}</span>
-            <span>Source: admin_crms.clients</span>
-            @if($isSedpTerritoryView)
-                <span class="sir-territory-note"><i class="ti ti-map-pin"></i> Limited to {{ count($territoryCenters) }} territory center{{ count($territoryCenters) === 1 ? '' : 's' }}</span>
-            @else
-                <span>All centers</span>
-            @endif
-        </div> --}}
+    <section class="sir-card sir-report-card">
         <div class="sir-table-wrap">
             <table class="sir-table">
                 <colgroup>
-                    <col class="sir-col-center">
-                    <col class="sir-col-designation">
-                    <col class="sir-col-name">
+                    <col class="sir-designation-column">
+                    <col class="sir-center-column">
+
                     @foreach($months as $month)
-                        <col class="sir-col-month">
+                        <col class="sir-month-column">
                     @endforeach
-                    <col class="sir-col-month">
+
+                    <col class="sir-total-column">
                 </colgroup>
+
                 <thead>
                     <tr>
-                        <th class="sir-summary-title" colspan="3">Sign Up Incentive Summary</th>
-                        <th class="sir-month-title" colspan="13"># of Sign Ups Per Month</th>
-                    </tr>
-                    <tr>
-                        <th>Center</th>
                         <th>Designation</th>
-                        <th>Name</th>
+                        <th>Center</th>
+
                         @foreach($months as $month)
                             <th>{{ $month }}</th>
                         @endforeach
-                        <th>TOTAL</th>
+
+                        <th>Total</th>
                     </tr>
                 </thead>
+
                 <tbody>
-                    @forelse($rows as $row)
-                        <tr class="sir-center-row">
-                            <td rowspan="{{ count($row['people']) + 1 }}">{{ $row['center'] }}</td>
-                            <td></td>
-                            <td></td>
-                            @foreach(array_keys($months) as $month)
+                    @forelse($designationGroups as $designation => $records)
+                        @php
+                            $designationMonthlyTotals = array_fill_keys($monthKeys, 0);
+                            $designationGrandTotal = 0;
+
+                            foreach ($records as $designationRecord) {
+                                foreach ($monthKeys as $monthNumber) {
+                                    $designationMonthlyTotals[$monthNumber] +=
+                                        isset($designationRecord['amounts'][$monthNumber])
+                                            ? (float) $designationRecord['amounts'][$monthNumber]
+                                            : 0;
+                                }
+
+                                $designationGrandTotal += isset($designationRecord['total'])
+                                    ? (float) $designationRecord['total']
+                                    : 0;
+                            }
+                        @endphp
+
+                        @foreach($records->values() as $recordIndex => $record)
+                            <tr>
+                                @if($recordIndex === 0)
+                                    <td
+                                        class="sir-designation-cell"
+                                        rowspan="{{ $records->count() }}"
+                                    >
+                                        {{ $designation }}
+                                    </td>
+                                @endif
+
+                                <td class="sir-center-cell">
+                                    {{ $record['center'] }}
+                                </td>
+
+                                @foreach($monthKeys as $monthNumber)
+                                    <td class="sir-number">
+                                        {{ number_format(
+                                            isset($record['amounts'][$monthNumber])
+                                                ? $record['amounts'][$monthNumber]
+                                                : 0,
+                                            2
+                                        ) }}
+                                    </td>
+                                @endforeach
+
+                                <td class="sir-number sir-row-total">
+                                    {{ number_format($record['total'], 2) }}
+                                </td>
+                            </tr>
+                        @endforeach
+
+                        <tr class="sir-designation-total-row">
+                            <td colspan="2" class="sir-designation-total-label">
+                                Total Incentive — {{ $designation }}
+                            </td>
+
+                            @foreach($monthKeys as $monthNumber)
                                 <td class="sir-number">
-                                    @if($row['signups'][$month])
-                                        <button type="button" class="sir-signup-link js-signup-clients"
-                                            data-center="{{ $row['center'] }}"
-                                            data-month="{{ $month }}"
-                                            data-month-name="{{ $months[$month] }}"
-                                            title="View {{ number_format($row['signups'][$month]) }} client{{ $row['signups'][$month] === 1 ? '' : 's' }}">
-                                            {{ number_format($row['signups'][$month]) }}
-                                        </button>
-                                    @endif
+                                    {{ number_format($designationMonthlyTotals[$monthNumber], 2) }}
                                 </td>
                             @endforeach
-                            <td class="sir-number">{{ number_format($row['total_signups']) }}</td>
-                        </tr>
 
-                        @forelse($row['people'] as $person)
-                            <tr class="sir-person-row">
-                                <td>{{ $person['designation'] }}</td>
-                                <td>{{ $person['name'] }}</td>
-                                @foreach(array_keys($months) as $month)
-                                    <td class="sir-number">{{ $person['amounts'][$month] ? number_format($person['amounts'][$month], 2) : '-' }}</td>
-                                @endforeach
-                                <td class="sir-number">{{ number_format($person['total'], 2) }}</td>
-                            </tr>
-                        @empty
-                            <tr class="sir-person-row">
-                                <td colspan="2" class="sir-label">No SEDP CDW/CDW2/SPOM assigned to this center</td>
-                                @foreach(array_keys($months) as $month)
-                                    <td class="sir-number">-</td>
-                                @endforeach
-                                <td class="sir-number">-</td>
-                            </tr>
-                        @endforelse
-
-                        <tr class="sir-total-row">
-                            <td class="sir-label" colspan="2">Total Incentive Earned</td>
-                            <td></td>
-                            @foreach(array_keys($months) as $month)
-                                <td class="sir-number">{{ $row['monthly_total_amounts'][$month] ? number_format($row['monthly_total_amounts'][$month], 2) : '-' }}</td>
-                            @endforeach
-                            <td class="sir-number">{{ number_format($row['total_amount'], 2) }}</td>
+                            <td class="sir-number">
+                                {{ number_format($designationGrandTotal, 2) }}
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="16" class="sir-center-empty">
-                                {{ $isSedpTerritoryView ? 'No sign up incentive records found for your assigned territory.' : 'No sign up incentive records found for this filter.' }}
+                            <td
+                                colspan="{{ count($months) + 3 }}"
+                                class="sir-empty-state"
+                            >
+                                @if($isSedpTerritoryView)
+                                    No incentive records were found for your assigned territory.
+                                @else
+                                    No incentive records were found for the selected filters.
+                                @endif
                             </td>
                         </tr>
                     @endforelse
 
-                    <tr class="sir-grand-signups">
-                        <td></td>
-                        <td class="sir-label">Grand Total Sign Up</td>
-                        <td></td>
-                        @foreach(array_keys($months) as $month)
-                            <td class="sir-number">{{ number_format($grandSignups[$month]) }}</td>
-                        @endforeach
-                        <td class="sir-number">{{ number_format($grandTotalSignups) }}</td>
-                    </tr>
-                    <tr class="sir-grand-amounts">
-                        <td></td>
-                        <td class="sir-label">Grand Total Php</td>
-                        <td></td>
-                        @foreach(array_keys($months) as $month)
-                            <td class="sir-number">{{ $grandAmounts[$month] ? number_format($grandAmounts[$month], 2) : '-' }}</td>
-                        @endforeach
-                        <td class="sir-number">{{ number_format($grandTotalAmount, 2) }}</td>
-                    </tr>
+                    @if($reportRecords->isNotEmpty())
+                        <tr class="sir-grand-total-row">
+                            <td colspan="2">
+                                Grand Total Incentive Earned
+                            </td>
+
+                            @foreach($monthKeys as $monthNumber)
+                                <td class="sir-number">
+                                    {{ number_format($monthlyTotals[$monthNumber], 2) }}
+                                </td>
+                            @endforeach
+
+                            <td class="sir-number">
+                                {{ number_format($reportGrandTotal, 2) }}
+                            </td>
+                        </tr>
+                    @endif
                 </tbody>
             </table>
         </div>
-    </div>
+    </section>
 </div>
-
-<div class="modal fade sir-client-modal" id="signupClientsModal" tabindex="-1" aria-labelledby="signupClientsModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <div class="sir-eyebrow text-white-50">Client Sign Ups</div>
-                    <h5 class="modal-title mb-0" id="signupClientsModalTitle">Clients</h5>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div id="signupClientsState" class="sir-client-state">Loading clients…</div>
-                <div id="signupClientsTableWrap" class="d-none table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr><th class="ps-3">Client</th><th>Contact</th><th class="pe-3">Signed Up</th></tr>
-                        </thead>
-                        <tbody id="signupClientsBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endsection
-
-@section('javascript')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var modalElement = document.getElementById('signupClientsModal');
-    var modal = new bootstrap.Modal(modalElement);
-    var title = document.getElementById('signupClientsModalTitle');
-    var state = document.getElementById('signupClientsState');
-    var tableWrap = document.getElementById('signupClientsTableWrap');
-    var body = document.getElementById('signupClientsBody');
-    var endpoint = '{{ route('signup-incentives.clients') }}';
-
-    document.querySelectorAll('.js-signup-clients').forEach(function (button) {
-        button.addEventListener('click', function () {
-            var center = button.dataset.center;
-            var month = button.dataset.month;
-            var monthName = button.dataset.monthName;
-
-            title.textContent = center + ' — ' + monthName + ' {{ $year }}';
-            state.textContent = 'Loading clients…';
-            state.classList.remove('d-none');
-            tableWrap.classList.add('d-none');
-            body.innerHTML = '';
-            modal.show();
-
-            var params = new URLSearchParams({ center: center, month: month, year: '{{ $year }}' });
-
-            fetch(endpoint + '?' + params.toString(), { headers: { 'Accept': 'application/json' } })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('Unable to load clients.');
-                    }
-
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (!data.clients || !data.clients.length) {
-                        state.textContent = 'No clients were found for this center and month.';
-                        return;
-                    }
-
-                    data.clients.forEach(function (client) {
-                        var row = document.createElement('tr');
-                        [client.name, client.contact, client.created_at].forEach(function (value, index) {
-                            var cell = document.createElement('td');
-                            cell.textContent = value;
-                            if (index === 0) cell.className = 'ps-3 fw-semibold';
-                            if (index === 2) cell.className = 'pe-3 text-nowrap';
-                            row.appendChild(cell);
-                        });
-                        body.appendChild(row);
-                    });
-
-                    state.classList.add('d-none');
-                    tableWrap.classList.remove('d-none');
-                })
-                .catch(function () {
-                    state.textContent = 'Unable to load clients. Please try again.';
-                });
-        });
-    });
-});
-</script>
 @endsection

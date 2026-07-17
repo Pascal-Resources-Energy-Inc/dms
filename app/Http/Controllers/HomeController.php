@@ -209,9 +209,16 @@ class HomeController extends Controller
 
             return $project;
         });
+        
+        $totalBeneficiaries = collect($projects)->sum('beneficiaries');
+        $totalEntrepreneurs = collect($projects)->sum('entrepreneurs');
+        $totalRefills = collect($projects)->sum('refills');
 
         return view('dashboards.sedp', [
             'projects' => $projects,
+            'totalBeneficiaries' => $totalBeneficiaries,
+            'totalEntrepreneurs' => $totalEntrepreneurs,
+            'totalRefills' => $totalRefills,
             'asOf' => $asOf,
             'totals' => [
                 'beneficiaries' => $projects->sum('beneficiaries'),
