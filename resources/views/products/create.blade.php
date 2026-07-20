@@ -2,12 +2,12 @@
 
 @section('css')
 <style>
-    .pricing-page { max-width: 1480px; margin: 0 auto; }
+    .pricing-page { width: min(100%, 1480px); margin: 0 auto; }
     .pricing-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-    .pricing-title { margin: 0; color: #111827; font-size: 24px; font-weight: 800; }
+    .pricing-title { margin: 0; color: #111827; font-size: clamp(20px, 2.4vw, 24px); font-weight: 800; }
     .pricing-subtitle { margin: 4px 0 0; color: #64748b; font-size: 13px; }
     .pricing-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
-    .pricing-search { width: 300px; max-width: 100%; }
+    .pricing-search { width: 300px; max-width: 100%; min-height: 40px; }
     .summary-strip { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
     .summary-tile { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
     .summary-label { margin-bottom: 5px; color: #64748b; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
@@ -19,8 +19,8 @@
     .role-dot.mega { background: #0f766e; }
     .role-dot.dealer { background: #2563eb; }
     .role-dot.client { background: #dc2626; }
-    .pricing-table-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
-    .pricing-table { width: 100%; margin: 0; border-collapse: separate; border-spacing: 0; }
+    .pricing-table-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-color: #94a3b8 transparent; }
+    .pricing-table { width: 100%; min-width: 1120px; margin: 0; border-collapse: separate; border-spacing: 0; }
     .pricing-table th { position: sticky; top: 0; z-index: 10; background: #f8fafc; border-bottom: 1px solid #e5e7eb; color: #475569; font-size: 11px; font-weight: 800; letter-spacing: .04em; padding: 12px; text-transform: uppercase; white-space: nowrap; }
     .pricing-table td { border-bottom: 1px solid #eef2f7; padding: 12px; vertical-align: middle; }
     .pricing-table tr:last-child td { border-bottom: 0; }
@@ -46,15 +46,48 @@
     .status-chip.pending { background: #fff7ed; color: #c2410c; }
     .active-toggle { min-width: 90px; }
     .row-hidden { display: none; }
-    .save-bar { position: sticky; bottom: 0; z-index: 20; display: flex; justify-content: flex-end; padding: 14px 0; }
-    @media (max-width: 992px) {
+    .save-bar { position: sticky; bottom: 0; z-index: 20; display: flex; justify-content: flex-end; padding: 14px 0; background: linear-gradient(to top, #d8e9f0 70%, transparent); }
+    @media (max-width: 1200px) {
         .pricing-header { align-items: flex-start; flex-direction: column; }
         .pricing-actions, .pricing-search { width: 100%; }
-        .summary-strip { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
-        .pricing-table-wrap { overflow-x: auto; }
-        .pricing-table { min-width: 1180px; }
+        .pricing-actions { justify-content: flex-start; }
     }
-    @media (max-width: 576px) { .summary-strip { grid-template-columns: 1fr; } }
+    @media (max-width: 992px) {
+        .summary-strip { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+    }
+    @media (max-width: 768px) {
+        .pricing-header { gap: 12px; }
+        .pricing-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+        .pricing-search { width: 100%; }
+        .pricing-actions .btn { min-height: 40px; white-space: nowrap; }
+        .price-legend { gap: 6px; }
+        .legend-chip { padding: 6px 9px; font-size: 11px; }
+        .pricing-table-wrap { overflow: visible; border: 0; background: transparent; }
+        .pricing-table, .pricing-table tbody, .pricing-table tr, .pricing-table td { display: block; width: 100%; min-width: 0; }
+        .pricing-table thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+        .pricing-table tbody { display: grid; gap: 12px; }
+        .pricing-table .product-row { overflow: hidden; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 14px rgba(15, 23, 42, .05); }
+        .pricing-table .product-row.row-hidden { display: none; }
+        .pricing-table td { padding: 11px 14px; border-bottom: 1px solid #eef2f7; }
+        .pricing-table td:first-child { padding: 14px; background: #f8fafc; }
+        .pricing-table td:last-child { border-bottom: 0; }
+        .pricing-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 7px; color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+        .product-cell { min-width: 0; gap: 10px; }
+        .product-thumb { width: 52px; height: 52px; flex-basis: 52px; }
+        .product-name { font-size: 14px; }
+        .product-description { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .price-input { width: 100%; min-width: 0; }
+        .sku-input { min-height: 40px; }
+        .active-toggle { min-width: 0; }
+        .save-bar { position: static; padding: 16px 0 6px; background: transparent; }
+        .save-bar .btn { width: 100%; min-height: 44px; }
+    }
+    @media (max-width: 576px) {
+        .summary-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .summary-tile { padding: 10px; }
+        .pricing-actions { grid-template-columns: 1fr; }
+        .pricing-actions .btn { width: 100%; }
+    }
 </style>
 @endsection
 
@@ -65,7 +98,7 @@
     })->count();
 @endphp
 
-<form action="{{ route('products.storeBulk') }}" method="POST">
+<form action="{{ route('products.storeBulk') }}" method="POST" class="pricing-page">
     @csrf
 
     @if ($errors->any())
@@ -86,7 +119,7 @@
             <p class="pricing-subtitle">Show the item SRP and manage selling prices for Mega Dealer, Dealer, and Client.</p>
         </div>
         <div class="pricing-actions">
-            <input type="search" id="productSearch" class="form-control pricing-search" placeholder="Search product or SKU">
+            <input type="search" id="productSearch" class="form-control pricing-search" placeholder="Search product or SKU" aria-label="Search product or SKU">
             <button class="btn btn-success px-4" type="submit">
                 <i class="bi bi-check2-circle"></i> Save
             </button>
@@ -142,7 +175,7 @@
                         $isActive = $product ? $product->status === 'Activate' : false;
                     @endphp
                     <tr class="product-row">
-                        <td>
+                        <td data-label="Item">
                             <input type="hidden" name="items[{{ $index }}][item_id]" value="{{ $item->id }}">
                             <input type="hidden" name="items[{{ $index }}][name]" value="{{ $item->item }}">
                             <input type="hidden" name="items[{{ $index }}][description]" value="{{ $item->item_description }}">
@@ -163,20 +196,20 @@
                                 </div>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Availability">
                             <div class="form-check form-switch active-toggle">
                                 <input type="checkbox" class="form-check-input js-selected" id="itemSelected{{ $item->id }}" name="items[{{ $index }}][selected]" value="1" @if($isActive) checked @endif>
                                 <label class="form-check-label" for="itemSelected{{ $item->id }}">Active</label>
                             </div>
                         </td>
-                        <td class="srp-cell">
+                        <td class="srp-cell" data-label="Cost">
                             <div class="input-group price-input">
                                 <span class="input-group-text">PHP</span>
                                 <input type="number" class="form-control js-srp" name="items[{{ $index }}][dprice]" value="{{ $srpPrice }}" min="0" step="0.01" placeholder="0.00" readonly>
                             </div>
                             <div class="srp-note">Reference only</div>
                         </td>
-                        <td>
+                        <td data-label="Mega Dealer price">
                             <div class="input-group price-input">
                                 <span class="input-group-text">PHP</span>
                                 {{-- <input type="number" class="form-control js-role-price" name="items[{{ $index }}][mega_dealer_price]" value="{{ $megaDealerPrice }}" min="0" step="0.01" placeholder="0.00"> --}}
@@ -184,7 +217,7 @@
                             </div>
                             <div class="price-note"></div>
                         </td>
-                        <td>
+                        <td data-label="Dealer price">
                             <div class="input-group price-input">
                                 <span class="input-group-text">PHP</span>
                                 {{-- <input type="number" class="form-control js-role-price" name="items[{{ $index }}][dealer_price]" value="{{ $dealerPrice }}" min="0" step="0.01" placeholder="0.00"> --}}
@@ -192,7 +225,7 @@
                             </div>
                             <div class="price-note"></div>
                         </td>
-                        <td>
+                        <td data-label="SRP price">
                             <div class="input-group price-input">
                                 <span class="input-group-text">PHP</span>
                                 {{-- <input type="number" class="form-control js-role-price js-client-price" name="items[{{ $index }}][client_price]" value="{{ $clientPrice }}" min="0" step="0.01" placeholder="0.00"> --}}
@@ -201,11 +234,11 @@
                             <div class="price-note"></div>
                             <input type="hidden" name="items[{{ $index }}][price]" value="{{ $rowClientPrice }}">
                         </td>
-                        <td>
+                        <td data-label="SKU">
                             <input type="text" class="form-control sku-input product-search-sku" name="items[{{ $index }}][sku]" value="{{ $product->sku ?? '' }}" placeholder="SKU">
                             <div class="srp-note">Stock Keeping Unit</div>
                         </td>
-                        <td class="status-cell">
+                        <td class="status-cell" data-label="Status">
                             @if($isActive)
                                 <span class="status-chip">Active</span>
                             @else
@@ -226,7 +259,7 @@
 </form>
 @endsection
 
-@section('javascript')
+@section('js')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const search = document.getElementById('productSearch');
