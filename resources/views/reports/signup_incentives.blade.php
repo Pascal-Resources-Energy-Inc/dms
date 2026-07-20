@@ -164,6 +164,72 @@
         overflow: hidden;
     }
 
+    .sir-active-clients-card {
+        margin-bottom: 14px;
+        padding: 14px;
+    }
+
+    .sir-section-title {
+        margin: 0 0 2px;
+        color: var(--text);
+        font-size: 16px;
+        font-weight: 800;
+    }
+
+    .sir-section-note {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 12px;
+    }
+
+    .sir-client-count {
+        min-width: 36px;
+        padding: 2px 7px;
+        border: 0;
+        border-radius: 5px;
+        background: #e8f2fb;
+        color: #1f5c91;
+        font: inherit;
+        font-weight: 800;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+
+    .sir-client-count:hover,
+    .sir-client-count:focus {
+        background: #cfe5f8;
+        color: #17324d;
+    }
+
+    .sir-client-count:disabled {
+        color: #94a3b8;
+        background: #f1f5f9;
+        text-decoration: none;
+        cursor: default;
+    }
+
+    .sir-client-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1050;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(15, 23, 42, 0.5);
+    }
+
+    .sir-client-modal-backdrop.is-open { display: flex; }
+    .sir-client-modal { width: min(760px, 100%); max-height: 80vh; overflow: hidden; background: #fff; border-radius: 8px; box-shadow: 0 20px 44px rgba(15, 23, 42, .25); }
+    .sir-client-modal-header { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid var(--border); }
+    .sir-client-modal-header h4 { margin: 0; color: var(--text); font-size: 17px; font-weight: 800; }
+    .sir-client-modal-header p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .sir-client-modal-body { max-height: calc(80vh - 88px); overflow: auto; padding: 0; }
+    .sir-client-modal-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .sir-client-modal-table th, .sir-client-modal-table td { padding: 9px 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    .sir-client-modal-table th { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+    .sir-client-empty { padding: 28px; color: var(--muted); text-align: center; }
+
     .sir-table-wrap {
         width: 100%;
         max-height: 72vh;
@@ -532,6 +598,55 @@
         </form>
     </section>
 
+    <section class="sir-card sir-active-clients-card">
+        <h4 class="sir-section-title">Active Clients by Center</h4>
+        <p class="sir-section-note">Click a monthly count to view the active clients who signed up in that center and month.</p>
+
+        <div class="sir-table-wrap">
+            <table class="sir-table">
+                <colgroup>
+                    <col class="sir-center-column">
+                    @foreach($months as $month)
+                        <col class="sir-month-column">
+                    @endforeach
+                    <col class="sir-total-column">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Center</th>
+                        @foreach($months as $month)
+                            <th>{{ $month }}</th>
+                        @endforeach
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($rows as $row)
+                        <tr>
+                            <td class="sir-center-cell">{{ $row['center'] }}</td>
+                            @foreach($monthKeys as $monthNumber)
+                                @php $activeClientCount = (int) ($row['signups'][$monthNumber] ?? 0); @endphp
+                                <td class="sir-number">
+                                    <button
+                                        type="button"
+                                        class="sir-client-count js-active-client-count"
+                                        data-center="{{ $row['center'] }}"
+                                        data-month="{{ $monthNumber }}"
+                                        data-month-name="{{ $months[$monthNumber] }}"
+                                        {{ $activeClientCount === 0 ? 'disabled' : '' }}
+                                    >{{ number_format($activeClientCount) }}</button>
+                                </td>
+                            @endforeach
+                            <td class="sir-number sir-row-total">{{ number_format($row['total_signups']) }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="{{ count($months) + 2 }}" class="sir-empty-state">No active clients were found for the selected filters.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
+
     <section class="sir-card sir-report-card">
         <div class="sir-table-wrap">
             <table class="sir-table">
@@ -663,4 +778,91 @@
         </div>
     </section>
 </div>
+
+<div id="activeClientModal" class="sir-client-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="activeClientModalTitle">
+    <div class="sir-client-modal">
+        <div class="sir-client-modal-header">
+            <div>
+                <h4 id="activeClientModalTitle">Active Clients</h4>
+                <p id="activeClientModalSubtitle"></p>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary js-close-client-modal" aria-label="Close">&times;</button>
+        </div>
+        <div id="activeClientModalBody" class="sir-client-modal-body"></div>
+    </div>
+</div>
+@endsection
+
+@section('js')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('activeClientModal');
+    const modalBody = document.getElementById('activeClientModalBody');
+    const modalSubtitle = document.getElementById('activeClientModalSubtitle');
+    const clientUrl = @json(route('signup-incentives.clients'));
+    const reportYear = @json($year);
+
+    function closeModal() { modal.classList.remove('is-open'); }
+
+    document.querySelectorAll('.js-close-client-modal').forEach(function (button) {
+        button.addEventListener('click', closeModal);
+    });
+
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) closeModal();
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') closeModal();
+    });
+
+    document.querySelectorAll('.js-active-client-count').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const center = button.dataset.center;
+            const month = button.dataset.month;
+            modalSubtitle.textContent = center + ' \u2014 ' + button.dataset.monthName + ' ' + reportYear;
+            modalBody.innerHTML = '<div class="sir-client-empty">Loading active clients...</div>';
+            modal.classList.add('is-open');
+
+            const query = new URLSearchParams({ year: reportYear, month: month, center: center });
+
+            fetch(clientUrl + '?' + query.toString(), { headers: { Accept: 'application/json' } })
+                .then(function (response) {
+                    if (!response.ok) throw new Error('Unable to load active clients.');
+                    return response.json();
+                })
+                .then(function (data) {
+                    const clients = data.clients || [];
+                    modalBody.innerHTML = '';
+
+                    if (!clients.length) {
+                        modalBody.innerHTML = '<div class="sir-client-empty">No active clients found.</div>';
+                        return;
+                    }
+
+                    const table = document.createElement('table');
+                    table.className = 'sir-client-modal-table';
+                    table.innerHTML = '<thead><tr><th>Client</th><th>Contact</th><th>Sign-up Date</th></tr></thead>';
+                    const tbody = document.createElement('tbody');
+
+                    clients.forEach(function (client) {
+                        const row = document.createElement('tr');
+                        [client.name, client.contact, client.created_at].forEach(function (value) {
+                            const cell = document.createElement('td');
+                            cell.textContent = value || '\u2014';
+                            row.appendChild(cell);
+                        });
+                        tbody.appendChild(row);
+                    });
+
+                    table.appendChild(tbody);
+                    modalBody.appendChild(table);
+                })
+                .catch(function (error) {
+                    modalBody.innerHTML = '<div class="sir-client-empty">' + error.message + '</div>';
+                });
+        });
+    });
+});
+</script>
 @endsection

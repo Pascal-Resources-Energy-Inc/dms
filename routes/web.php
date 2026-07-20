@@ -216,6 +216,7 @@ Route::get('/reports/daily-sales/export', 'ReportController@exportDailySales')->
 Route::get('/reports/distributor-other-charges', 'ReportController@distributorOtherChargesReport')->name('reports.distributor-other-charges');
 Route::get('/reports/aging', 'ReportController@agingReport')->name('aging');
 Route::get('/reports/aging-report-dealer', 'ReportController@dealerAgingReport')->name('aging-report-dealer');
+Route::get('/reports/aging-report-customer', 'ReportController@customerAgingReport')->name('aging-report-customer');
 Route::get('/reports/dpo-report', 'ReportController@dpoReport')->name('dpo');
 Route::get('/reports/isl-report', 'ReportController@inventoryStockLevelReport')->name('isl');
 Route::get('/reports/isl-report/export', 'ReportController@exportInventoryStockLevel')->name('isl.export');
