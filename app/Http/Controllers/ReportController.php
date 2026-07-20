@@ -128,27 +128,35 @@ class ReportController extends Controller
             $connection = 'admin_crms';
             $schema = DB::connection($connection)->getSchemaBuilder();
 
-            if (!$schema->hasTable('clients')
-                || !$schema->hasColumn('clients', 'center')
-                || !$schema->hasColumn('clients', 'created_at')) {
+            $table = $this->crmClientTable($connection);
+
+            if (!$table
+                || !$schema->hasColumn($table, 'center')
+                || !$schema->hasColumn($table, 'created_at')) {
                 return response()->json(['clients' => []]);
             }
 
             $columns = ['id', 'center', 'created_at'];
 
             foreach (['name', 'first_name', 'middle_name', 'last_name', 'email', 'mobile', 'contact_number', 'phone'] as $column) {
-                if ($schema->hasColumn('clients', $column)) {
+                if ($schema->hasColumn($table, $column)) {
                     $columns[] = $column;
                 }
             }
 
-            $clients = DB::connection($connection)->table('clients')
+            $clients = DB::connection($connection)->table($table)
                 ->select(array_unique($columns))
                 ->whereNotNull('created_at')
                 ->whereYear('created_at', $year)
                 ->whereMonth('created_at', $month)
                 ->whereRaw('UPPER(TRIM(center)) = ?', [$centerKey])
-                ->when($schema->hasColumn('clients', 'deleted_at'), function ($query) {
+                ->when($schema->hasColumn($table, 'status'), function ($query) {
+                    $query->whereRaw("LOWER(TRIM(status)) = 'active'");
+                })
+                ->when(!$schema->hasColumn($table, 'status') && $schema->hasColumn($table, 'is_active'), function ($query) {
+                    $query->where('is_active', 1);
+                })
+                ->when($schema->hasColumn($table, 'deleted_at'), function ($query) {
                     $query->whereNull('deleted_at');
                 })
                 ->orderBy('created_at')
@@ -738,10 +746,10 @@ class ReportController extends Controller
 
         try {
             $connection = 'admin_crms';
-            $table = 'clients';
+            $table = $this->crmClientTable($connection);
             $schema = DB::connection($connection)->getSchemaBuilder();
 
-            if (!$schema->hasTable($table) || !$schema->hasColumn($table, 'center') || !$schema->hasColumn($table, 'created_at')) {
+            if (!$table || !$schema->hasColumn($table, 'center') || !$schema->hasColumn($table, 'created_at')) {
                 return $signups;
             }
 
@@ -756,6 +764,12 @@ class ReportController extends Controller
                 ->whereNotNull('created_at')
                 ->whereYear('created_at', $year)
                 ->groupBy('center', DB::raw('MONTH(created_at)'));
+
+            if ($schema->hasColumn($table, 'status')) {
+                $query->whereRaw("LOWER(TRIM(status)) = 'active'");
+            } elseif ($schema->hasColumn($table, 'is_active')) {
+                $query->where('is_active', 1);
+            }
 
             if ($schema->hasColumn($table, 'deleted_at')) {
                 $query->whereNull('deleted_at');
@@ -2157,6 +2171,169 @@ class ReportController extends Controller
         return view('reports.dealer_aging', compact(
             'asOf', 'project', 'orders', 'dealerOptions', 'statusOptions', 'summary', 'bucketTotals'
         ));
+    }
+
+    /**
+     * Shows the number of days since every active client's most recent valid
+     * CRM transaction. Clients without a transaction are retained as a
+     * separate "No transaction" group so they are not missed in follow-up.
+     */
+    public function customerAgingReport(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $asOf = $request->filled('as_of')
+            ? Carbon::parse($request->as_of)->endOfDay()
+            : Carbon::today()->endOfDay();
+        $authUser = auth()->user();
+        $isSedp = strtolower(trim((string) ($authUser->role ?? ''))) === 'sedp';
+        $allowedCenterKeys = $isSedp
+            ? $this->splitSignupTerritories($authUser->territory ?? '')
+                ->map(function ($center) { return $this->normalizeSignupCenter($center); })
+                ->filter()->flip()
+            : null;
+
+        $rows = collect();
+
+        try {
+            $connection = 'admin_crms';
+            $database = DB::connection($connection);
+            $schema = $database->getSchemaBuilder();
+            $clientTable = $this->crmClientTable($connection);
+
+            if ($clientTable && $schema->hasTable('transaction_details')) {
+                $dateColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['date', 'created_at', 'updated_at']);
+                $clientColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['client_id', 'customer_id', 'user_id']);
+                $clientColumns = ['id', 'center'];
+
+                foreach (['name', 'first_name', 'middle_name', 'last_name', 'email', 'mobile', 'contact_number', 'phone'] as $column) {
+                    if ($schema->hasColumn($clientTable, $column)) {
+                        $clientColumns[] = $column;
+                    }
+                }
+
+                $clients = $database->table($clientTable)
+                    ->select(array_unique($clientColumns))
+                    ->whereNotNull('center')
+                    ->where('center', '<>', '')
+                    ->when($schema->hasColumn($clientTable, 'status'), function ($query) {
+                        $query->whereRaw("LOWER(TRIM(status)) = 'active'");
+                    })
+                    ->when(!$schema->hasColumn($clientTable, 'status') && $schema->hasColumn($clientTable, 'is_active'), function ($query) {
+                        $query->where('is_active', 1);
+                    })
+                    ->when($schema->hasColumn($clientTable, 'deleted_at'), function ($query) {
+                        $query->whereNull('deleted_at');
+                    })
+                    ->get()
+                    ->filter(function ($client) use ($allowedCenterKeys) {
+                        $centerKey = $this->normalizeSignupCenter($client->center ?? '');
+
+                        return $centerKey !== '' && ($allowedCenterKeys === null || $allowedCenterKeys->has($centerKey));
+                    })->values();
+
+                $lastTransactions = collect();
+
+                if ($clients->isNotEmpty() && $dateColumn && $clientColumn) {
+                    $lastTransactions = $database->table('transaction_details')
+                        ->select($clientColumn . ' as client_id', DB::raw('MAX(' . $dateColumn . ') as last_transaction_at'))
+                        ->whereIn($clientColumn, $clients->pluck('id')->all())
+                        ->whereNotNull($dateColumn)
+                        ->where($dateColumn, '<=', $asOf)
+                        ->when($schema->hasColumn('transaction_details', 'deleted_at'), function ($query) {
+                            $query->whereNull('deleted_at');
+                        })
+                        ->when($schema->hasColumn('transaction_details', 'status'), function ($query) {
+                            $query->whereRaw("LOWER(TRIM(status)) NOT IN ('cancelled', 'canceled', 'void')");
+                        })
+                        ->groupBy($clientColumn)
+                        ->pluck('last_transaction_at', 'client_id');
+                }
+
+                $rows = $clients->map(function ($client) use ($lastTransactions, $asOf) {
+                    $lastTransaction = $lastTransactions->get($client->id);
+                    $lastTransactionAt = $lastTransaction ? Carbon::parse($lastTransaction) : null;
+                    $ageDays = $lastTransactionAt
+                        ? max(0, $lastTransactionAt->copy()->startOfDay()->diffInDays($asOf->copy()->startOfDay()))
+                        : null;
+                    $name = trim((string) ($client->name ?? ''));
+
+                    if ($name === '') {
+                        $name = trim(collect([$client->first_name ?? '', $client->middle_name ?? '', $client->last_name ?? ''])->filter()->implode(' '));
+                    }
+
+                    return (object) [
+                        'id' => $client->id,
+                        'name' => $name ?: 'Unnamed Client',
+                        'center' => trim((string) $client->center),
+                        'contact' => collect([$client->mobile ?? null, $client->contact_number ?? null, $client->phone ?? null, $client->email ?? null])->filter()->first() ?: '—',
+                        'last_transaction_at' => $lastTransactionAt,
+                        'age_days' => $ageDays,
+                        'bucket' => $this->customerAgingBucket($ageDays),
+                    ];
+                });
+            }
+        } catch (\Exception $exception) {
+            $rows = collect();
+        }
+
+        $centerOptions = $rows->pluck('center')->filter()->unique()->sort()->values();
+        $selectedCenter = trim((string) $request->input('center'));
+        $selectedBucket = trim((string) $request->input('bucket'));
+        $search = trim((string) $request->input('search'));
+
+        if ($selectedCenter !== '') {
+            $selectedCenterKey = $this->normalizeSignupCenter($selectedCenter);
+            $rows = $rows->filter(function ($row) use ($selectedCenterKey) {
+                return $this->normalizeSignupCenter($row->center) === $selectedCenterKey;
+            })->values();
+        }
+
+        if ($selectedBucket !== '') {
+            $rows = $rows->where('bucket', $selectedBucket)->values();
+        }
+
+        if ($search !== '') {
+            $needle = strtolower($search);
+            $rows = $rows->filter(function ($row) use ($needle) {
+                return str_contains(strtolower($row->name . ' ' . $row->center . ' ' . $row->contact), $needle);
+            })->values();
+        }
+
+        $rows = $rows->sortByDesc(function ($row) {
+            return $row->age_days === null ? PHP_INT_MAX : $row->age_days;
+        })->values();
+        $bucketKeys = ['0-30', '31-60', '61-90', '91+', 'No transaction'];
+        $bucketTotals = collect($bucketKeys)->mapWithKeys(function ($bucket) use ($rows) {
+            return [$bucket => $rows->where('bucket', $bucket)->count()];
+        });
+        $clientsWithTransactions = $rows->filter(function ($row) {
+            return $row->age_days !== null;
+        });
+        $clientsWithoutTransactions = $rows->filter(function ($row) {
+            return $row->age_days === null;
+        });
+
+        $summary = (object) [
+            'total' => $rows->count(),
+            'transacted' => $clientsWithTransactions->count(),
+            'noTransaction' => $clientsWithoutTransactions->count(),
+            'averageDays' => round((float) $clientsWithTransactions->avg('age_days'), 1),
+            'followUp' => $rows->filter(function ($row) { return $row->age_days === null || $row->age_days > 90; })->count(),
+        ];
+
+        return view('reports.customer_aging', compact(
+            'asOf', 'rows', 'centerOptions', 'selectedCenter', 'selectedBucket', 'search', 'bucketTotals', 'summary', 'isSedp'
+        ));
+    }
+
+    private function customerAgingBucket($days)
+    {
+        if ($days === null) return 'No transaction';
+        if ($days <= 30) return '0-30';
+        if ($days <= 60) return '31-60';
+        if ($days <= 90) return '61-90';
+        return '91+';
     }
 
     private function dealerAgingOrders(array $source, Carbon $asOf)
