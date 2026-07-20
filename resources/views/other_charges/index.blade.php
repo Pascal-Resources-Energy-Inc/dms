@@ -60,14 +60,22 @@
     .charge-icon-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
     .charges-empty { padding: 52px 16px; text-align: center; color: #667085; }
     .charges-empty i { display: block; margin-bottom: 8px; color: #d0d5dd; font-size: 38px; }
+    .charge-modal .modal-dialog { max-width: min(860px, calc(100vw - 3rem)); }
     .charge-modal .modal-content { overflow: hidden; border: 0; border-radius: 12px; box-shadow: 0 24px 70px rgba(15, 23, 42, .2); }
+    .charge-modal .modal-dialog.modal-dialog-scrollable { height: min(760px, calc(100dvh - 3.5rem)); }
+    .charge-modal .modal-dialog-scrollable .modal-content { display: flex; flex-direction: column; max-height: 100% !important; }
+    .charge-modal .charge-modal-form { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
     .charge-modal .modal-header { padding: 20px 22px; background: #f8fafc; border-bottom: 1px solid #e8ecf2; }
     .charge-modal-title { display: flex; align-items: center; gap: 12px; }
     .charge-modal-icon { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; color: #fff; background: #0f766e; border-radius: 10px; font-size: 20px; }
     .charge-modal .modal-title { color: #101828; font-size: 18px; font-weight: 900; }
-    .charge-modal .modal-body { display: grid; gap: 14px; padding: 20px 22px; }
+    .charge-modal .modal-body { display: block; flex: 1 1 auto; min-height: 0; padding: 20px 22px; overflow-y: auto; overscroll-behavior: contain; }
+    .charge-modal .modal-body .row { --bs-gutter-x: 16px; --bs-gutter-y: 16px; }
+    .charge-modal .modal-footer { flex: 0 0 auto; gap: 8px; padding: 14px 22px 20px; border-top: 1px solid #e8ecf2; background: #fff; }
     .charge-modal .form-label { margin-bottom: 6px; color: #344054; font-size: 12px; font-weight: 800; }
-    .charge-modal .form-control, .charge-modal .form-select, .charge-modal .input-group-text { min-height: 42px; border-color: #dfe4ea; }
+    .charge-modal .form-control, .charge-modal .form-select, .charge-modal .input-group-text { min-height: 44px; border-color: #dfe4ea; border-radius: 8px; }
+    .charge-modal .input-group > .input-group-text { border-radius: 8px 0 0 8px; }
+    .charge-modal .input-group > .form-control { border-radius: 0 8px 8px 0; }
     .charge-modal .form-control:focus, .charge-modal .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 3px rgba(15, 118, 110, .11); }
     .charge-status-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e4e7ec; border-radius: 8px; }
     .charge-status-card i { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; color: #16a34a; background: #dcfce7; border-radius: 8px; }
@@ -79,10 +87,57 @@
     }
     @media (max-width: 768px) {
         .charges-head, .charges-filter-head { align-items: stretch; flex-direction: column; }
-        .charges-tools, .charges-stats { grid-template-columns: 1fr; }
-        .charges-panel { overflow-x: auto; }
-        .charges-table { min-width: 1040px; }
-        .charges-add-btn { width: 100%; }
+        .charges-tools, .charges-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .charges-panel { overflow: visible; border: 0; background: transparent; box-shadow: none; }
+        .charges-table,
+        .charges-table tbody,
+        .charges-table td { display: block; width: 100%; min-width: 0; }
+        .charges-table tr { display: block; width: 100%; min-width: 0; }
+        .charges-table thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+        .charges-table tbody { display: grid; gap: 12px; }
+        .charges-table tbody tr { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 5px 16px rgba(15, 23, 42, .05); }
+        .charges-table td { padding: 11px 14px; border-bottom: 1px solid #eef2f7; }
+        .charges-table td[data-label] { display: grid; grid-template-columns: minmax(112px, .8fr) minmax(0, 1.2fr); align-items: center; gap: 10px; }
+        .charges-table td[data-label]::before { content: attr(data-label); color: #667085; font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+        .charges-table td[data-label="Charge"] { display: block; padding: 14px; background: #f8fafc; }
+        .charges-table td[data-label="Charge"]::before { display: none; }
+        .charges-table td[data-label="Description"] { align-items: start; }
+        .charges-table td:last-child { border-bottom: 0; }
+        .charge-desc { max-width: none; }
+        .charge-actions { justify-content: flex-start; }
+        .charges-empty { padding: 38px 16px; }
+        .charge-modal .modal-dialog { max-width: none; }
+        .charge-modal .modal-dialog.modal-dialog-scrollable { height: calc(100dvh - 24px); margin: 12px auto; }
+        .charge-modal .modal-header, .charge-modal .modal-body { padding: 16px; }
+        .charge-modal .modal-footer { padding: 12px 16px 16px; }
+    }
+    @media (max-width: 480px) {
+        .charges-title { font-size: 21px; }
+        .charges-stats, .charges-tools { grid-template-columns: 1fr; }
+        .charges-stat { min-height: 74px; padding: 12px; }
+        .charges-filter-body { padding: 12px; }
+        .charges-add-btn, .charges-filter-submit, .charges-filter-reset { width: 100%; }
+        .charges-table td[data-label] { grid-template-columns: minmax(96px, .78fr) minmax(0, 1.22fr); }
+        .charge-modal-title { align-items: flex-start; gap: 9px; }
+        .charge-modal-icon { width: 36px; height: 36px; flex: 0 0 36px; font-size: 17px; }
+        .charge-status-card { align-items: flex-start; }
+        .charge-modal .modal-dialog.modal-dialog-scrollable { height: calc(100dvh - 16px); margin: 8px auto; }
+        .charge-modal .modal-footer { display: grid; grid-template-columns: 1fr 1fr; }
+        .charge-modal .modal-footer .btn { width: 100%; min-height: 42px; margin: 0; }
+    }
+    @media (max-width: 575.98px) {
+        .charge-modal .modal-content { border-radius: 0; }
+        .charge-modal .modal-header { padding: 14px 16px; }
+        .charge-modal .modal-title { font-size: 16px; }
+        .charge-modal .modal-header .text-muted { font-size: 11px; line-height: 1.35; }
+        .charge-modal .modal-body .row { --bs-gutter-y: 14px; }
+        .charge-status-card { gap: 10px; padding: 11px 12px; }
+        .charge-status-card small { display: block; line-height: 1.35; }
+    }
+    @media (max-height: 640px) and (max-width: 768px) {
+        .charge-modal .modal-dialog.modal-dialog-scrollable { height: calc(100dvh - 12px); margin: 6px auto; }
+        .charge-modal .modal-header, .charge-modal .modal-body { padding-top: 10px; padding-bottom: 10px; }
+        .charge-modal .modal-footer { padding-top: 10px; padding-bottom: 10px; }
     }
 </style>
 @endsection
@@ -227,32 +282,32 @@
             <tbody>
                 @forelse($charges as $charge)
                     <tr>
-                        <td>
+                        <td data-label="Charge">
                             <div class="charge-name">{{ $charge->name }}</div>
                             <div class="charge-code"><i class="bi bi-upc-scan"></i>{{ $charge->code }}</div>
                         </td>
-                        <td>
+                        <td data-label="Area Distributor">
                             <div class="charge-ad">{{ optional(optional($charge->adUser)->ad)->business_name ?: optional($charge->adUser)->name ?: 'No AD assigned' }}</div>
                             <div class="charge-ad-meta">{{ optional(optional($charge->adUser)->ad)->store_code ?: optional($charge->adUser)->role ?: 'N/A' }}</div>
                         </td>
-                        <td>
+                        <td data-label="Description">
                             <div class="charge-desc">{{ $charge->description ?: 'No description provided.' }}</div>
                         </td>
-                        <td><span class="charge-amount {{ $charge->type === 'discount' ? 'is-discount' : '' }}">{{ $charge->formattedAmount() }}</span></td>
-                        <td>
+                        <td data-label="Amount"><span class="charge-amount {{ $charge->type === 'discount' ? 'is-discount' : '' }}">{{ $charge->formattedAmount() }}</span></td>
+                        <td data-label="Type">
                             <span class="charge-pill {{ $charge->type === 'discount' ? 'discount' : $charge->charge_type }}">
                                 <i class="bi {{ $charge->type === 'discount' ? 'bi-tags' : ($charge->charge_type === 'percentage' ? 'bi-percent' : 'bi-cash') }}"></i>
                                 {{ $charge->typeLabel() }} · {{ $charge->chargeTypeLabel() }}
                             </span>
                         </td>
-                        <td><span class="charge-applies">{{ $charge->appliesToLabel() }}</span></td>
-                        <td>
+                        <td data-label="Applies to"><span class="charge-applies">{{ $charge->appliesToLabel() }}</span></td>
+                        <td data-label="Status">
                             <span class="charge-pill {{ $charge->is_active ? 'active' : 'inactive' }}">
                                 <i class="bi {{ $charge->is_active ? 'bi-check-circle' : 'bi-x-circle' }}"></i>
                                 {{ $charge->is_active ? 'Active' : 'Inactive' }}
                             </span>
                         </td>
-                        <td>
+                        <td data-label="Actions">
                             <div class="charge-actions">
                                 <a href="{{ route('reports.distributor-other-charges', ['charge_id' => $charge->id]) }}" class="btn btn-sm btn-outline-secondary charge-icon-btn" title="View transactions">
                                     <i class="bi bi-receipt"></i>

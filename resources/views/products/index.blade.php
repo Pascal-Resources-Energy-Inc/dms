@@ -96,7 +96,7 @@
                                         ->take(4);
                                 @endphp
                                 <tr id="row-{{ $product->id }}">
-                                    <td>
+                                    <td class="product-image-column">
                                         <div class="{{ $isBundle ? 'product-image-cell is-bundle' : 'product-image-cell' }}">
                                             @if($isBundle && $bundlePreviewProducts->isNotEmpty())
                                                 <div class="bundle-card-image">
@@ -135,16 +135,16 @@
                                         </div>
                                     </td>
 
-                                    <td class="fw-semibold text-dark">{{ strtoupper($product->product_name) }}</td>
-                                    <td class="text-muted">{{ strtoupper($product->description) ?? '-' }}</td>
-                                    <td><span class="product-sku">{{ strtoupper($product->sku) }}</span></td>
-                                    <td>₱{{ number_format($product->price, 2) }}</td>
-                                    <td>₱{{ number_format($product->mega_dealer_price ?? $product->price, 2) }}</td>
-                                    <td>₱{{ number_format($product->dealer_price ?? $product->price, 2) }}</td>
-                                    <td>₱{{ number_format($product->client_price ?? $product->price, 2) }}</td>
-                                    <td>{{ $product->deposit ? '₱'.number_format($product->deposit,2) : '-' }}</td>
+                                    <td class="fw-semibold text-dark" data-label="Product name">{{ strtoupper($product->product_name) }}</td>
+                                    <td class="text-muted product-description-cell" data-label="Description">{{ strtoupper($product->description) ?? '-' }}</td>
+                                    <td data-label="SKU"><span class="product-sku">{{ strtoupper($product->sku) }}</span></td>
+                                    <td data-label="Price">₱{{ number_format($product->price, 2) }}</td>
+                                    <td data-label="Mega Dealer price">₱{{ number_format($product->mega_dealer_price ?? $product->price, 2) }}</td>
+                                    <td data-label="Dealer price">₱{{ number_format($product->dealer_price ?? $product->price, 2) }}</td>
+                                    <td data-label="End User price">₱{{ number_format($product->client_price ?? $product->price, 2) }}</td>
+                                    <td data-label="Deposit">{{ $product->deposit ? '₱'.number_format($product->deposit,2) : '-' }}</td>
 
-                                    <td>
+                                    <td data-label="Status">
                                         @if($product->status == 'Activate')
                                             <span class="product-status active"><i class="bi bi-circle-fill"></i> Activate</span>
                                         @else
@@ -152,7 +152,7 @@
                                         @endif
                                     </td>
 
-                                    <td>
+                                    <td data-label="Action">
                                         @if($product->is_new === 1)
                                             <button class="btn btn-sm btn-outline-primary product-icon-btn edit-btn"
                                                 data-id="{{ $product->id }}"
@@ -237,9 +237,9 @@
 
                                 <input type="file" name="product_image" id="inputImage" accept="image/jpeg,image/png,image/jpg,image/gif" onchange="uploadImage(this)" style="display: none">
 
-                                <small id="productImageHelp" class="d-block text-muted mt-1">
+                                {{-- <small id="productImageHelp" class="d-block text-muted mt-1">
                                     Optional override. JPG, PNG, or GIF (Max: 2MB)
-                                </small>
+                                </small> --}}
                                 <div id="bundleImagePreview" class="bundle-image-preview d-none mt-3"></div>
                             </div>
                         </div>
@@ -273,10 +273,10 @@
                                     <label for="client_price" class="form-label">End User Price (PHP)</label>
                                     <input type="number" id="client_price" name="client_price" class="form-control" value="{{ old('client_price') }}" step="0.01" min="0" placeholder="0.00">
                                 </div>
-                                <div class="col-md-6">
+                                {{-- <div class="col-md-6">
                                     <label for="deposit" class="form-label-optional">Deposit (PHP)</label>
                                     <input type="number" id="deposit" name="deposit" class="form-control" value="{{ old('deposit') }}" step="0.01" min="0" placeholder="0.00">
-                                </div>
+                                </div> --}}
                                 <div class="col-md-6">
                                     <label for="status" class="form-label">Status</label>
                                     <select id="status" name="status" class="form-control">
@@ -456,10 +456,10 @@
                             <label for="edit_client_price" class="form-label">End User Price (PHP)</label>
                             <input type="number" id="edit_client_price" class="form-control mb-2" step="0.01" min="0" placeholder="0.00">
                         </div>
-                        <div class="col-md-6">
+                        {{-- <div class="col-md-6">
                             <label for="edit_deposit" class="form-label-optional">Deposit (PHP)</label>
                             <input type="number" id="edit_deposit" class="form-control mb-2" step="0.01" min="0" placeholder="0.00">
-                        </div>
+                        </div> --}}
                         <div class="col-md-6">
                             <label for="edit_status" class="form-label">Status</label>
                             <select id="edit_status" name="status" class="form-control">
@@ -765,19 +765,52 @@
         .bundle-builder-layout { grid-template-columns: 1fr; }
         .bundle-summary-panel { position: static; }
     }
-    @media (max-width: 575.98px) {
-        .product-summary { grid-template-columns: 1fr; }
+    @media (max-width: 767.98px) {
+        .product-page { gap: 12px; padding-bottom: 14px; }
+        .product-head { gap: 12px; }
         .product-actions { width: 100%; justify-content: stretch; }
-        .product-actions .btn { flex: 1 1 150px; }
+        .product-actions .btn { flex: 1 1 180px; min-height: 40px; }
+        .product-panel { overflow: visible; border: 0; background: transparent; box-shadow: none; }
+        .product-panel-head { padding: 0 2px 10px; border: 0; background: transparent; }
+        .product-table-wrap { overflow: visible !important; padding: 0; }
+        .product-table,
+        .product-table tbody,
+        .product-table td { display: block !important; width: 100% !important; min-width: 0 !important; }
+        .product-table tr { display: block; width: 100% !important; min-width: 0 !important; }
+        .product-table thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+        .product-table tbody { display: grid !important; gap: 12px; }
+        .product-table tbody tr { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 5px 16px rgba(15, 23, 42, .05); }
+        .product-table tbody td { padding: 10px 14px; border-bottom: 1px solid #eef2f7; white-space: normal; }
+        .product-table tbody td.product-image-column { padding: 14px 14px 6px; border-bottom: 0; background: #f8fafc; }
+        .product-table tbody td[data-label] { display: grid !important; grid-template-columns: minmax(112px, .8fr) minmax(0, 1.2fr); align-items: center; gap: 10px; }
+        .product-table tbody td[data-label]::before { content: attr(data-label); color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+        .product-table tbody td.product-description-cell { align-items: start; }
+        .product-table tbody td:last-child { border-bottom: 0; }
+        .product-image-cell { min-width: 0; }
+        .product-image-frame { width: 54px; height: 54px; }
+        .bundle-card-image { width: 76px; height: 58px; }
+        .product-table tbody td .product-sku { justify-self: start; }
+        .product-table tbody td .product-status { justify-self: start; }
+        .dataTables_wrapper .product-table-controls { padding: 0 0 12px; }
+        .dataTables_wrapper .product-table-footer { padding: 12px 0 0; border-top: 0; }
+    }
+    @media (max-width: 575.98px) {
+        .product-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .product-summary .product-tile:last-child { grid-column: 1 / -1; }
+        .product-tile { grid-template-columns: 38px minmax(0, 1fr); min-height: 76px; gap: 10px; padding: 12px; }
+        .product-tile-icon { width: 38px; height: 38px; font-size: 17px; }
+        .product-tile strong { font-size: 19px; }
+        .product-actions .btn { flex: 1 1 100%; }
         .product-table-controls, .product-table-footer { align-items: stretch; flex-direction: column; }
         .dataTables_wrapper .dataTables_filter input { width: 100%; min-width: 0; }
+        .product-table tbody td[data-label] { grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr); }
         .bundle-switch-panel, .bundle-products-head { align-items: flex-start; flex-direction: column; }
         .bundle-product-row { align-items: flex-start; }
         .bundle-product-price { margin-left: auto; }
     }
 </style>
 
-@section('javascript')
+@section('js')
     <script src="{{ asset('design/assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
 
     <script>

@@ -72,7 +72,7 @@ class ProductController extends Controller
             'client_price' => 'nullable|numeric|min:0',
             'deposit' => 'nullable|numeric|min:0',
             'status' => 'nullable|in:Activate,Deactivate',
-            'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            // 'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'bundle_product_ids' => 'required_if:selected_item_type,bundle|array',
             'bundle_product_ids.*' => 'integer|exists:products,id',
         ]);
@@ -440,7 +440,7 @@ class ProductController extends Controller
             'client_price' => 'nullable|numeric|min:0',
             'deposit' => 'nullable|numeric|min:0',
             'status' => 'nullable|in:Activate,Deactivate',
-            'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            // 'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             // 'bundle_product_ids' => 'nullable|array',
             // 'bundle_product_ids.*' => 'integer|exists:products,id',
         ]);

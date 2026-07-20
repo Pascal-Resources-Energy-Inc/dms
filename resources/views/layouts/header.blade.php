@@ -697,6 +697,16 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
             border-radius: 0 !important;
             transition: all 0.3s ease !important;
+            isolation: isolate;
+        }
+
+        .main-layout .topbar::after {
+            position: absolute;
+            inset: auto 0 0;
+            height: 1px;
+            content: "";
+            background: rgba(255, 255, 255, .14);
+            pointer-events: none;
         }
 
         .sidebar.collapsed ~ .main-content .topbar {
@@ -707,7 +717,8 @@
         .main-layout .topbar-left {
             display: flex !important;
             align-items: center !important;
-            gap: 24px !important;
+            gap: 16px !important;
+            min-width: 0;
         }
 
         .main-layout .sidebar-toggle {
@@ -743,6 +754,33 @@
             display: flex !important;
             align-items: center !important;
             gap: 16px !important;
+            min-width: 0;
+            justify-content: flex-end;
+        }
+
+        .main-layout .topbar-action {
+            flex: 0 0 auto;
+        }
+
+        .main-layout .mobile-search-toggle {
+            display: none !important;
+            width: 40px;
+            height: 40px;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            color: #fff;
+            background: rgba(255, 255, 255, .12);
+            border: 1px solid rgba(255, 255, 255, .2);
+            border-radius: 10px;
+            transition: background .2s ease, transform .2s ease;
+        }
+
+        .main-layout .mobile-search-toggle:hover,
+        .main-layout .mobile-search-toggle:focus-visible {
+            color: #fff;
+            background: rgba(255, 255, 255, .22);
+            transform: translateY(-1px);
         }
 
         .main-layout .guest-order-link {
@@ -850,6 +888,7 @@
             font-size: 14px !important;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
             outline: none !important;
+            color: #1e293b !important;
         }
 
         .main-layout .search-input::placeholder{
@@ -882,6 +921,22 @@
 
         .main-layout .profile-dropdown:hover {
             color: var(--primary-color) !important;
+        }
+
+        .main-layout .sidebar-toggle,
+        .main-layout .profile-dropdown,
+        .main-layout .notification-bell-btn,
+        .main-layout .mobile-search-toggle {
+            flex: 0 0 auto;
+        }
+
+        .main-layout .sidebar-toggle:focus-visible,
+        .main-layout .profile-dropdown:focus-visible,
+        .main-layout .notification-bell-btn:focus-visible,
+        .main-layout .guest-order-link:focus-visible,
+        .main-layout .loyalty-scan-link:focus-visible {
+            outline: 3px solid rgba(255, 255, 255, .72);
+            outline-offset: 2px;
         }
 
         .main-layout .notification-badge {
@@ -982,6 +1037,50 @@
         }
 
         /* Mobile Responsiveness */
+        @media (max-width: 1024px) {
+            .main-layout .topbar {
+                padding: 0 20px !important;
+            }
+
+            .main-layout .topbar-right {
+                gap: 10px !important;
+            }
+
+            .main-layout .search-input {
+                width: min(24vw, 240px) !important;
+            }
+
+            .main-layout .guest-order-link,
+            .main-layout .loyalty-scan-link {
+                min-height: 38px !important;
+                padding: 8px 11px !important;
+            }
+        }
+
+        @media (max-width: 900px) and (min-width: 769px) {
+            .main-layout .topbar { padding: 0 16px !important; }
+            .main-layout .topbar-right { gap: 8px !important; }
+            .main-layout .guest-order-link,
+            .main-layout .loyalty-scan-link {
+                width: 40px !important;
+                padding: 0 !important;
+                justify-content: center;
+            }
+            .main-layout .guest-order-link span,
+            .main-layout .loyalty-scan-link span {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
+            }
+            .main-layout .search-input { width: min(21vw, 190px) !important; }
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -995,14 +1094,6 @@
                 margin-left: 0;
             }
 
-            .welcome-message {
-                display: none;
-            }
-
-            .topbar {
-                padding: 0 16px;
-            }
-
             .content-area {
                 padding: 16px;
             }
@@ -1011,12 +1102,108 @@
                 right: 0 !important;
                 width: 100% !important;
                 padding: 0 16px !important;
+                height: 64px !important;
             }
             
             .main-content {
                 margin-left: 0;
-                padding-top: 80px;
+                padding-top: 64px;
             }
+
+            .main-layout .topbar-left {
+                gap: 10px !important;
+            }
+
+            .main-layout .welcome-message h6 {
+                font-size: 14px !important;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .main-layout .welcome-message small {
+                display: none;
+            }
+
+            .main-layout .mobile-search-toggle {
+                display: inline-flex !important;
+            }
+
+            .main-layout .topbar-right .search-container {
+                display: none !important;
+            }
+
+            .main-layout .topbar.search-active .topbar-left,
+            .main-layout .topbar.search-active > .dropdown,
+            .main-layout .topbar.search-active > .topbar-right > :not(.search-container) {
+                display: none !important;
+            }
+
+            .main-layout .topbar.search-active .topbar-right {
+                display: flex !important;
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+
+            .main-layout .topbar.search-active .topbar-right .search-container {
+                display: block !important;
+                flex: 1 1 auto;
+                margin: 0 !important;
+            }
+
+            .main-layout .topbar.search-active .search-input {
+                width: 100% !important;
+                height: 42px !important;
+                padding-right: 42px !important;
+            }
+
+            .main-layout .guest-order-link,
+            .main-layout .loyalty-scan-link {
+                width: 40px !important;
+                min-height: 40px !important;
+                justify-content: center;
+                padding: 0 !important;
+                border-radius: 10px !important;
+            }
+
+            .main-layout .guest-order-link span,
+            .main-layout .loyalty-scan-link span {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-layout .topbar {
+                padding: 0 12px !important;
+            }
+
+            .main-layout .welcome-message {
+                display: none;
+            }
+
+            .main-layout .topbar-right {
+                gap: 6px !important;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .main-layout .topbar { padding: 0 8px !important; }
+            .main-layout .topbar-right { gap: 4px !important; }
+            .main-layout .sidebar-toggle,
+            .main-layout .mobile-search-toggle,
+            .main-layout .notification-bell-btn,
+            .main-layout .guest-order-link,
+            .main-layout .loyalty-scan-link { width: 38px !important; height: 38px !important; min-height: 38px !important; }
+            .main-layout .profile-dropdown { padding: 4px !important; }
+            .main-layout .profile-img { width: 34px !important; height: 34px !important; }
         }
 
         /* Overlay for mobile */
@@ -1041,6 +1228,181 @@
         @media (max-width: 480px) {
             .font {
                 font-size: 8px;
+            }
+        }
+
+        /* Shared modal responsiveness: keeps every dialog usable on narrow and short screens. */
+        .modal {
+            --bs-modal-border-radius: 14px;
+        }
+
+        .modal .modal-content {
+            max-height: calc(100dvh - 32px);
+            overflow: hidden;
+        }
+
+        .modal .modal-header,
+        .modal .modal-footer {
+            flex: 0 0 auto;
+        }
+
+        .modal .modal-header > :first-child,
+        .modal .modal-title {
+            min-width: 0;
+        }
+
+        .modal .modal-title {
+            overflow-wrap: anywhere;
+        }
+
+        .modal .modal-body {
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal-dialog-scrollable {
+            height: calc(100dvh - 3.5rem);
+        }
+
+        .modal-dialog-scrollable .modal-content {
+            display: flex;
+            flex-direction: column;
+            max-height: 100%;
+        }
+
+        .modal-dialog-scrollable .modal-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
+            scrollbar-color: #98a2b3 transparent;
+        }
+
+        .modal-dialog-scrollable .modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .modal-dialog-scrollable .modal-body::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border: 2px solid transparent;
+            border-radius: 999px;
+            background-clip: padding-box;
+        }
+
+        .modal .modal-body img,
+        .modal .modal-body video,
+        .modal .modal-body canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .modal .form-control,
+        .modal .form-select,
+        .modal .btn,
+        .modal .form-check-input {
+            touch-action: manipulation;
+        }
+
+        .modal .btn:focus-visible,
+        .modal .form-control:focus,
+        .modal .form-select:focus {
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (max-width: 992px) {
+            .modal .modal-dialog:not([class*="modal-fullscreen"]) {
+                width: calc(100% - 32px);
+                max-width: min(720px, calc(100% - 32px));
+                margin: 16px auto;
+            }
+
+            .modal .modal-content {
+                max-height: calc(100dvh - 32px);
+            }
+
+            .modal .modal-dialog-scrollable .modal-content {
+                max-height: calc(100dvh - 32px);
+            }
+
+            .modal .modal-dialog-scrollable {
+                height: calc(100dvh - 32px);
+            }
+        }
+
+        @media (max-width: 576px) {
+            .modal .modal-dialog:not([class*="modal-fullscreen"]) {
+                width: calc(100% - 16px);
+                max-width: calc(100% - 16px);
+                margin: 8px auto;
+            }
+
+            .modal .modal-content,
+            .modal .modal-dialog-scrollable .modal-content {
+                max-height: calc(100dvh - 16px) !important;
+                border-radius: 14px !important;
+            }
+
+            .modal .modal-dialog-scrollable {
+                height: calc(100dvh - 16px);
+            }
+
+            .modal .modal-header {
+                align-items: flex-start;
+                gap: 10px;
+                padding: 14px 16px !important;
+            }
+
+            .modal .modal-title {
+                font-size: 16px !important;
+                line-height: 1.3;
+            }
+
+            .modal .modal-body {
+                padding: 14px 16px !important;
+            }
+
+            .modal .modal-footer {
+                gap: 8px;
+                padding: 12px 16px 16px !important;
+            }
+
+            .modal .modal-footer .btn {
+                min-height: 42px;
+            }
+
+            .modal .form-control,
+            .modal .form-select,
+            .modal .input-group-text {
+                min-height: 42px;
+            }
+
+            .modal .row {
+                --bs-gutter-x: 1rem;
+            }
+        }
+
+        @media (max-height: 640px) and (max-width: 768px) {
+            .modal .modal-dialog:not([class*="modal-fullscreen"]) {
+                margin: 6px auto;
+            }
+
+            .modal .modal-content,
+            .modal .modal-dialog-scrollable .modal-content {
+                max-height: calc(100dvh - 12px);
+            }
+
+            .modal .modal-dialog-scrollable {
+                height: calc(100dvh - 12px);
+            }
+
+            .modal .modal-header,
+            .modal .modal-body,
+            .modal .modal-footer {
+                padding-top: 10px;
+                padding-bottom: 10px;
             }
         }
 
@@ -1894,19 +2256,21 @@
                     <small>Welcome back to dashboard</small>
                 </div>
             </div>
-            @if((auth()->user()->role == "Admin" || auth()->user()->role == "Area Distributor"))
             <div class="topbar-right">
                 @if(auth()->user()->role == "Area Distributor")
-                    <a href="{{ route('guest-order') }}" class="guest-order-link" target="_blank" rel="noopener">
+                    <a href="{{ route('guest-order') }}" class="guest-order-link topbar-action" target="_blank" rel="noopener" aria-label="Open guest order" title="Guest Order">
                         <i class="ti ti-shopping-cart-plus"></i>
                         <span>Guest Order</span>
                     </a>
-                    <button type="button" class="loyalty-scan-link border-0" data-bs-toggle="modal" data-bs-target="#loyaltyScanModal">
+                    <button type="button" class="loyalty-scan-link topbar-action border-0" data-bs-toggle="modal" data-bs-target="#loyaltyScanModal" aria-label="Scan loyalty card" title="Scan Loyalty">
                         <i class="ti ti-qrcode"></i>
                         <span>Scan Loyalty</span>
                     </button>
                 @endif
-                <li class="nav-item d-none d-md-block me-2 search-container">
+                <button type="button" class="mobile-search-toggle" id="mobileSearchToggle" aria-label="Open search" aria-controls="searchInput" aria-expanded="false">
+                    <i class="ti ti-search"></i>
+                </button>
+                <div class="search-container">
                     <form action="{{ url('/search') }}" method="GET" class="position-relative">
                         <input 
                         type="search" 
@@ -1928,7 +2292,7 @@
                         
                         <button type="submit" style="display: none;"></button>
                     </form>
-                </li>
+                </div>
                 
                 <div class="dropdown notification-dropdown">
                     @php
@@ -2142,8 +2506,6 @@
                         <small class="opacity-75">Open notifications to see the latest update.</small>
                     </div>
                 </div>
-                @endif
-
                 <div class="dropdown">
                     <button class="profile-dropdown" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <img src="{{auth()->user()->avatar}}" onerror="this.src='{{url('design/assets/images/profile/user-1.png')}}';" alt="Profile" class="profile-img">
@@ -2562,6 +2924,9 @@
             const sidebar = document.getElementById('sidebar');
             const sidebarToggle = document.getElementById('sidebarToggle');
             const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const topbar = document.querySelector('.topbar');
+            const mobileSearchToggle = document.getElementById('mobileSearchToggle');
+            const searchInput = document.getElementById('searchInput');
 
             if (!sidebar || !sidebarToggle || !sidebarOverlay) {
                 return;
@@ -2586,6 +2951,13 @@
                     sidebar.classList.remove('collapsed');
                     sidebar.classList.remove('mobile-open');
                     sidebarOverlay.classList.remove('active');
+                }
+
+                if (window.innerWidth > 768 && topbar) {
+                    topbar.classList.remove('search-active');
+                    if (mobileSearchToggle) {
+                        mobileSearchToggle.setAttribute('aria-expanded', 'false');
+                    }
                 }
 
                 syncToggleState();
@@ -2613,13 +2985,25 @@
                 syncToggleState();
             });
 
+            if (mobileSearchToggle && topbar && searchInput) {
+                mobileSearchToggle.addEventListener('click', function() {
+                    const searchIsOpen = topbar.classList.toggle('search-active');
+                    mobileSearchToggle.setAttribute('aria-expanded', String(searchIsOpen));
+
+                    if (searchIsOpen) {
+                        window.setTimeout(function() {
+                            searchInput.focus();
+                        }, 0);
+                    }
+                });
+            }
+
             let resizeTimer;
             window.addEventListener('resize', function() {
                 window.clearTimeout(resizeTimer);
                 resizeTimer = window.setTimeout(initializeSidebar, 120);
             });
 
-            const searchInput = document.querySelector('.search-input');
             if (searchInput) {
                 searchInput.addEventListener('focus', function() {
                     this.parentElement.classList.add('focused');
@@ -2631,6 +3015,15 @@
             }
 
             document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && topbar && topbar.classList.contains('search-active')) {
+                    topbar.classList.remove('search-active');
+                    if (mobileSearchToggle) {
+                        mobileSearchToggle.setAttribute('aria-expanded', 'false');
+                        mobileSearchToggle.focus();
+                    }
+                    return;
+                }
+
                 if (event.key === 'Escape' && sidebar.classList.contains('mobile-open')) {
                     sidebar.classList.remove('mobile-open');
                     sidebarOverlay.classList.remove('active');
