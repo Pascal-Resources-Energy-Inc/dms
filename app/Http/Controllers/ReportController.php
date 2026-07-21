@@ -1291,8 +1291,6 @@ class ReportController extends Controller
 
         $orders = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'ad'])
             ->whereBetween(DB::raw('DATE(COALESCE(submitted_at, created_at))'), [$from, $to])
-            ->whereNotNull('so_number')
-            ->whereRaw("TRIM(so_number) <> ''")
             ->when($request->filled('so_number'), function ($query) use ($request) {
                 $query->where('so_number', 'like', '%' . trim((string) $request->so_number) . '%');
             })
@@ -1315,12 +1313,12 @@ class ReportController extends Controller
             ->when(auth()->user()->role !== 'Admin', function ($query) {
                 $query->where('ad_user_id', auth()->id());
             })
-            ->orderByRaw('CASE WHEN so_number IS NULL OR so_number = "" THEN 1 ELSE 0 END')
             ->orderBy('so_number')
             ->orderByDesc('id')
             ->get();
 
         $buildOrderHistory = function ($order) {
+            $isCancelled = $this->isCancelledStatus($order->status);
             $orderedTotal = (int) $order->items->sum('qty');
             $receivedTotal = (int) $order->items->sum(function ($item) {
                 return min(
@@ -1343,7 +1341,7 @@ class ReportController extends Controller
                     'product_name' => 'All products',
                     'received_qty' => $receivedTotal,
                     'confirmed_qty' => $confirmedTotal,
-                    'pending_qty' => max($orderedTotal - max($receivedTotal, $confirmedTotal), 0),
+                    'pending_qty' => $isCancelled ? 0 : max($orderedTotal - max($receivedTotal, $confirmedTotal), 0),
                     'status' => $order->status,
                     'type' => 'DPO Document',
                 ],
@@ -1360,7 +1358,13 @@ class ReportController extends Controller
                     'status' => $receipt->status,
                     'type' => 'Partial DR Receipt',
                 ];
-            }))->values();
+            }))->map(function ($document) use ($isCancelled) {
+                if ($isCancelled) {
+                    $document['pending_qty'] = 0;
+                }
+
+                return $document;
+            })->values();
 
             return [
                 'id' => $order->id,
@@ -1374,7 +1378,7 @@ class ReportController extends Controller
                 'total_qty' => (int) $order->total_qty,
                 'total_amount' => (float) $order->total_amount,
                 'document_history' => $documentHistory,
-                'items' => $order->items->map(function ($item) {
+                'items' => $order->items->map(function ($item) use ($isCancelled) {
                     $receivedQty = min(max((int) ($item->partial_received_qty ?? 0), 0), (int) $item->qty);
                     $confirmedQty = min((int) $item->qty, (int) $item->partialReceipts->sum('confirmed_qty'));
 
@@ -1384,7 +1388,7 @@ class ReportController extends Controller
                         'ordered_qty' => (int) $item->qty,
                         'received_qty' => $receivedQty,
                         'confirmed_qty' => $confirmedQty,
-                        'pending_qty' => max((int) $item->qty - max($receivedQty, $confirmedQty), 0),
+                        'pending_qty' => $isCancelled ? 0 : max((int) $item->qty - max($receivedQty, $confirmedQty), 0),
                         'unit_price' => (float) $item->unit_price,
                         'line_total' => (float) $item->line_total,
                         'receipts' => $item->partialReceipts->map(function ($receipt) {
@@ -1396,6 +1400,12 @@ class ReportController extends Controller
                                 'pending_qty' => max((int) $receipt->received_qty - (int) $receipt->confirmed_qty, 0),
                                 'status' => $receipt->status,
                             ];
+                        })->map(function ($receipt) use ($isCancelled) {
+                            if ($isCancelled) {
+                                $receipt['pending_qty'] = 0;
+                            }
+
+                            return $receipt;
                         })->values(),
                     ];
                 })->values(),
@@ -1403,10 +1413,14 @@ class ReportController extends Controller
         };
 
         $ordersBySo = $orders->groupBy(function ($order) {
-            return strtoupper(trim((string) $order->so_number));
+            $soNumber = strtoupper(trim((string) $order->so_number));
+
+            // Keep DPOs without an SO number separate instead of grouping all of them together.
+            return $soNumber !== '' ? $soNumber : '__DPO_' . $order->id;
         });
 
         $rows = $ordersBySo->map(function ($soOrders, $soNumber) {
+            $displaySoNumber = strpos($soNumber, '__DPO_') === 0 ? null : $soNumber;
             $latestOrder = $soOrders->sortByDesc(function ($order) {
                 return optional($order->submitted_at ?: $order->created_at)->timestamp ?: 0;
             })->first();
@@ -1451,7 +1465,10 @@ class ReportController extends Controller
 
             return (object) [
                 'so_key' => $soNumber,
-                'so_number' => $soNumber,
+                'so_number' => $displaySoNumber,
+                'po_number' => $soOrders->pluck('po_number')->filter()->unique()->implode(', '),
+                'dr_number' => $soOrders->pluck('dr_number')->filter()->unique()->implode(', '),
+                'si_number' => $soOrders->pluck('si_number')->filter()->unique()->implode(', '),
                 'latest_date' => $latestOrder->submitted_at ?: $latestOrder->created_at,
                 'business_name' => $soOrders->pluck('business_name')->filter()->unique()->implode(', '),
                 'order_count' => $soOrders->count(),
@@ -1472,6 +1489,7 @@ class ReportController extends Controller
         })->values();
 
         $itemHistories = $ordersBySo->mapWithKeys(function ($soOrders, $soNumber) use ($buildOrderHistory) {
+            $displaySoNumber = strpos($soNumber, '__DPO_') === 0 ? null : $soNumber;
             $sortedOrders = $soOrders->sortBy(function ($order) {
                 return optional($order->submitted_at ?: $order->created_at)->timestamp ?: 0;
             })->values();
@@ -1516,7 +1534,7 @@ class ReportController extends Controller
 
             return [
                 $soNumber => [
-                    'so_number' => $soNumber,
+                    'so_number' => $displaySoNumber,
                     'business_name' => $soOrders->pluck('business_name')->filter()->unique()->implode(', '),
                     'order_count' => $soOrders->count(),
                     'total_qty' => (int) $soOrders->sum('total_qty'),
@@ -1546,6 +1564,11 @@ class ReportController extends Controller
         ];
 
         return view('reports.dpo_report', compact('orders', 'rows', 'from', 'to', 'statusOptions', 'summary', 'itemHistories'));
+    }
+
+    private function isCancelledStatus($status)
+    {
+        return strtolower(trim((string) $status)) === 'cancelled';
     }
 
     private function isFullyReceivedItem($item)

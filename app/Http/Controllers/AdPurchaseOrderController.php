@@ -561,7 +561,7 @@ class AdPurchaseOrderController extends Controller
     {
         $user = auth()->user();
 
-        $order = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'ad'])
+        $order = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'ad'])
             ->when($user->role !== 'Admin', function ($query) use ($user) {
                 $query->where('ad_user_id', $user->id);
             })
@@ -576,7 +576,7 @@ class AdPurchaseOrderController extends Controller
             abort(403);
         }
 
-        $order = AdPurchaseOrder::with(['ad.userAds'])->findOrFail($id);
+        $order = AdPurchaseOrder::with(['ad.userAds', 'paymentProofs'])->findOrFail($id);
 
         if (in_array($order->status, ['Completed', 'Cancelled'])) {
             Alert::error('ADPO Locked', 'Completed or cancelled ADPO records can no longer be updated.');
@@ -587,16 +587,18 @@ class AdPurchaseOrderController extends Controller
         $remarksRules = in_array($request->input('status'), ['Cancelled', 'Partial Received'], true)
             ? ['required', 'string', 'max:1000']
             : ['nullable', 'string', 'max:1000'];
+        $hasPaymentProof = filled($order->proof_of_payment) || $order->paymentProofs->isNotEmpty();
         $proofOfPaymentRules = ($request->input('status') === 'Cancelled'
             || auth()->user()->role === 'Area Distributor'
-            || $order->proof_of_payment)
+            || $hasPaymentProof)
             ? 'nullable'
             : 'required';
 
         $request->validate([
             'status' => 'required|in:Pending,For Delivery,SO Created,Partial Received,For Verification,Completed,Cancelled',
             'payment_method' => 'sometimes|required|in:voucher,cash,gcash,bank_transfer,credit',
-            'proof_of_payment' => $proofOfPaymentRules . '|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'proof_of_payment' => $proofOfPaymentRules . '|array|max:5',
+            'proof_of_payment.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
             'so_number' => 'nullable|required_if:status,SO Created|string|max:255',
             'payment_date' => 'nullable|required_if:status,SO Created|date',
             'delivery_date' => 'nullable|required_if:status,For Delivery|date',
@@ -933,16 +935,33 @@ class AdPurchaseOrderController extends Controller
             }
 
             if ($request->hasFile('proof_of_payment')) {
-                $file = $request->file('proof_of_payment');
-                $filename = $order->po_number . '-' . time() . '.' . $file->getClientOriginalExtension();
                 $uploadPath = public_path('uploads/adpo/proof-of-payment');
 
                 if (!is_dir($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
 
-                $file->move($uploadPath, $filename);
-                $order->proof_of_payment = 'uploads/adpo/proof-of-payment/' . $filename;
+                foreach ($request->file('proof_of_payment') as $file) {
+                    $originalName = $file->getClientOriginalName();
+                    $mimeType = $file->getClientMimeType();
+                    $fileSize = $file->getSize();
+                    $filename = 'adpo-' . $order->id . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $path = 'uploads/adpo/proof-of-payment/' . $filename;
+
+                    $file->move($uploadPath, $filename);
+                    $order->paymentProofs()->create([
+                        'path' => $path,
+                        'original_name' => $originalName,
+                        'mime_type' => $mimeType,
+                        'file_size' => $fileSize,
+                        'uploaded_by' => auth()->id(),
+                    ]);
+
+                    // Preserve compatibility with older screens that read this single-file column.
+                    if (blank($order->proof_of_payment)) {
+                        $order->proof_of_payment = $path;
+                    }
+                }
             }
 
             if ($request->has('so_number')) {
@@ -963,6 +982,14 @@ class AdPurchaseOrderController extends Controller
 
             if ($request->has('si_number')) {
                 $order->si_number = $request->si_number;
+            }
+
+            if ($request->filled('manual_dr_number') && blank($order->manual_dr_number)) {
+                $order->manual_dr_number = $request->manual_dr_number;
+            }
+
+            if ($request->has('manual_si_number')) {
+                $order->manual_si_number = $request->manual_si_number;
             }
 
             if ($request->has('remarks')) {
