@@ -21,6 +21,14 @@
     .update-field-label { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; color: #475467; font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
     .update-field-label i { color: #0d6efd; font-size: 14px; }
     .update-proof-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .proof-upload-dropzone { display: block; padding: 14px; border: 1px dashed #93b4df; border-radius: 8px; background: #f8fbff; color: #344054; cursor: pointer; transition: .18s ease; }
+    .proof-upload-dropzone:hover, .proof-upload-dropzone:focus-within { border-color: #0d6efd; background: #eff6ff; }
+    .proof-upload-dropzone-title { display: flex; align-items: center; gap: 7px; color: #1d4ed8; font-size: 12px; font-weight: 800; }
+    .proof-upload-dropzone-copy { display: block; margin-top: 3px; color: #667085; font-size: 11px; }
+    .proof-file-list { display: grid; gap: 6px; margin-top: 9px; }
+    .proof-file-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 9px; border: 1px solid #dbe4f0; border-radius: 6px; background: #fff; color: #344054; font-size: 11px; font-weight: 700; }
+    .proof-file-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .proof-file-item-size { flex: 0 0 auto; color: #667085; font-weight: 600; }
     .update-action-card { width: 100%; height: 100%; display: flex; align-items: flex-end; }
     .update-action-card .btn { min-height: 38px; font-weight: 800; }
     .form-check-inline { margin-bottom: 0; }
@@ -98,6 +106,8 @@
             return (int) ($item->partial_received_qty ?? 0);
         });
         $partialPendingQty = max($partialOrderedQty - $partialReceivedQty, 0);
+        $paymentProofs = $order->paymentProofs;
+        $hasPaymentProof = $paymentProofs->isNotEmpty() || filled($order->proof_of_payment);
     @endphp
 
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -180,18 +190,31 @@
                         <div class="update-field-card">
                             <label class="update-field-label">
                                 <i class="bi bi-file-earmark-arrow-up"></i>
-                                Proof of Payment <span class="text-danger @if($order->proof_of_payment || old('status', $order->status) === 'Cancelled') d-none @endif" id="proofRequiredMarker">*</span>
+                                Proof of Payment <span class="text-danger @if($hasPaymentProof || old('status', $order->status) === 'Cancelled') d-none @endif" id="proofRequiredMarker">*</span>
                             </label>
                             @if(!$isFinalStatus)
-                                <input type="file" name="proof_of_payment" id="adpoProofOfPayment" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.pdf" data-has-current-proof="{{ $order->proof_of_payment ? '1' : '0' }}" @if(!$order->proof_of_payment && old('status', $order->status) !== 'Cancelled') required @endif>
-                                <div class="form-text" id="proofOfPaymentHelp">JPG, PNG, or PDF. Maximum size: 5 MB.</div>
+                                <label class="proof-upload-dropzone" for="adpoProofOfPayment">
+                                    <span class="proof-upload-dropzone-title"><i class="bi bi-cloud-arrow-up"></i> Select proof files</span>
+                                    <span class="proof-upload-dropzone-copy">You can add up to 5 JPG, PNG, or PDF files.</span>
+                                </label>
+                                <input type="file" name="proof_of_payment[]" id="adpoProofOfPayment" class="visually-hidden" accept=".jpg,.jpeg,.png,.pdf" multiple data-has-current-proof="{{ $hasPaymentProof ? '1' : '0' }}" @if(!$hasPaymentProof && old('status', $order->status) !== 'Cancelled') required @endif>
+                                <div class="proof-file-list" id="proofSelectedFiles" aria-live="polite"></div>
+                                <div class="form-text" id="proofOfPaymentHelp">Up to 5 files; each file can be a JPG, PNG, or PDF up to 5 MB.</div>
                             @endif
                             <div class="update-proof-actions">
-                                @if($order->proof_of_payment)
+                                @if($paymentProofs->isNotEmpty())
+                                    @foreach($paymentProofs as $proof)
+                                        <a href="{{ asset($proof->path) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary" title="{{ $proof->original_name }}">
+                                            <i class="bi bi-paperclip"></i> {{ \Illuminate\Support\Str::limit($proof->original_name, 24) }}
+                                        </a>
+                                    @endforeach
+                                @endif
+                                @if($order->proof_of_payment && !$paymentProofs->contains('path', $order->proof_of_payment))
                                     <a href="{{ asset($order->proof_of_payment) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-eye"></i> View Current Proof
+                                        <i class="bi bi-paperclip"></i> View existing proof
                                     </a>
-                                @elseif($isFinalStatus)
+                                @endif
+                                @if(!$hasPaymentProof && $isFinalStatus)
                                     <span class="text-muted small">No proof of payment uploaded.</span>
                                 @endif
                             </div>
@@ -278,13 +301,15 @@
                             <div class="col-md-4">
                                 <div class="status-input-card">
                                     <label class="form-label small fw-bold text-uppercase text-muted">DR Number</label>
-                                    <input type="text" name="dr_number" id="drNumber" class="form-control form-control-sm" value="{{ old('dr_number', $order->dr_number) }}" placeholder="Enter DR number" data-uppercase @if(old('status', $order->status) === 'For Delivery') required @endif @if($isFinalStatus) readonly @endif>
+                                    <input type="text" name="dr_number" id="drNumber" class="form-control form-control-sm" value="{{ old('dr_number', $order->dr_number) }}" placeholder="Enter System DR number" data-uppercase @if(old('status', $order->status) === 'For Delivery') required @endif @if($isFinalStatus) readonly @endif>
+                                    <input type="text" name="manual_dr_number" id="drNumber" class="form-control form-control-sm mt-3" value="{{ old('manual_dr_number', $order->manual_dr_number) }}" placeholder="Enter Manual DR number" data-uppercase @if(old('status', $order->status) === 'For Delivery') required @endif @if($isFinalStatus) readonly @endif>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="status-input-card">
                                     <label class="form-label small fw-bold text-uppercase text-muted">SI Number</label>
-                                    <input type="text" name="si_number" id="siNumber" class="form-control form-control-sm" value="{{ old('si_number', $order->si_number) }}" placeholder="Enter SI number" data-uppercase @if(old('status', $order->status) === 'For Delivery') required @endif @if($isFinalStatus) readonly @endif>
+                                    <input type="text" name="si_number" id="siNumber" class="form-control form-control-sm" value="{{ old('si_number', $order->si_number) }}" placeholder="Enter System SI number" data-uppercase @if(old('status', $order->status) === 'For Delivery') required @endif @if($isFinalStatus) readonly @endif>
+                                    <input type="text" name="manual_si_number" id="siNumber" class="form-control form-control-sm mt-3" value="{{ old('manual_si_number', $order->manual_si_number) }}" placeholder="Enter Manual SI number" data-uppercase @if(old('status', $order->status) === 'For Delivery') required @endif @if($isFinalStatus) readonly @endif>
                                 </div>
                             </div>
                         </div>
@@ -435,7 +460,11 @@
             <div class="meta-item">
                 <span>Proof of Payment</span>
                 <strong>
-                    @if($order->proof_of_payment)
+                    @if($paymentProofs->isNotEmpty())
+                        <a href="{{ asset($paymentProofs->first()->path) }}" target="_blank" rel="noopener">
+                            View {{ $paymentProofs->count() }} file{{ $paymentProofs->count() === 1 ? '' : 's' }}
+                        </a>
+                    @elseif($order->proof_of_payment)
                         <a href="{{ asset($order->proof_of_payment) }}" target="_blank" rel="noopener">View File</a>
                     @else
                         N/A
@@ -603,6 +632,7 @@
                 const proofOfPayment = document.getElementById('adpoProofOfPayment');
                 const proofRequiredMarker = document.getElementById('proofRequiredMarker');
                 const proofOfPaymentHelp = document.getElementById('proofOfPaymentHelp');
+                const proofSelectedFiles = document.getElementById('proofSelectedFiles');
                 const remarksWrap = document.getElementById('statusRemarksWrap');
                 const remarksLabel = document.getElementById('statusRemarksLabel');
                 const remarks = document.getElementById('statusRemarks');
@@ -855,7 +885,7 @@
                     if (proofOfPaymentHelp) {
                         proofOfPaymentHelp.textContent = status.value === 'Cancelled'
                             ? 'Proof of payment is optional when cancelling an order.'
-                            : 'JPG, PNG, or PDF. Maximum size: 5 MB.';
+                            : 'Up to 5 JPG, PNG, or PDF files; 5 MB maximum per file.';
                     }
 
                     remarksWrap.classList.toggle('is-visible', needsRemarks);
@@ -891,7 +921,42 @@
                     updatePartialSummary();
                 }
 
+                function formatFileSize(bytes) {
+                    return bytes < 1024 * 1024
+                        ? Math.ceil(bytes / 1024) + ' KB'
+                        : (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+                }
+
+                function renderSelectedProofFiles() {
+                    if (!proofOfPayment || !proofSelectedFiles) {
+                        return;
+                    }
+
+                    const files = Array.from(proofOfPayment.files);
+                    proofOfPayment.setCustomValidity(files.length > 5 ? 'You can upload up to 5 proof files at a time.' : '');
+                    proofSelectedFiles.innerHTML = '';
+                    files.forEach(function (file) {
+                        const item = document.createElement('div');
+                        item.className = 'proof-file-item';
+
+                        const name = document.createElement('span');
+                        name.className = 'proof-file-item-name';
+                        name.textContent = file.name;
+
+                        const size = document.createElement('span');
+                        size.className = 'proof-file-item-size';
+                        size.textContent = formatFileSize(file.size);
+
+                        item.appendChild(name);
+                        item.appendChild(size);
+                        proofSelectedFiles.appendChild(item);
+                    });
+                }
+
                 status.addEventListener('change', toggleStatusFields);
+                if (proofOfPayment) {
+                    proofOfPayment.addEventListener('change', renderSelectedProofFiles);
+                }
                 deliveryDate.addEventListener('input', applyMainDeliveryDateToPartialItems);
                 deliveryDate.addEventListener('change', applyMainDeliveryDateToPartialItems);
                 drNumber.addEventListener('input', applyMainDrNumberToPartialItems);

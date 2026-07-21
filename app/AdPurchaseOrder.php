@@ -30,6 +30,8 @@ class AdPurchaseOrder extends Model implements Auditable
         'delivery_date',
         'dr_number',
         'si_number',
+        'manual_dr_number',
+        'manual_si_number',
         'voucher_id',
         'voucher_code',
         'rebate_amount',
@@ -62,6 +64,11 @@ class AdPurchaseOrder extends Model implements Auditable
     public function partialReceipts()
     {
         return $this->hasMany(AdPurchaseOrderPartialReceipt::class, 'ad_purchase_order_id');
+    }
+
+    public function paymentProofs()
+    {
+        return $this->hasMany(AdPurchaseOrderPaymentProof::class, 'ad_purchase_order_id');
     }
 
     public function ad()

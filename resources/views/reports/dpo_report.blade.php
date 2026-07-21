@@ -157,7 +157,7 @@
                         <tr>
                             <td>{{ $row->po_number }}</td>
                             <td>
-                                <span class="dpo-ref">{{ $row->so_number }}</span>
+                                <span class="dpo-ref">{{ $row->so_number ?: 'N/A' }}</span>
                                 <span class="dpo-sub">{{ number_format($row->order_count) }} DPO</span>
                             </td>
                             <td><span class="dpo-doc">{{ optional($row->latest_date)->format('M d, Y') ?: 'N/A' }}</span></td>
@@ -218,7 +218,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9">
+                            <td colspan="12">
                                 <div class="dpo-empty">No sales order numbers found for the selected filters.</div>
                             </td>
                         </tr>

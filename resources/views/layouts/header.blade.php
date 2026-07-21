@@ -2573,52 +2573,49 @@
 
         <!-- Content Area -->
         <div class="content-area @if(Request::is('rewards')) rewards-page @endif">
-                @yield('content')
-
-                <footer class="footer">
+            @yield('content')
+            
+            <footer class="footer">
                 <div class="container-fluid">
                     <div class="footer-content">
-                    
-                    <!-- Left-aligned Logo -->
-                    <div class="company-info">
-                        <div class="company-logo">
-                        <img src="{{ asset('images/footer.png') }}" alt="Company Logo" />
+                        <!-- Left-aligned Logo -->
+                        <div class="company-info">
+                            <div class="company-logo">
+                                <img src="{{ asset('images/footer.png') }}" alt="Company Logo" />
+                            </div>
                         </div>
-                    </div>
 
-                    
-                    <!-- Center Nav + Social -->
-                    <div class="nav-links-container">
-                        <nav>
-                        <ul class="nav-links">
-                            <li><a href="{{ url('/') }}">Home</a></li>
-                            <li><a href="{{ route('products') }}">Product</a></li>
-                            <li><a href="{{ route('storelocation') }}">Store Location</a></li>
-                            <li><a href="{{ route('about') }}">About</a></li>
-                        </ul>
-                        </nav>
+                        <!-- Center Nav + Social -->
+                        <div class="nav-links-container">
+                            <nav>
+                                <ul class="nav-links">
+                                    <li><a href="{{ url('/') }}">Home</a></li>
+                                    <li><a href="{{ route('products') }}">Product</a></li>
+                                    <li><a href="{{ route('storelocation') }}">Store Location</a></li>
+                                    <li><a href="{{ route('about') }}">About</a></li>
+                                </ul>
+                            </nav>
 
-                        <div class="divider"></div>
+                            <div class="divider"></div>
 
-                        <div class="social-links">
-                        <a href="https://www.tiktok.com/@gazliteofficial" aria-label="Tiktok">
-                            <iconify-icon icon="simple-icons:tiktok"></iconify-icon>
-                        </a>
-                        <a href="https://www.instagram.com/gazliteph/#" aria-label="Instagram">
-                            <iconify-icon icon="mdi:instagram"></iconify-icon>
-                        </a>
-                        <a href="https://www.facebook.com/GazLitePH/" aria-label="Facebook">
-                            <iconify-icon icon="mdi:facebook"></iconify-icon>
-                        </a>
+                            <div class="social-links">
+                                <a href="https://www.tiktok.com/@gazliteofficial" aria-label="Tiktok">
+                                    <iconify-icon icon="simple-icons:tiktok"></iconify-icon>
+                                </a>
+                                <a href="https://www.instagram.com/gazliteph/#" aria-label="Instagram">
+                                    <iconify-icon icon="mdi:instagram"></iconify-icon>
+                                </a>
+                                <a href="https://www.facebook.com/GazLitePH/" aria-label="Facebook">
+                                    <iconify-icon icon="mdi:facebook"></iconify-icon>
+                                </a>
+                            </div>
+                            <div class="footer-right-image">
+                                <img src="{{ asset('images/footer1.png') }}" alt="Right Footer Image" />
+                            </div>
                         </div>
-                        <div class="footer-right-image">
-                        <img src="{{ asset('images/footer1.png') }}" alt="Right Footer Image" />
-                    </div>
-                    </div>
                     </div>
                 </div>
-                </footer>
-            </div>
+            </footer> 
         </div>
     </div>
 

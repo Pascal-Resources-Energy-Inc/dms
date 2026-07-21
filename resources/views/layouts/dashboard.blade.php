@@ -195,6 +195,9 @@
             min-height: 100vh;
         }
 
+        .mobile-nav-bar { display: none; }
+        .mobile-nav-overlay { display: none; }
+
         .page-content {
             flex: 1 0 auto;
         }
@@ -619,17 +622,38 @@
                 display: block;
             }
 
+            .app-shell { display: block; }
             .sidebar {
-                position: static;
-                width: 100%;
-                min-height: auto;
+                position: fixed;
+                z-index: 1050;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                width: min(86vw, 320px);
+                min-height: 100dvh;
+                padding: 1rem !important;
+                transform: translateX(-105%);
+                transition: transform .25s ease;
+                box-shadow: 18px 0 50px rgba(15, 23, 42, .25);
             }
 
-            .sidebar .nav {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: .25rem;
+            .sidebar.is-open { transform: translateX(0); }
+            .sidebar .nav { display: block; }
+            .mobile-nav-bar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                margin: -1.25rem -1.25rem 1rem;
+                padding: .75rem 1rem;
+                color: #fff;
+                background: var(--brand);
+                box-shadow: 0 .15rem .5rem rgba(7, 95, 195, .2);
             }
+            .mobile-nav-brand { font-weight: 800; font-size: .95rem; letter-spacing: .01em; }
+            .mobile-nav-toggle { min-width: 42px; min-height: 42px; color: var(--brand); background: #fff; border: 0; border-radius: .5rem; font-size: 1.2rem; }
+            .mobile-nav-overlay { position: fixed; z-index: 1040; inset: 0; background: rgba(15, 23, 42, .46); }
+            .mobile-nav-overlay.is-active { display: block; }
 
             .topbar,
             .module-header {
@@ -652,6 +676,14 @@
             .main-content {
                 padding: 1rem;
             }
+
+            .mobile-nav-bar { margin: -1rem -1rem 1rem; }
+            .module-header { padding: .9rem; }
+            .module-header h1 { font-size: 1.25rem; }
+            .panel, .kpi, .mini-panel { padding: .85rem; }
+            .table-wrap { margin: 0 -.15rem; border-radius: .4rem; }
+            .table { font-size: .8rem; }
+            .filters .filter, .filters .profile { width: 100%; }
 
             .kpi-grid,
             .mini-grid,
@@ -709,7 +741,7 @@
         <symbol id="icon-help" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0v5a3 3 0 0 1-3 3h-2"></path><path d="M4 12v5a3 3 0 0 0 3 3h2"></path><path d="M9 18h6"></path><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 5"></path></symbol>
     </svg>
     <div class="app-shell">
-        <aside class="sidebar p-3">
+        <aside class="sidebar p-3" id="dashboardSidebar" aria-label="Primary navigation">
             <div class="mb-4">
                 <div class="brand-logo">
                     <img src="{{ asset('images/gazlite.png') }}" alt="GazLite">
@@ -763,7 +795,12 @@
             </form>
         </aside>
 
+        <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
         <main class="main-content container-fluid">
+            <div class="mobile-nav-bar">
+                <span class="mobile-nav-brand">Gaz Lite DMS</span>
+                <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-label="Open navigation" aria-controls="dashboardSidebar" aria-expanded="false">☰</button>
+            </div>
             <div class="page-content">
                 @yield('content')
             </div>
@@ -777,5 +814,27 @@
         </main>
     </div>
     <script src="{{ asset('js/app.js') }}"></script>
+    <script>
+        (function () {
+            const sidebar = document.getElementById('dashboardSidebar');
+            const toggle = document.getElementById('mobileNavToggle');
+            const overlay = document.getElementById('mobileNavOverlay');
+            if (!sidebar || !toggle || !overlay) return;
+
+            const close = function () {
+                sidebar.classList.remove('is-open');
+                overlay.classList.remove('is-active');
+                toggle.setAttribute('aria-expanded', 'false');
+            };
+            toggle.addEventListener('click', function () {
+                const isOpen = sidebar.classList.toggle('is-open');
+                overlay.classList.toggle('is-active', isOpen);
+                toggle.setAttribute('aria-expanded', String(isOpen));
+            });
+            overlay.addEventListener('click', close);
+            document.addEventListener('keydown', function (event) { if (event.key === 'Escape') close(); });
+            window.addEventListener('resize', function () { if (window.innerWidth > 991) close(); });
+        }());
+    </script>
 </body>
 </html>
