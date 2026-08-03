@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\AdPurchaseOrder;
 use App\AdPurchaseOrderPartialReceipt;
 use App\Exports\AdPurchaseOrdersExport;
+use App\Mail\AdPurchaseOrderSoCreatedNotification;
 use App\Mail\AdPurchaseOrderStatusUpdatedMail;
 use App\Mail\AdPurchaseOrderWarehouseStatusNotification;
 use App\Mail\AdPurchaseOrderWarehouseNotification;
@@ -57,6 +58,7 @@ class AdPurchaseOrderController extends Controller
             'so_created' => $orders->where('status', 'SO Created')->count(),
             'partial_received' => $orders->where('status', 'Partial Received')->count(),
             'completed' => $orders->where('status', 'Completed')->count(),
+            'cancelled' => $orders->where('status', 'Cancelled')->count(),
             'amount' => $orders->sum('total_amount'),
         ];
 
@@ -68,6 +70,7 @@ class AdPurchaseOrderController extends Controller
             'so_created' => $favoriteOrders->where('status', 'SO Created')->count(),
             'partial_received' => $favoriteOrders->where('status', 'Partial Received')->count(),
             'completed' => $favoriteOrders->where('status', 'Completed')->count(),
+            'cancelled' => $favoriteOrders->where('status', 'Cancelled')->count(),
         ];
 
         return view('ad_purchase_orders.index', [
@@ -107,6 +110,7 @@ class AdPurchaseOrderController extends Controller
             'so_created' => $orders->where('status', 'SO Created')->count(),
             'partial_received' => $orders->where('status', 'Partial Received')->count(),
             'completed' => $orders->where('status', 'Completed')->count(),
+            'cancelled' => $orders->where('status', 'Cancelled')->count(),
             'amount' => $orders->sum('total_amount'),
         ];
 
@@ -118,6 +122,7 @@ class AdPurchaseOrderController extends Controller
             'so_created' => $favoriteOrders->where('status', 'SO Created')->count(),
             'partial_received' => $favoriteOrders->where('status', 'Partial Received')->count(),
             'completed' => $favoriteOrders->where('status', 'Completed')->count(),
+            'cancelled' => $favoriteOrders->where('status', 'Cancelled')->count(),
         ];
 
         return view('ad_purchase_orders.index', [
@@ -1113,6 +1118,10 @@ class AdPurchaseOrderController extends Controller
         if ($oldStatus !== $order->status) {
             $this->notifyAdpoStatusChanged($order, $oldStatus);
             $this->notifyWarehouseStatusChanged($order, $oldStatus);
+
+            if ($order->status === 'SO Created') {
+                $this->notifySoCreated($order, $oldStatus);
+            }
         }
 
         Alert::success('ADPO Updated', 'ADPO updated successfully.');
@@ -1330,6 +1339,21 @@ class AdPurchaseOrderController extends Controller
             Log::error('ADPO status email failed.', [
                 'ad_purchase_order_id' => $order->id,
                 'po_number' => $order->po_number,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function notifySoCreated(AdPurchaseOrder $order, $oldStatus)
+    {
+        try {
+            Mail::to('emmanuel.novero@pascalresources.com.ph')
+                ->send(new AdPurchaseOrderSoCreatedNotification($order, $oldStatus));
+        } catch (\Exception $exception) {
+            Log::error('ADPO SO-created email failed.', [
+                'ad_purchase_order_id' => $order->id,
+                'po_number' => $order->po_number,
+                'so_number' => $order->so_number,
                 'error' => $exception->getMessage(),
             ]);
         }

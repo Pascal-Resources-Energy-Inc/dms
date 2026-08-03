@@ -210,7 +210,7 @@
                                     @endforeach
                                 @endif
                                 @if($order->proof_of_payment && !$paymentProofs->contains('path', $order->proof_of_payment))
-                                    <a href="{{ asset($order->proof_of_payment) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+                                    <a href="{{ asset($order->proof_of_payment) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success">
                                         <i class="bi bi-paperclip"></i> View existing proof
                                     </a>
                                 @endif
