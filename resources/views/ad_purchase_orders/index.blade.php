@@ -204,6 +204,7 @@
         'SO Created' => $favoriteSummary['so_created'] ?? 0,
         'Partial Received' => $favoriteSummary['partial_received'] ?? 0,
         'Completed' => $favoriteSummary['completed'] ?? 0,
+        'Cancelled' => $favoriteSummary['Cancelled'] ?? 0,
     ];
     $quickStatusOptions = [
         '' => 'All',
@@ -212,6 +213,7 @@
         'SO Created' => 'Verification',
         'Partial Received' => 'Partial',
         'Completed' => 'Completed',
+        'Cancelled' => 'Cancelled',
     ];
     $editableAdpoStatuses = ['Pending', 'For Delivery', 'SO Created', 'Partial Received'];
     $canUpdateAdpoStatus = auth()->user()->role === 'Area Distributor';
