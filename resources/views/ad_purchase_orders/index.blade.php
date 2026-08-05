@@ -182,7 +182,7 @@
     $exportRoute = $exportRoute ?? route('ad-purchase-orders.export', request()->query());
     $viewRouteName = $viewRouteName ?? 'ad-purchase-orders.show';
     $statusOptions = auth()->user()->role === 'Area Distributor'
-        ? ['Pending', 'SO Created', 'Completed', 'Partial Received', 'Cancelled']
+        ? ['Pending', 'SO Created', 'For Verification', 'Completed', 'Partial Received', 'Cancelled']
         : ['Pending', 'For Delivery', 'SO Created', 'Partial Received', 'Completed', 'Cancelled'];
     $shippingOptions = [
         'delivered' => 'Delivered',
@@ -604,6 +604,10 @@
                                 <span>SO Number</span>
                                 <strong id="statusModalSo">N/A</strong>
                             </div>
+                            <div class="status-modal-item d-none" id="statusModalDrWrap">
+                                <span>DR Number</span>
+                                <strong id="statusModalDr">N/A</strong>
+                            </div>
                             <div class="status-modal-item d-none" id="statusModalSiWrap">
                                 <span>SI Number</span>
                                 <strong id="statusModalSi">N/A</strong>
@@ -770,6 +774,7 @@
                 function toggleRemarks() {
                     const needsRemarks = statusesNeedingRemarks.includes(statusSelect.value);
                     const needsSoDetails = statusSelect.value === 'SO Created';
+                    const showsDeliveryDetails = ['For Delivery', 'Partial Received'].includes(statusSelect.value);
                     const needsDeliveryDetails = statusSelect.value === 'For Delivery';
                     const needsPartialItems = statusSelect.value === 'Partial Received';
 
@@ -786,14 +791,14 @@
                     statusSoNumber.disabled = !needsSoDetails;
                     statusSoNumber.required = needsSoDetails;
 
-                    statusDeliveryWrap.classList.toggle('is-visible', needsDeliveryDetails);
-                    statusDeliveryDate.disabled = !needsDeliveryDetails;
+                    statusDeliveryWrap.classList.toggle('is-visible', showsDeliveryDetails);
+                    statusDeliveryDate.disabled = !showsDeliveryDetails;
                     statusDeliveryDate.required = needsDeliveryDetails;
-                    statusDrNumber.disabled = !needsDeliveryDetails;
+                    statusDrNumber.disabled = !showsDeliveryDetails;
                     statusDrNumber.required = needsDeliveryDetails;
-                    statusDrNumber.readOnly = needsDeliveryDetails && statusDrNumber.dataset.hasSavedDr === '1';
+                    statusDrNumber.readOnly = showsDeliveryDetails && statusDrNumber.dataset.hasSavedDr === '1';
                     statusDrLockedHelp.classList.toggle('d-none', !statusDrNumber.readOnly);
-                    statusSiNumber.disabled = !needsDeliveryDetails;
+                    statusSiNumber.disabled = !showsDeliveryDetails;
                     statusSiNumber.required = needsDeliveryDetails;
 
                     partialWrap.classList.toggle('is-visible', needsPartialItems);
@@ -1076,13 +1081,18 @@
                         document.getElementById('statusModalBusiness').textContent = button.dataset.business || 'N/A';
                         document.getElementById('statusModalCurrent').textContent = button.dataset.currentStatus || 'N/A';
                         const modalSoWrap = document.getElementById('statusModalSoWrap');
+                        const modalDrWrap = document.getElementById('statusModalDrWrap');
                         const modalSiWrap = document.getElementById('statusModalSiWrap');
                         const savedSoNumber = (button.dataset.soNumber || '').trim();
+                        const savedDrNumber = (button.dataset.drNumber || '').trim();
                         const savedSiNumber = (button.dataset.siNumber || '').trim();
                         document.getElementById('statusModalSo').textContent = savedSoNumber || 'N/A';
+                        document.getElementById('statusModalDr').textContent = savedDrNumber || 'N/A';
                         document.getElementById('statusModalSi').textContent = savedSiNumber || 'N/A';
                         modalSoWrap.classList.toggle('d-none', savedSoNumber === '');
-                        modalSiWrap.classList.toggle('d-none', savedSiNumber === '');
+                        const showsDeliveryReferences = ['For Delivery', 'Partial Received'].includes(button.dataset.currentStatus || '');
+                        modalDrWrap.classList.toggle('d-none', !showsDeliveryReferences || savedDrNumber === '');
+                        modalSiWrap.classList.toggle('d-none', !showsDeliveryReferences || savedSiNumber === '');
                         document.getElementById('statusPaymentMethod').value = button.dataset.paymentMethod || 'cash';
                         document.getElementById('statusReferenceNo').value = button.dataset.referenceNo || '';
                         statusDeliveryDate.value = button.dataset.deliveryDate || '';
@@ -1097,6 +1107,15 @@
                         const modalSubtitle = document.getElementById('adpoStatusModalSubtitle');
                         const hasNoReceivingProducts = currentItems.length === 0;
                         const canCompleteReceiving = button.dataset.canCompleteReceiving === '1';
+
+                        // Reset each time the modal opens, then apply rules for the current order status.
+                        const isPendingOrder = requestedStatus === 'Pending';
+                        Array.from(statusSelect.options).forEach(function (option) {
+                            const isAllowedForPending = ['Pending', 'Cancelled'].includes(option.value);
+                            option.hidden = isPendingOrder && !isAllowedForPending;
+                            option.disabled = isPendingOrder && !isAllowedForPending;
+                        });
+
                         const cancelledOption = Array.from(statusSelect.options).find(function (option) {
                             return option.value === 'Cancelled';
                         });
@@ -1122,16 +1141,25 @@
                         const pendingOption = Array.from(statusSelect.options).find(function (option) {
                             return option.value === 'Pending';
                         });
-                        const isSoCreated = requestedStatus === 'SO Created';
+                        const soCreatedOption = Array.from(statusSelect.options).find(function (option) {
+                            return option.value === 'SO Created';
+                        });
+                        const shouldHidePending = ['SO Created', 'For Delivery', 'Partial Received'].includes(requestedStatus);
+                        const shouldHideSoCreated = ['For Delivery', 'Partial Received'].includes(requestedStatus);
 
                         if (pendingOption) {
-                            pendingOption.hidden = isSoCreated;
-                            pendingOption.disabled = isSoCreated;
+                            pendingOption.hidden = shouldHidePending;
+                            pendingOption.disabled = shouldHidePending;
+                        }
+
+                        if (soCreatedOption) {
+                            soCreatedOption.hidden = shouldHideSoCreated;
+                            soCreatedOption.disabled = shouldHideSoCreated;
                         }
 
                         const pendingNotice = document.getElementById('statusPendingUnavailableNotice');
                         if (pendingNotice) {
-                            pendingNotice.classList.toggle('d-none', !isSoCreated);
+                            pendingNotice.classList.toggle('d-none', !shouldHidePending);
                         }
 
                         const selectableOptions = Array.from(statusSelect.options).filter(function (option) {

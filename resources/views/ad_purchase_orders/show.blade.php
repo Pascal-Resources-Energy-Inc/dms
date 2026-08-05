@@ -146,7 +146,7 @@
         $isFinalStatus = in_array($order->status, ['Completed', 'Cancelled']);
         $availableStatuses = $order->status === 'Pending'
             ? ['Pending', 'SO Created', 'Cancelled']
-            : ['Pending', 'SO Created', 'For Delivery', 'Partial', 'Completed'];
+            : ['Pending', 'SO Created', 'For Delivery', 'Partial Delivery', 'Completed'];
 
         if ($order->status === 'SO Created') {
             $availableStatuses[] = 'Cancelled';
@@ -341,7 +341,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-12 status-details @if(in_array(old('status', $order->status), ['For Delivery', 'Partial Received'])) is-visible @endif" id="deliveryDetailsWrap">
+                    <div class="col-12 status-details @if(in_array(old('status', $order->status), ['For Delivery', 'Partial Delivery'])) is-visible @endif" id="deliveryDetailsWrap">
                         <div class="status-details-head">
                             <div>
                                 <h6 class="status-details-title">
@@ -375,12 +375,12 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-12 status-details @if(old('status', $order->status) === 'Partial Received') is-visible @endif" id="partialDetailsWrap">
+                    <div class="col-12 status-details @if(old('status', $order->status) === 'Partial Delivery') is-visible @endif" id="partialDetailsWrap">
                         <div class="status-details-head">
                             <div>
                                 <h6 class="status-details-title">
                                     <i class="bi bi-box-seam"></i>
-                                    Partial Received Items
+                                    Partial Delivery Items
                                 </h6>
                                 <p class="status-details-copy">Record the received quantity, delivery date, and DR number for each product in this order.</p>
                             </div>
@@ -404,7 +404,7 @@
                             <input type="checkbox"
                                 id="samePartialDeliveryDate"
                                 class="form-check-input"
-                                @if(old('status', $order->status) !== 'Partial Received' || $isFinalStatus) disabled @endif>
+                                @if(old('status', $order->status) !== 'Partial Delivery' || $isFinalStatus) disabled @endif>
                             Use the same delivery date for all received products
                         </label>
                         <div class="partial-item-list" id="showPartialItems">
@@ -443,12 +443,12 @@
                                         </div>
                                     </div>
                                     <div>
-                                        <span class="partial-qty-label">{{ $hasPreviousPartial ? 'Next Received Qty' : 'Received Qty' }}</span>
+                                        <span class="partial-qty-label">{{ $hasPreviousPartial ? 'Next Delivery Qty' : 'Delivery Qty' }}</span>
                                         <input type="hidden"
                                             name="partial_items[{{ $item->id }}][receive_mode]"
                                             class="partial-receive-mode"
                                             value="increment"
-                                            @if(old('status', $order->status) !== 'Partial Received' || $isFullyReceived) disabled @endif>
+                                            @if(old('status', $order->status) !== 'Partial Delivery' || $isFullyReceived) disabled @endif>
                                         <input type="number"
                                             name="partial_items[{{ $item->id }}][received_qty]"
                                             class="form-control form-control-sm partial-received-qty"
@@ -458,7 +458,7 @@
                                             data-ordered-qty="{{ $orderedQty }}"
                                             data-previous-received-qty="{{ $previousReceivedQty }}"
                                             data-remaining-qty="{{ $remainingBeforeQty }}"
-                                            @if(old('status', $order->status) !== 'Partial Received' || $isFullyReceived) disabled @endif
+                                            @if(old('status', $order->status) !== 'Partial Delivery' || $isFullyReceived) disabled @endif
                                             @if($isFinalStatus) readonly @endif>
                                     </div>
                                     <div class="partial-doc-wrap @if($isFullyReceived) is-locked @endif">
@@ -470,7 +470,7 @@
                                             @if($isFullyReceived)
                                                 disabled readonly
                                             @endif
-                                            @if(old('status', $order->status) !== 'Partial Received') disabled @endif
+                                            @if(old('status', $order->status) !== 'Partial Delivery') disabled @endif
                                             @if($isFinalStatus) readonly @endif>
                                         <div class="partial-locked-field">Not required</div>
                                     </div>
@@ -486,7 +486,7 @@
                                             @if($isFullyReceived)
                                                 disabled readonly
                                             @endif
-                                            @if(old('status', $order->status) !== 'Partial Received') disabled @endif
+                                            @if(old('status', $order->status) !== 'Partial Delivery') disabled @endif
                                             @if($isFinalStatus) readonly @endif>
                                         <div class="partial-locked-field">Not required</div>
                                     </div>
@@ -498,13 +498,13 @@
                             @endforelse
                         </div>
                     </div>
-                    <div class="col-12 status-remarks @if(in_array(old('status', $order->status), ['Cancelled', 'Partial Received'])) is-visible @endif" id="statusRemarksWrap">
+                    <div class="col-12 status-remarks @if(in_array(old('status', $order->status), ['Cancelled', 'Partial Delivery'])) is-visible @endif" id="statusRemarksWrap">
                         <div class="update-field-card">
                             <label class="update-field-label" for="statusRemarks">
                                 <i class="bi bi-chat-left-text"></i>
-                                <span id="statusRemarksLabel">{{ old('status', $order->status) === 'Partial Received' ? 'Partial Received Remarks' : 'Cancellation Remarks' }}</span>
+                                <span id="statusRemarksLabel">{{ old('status', $order->status) === 'Partial Delivery' ? 'Partial Delivery Remarks' : 'Cancellation Remarks' }}</span>
                             </label>
-                            <textarea name="remarks" id="statusRemarks" class="form-control form-control-sm" rows="3" @if(in_array(old('status', $order->status), ['Cancelled', 'Partial Received'])) required @endif @if($isFinalStatus) readonly @endif>{{ old('remarks', $order->remarks) }}</textarea>
+                            <textarea name="remarks" id="statusRemarks" class="form-control form-control-sm" rows="3" @if(in_array(old('status', $order->status), ['Cancelled', 'Partial Delivery'])) required @endif @if($isFinalStatus) readonly @endif>{{ old('remarks', $order->remarks) }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -607,7 +607,7 @@
                         <tr>
                             <th>Product</th>
                             <th class="text-center">Order Qty</th>
-                            @if($order->status === 'Partial Received')
+                            @if($order->status === 'Partial Delivery')
                                 <th class="text-center">Received / Pending</th>
                                 <th class="text-center">Delivery Date</th>
                                 <th class="text-center">DR No.</th>
@@ -658,7 +658,7 @@
                                         {{ number_format($item->qty) }}
                                     @endif
                                 </td>
-                                @if($order->status === 'Partial Received')
+                                @if($order->status === 'Partial Delivery')
                                     @php
                                         $tableReceivedQty = (int) ($item->partial_received_qty ?? 0);
                                         $tablePendingQty = max((int) $item->qty - $tableReceivedQty, 0);
@@ -679,7 +679,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ $order->status === 'Partial Received' ? 7 : 4 }}" class="text-center text-muted py-4">
+                                <td colspan="{{ $order->status === 'Partial Delivery' ? 7 : 4 }}" class="text-center text-muted py-4">
                                     No products yet.
                                 </td>
                             </tr>
@@ -688,7 +688,7 @@
                 </table>
             </div>
 
-            @if($order->remarks && in_array($order->status, ['Cancelled', 'Partial Received']))
+            @if($order->remarks && in_array($order->status, ['Cancelled', 'Partial Delivery']))
                 <div class="alert {{ $order->status === 'Cancelled' ? 'alert-danger' : 'alert-warning' }} border mt-3">
                     <strong>Remarks:</strong> {{ $order->remarks }}
                 </div>
@@ -793,7 +793,7 @@
                 }
 
                 function applyMainDeliveryDateToPartialItems() {
-                    if (!['For Delivery', 'Partial Received'].includes(status.value)) {
+                    if (!['For Delivery', 'Partial Delivery'].includes(status.value)) {
                         return;
                     }
 
@@ -811,14 +811,14 @@
                             input.value = deliveryDate.value;
                         }
 
-                        if (status.value === 'Partial Received') {
+                        if (status.value === 'Partial Delivery') {
                             input.readOnly = hasMainDeliveryDate || @json($isFinalStatus);
                         }
                     });
                 }
 
                 function applyMainDrNumberToPartialItems() {
-                    if (status.value !== 'Partial Received' || !@json(filled(auth()->user()->warehouse))) {
+                    if (status.value !== 'Partial Delivery' || !@json(filled(auth()->user()->warehouse))) {
                         drNumber.readOnly = @json($isFinalStatus);
                         return;
                     }
@@ -910,7 +910,7 @@
                     const receivedQty = Number(qtyInput ? qtyInput.value || 0 : 0);
                     const orderedQty = Number(qtyInput ? qtyInput.dataset.orderedQty || 0 : 0);
                     const previousReceivedQty = Number(qtyInput ? qtyInput.dataset.previousReceivedQty || 0 : 0);
-                    const isPartialStatus = status.value === 'Partial Received';
+                    const isPartialStatus = status.value === 'Partial Delivery';
                     const wasAlreadyFullyReceived = previousReceivedQty >= orderedQty;
                     const needsDocs = isPartialStatus && !wasAlreadyFullyReceived && receivedQty > 0;
 
@@ -974,11 +974,11 @@
                 }
 
                 function toggleStatusFields() {
-                    const needsRemarks = ['Cancelled', 'Partial Received'].includes(status.value);
+                    const needsRemarks = ['Cancelled', 'Partial Delivery'].includes(status.value);
                     const needsSoDetails = status.value === 'SO Created';
-                    const showsDeliveryDetails = ['For Delivery', 'Partial Received'].includes(status.value);
+                    const showsDeliveryDetails = ['For Delivery', 'Partial Delivery'].includes(status.value);
                     const needsDeliveryDetails = status.value === 'For Delivery';
-                    const needsPartialDetails = status.value === 'Partial Received';
+                    const needsPartialDetails = status.value === 'Partial Delivery';
                     const needsWarehousePartialDr = needsPartialDetails && @json(filled(auth()->user()->warehouse));
                     const proofIsRequired = proofOfPayment
                         && proofOfPayment.dataset.hasCurrentProof !== '1'
@@ -998,10 +998,10 @@
 
                     remarksWrap.classList.toggle('is-visible', needsRemarks);
                     remarks.required = needsRemarks;
-                    remarksLabel.textContent = status.value === 'Partial Received'
-                        ? 'Partial Received Remarks'
+                    remarksLabel.textContent = status.value === 'Partial Delivery'
+                        ? 'Partial Delivery Remarks'
                         : 'Cancellation Remarks';
-                    remarks.placeholder = status.value === 'Partial Received'
+                    remarks.placeholder = status.value === 'Partial Delivery'
                         ? 'Add the items or quantity still pending.'
                         : 'Add the reason for cancellation.';
 
@@ -1186,7 +1186,7 @@
 
                     event.preventDefault();
 
-                    if (['Cancelled', 'Partial Received'].includes(status.value) && remarks.value.trim() === '') {
+                    if (['Cancelled', 'Partial Delivery'].includes(status.value) && remarks.value.trim() === '') {
                         Swal.fire({
                             icon: 'warning',
                             title: 'Remarks required',
@@ -1227,7 +1227,7 @@
                         return;
                     }
 
-                    if (status.value === 'Partial Received') {
+                    if (status.value === 'Partial Delivery') {
                         const qtyInputs = Array.from(partialItems.querySelectorAll('.partial-received-qty'));
                         const hasReceivedQty = qtyInputs.some(function (input) {
                             return Number(input.value || 0) > 0;
