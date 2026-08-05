@@ -159,7 +159,7 @@ class AdPurchaseOrderController extends Controller
     {
         $user = auth()->user();
 
-        return AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'ad'])
+        return AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'ad'])
             ->when($user->role !== 'Admin', function ($query) use ($user) {
                 $query->where('ad_user_id', $user->id);
             })
@@ -196,7 +196,7 @@ class AdPurchaseOrderController extends Controller
     private function regionVFilteredOrderQuery(Request $request, $applyStatus = true)
     {
         return $this->regionVOrderQuery()
-            ->with(['items.partialReceipts', 'partialReceipts.item', 'ad'])
+            ->with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'ad'])
             ->when($applyStatus && $request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->status);
             })

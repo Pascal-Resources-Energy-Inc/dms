@@ -136,6 +136,15 @@
     .partial-items-empty { padding: 14px; border: 1px dashed #d0d5dd; border-radius: 8px; color: #667085; font-size: 12px; text-align: center; }
     .partial-doc-input { font-weight: 700; }
     .partial-readonly-doc { min-height: 31px; display: flex; align-items: center; justify-content: center; padding: 5px 8px; border: 1px solid #edf0f5; border-radius: 6px; background: #f8fafc; color: #344054; font-size: 12px; font-weight: 800; text-align: center; overflow-wrap: anywhere; }
+    .status-proof-panel { border: 1px solid #dbe7f5; border-radius: 8px; overflow: hidden; background: #f8fbff; }
+    .status-proof-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 10px; border-bottom: 1px solid #dbe7f5; color: #1e40af; font-size: 11px; font-weight: 800; }
+    .status-proof-count { flex: 0 0 auto; padding: 3px 7px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: 10px; }
+    .status-proof-list { display: grid; gap: 7px; padding: 9px; }
+    .status-proof-file { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px; border: 1px solid #e5eaf1; border-radius: 6px; background: #fff; }
+    .status-proof-file-icon { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 6px; background: #eff6ff; color: #0d6efd; font-size: 15px; }
+    .status-proof-file-name { overflow: hidden; color: #344054; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .status-proof-file-meta { margin-top: 2px; color: #667085; font-size: 10px; font-weight: 700; }
+    .status-proof-view { min-height: 30px; padding: 0 9px; font-size: 11px; font-weight: 800; }
     @media (max-width: 992px) {
         .adpo-head { align-items: stretch; flex-direction: column; }
         .adpo-panel-head > div:first-child { align-items: flex-start; flex-direction: column; }
@@ -160,6 +169,8 @@
         .task-date { justify-self: start; }
         .task-actions { grid-template-columns: 1fr 38px; }
         .partial-summary, .partial-item-row { grid-template-columns: 1fr; }
+        .status-proof-file { grid-template-columns: 30px minmax(0, 1fr); }
+        .status-proof-view { grid-column: 1 / -1; width: 100%; }
     }
     @media (max-width: 576px) { .adpo-summary { grid-template-columns: 1fr; } }
     @media (max-width: 576px) { .status-modal-summary { grid-template-columns: 1fr; } }
@@ -531,8 +542,9 @@
                                                 data-can-complete-receiving="{{ $canAutoCompleteReceiving ? '1' : '0' }}"
                                                 data-payment-method="{{ $order->payment_method }}"
                                                 data-reference-no="{{ $order->reference_no }}"
-                                                data-has-proof="{{ $order->proof_of_payment ? '1' : '0' }}"
+                                                data-has-proof="{{ $order->paymentProofs->isNotEmpty() || $order->proof_of_payment ? '1' : '0' }}"
                                                 data-proof-url="{{ $order->proof_of_payment ? asset($order->proof_of_payment) : '' }}"
+                                                data-proof-files="{{ e($order->paymentProofs->map(function ($proof) { return ['name' => $proof->original_name, 'path' => asset($proof->path), 'size' => $proof->file_size]; })->values()->toJson()) }}"
                                                 data-delivery-date="{{ optional($order->delivery_date)->format('Y-m-d') }}"
                                                 data-so-number="{{ $order->so_number }}"
                                                 data-dr-number="{{ $order->dr_number }}"
@@ -612,15 +624,17 @@
                         <input type="hidden" name="payment_method" id="statusPaymentMethod">
                         <input type="hidden" name="reference_no" id="statusReferenceNo">
 
-                        <div class="mb-3">
+                        {{-- <div class="mb-3">
                             <label class="form-label small fw-bold text-uppercase text-muted">Proof of Payment</label>
-                            <div class="d-none" id="statusCurrentProof">
-                                <a href="#" id="statusCurrentProofLink" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">
-                                    <i class="ti ti-paperclip"></i> View Current Attachment
-                                </a>
+                            <div class="status-proof-panel d-none" id="statusCurrentProof">
+                                <div class="status-proof-head">
+                                    <span><i class="ti ti-paperclip"></i> Attached files</span>
+                                    <span class="status-proof-count" id="statusProofCount">0 files</span>
+                                </div>
+                                <div class="status-proof-list" id="statusProofList"></div>
                             </div>
                             <div class="form-text d-none" id="statusNoCurrentProof">No proof of payment attachment is available.</div>
-                        </div>
+                        </div> --}}
 
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-uppercase text-muted">Status</label>
@@ -1094,7 +1108,8 @@
                         const proofInput = document.getElementById('statusProofOfPayment');
                         const hasProof = button.dataset.hasProof === '1';
                         const currentProof = document.getElementById('statusCurrentProof');
-                        const currentProofLink = document.getElementById('statusCurrentProofLink');
+                        const proofList = document.getElementById('statusProofList');
+                        const proofCount = document.getElementById('statusProofCount');
                         const noCurrentProof = document.getElementById('statusNoCurrentProof');
 
                         if (proofInput) {
@@ -1105,8 +1120,57 @@
                                 : 'Required. JPG, PNG, or PDF. Maximum size: 5 MB.';
                         }
 
+                        let proofFiles = [];
+                        try {
+                            proofFiles = JSON.parse(button.dataset.proofFiles || '[]');
+                        } catch (error) {
+                            proofFiles = [];
+                        }
+
+                        if (!proofFiles.length && button.dataset.proofUrl) {
+                            proofFiles = [{
+                                name: 'Current proof of payment',
+                                path: button.dataset.proofUrl,
+                                size: null
+                            }];
+                        }
+
+                        proofList.innerHTML = '';
+                        proofFiles.forEach(function (proof) {
+                            const file = document.createElement('div');
+                            file.className = 'status-proof-file';
+
+                            const extension = String(proof.name || '').split('.').pop().toLowerCase();
+                            const isPdf = extension === 'pdf';
+                            const icon = document.createElement('span');
+                            icon.className = 'status-proof-file-icon';
+                            icon.innerHTML = '<i class="ti ' + (isPdf ? 'ti-file-type-pdf' : 'ti-photo') + '"></i>';
+
+                            const details = document.createElement('div');
+                            const name = document.createElement('div');
+                            name.className = 'status-proof-file-name';
+                            name.textContent = proof.name || 'Proof of payment';
+                            const meta = document.createElement('div');
+                            meta.className = 'status-proof-file-meta';
+                            meta.textContent = proof.size ? (Math.round((Number(proof.size) / 1024) * 10) / 10) + ' KB' : (extension ? extension.toUpperCase() : 'FILE');
+                            details.appendChild(name);
+                            details.appendChild(meta);
+
+                            const view = document.createElement('a');
+                            view.className = 'btn btn-sm btn-outline-primary status-proof-view';
+                            view.href = proof.path;
+                            view.target = '_blank';
+                            view.rel = 'noopener';
+                            view.innerHTML = '<i class="ti ti-external-link me-1"></i> View';
+
+                            file.appendChild(icon);
+                            file.appendChild(details);
+                            file.appendChild(view);
+                            proofList.appendChild(file);
+                        });
+
                         currentProof.classList.toggle('d-none', !hasProof);
-                        currentProofLink.href = hasProof ? button.dataset.proofUrl : '#';
+                        proofCount.textContent = proofFiles.length + ' file' + (proofFiles.length === 1 ? '' : 's');
                         noCurrentProof.classList.toggle('d-none', hasProof);
                         statusDeliveryDate.value = button.dataset.deliveryDate || '';
                         statusSoNumber.value = button.dataset.soNumber || '';

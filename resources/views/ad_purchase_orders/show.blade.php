@@ -8,7 +8,26 @@
     .receipt-title { margin: 10px 0 0; color: #111827; font-size: 22px; font-weight: 800; }
     .meta-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; padding: 18px 24px; border-bottom: 1px solid #edf0f5; }
     .meta-item span { display: block; color: #667085; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-    .meta-item strong { display: block; margin-top: 4px; color: #111827; }
+    .meta-item strong { display: block; margin-top: 4px; color: #111827; word-wrap: break-word; }
+    .payment-proof-view { display: inline-flex; align-items: center; gap: 7px; margin-top: 1px; padding: 7px 10px; border: 1px solid #bfdbfe; border-radius: 7px; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 800; line-height: 1.2; text-decoration: none; }
+    .payment-proof-view:hover { border-color: #93c5fd; background: #dbeafe; color: #1e40af; }
+    .payment-proof-modal .modal-content { overflow: hidden; border: 0; border-radius: 14px; box-shadow: 0 20px 55px rgba(15, 23, 42, .22); }
+    .payment-proof-modal .modal-header { align-items: flex-start; padding: 20px; border: 0; background: radial-gradient(circle at top right, rgba(255,255,255,.18), transparent 34%), linear-gradient(120deg, #0d6efd, #084298); color: #fff; }
+    .payment-proof-modal .modal-title { display: flex; align-items: center; gap: 9px; font-size: 16px; font-weight: 800; }
+    .payment-proof-modal-subtitle { margin: 4px 0 0; color: rgba(255,255,255,.76); font-size: 12px; }
+    .payment-proof-count { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; padding: 5px 9px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; background: rgba(255,255,255,.13); color: #fff; font-size: 11px; font-weight: 800; }
+    .payment-proof-modal .btn-close { filter: invert(1) grayscale(1) brightness(4); }
+    .payment-proof-modal .modal-body { max-height: min(62vh, 540px); padding: 20px; overflow-y: auto; background: #f8fafc; }
+    .payment-proof-intro { margin: 0 0 14px; color: #667085; font-size: 12px; line-height: 1.5; }
+    .payment-proof-list { display: grid; gap: 10px; }
+    .payment-proof-row { display: flex; align-items: center; gap: 13px; padding: 13px; border: 1px solid #e4eaf2; border-radius: 11px; background: #fff; box-shadow: 0 3px 10px rgba(16, 24, 40, .025); transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease; }
+    .payment-proof-row:hover { border-color: #b8d2f4; transform: translateY(-1px); box-shadow: 0 7px 16px rgba(16, 24, 40, .07); }
+    .payment-proof-icon { flex: 0 0 43px; width: 43px; height: 43px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: #eff6ff; color: #0d6efd; font-size: 19px; }
+    .payment-proof-info { min-width: 0; flex: 1; }
+    .payment-proof-name { overflow: hidden; color: #172033; font-size: 13px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .payment-proof-meta { display: flex; align-items: center; gap: 6px; margin-top: 5px; color: #667085; font-size: 11px; font-weight: 700; }
+    .payment-proof-type { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 6px; background: #f1f5f9; color: #475467; font-size: 10px; font-weight: 800; letter-spacing: .04em; }
+    .payment-proof-open { flex: 0 0 auto; min-width: 72px; border-radius: 7px; font-weight: 800; }
     .status-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 800; background: #fff7ed; color: #c2410c; }
     .update-panel { padding: 22px 24px; border-bottom: 1px solid #edf0f5; background: linear-gradient(180deg, #f8fafc 0%, #eef5ff 100%); }
     .admin-update-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
@@ -20,6 +39,15 @@
     .update-field-card { height: 100%; padding: 13px; border: 1px solid #dbe4f0; border-radius: 8px; background: rgba(255, 255, 255, .92); box-shadow: 0 10px 24px rgba(15, 23, 42, .04); }
     .update-field-label { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; color: #475467; font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
     .update-field-label i { color: #0d6efd; font-size: 14px; }
+    .payment-method-card { position: relative; overflow: hidden; border-color: #cfe0f5; background: linear-gradient(145deg, #ffffff 0%, #f3f8ff 100%); }
+    .payment-method-card::after { content: ''; position: absolute; right: -24px; bottom: -31px; width: 95px; height: 95px; border: 17px solid rgba(13, 110, 253, .06); border-radius: 50%; pointer-events: none; }
+    .payment-method-select-wrap { position: relative; z-index: 1; display: flex; align-items: center; }
+    .payment-method-select-icon { position: absolute; left: 10px; color: #0d6efd; font-size: 15px; pointer-events: none; }
+    .payment-method-select { min-height: 39px; padding-left: 33px; border-color: #b8cde7; border-radius: 8px; background-color: #fff; color: #172033; font-size: 12px; font-weight: 800; }
+    .payment-method-select:focus { border-color: #0d6efd; box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .14); }
+    .payment-method-select:disabled { background-color: #f8fafc; color: #667085; }
+    .payment-method-note { position: relative; z-index: 1; display: flex; align-items: center; gap: 5px; margin-top: 8px; color: #667085; font-size: 11px; font-weight: 700; line-height: 1.35; }
+    .payment-method-note i { color: #0d6efd; }
     .update-proof-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .proof-upload-dropzone { display: block; padding: 14px; border: 1px dashed #93b4df; border-radius: 8px; background: #f8fbff; color: #344054; cursor: pointer; transition: .18s ease; }
     .proof-upload-dropzone:hover, .proof-upload-dropzone:focus-within { border-color: #0d6efd; background: #eff6ff; }
@@ -27,8 +55,11 @@
     .proof-upload-dropzone-copy { display: block; margin-top: 3px; color: #667085; font-size: 11px; }
     .proof-file-list { display: grid; gap: 6px; margin-top: 9px; }
     .proof-file-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 9px; border: 1px solid #dbe4f0; border-radius: 6px; background: #fff; color: #344054; font-size: 11px; font-weight: 700; }
+    .proof-file-details { min-width: 0; display: flex; align-items: center; gap: 8px; }
     .proof-file-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .proof-file-item-size { flex: 0 0 auto; color: #667085; font-weight: 600; }
+    .proof-file-remove { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: #fff1f2; color: #be123c; cursor: pointer; }
+    .proof-file-remove:hover, .proof-file-remove:focus { background: #ffe4e6; color: #9f1239; }
     .update-action-card { width: 100%; height: 100%; display: flex; align-items: flex-end; }
     .update-action-card .btn { min-height: 38px; font-weight: 800; }
     .form-check-inline { margin-bottom: 0; }
@@ -87,6 +118,26 @@
         .table-wrap { overflow-x: auto; }
         .table { min-width: 760px; }
     }
+    @media (max-width: 575.98px) {
+        .payment-proof-view { width: 100%; justify-content: center; padding: 9px 10px; }
+        .payment-proof-modal .modal-dialog { margin: .75rem; }
+        .payment-proof-modal .modal-header { padding: 17px 16px; }
+        .payment-proof-modal .modal-body { max-height: 68vh; padding: 14px; }
+        .payment-proof-row { display: grid; grid-template-columns: 43px minmax(0, 1fr); gap: 10px; padding: 11px; }
+        .payment-proof-open { grid-column: 1 / -1; width: 100%; min-height: 37px; }
+        .payment-method-card { min-height: 112px; }
+        .payment-method-select { min-height: 44px; font-size: 13px; }
+        .payment-method-note { font-size: 12px; }
+        .proof-upload-dropzone { padding: 13px 12px; }
+        .proof-upload-dropzone-title { font-size: 13px; }
+        .proof-upload-dropzone-copy { line-height: 1.45; }
+        .proof-file-item { align-items: flex-start; padding: 9px; }
+        .proof-file-details { display: grid; gap: 2px; }
+        .proof-file-item-name { max-width: 210px; }
+        .proof-file-remove { width: 32px; height: 32px; }
+        .update-proof-actions { display: grid; grid-template-columns: 1fr; }
+        .update-proof-actions .btn { width: 100%; text-align: left; }
+    }
 </style>
 @endsection
 
@@ -95,7 +146,7 @@
         $isFinalStatus = in_array($order->status, ['Completed', 'Cancelled']);
         $availableStatuses = $order->status === 'Pending'
             ? ['Pending', 'SO Created', 'Cancelled']
-            : ['Pending', 'SO Created', 'For Delivery', 'Partial Received', 'Completed'];
+            : ['Pending', 'SO Created', 'For Delivery', 'Partial', 'Completed'];
 
         if ($order->status === 'SO Created') {
             $availableStatuses[] = 'Cancelled';
@@ -173,17 +224,27 @@
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="update-field-card">
-                            <label class="update-field-label">
+                        <div class="update-field-card payment-method-card">
+                            <label class="update-field-label" for="adpoPaymentMethod">
                                 <i class="bi bi-credit-card"></i>
                                 Payment Method
                             </label>
-                            <select name="payment_method" class="form-select form-select-sm" @if($isFinalStatus) disabled @endif>
-                                @foreach(['cash' => 'Cash', 'gcash' => 'GCash', 'bank_transfer' => 'Bank Transfer'] as $value => $label)
-                                    <option value="{{ $value }}" @if(old('payment_method', $order->payment_method) === $value) selected @endif>{{ strtoupper($label) }}</option>
-                                @endforeach
-                            </select>
-                            @if($order->bank_name)<small>{{ strtoupper($order->bank_name) }}</small>@endif
+                            <div class="payment-method-select-wrap">
+                                <i class="bi bi-wallet2 payment-method-select-icon"></i>
+                                <select name="payment_method" id="adpoPaymentMethod" class="form-select payment-method-select" @if($isFinalStatus) disabled @endif>
+                                    @foreach(['cash' => 'Cash', 'gcash' => 'GCash', 'bank_transfer' => 'Bank Transfer'] as $value => $label)
+                                        <option value="{{ $value }}" @if(old('payment_method', $order->payment_method) === $value) selected @endif>{{ strtoupper($label) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="payment-method-note">
+                                <i class="bi bi-shield-check"></i>
+                                @if($order->bank_name)
+                                    {{ strtoupper($order->bank_name) }}
+                                @else
+                                    Select the payment channel used for this order.
+                                @endif
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -461,16 +522,63 @@
                 <span>Proof of Payment</span>
                 <strong>
                     @if($paymentProofs->isNotEmpty())
-                        <a href="{{ asset($paymentProofs->first()->path) }}" target="_blank" rel="noopener">
-                            View {{ $paymentProofs->count() }} file{{ $paymentProofs->count() === 1 ? '' : 's' }}
-                        </a>
+                        @if($paymentProofs->count() === 1)
+                            <a href="{{ asset($paymentProofs->first()->path) }}" target="_blank" rel="noopener" class="payment-proof-view">
+                                <i class="bi bi-file-earmark-check"></i> View proof file
+                            </a>
+                        @else
+                            <button type="button" class="payment-proof-view border-0" data-bs-toggle="modal" data-bs-target="#paymentProofsModal">
+                                <i class="bi bi-files"></i> View {{ $paymentProofs->count() }} proof files
+                            </button>
+                        @endif
                     @elseif($order->proof_of_payment)
-                        <a href="{{ asset($order->proof_of_payment) }}" target="_blank" rel="noopener">View File</a>
+                        <a href="{{ asset($order->proof_of_payment) }}" target="_blank" rel="noopener" class="payment-proof-view">
+                            <i class="bi bi-file-earmark-check"></i> View proof file
+                        </a>
                     @else
                         N/A
                     @endif
                 </strong>
             </div>
+
+            @if($paymentProofs->count() > 1)
+                <div class="modal fade payment-proof-modal" id="paymentProofsModal" tabindex="-1" aria-labelledby="paymentProofsModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <div>
+                                    <h5 class="modal-title text-white" id="paymentProofsModalLabel"><i class="bi bi-files"></i> Proof of Payment Files</h5>
+                                    <p class="payment-proof-modal-subtitle">Review the documents attached to this purchase order.</p>
+                                    <span class="payment-proof-count"><i class="bi bi-paperclip"></i> {{ $paymentProofs->count() }} files attached</span>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body p-3 p-md-4">
+                                <p class="payment-proof-intro">Select a file to open it in a new tab. Your current order page will stay open.</p>
+                                @foreach($paymentProofs as $proof)
+                                    @php
+                                        $proofExtension = strtoupper(pathinfo($proof->original_name, PATHINFO_EXTENSION) ?: 'FILE');
+                                        $proofIsPdf = strtolower($proofExtension) === 'pdf';
+                                    @endphp
+                                    <div class="payment-proof-row mt-2">
+                                        <span class="payment-proof-icon"><i class="bi {{ $proofIsPdf ? 'bi-file-earmark-pdf' : 'bi-file-earmark-image' }}"></i></span>
+                                        <div class="payment-proof-info">
+                                            <div class="payment-proof-name" title="{{ $proof->original_name }}">{{ $proof->original_name }}</div>
+                                            <div class="payment-proof-meta">
+                                                <span class="payment-proof-type">{{ $proofExtension }}</span>
+                                                <span>{{ $proof->file_size ? number_format($proof->file_size / 1024, 1) . ' KB' : 'File attached' }}</span>
+                                            </div>
+                                        </div>
+                                        <a href="{{ asset($proof->path) }}" target="_blank" rel="noopener" class="btn btn-sm btn-primary payment-proof-open">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i> View
+                                        </a>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
             @if($order->so_number)
                 <div class="meta-item"><span>SO Number</span><strong>{{ strtoupper($order->so_number) }}</strong></div>
             @endif
@@ -935,9 +1043,12 @@
                     const files = Array.from(proofOfPayment.files);
                     proofOfPayment.setCustomValidity(files.length > 5 ? 'You can upload up to 5 proof files at a time.' : '');
                     proofSelectedFiles.innerHTML = '';
-                    files.forEach(function (file) {
+                    files.forEach(function (file, index) {
                         const item = document.createElement('div');
                         item.className = 'proof-file-item';
+
+                        const details = document.createElement('div');
+                        details.className = 'proof-file-details';
 
                         const name = document.createElement('span');
                         name.className = 'proof-file-item-name';
@@ -947,8 +1058,29 @@
                         size.className = 'proof-file-item-size';
                         size.textContent = formatFileSize(file.size);
 
-                        item.appendChild(name);
-                        item.appendChild(size);
+                        const removeButton = document.createElement('button');
+                        removeButton.type = 'button';
+                        removeButton.className = 'proof-file-remove';
+                        removeButton.setAttribute('aria-label', 'Remove ' + file.name);
+                        removeButton.title = 'Remove file';
+                        removeButton.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
+                        removeButton.addEventListener('click', function () {
+                            const updatedFiles = new DataTransfer();
+
+                            Array.from(proofOfPayment.files).forEach(function (selectedFile, selectedIndex) {
+                                if (selectedIndex !== index) {
+                                    updatedFiles.items.add(selectedFile);
+                                }
+                            });
+
+                            proofOfPayment.files = updatedFiles.files;
+                            renderSelectedProofFiles();
+                        });
+
+                        details.appendChild(name);
+                        details.appendChild(size);
+                        item.appendChild(details);
+                        item.appendChild(removeButton);
                         proofSelectedFiles.appendChild(item);
                     });
                 }

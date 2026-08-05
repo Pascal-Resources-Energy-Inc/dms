@@ -27,7 +27,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
         </div>
 
         <div class="brand-roles" aria-label="Supported partner levels">
-            <div class="role-pill">SEDP</div>
+            <div class="role-pill">MFI</div>
             <div class="role-pill">Provincial Distributor</div>
             <div class="role-pill">Area Distributor</div>
             {{-- <div class="role-pill">Mega Dealer</div>
@@ -102,7 +102,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
                             </svg>
                         </span>
                         <span>
-                            <strong>SEDP</strong>
+                            <strong>MFI</strong>
                             <small>Access assigned centers and admin tools</small>
                         </span>
                         <span class="selected-indicator" aria-hidden="true">&#10003;</span>
@@ -146,7 +146,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
                     <span class="role-label">Signing in as</span>
                     <strong class="role-name" id="selectedRoleName">
                         @if(strtolower(old('selected_role')) === 'sedp')
-                            SEDP
+                            MFI
                         @else
                             {{ $hasSelectedRole ? ucwords(old('selected_role')) : 'User' }}
                         @endif
@@ -875,7 +875,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
 
     function formatRoleName(role) {
         if ((role || '').toLowerCase() === 'sedp') {
-            return 'SEDP';
+            return 'MFI';
         }
 
         return role.replace(/\b\w/g, letter => letter.toUpperCase());
