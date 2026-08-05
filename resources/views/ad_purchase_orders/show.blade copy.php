@@ -9,7 +9,7 @@
     .receipt-title { margin: 10px 0 0; color: #111827; font-size: 22px; font-weight: 800; }
     .meta-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; padding: 18px 24px; border-bottom: 1px solid #edf0f5; }
     .meta-item span { display: block; color: #667085; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-    .meta-item strong { display: block; margin-top: 4px; color: #111827; }
+    .meta-item strong { display: block; margin-top: 4px; color: #111827; word-wrap: break-word; }
     .status-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 800; background: #fff7ed; color: #c2410c; }
     .receipt-body { padding: 24px; }
     .item-thumb { width: 58px; height: 58px; object-fit: contain; border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; }

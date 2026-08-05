@@ -163,7 +163,7 @@
     .adpo-section { padding: 26px 30px; }
     .form-control, .form-select { min-height: 42px; border-color: #d0d5dd; }
     .form-control:focus, .form-select:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, .12); }
-    .adpo-option { min-height: 78px; }
+    /* .adpo-option { min-height: 78px; } */
     .adpo-option:has(input:focus-visible), .product-favorite-btn:focus-visible, .favorite-filter-btn:focus-visible { outline: 3px solid rgba(220, 38, 38, .22); outline-offset: 2px; }
     .summary-card { border-radius: 12px; }
     .summary-total { padding: 16px 0 2px; font-size: 19px; }
@@ -187,7 +187,7 @@
         .adpo-title { margin-top: 4px; font-size: 22px; line-height: 1.2; }
         .adpo-section { padding: 22px 18px; }
         .adpo-info-panel { padding: 14px; }
-        .adpo-option { min-height: 70px; padding: 12px; }
+        /* .adpo-option { min-height: 70px; padding: 12px; } */
         .product-card { min-height: 0; padding: 11px; }
         .product-image { height: 132px; }
         .qty-control { min-height: 38px; font-size: 16px; }

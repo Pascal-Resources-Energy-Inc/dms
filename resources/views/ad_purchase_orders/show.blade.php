@@ -8,7 +8,7 @@
     .receipt-title { margin: 10px 0 0; color: #111827; font-size: 22px; font-weight: 800; }
     .meta-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; padding: 18px 24px; border-bottom: 1px solid #edf0f5; }
     .meta-item span { display: block; color: #667085; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-    .meta-item strong { display: block; margin-top: 4px; color: #111827; }
+    .meta-item strong { display: block; margin-top: 4px; color: #111827; word-wrap: break-word; }
     .status-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 800; background: #fff7ed; color: #c2410c; }
     .update-panel { padding: 22px 24px; border-bottom: 1px solid #edf0f5; background: linear-gradient(180deg, #f8fafc 0%, #eef5ff 100%); }
     .admin-update-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
@@ -20,6 +20,15 @@
     .update-field-card { height: 100%; padding: 13px; border: 1px solid #dbe4f0; border-radius: 8px; background: rgba(255, 255, 255, .92); box-shadow: 0 10px 24px rgba(15, 23, 42, .04); }
     .update-field-label { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; color: #475467; font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
     .update-field-label i { color: #0d6efd; font-size: 14px; }
+    .payment-method-card { position: relative; overflow: hidden; border-color: #cfe0f5; background: linear-gradient(145deg, #ffffff 0%, #f3f8ff 100%); }
+    .payment-method-card::after { content: ''; position: absolute; right: -24px; bottom: -31px; width: 95px; height: 95px; border: 17px solid rgba(13, 110, 253, .06); border-radius: 50%; pointer-events: none; }
+    .payment-method-select-wrap { position: relative; z-index: 1; display: flex; align-items: center; }
+    .payment-method-select-icon { position: absolute; left: 10px; color: #0d6efd; font-size: 15px; pointer-events: none; }
+    .payment-method-select { min-height: 39px; padding-left: 33px; border-color: #b8cde7; border-radius: 8px; background-color: #fff; color: #172033; font-size: 12px; font-weight: 800; }
+    .payment-method-select:focus { border-color: #0d6efd; box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .14); }
+    .payment-method-select:disabled { background-color: #f8fafc; color: #667085; }
+    .payment-method-note { position: relative; z-index: 1; display: flex; align-items: center; gap: 5px; margin-top: 8px; color: #667085; font-size: 11px; font-weight: 700; line-height: 1.35; }
+    .payment-method-note i { color: #0d6efd; }
     .update-proof-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .proof-upload-dropzone { display: block; padding: 14px; border: 1px dashed #93b4df; border-radius: 8px; background: #f8fbff; color: #344054; cursor: pointer; transition: .18s ease; }
     .proof-upload-dropzone:hover, .proof-upload-dropzone:focus-within { border-color: #0d6efd; background: #eff6ff; }
@@ -27,8 +36,11 @@
     .proof-upload-dropzone-copy { display: block; margin-top: 3px; color: #667085; font-size: 11px; }
     .proof-file-list { display: grid; gap: 6px; margin-top: 9px; }
     .proof-file-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 9px; border: 1px solid #dbe4f0; border-radius: 6px; background: #fff; color: #344054; font-size: 11px; font-weight: 700; }
+    .proof-file-details { min-width: 0; display: flex; align-items: center; gap: 8px; }
     .proof-file-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .proof-file-item-size { flex: 0 0 auto; color: #667085; font-weight: 600; }
+    .proof-file-remove { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: #fff1f2; color: #be123c; cursor: pointer; }
+    .proof-file-remove:hover, .proof-file-remove:focus { background: #ffe4e6; color: #9f1239; }
     .update-action-card { width: 100%; height: 100%; display: flex; align-items: flex-end; }
     .update-action-card .btn { min-height: 38px; font-weight: 800; }
     .form-check-inline { margin-bottom: 0; }
@@ -87,6 +99,20 @@
         .table-wrap { overflow-x: auto; }
         .table { min-width: 760px; }
     }
+    @media (max-width: 575.98px) {
+        .payment-method-card { min-height: 112px; }
+        .payment-method-select { min-height: 44px; font-size: 13px; }
+        .payment-method-note { font-size: 12px; }
+        .proof-upload-dropzone { padding: 13px 12px; }
+        .proof-upload-dropzone-title { font-size: 13px; }
+        .proof-upload-dropzone-copy { line-height: 1.45; }
+        .proof-file-item { align-items: flex-start; padding: 9px; }
+        .proof-file-details { display: grid; gap: 2px; }
+        .proof-file-item-name { max-width: 210px; }
+        .proof-file-remove { width: 32px; height: 32px; }
+        .update-proof-actions { display: grid; grid-template-columns: 1fr; }
+        .update-proof-actions .btn { width: 100%; text-align: left; }
+    }
 </style>
 @endsection
 
@@ -95,7 +121,7 @@
         $isFinalStatus = in_array($order->status, ['Completed', 'Cancelled']);
         $availableStatuses = $order->status === 'Pending'
             ? ['Pending', 'SO Created', 'Cancelled']
-            : ['Pending', 'SO Created', 'For Delivery', 'Partial Received', 'Completed'];
+            : ['Pending', 'SO Created', 'For Delivery', 'Partial', 'Completed'];
 
         if ($order->status === 'SO Created') {
             $availableStatuses[] = 'Cancelled';
@@ -173,17 +199,27 @@
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="update-field-card">
-                            <label class="update-field-label">
+                        <div class="update-field-card payment-method-card">
+                            <label class="update-field-label" for="adpoPaymentMethod">
                                 <i class="bi bi-credit-card"></i>
                                 Payment Method
                             </label>
-                            <select name="payment_method" class="form-select form-select-sm" @if($isFinalStatus) disabled @endif>
-                                @foreach(['cash' => 'Cash', 'gcash' => 'GCash', 'bank_transfer' => 'Bank Transfer'] as $value => $label)
-                                    <option value="{{ $value }}" @if(old('payment_method', $order->payment_method) === $value) selected @endif>{{ strtoupper($label) }}</option>
-                                @endforeach
-                            </select>
-                            @if($order->bank_name)<small>{{ strtoupper($order->bank_name) }}</small>@endif
+                            <div class="payment-method-select-wrap">
+                                <i class="bi bi-wallet2 payment-method-select-icon"></i>
+                                <select name="payment_method" id="adpoPaymentMethod" class="form-select payment-method-select" @if($isFinalStatus) disabled @endif>
+                                    @foreach(['cash' => 'Cash', 'gcash' => 'GCash', 'bank_transfer' => 'Bank Transfer'] as $value => $label)
+                                        <option value="{{ $value }}" @if(old('payment_method', $order->payment_method) === $value) selected @endif>{{ strtoupper($label) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="payment-method-note">
+                                <i class="bi bi-shield-check"></i>
+                                @if($order->bank_name)
+                                    {{ strtoupper($order->bank_name) }}
+                                @else
+                                    Select the payment channel used for this order.
+                                @endif
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -935,9 +971,12 @@
                     const files = Array.from(proofOfPayment.files);
                     proofOfPayment.setCustomValidity(files.length > 5 ? 'You can upload up to 5 proof files at a time.' : '');
                     proofSelectedFiles.innerHTML = '';
-                    files.forEach(function (file) {
+                    files.forEach(function (file, index) {
                         const item = document.createElement('div');
                         item.className = 'proof-file-item';
+
+                        const details = document.createElement('div');
+                        details.className = 'proof-file-details';
 
                         const name = document.createElement('span');
                         name.className = 'proof-file-item-name';
@@ -947,8 +986,29 @@
                         size.className = 'proof-file-item-size';
                         size.textContent = formatFileSize(file.size);
 
-                        item.appendChild(name);
-                        item.appendChild(size);
+                        const removeButton = document.createElement('button');
+                        removeButton.type = 'button';
+                        removeButton.className = 'proof-file-remove';
+                        removeButton.setAttribute('aria-label', 'Remove ' + file.name);
+                        removeButton.title = 'Remove file';
+                        removeButton.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
+                        removeButton.addEventListener('click', function () {
+                            const updatedFiles = new DataTransfer();
+
+                            Array.from(proofOfPayment.files).forEach(function (selectedFile, selectedIndex) {
+                                if (selectedIndex !== index) {
+                                    updatedFiles.items.add(selectedFile);
+                                }
+                            });
+
+                            proofOfPayment.files = updatedFiles.files;
+                            renderSelectedProofFiles();
+                        });
+
+                        details.appendChild(name);
+                        details.appendChild(size);
+                        item.appendChild(details);
+                        item.appendChild(removeButton);
                         proofSelectedFiles.appendChild(item);
                     });
                 }
