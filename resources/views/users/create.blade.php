@@ -18,7 +18,7 @@
                             <select id="roleFilter2" name="role" class="form-control select2 shadow-sm mb-2" required>
                                 <option value="">Select Role</option>
                                 <option value="Admin">Admin</option>
-                                <option value="SEDP">SEDP</option>
+                                <option value="SEDP">MFI</option>
                                 <option value="Provincial Distributor">Provincial Distributor</option>
                                 <option value="Area Distributor">Area Distributor</option>
                                 <option value="Mega Dealer">Mega Dealer</option>
@@ -348,9 +348,9 @@
                                 <div class="sedp-panel-header">
                                     <div>
                                         <div class="sedp-panel-title">
-                                            <i class="bi bi-diagram-3 me-1"></i> SEDP Coverage
+                                            <i class="bi bi-diagram-3 me-1"></i> MFI Coverage
                                         </div>
-                                        <small>Assign one or more centers this SEDP account can manage.</small>
+                                        <small>Assign one or more centers this MFI account can manage.</small>
                                     </div>
                                     <span class="sedp-center-count" id="sedpCenterCount">0 centers selected</span>
                                 </div>

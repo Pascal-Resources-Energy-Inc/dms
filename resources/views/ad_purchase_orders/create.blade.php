@@ -155,6 +155,74 @@
         .adpo-product-tools { grid-template-columns: 1fr; max-width: none; }
     }
     @media (max-width: 480px) { .product-list { grid-template-columns: 1fr; } }
+
+    /* Polished, device-first responsive UI */
+    .adpo-sheet { border-radius: 14px; }
+    .adpo-brand { padding: 28px 30px; background: radial-gradient(circle at right top, #fee2e2 0, transparent 32%), #fff; }
+    .adpo-title { letter-spacing: -.03em; }
+    .adpo-section { padding: 26px 30px; }
+    .form-control, .form-select { min-height: 42px; border-color: #d0d5dd; }
+    .form-control:focus, .form-select:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, .12); }
+    .adpo-option { min-height: 78px; }
+    .adpo-option:has(input:focus-visible), .product-favorite-btn:focus-visible, .favorite-filter-btn:focus-visible { outline: 3px solid rgba(220, 38, 38, .22); outline-offset: 2px; }
+    .summary-card { border-radius: 12px; }
+    .summary-total { padding: 16px 0 2px; font-size: 19px; }
+    .summary-total > span:last-child { color: #b42318; }
+    .adpo-mobile-checkout { display: none; }
+
+    @media (min-width: 1400px) {
+        .adpo-layout { grid-template-columns: minmax(0, 1fr) 390px; }
+        .product-list { gap: 18px; }
+    }
+    @media (min-width: 769px) and (max-width: 1199.98px) {
+        .adpo-side { padding: 20px 24px 24px; background: #fafbfc; }
+        .summary-card { max-width: 720px; margin: 0 auto; }
+    }
+    @media (max-width: 767.98px) {
+        .adpo-topbar { position: sticky; top: 0; z-index: 30; flex-direction: row; align-items: center; margin: -8px -4px 14px; padding: 10px 12px; background: rgba(255,255,255,.96); border-bottom: 1px solid #e4e7ec; backdrop-filter: blur(12px); }
+        .adpo-topbar .btn { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+        .adpo-topbar .btn-danger { flex: 1; }
+        .adpo-sheet { border-radius: 12px; }
+        .adpo-brand { padding: 22px 20px; align-items: flex-start; }
+        .adpo-title { margin-top: 4px; font-size: 22px; line-height: 1.2; }
+        .adpo-section { padding: 22px 18px; }
+        .adpo-info-panel { padding: 14px; }
+        .adpo-option { min-height: 70px; padding: 12px; }
+        .product-card { min-height: 0; padding: 11px; }
+        .product-image { height: 132px; }
+        .qty-control { min-height: 38px; font-size: 16px; }
+        .color-variant-grid, .size-variant-grid { grid-template-columns: 1fr; }
+        .color-variant, .size-variant { min-height: 46px; }
+        .product-search .form-control, #productSort { min-height: 42px; font-size: 16px; }
+        .adpo-side { padding: 16px 18px 94px; }
+        .adpo-mobile-checkout { position: fixed; right: 0; bottom: 0; left: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; padding-bottom: max(10px, env(safe-area-inset-bottom)); background: rgba(255,255,255,.96); border-top: 1px solid #e4e7ec; box-shadow: 0 -10px 28px rgba(15,23,42,.10); backdrop-filter: blur(12px); }
+        .adpo-mobile-total small { display: block; color: #667085; font-size: 11px; font-weight: 700; }
+        .adpo-mobile-total strong { display: block; color: #101828; font-size: 17px; }
+        .adpo-mobile-checkout .btn { min-height: 44px; white-space: nowrap; }
+    }
+    @media (max-width: 575.98px) {
+        .product-list { gap: 12px; }
+        .adpo-help { font-size: 11px; }
+        .summary-row { font-size: 12px; }
+    }
+    @media (max-width: 390px) {
+        .adpo-topbar .btn { padding-right: 10px; padding-left: 10px; font-size: 12px; }
+        .adpo-mobile-checkout { gap: 8px; padding-right: 10px; padding-left: 10px; }
+        .adpo-mobile-checkout .btn { padding-right: 12px; padding-left: 12px; }
+    }
+    @media (max-height: 500px) and (orientation: landscape) {
+        .adpo-brand { padding-top: 16px; padding-bottom: 16px; }
+        .adpo-mobile-checkout { padding-top: 7px; padding-bottom: 7px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+    }
+    @media print {
+        .adpo-topbar, .adpo-mobile-checkout, .product-favorite-btn, .product-check, .product-selected-badge, .adpo-loading { display: none !important; }
+        .adpo-sheet, .summary-card { border: 0; box-shadow: none; }
+        .adpo-layout { display: block; }
+        .adpo-side { position: static; padding: 16px 0 0; }
+    }
 </style>
 @endsection
 
@@ -775,6 +843,13 @@
             </aside>
         </div>
     </div>
+    <div class="adpo-mobile-checkout">
+        <div class="adpo-mobile-total">
+            <small>Order total</small>
+            <strong>PHP <span id="mobileGrandTotal">0.00</span></strong>
+        </div>
+        <button type="submit" class="btn btn-danger"><i class="bi bi-send"></i> Submit order</button>
+    </div>
 </form>
 
 <div class="adpo-loading" id="adpoLoading" aria-live="polite" aria-hidden="true">
@@ -825,6 +900,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const pickupDiscountTotalEl = document.getElementById('pickupDiscountTotal');
     const withholdingTotalEl = document.getElementById('withholdingTotal');
     const grandTotalEl = document.getElementById('grandTotal');
+    const mobileGrandTotalEl = document.getElementById('mobileGrandTotal');
     const hasWithholdingTax = @json((bool) optional($ad)->withholding_tax);
     const availableVouchersUrl = @json(route('vouchers.available-for-territory'));
     let currentVoucherSubtotal = 0;
@@ -1279,6 +1355,7 @@ document.addEventListener('DOMContentLoaded', function () {
             withholdingTotalEl.textContent = money(withholdingTax);
         }
         grandTotalEl.textContent = money(grandTotal);
+        if (mobileGrandTotalEl) mobileGrandTotalEl.textContent = money(grandTotal);
 
         if (useVoucher && voucherCode.selectedOptions.length) {
             scheduleVoucherCheck();
