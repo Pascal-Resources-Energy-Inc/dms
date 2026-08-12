@@ -6,6 +6,7 @@ use App\AdPurchaseOrder;
 use App\AdPurchaseOrderPartialReceipt;
 use App\Exports\AdPurchaseOrdersExport;
 use App\Mail\AdPurchaseOrderSoCreatedNotification;
+use App\Mail\AdPurchaseOrderVerificationIncompleteNotification;
 use App\Mail\AdPurchaseOrderStatusUpdatedMail;
 use App\Mail\AdPurchaseOrderWarehouseStatusNotification;
 use App\Mail\AdPurchaseOrderWarehouseNotification;
@@ -22,6 +23,26 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class AdPurchaseOrderController extends Controller
 {
+    private function verificationProducts(AdPurchaseOrder $order)
+    {
+        $submittedProducts = $order->verificationItems;
+        if ($submittedProducts->isEmpty()) {
+            $submittedProducts = collect(json_decode($order->verification_items ?: '[]', true) ?: []);
+        }
+
+        // A non-crate/refill row means this was a delivery verification, where
+        // every product in the DPO must be reviewed.
+        $isDeliveryVerification = $submittedProducts->contains(function ($item) {
+            return preg_match('/\b(crate|refill)s?\b/i', (string) data_get($item, 'product_name')) !== 1;
+        });
+
+        return $isDeliveryVerification
+            ? $order->items
+            : $order->items->filter(function ($item) {
+                return preg_match('/\b(crate|refill)s?\b/i', (string) $item->product_name) === 1;
+            });
+    }
+
     private function normalizePartialDrNumber($drNumber)
     {
         $drNumber = strtoupper(trim((string) $drNumber));
@@ -34,15 +55,18 @@ class AdPurchaseOrderController extends Controller
         return $drNumber;
     }
 
-    private function incrementPartialDrNumber($drNumber)
+    private function incrementPartialDrNumber($drNumber, $isExistingPartialDr = false)
     {
         $drNumber = $this->normalizePartialDrNumber($drNumber);
 
-        if (preg_match('/^(.*)-(\d+)$/', $drNumber, $matches)) {
-            return $matches[1] . '-' . ((int) $matches[2] + 1);
+        // Preserve the original DR as the base, including an original number
+        // such as DRS-DR-2. Partial deliveries use a clear separate suffix:
+        // DRS-DR-2(1), DRS-DR-2(2), and so on.
+        if ($isExistingPartialDr && preg_match('/^(.*)\((\d+)\)$/', $drNumber, $matches)) {
+            return $matches[1] . '(' . ((int) $matches[2] + 1) . ')';
         }
 
-        return $drNumber !== '' ? $drNumber . '-1' : '';
+        return $drNumber !== '' ? $drNumber . '(1)' : '';
     }
 
     public function index(Request $request)
@@ -159,7 +183,7 @@ class AdPurchaseOrderController extends Controller
     {
         $user = auth()->user();
 
-        return AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'ad'])
+        return AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad'])
             ->when($user->role !== 'Admin', function ($query) use ($user) {
                 $query->where('ad_user_id', $user->id);
             })
@@ -196,7 +220,7 @@ class AdPurchaseOrderController extends Controller
     private function regionVFilteredOrderQuery(Request $request, $applyStatus = true)
     {
         return $this->regionVOrderQuery()
-            ->with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'ad'])
+            ->with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad'])
             ->when($applyStatus && $request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->status);
             })
@@ -566,13 +590,18 @@ class AdPurchaseOrderController extends Controller
     {
         $user = auth()->user();
 
-        $order = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'ad'])
+        $order = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad'])
             ->when($user->role !== 'Admin', function ($query) use ($user) {
                 $query->where('ad_user_id', $user->id);
             })
             ->findOrFail($id);
 
-        return view('ad_purchase_orders.show', compact('order'));
+        $assignedWarehouse = $this->warehouseForOrder($order);
+        $canReviewIncompleteVerification = $user->role === 'Admin'
+            && filled($user->warehouse)
+            && (!$assignedWarehouse || strtolower(trim((string) $user->warehouse)) === $assignedWarehouse);
+
+        return view('ad_purchase_orders.show', compact('order', 'canReviewIncompleteVerification'));
     }
 
     public function updateStatus(Request $request, $id)
@@ -581,7 +610,11 @@ class AdPurchaseOrderController extends Controller
             abort(403);
         }
 
-        $order = AdPurchaseOrder::with(['ad.userAds', 'paymentProofs'])->findOrFail($id);
+        $order = AdPurchaseOrder::with(['items', 'verificationItems', 'ad.userAds', 'paymentProofs'])
+            ->when(auth()->user()->role === 'Area Distributor', function ($query) {
+                $query->where('ad_user_id', auth()->id());
+            })
+            ->findOrFail($id);
 
         if (in_array($order->status, ['Completed', 'Cancelled'])) {
             Alert::error('ADPO Locked', 'Completed or cancelled ADPO records can no longer be updated.');
@@ -593,7 +626,35 @@ class AdPurchaseOrderController extends Controller
             ? ['required', 'string', 'max:1000']
             : ['nullable', 'string', 'max:1000'];
         $hasPaymentProof = filled($order->proof_of_payment) || $order->paymentProofs->isNotEmpty();
+        // A delivery that has reached the AD can be submitted back to warehouse
+        // for verification.  In that case, verify the whole delivery—not only
+        // crate/refill lines—so the warehouse sees the exact delivered products.
+        $isExistingDeliveryVerification = $order->verificationItems->contains(function ($item) {
+            return preg_match('/\b(crate|refill)s?\b/i', (string) $item->product_name) !== 1;
+        });
+        $isDeliveryVerification = ($order->status === 'For Delivery' || $isExistingDeliveryVerification)
+            && $request->input('status') === 'For Verification';
+        $verificationItemIds = $isDeliveryVerification
+            ? $order->items->pluck('id')
+            : $order->items->filter(function ($item) { return preg_match('/\b(crate|refill)s?\b/i', (string) $item->product_name) === 1; })->pluck('id');
+        // Persist verification quantities based on the order transition, not the
+        // current user's role. The first submission changes SO Created to For
+        // Verification; later corrections retain For Verification. Restricting this
+        // to a role made the first transition capable of changing status without
+        // storing its product quantities in other valid submission paths.
+        $isCrateRefillVerification = (
+            in_array($order->status, ['SO Created', 'Partial Received', 'For Verification'], true)
+            && $request->input('status') === 'For Verification'
+        ) || $isDeliveryVerification;
+        $existingVerificationProofs = collect(json_decode($order->verification_proofs ?: '[]', true) ?: [])
+            ->filter(function ($proof) {
+                return filled(data_get($proof, 'path'));
+            })
+            ->values();
+        $verificationAttachmentsRequired = $isCrateRefillVerification && $existingVerificationProofs->isEmpty();
         $proofOfPaymentRules = ($request->input('status') === 'Cancelled'
+            // Area Distributors submit verification files instead of a second,
+            // hidden proof-of-payment field when sending an ADPO for review.
             || auth()->user()->role === 'Area Distributor'
             || $hasPaymentProof)
             ? 'nullable'
@@ -619,12 +680,60 @@ class AdPurchaseOrderController extends Controller
             'partial_items.*.dr_number' => 'nullable|string|max:255',
             'partial_receipts' => 'sometimes|array',
             'partial_receipts.*.confirmed_qty' => 'required_with:partial_receipts|integer|min:0',
+            'verification_items' => $isCrateRefillVerification ? 'required|array' : 'nullable|array',
+            'verification_items.*.qty' => 'required_with:verification_items|integer|min:0',
+            // Existing proof files remain valid when an AD corrects a submission. A new
+            // upload is required only for the first verification submission.
+            'verification_attachments' => $verificationAttachmentsRequired ? 'required|array|max:5' : 'nullable|array|max:5',
+            'verification_attachments.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
-        if (auth()->user()->role === 'Area Distributor' && !in_array($request->status, ['Pending', 'Partial Received', 'Completed', 'Cancelled'])) {
+        if (auth()->user()->role === 'Area Distributor' && !in_array($request->status, ['Pending', 'For Verification', 'Partial Received', 'Completed', 'Cancelled'])) {
             throw ValidationException::withMessages([
-                'status' => 'Area Distributors may only select Pending, Partial Received, Completed, or Cancelled.',
+                'status' => 'Area Distributors may only select Pending, For Verification, Partial Received, Completed, or Cancelled.',
             ]);
+        }
+
+        if (auth()->user()->role === 'Area Distributor' && $order->status === 'For Verification' && $request->status !== 'For Verification') {
+            throw ValidationException::withMessages([
+                'status' => 'This crate or refill order is under warehouse verification. You may update its submitted quantities and attachments, but only warehouse can change the status.',
+            ]);
+        }
+
+        if ($isCrateRefillVerification) {
+            if ($verificationItemIds->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'verification_items' => 'This order has no products available for verification.',
+                ]);
+            }
+
+            if ($order->status === 'Partial Received' && $order->items->contains(function ($item) {
+                return (int) ($item->partial_received_qty ?? 0) < (int) $item->qty;
+            })) {
+                throw ValidationException::withMessages([
+                    'verification_items' => 'Crate and refill verification is available only after every product in this DPO is fully received.',
+                ]);
+            }
+
+            $submitted = collect($request->input('verification_items', []));
+            if ($submitted->sum(function ($item) { return (int) data_get($item, 'qty', 0); }) < 1) {
+                throw ValidationException::withMessages(['verification_items' => 'Enter a quantity for at least one product.']);
+            }
+            foreach ($submitted as $itemId => $input) {
+                $item = $order->items->firstWhere('id', (int) $itemId);
+                if (!$item || !$verificationItemIds->contains((int) $itemId) || (int) data_get($input, 'qty', 0) > (int) $item->qty) {
+                    throw ValidationException::withMessages(['verification_items' => 'Verification quantities must match the products ordered.']);
+                }
+            }
+
+            $newAttachmentCount = $request->hasFile('verification_attachments')
+                ? count($request->file('verification_attachments'))
+                : 0;
+            if ($existingVerificationProofs->count() + $newAttachmentCount > 5) {
+                throw ValidationException::withMessages([
+                    'verification_attachments' => 'You can keep or attach a maximum of 5 verification proof files.',
+                ]);
+            }
         }
 
         if (
@@ -663,14 +772,14 @@ class AdPurchaseOrderController extends Controller
             && auth()->user()->role === 'Admin'
             && filled(auth()->user()->warehouse)
         ) {
-            $previousWarehouseDrNumber = $order->partialReceipts()
+            $latestPartialDrNumber = $order->partialReceipts()
                 ->latest('id')
-                ->value('dr_number')
-                ?: $order->dr_number;
+                ->value('dr_number');
+            $previousWarehouseDrNumber = $latestPartialDrNumber ?: $order->dr_number;
 
             if (filled($previousWarehouseDrNumber)) {
                 $request->merge([
-                    'dr_number' => $this->incrementPartialDrNumber($previousWarehouseDrNumber),
+                    'dr_number' => $this->incrementPartialDrNumber($previousWarehouseDrNumber, filled($latestPartialDrNumber)),
                 ]);
             } elseif ($request->filled('dr_number')) {
                 $request->merge([
@@ -799,14 +908,19 @@ class AdPurchaseOrderController extends Controller
                             ($isIncrementReceive && $postedReceivedQty > 0)
                             || (!$isIncrementReceive && $isNotFullyReceived)
                         );
-                    $previousPartialDrNumber = $orderedItem->partialReceipts()
+                    $itemPartialDrNumber = $orderedItem->partialReceipts()
                         ->latest('id')
-                        ->value('dr_number')
-                        ?: $orderedItem->partial_dr_number
-                        ?: $order->partialReceipts()
+                        ->value('dr_number');
+                    $orderPartialDrNumber = $order->partialReceipts()
                             ->latest('id')
-                            ->value('dr_number')
+                            ->value('dr_number');
+                    $previousPartialDrNumber = $itemPartialDrNumber
+                        ?: $orderedItem->partial_dr_number
+                        ?: $orderPartialDrNumber
                         ?: $order->dr_number;
+                    $isExistingPartialDr = filled($itemPartialDrNumber)
+                        || filled($orderedItem->partial_dr_number)
+                        || filled($orderPartialDrNumber);
 
                     if (
                         $needsPartialDocs
@@ -816,7 +930,7 @@ class AdPurchaseOrderController extends Controller
                         && blank(data_get($item, 'dr_number'))
                         && filled($previousPartialDrNumber)
                     ) {
-                        $item['dr_number'] = $this->incrementPartialDrNumber($previousPartialDrNumber);
+                        $item['dr_number'] = $this->incrementPartialDrNumber($previousPartialDrNumber, $isExistingPartialDr);
                         $postedPartialItems->put($itemId, $item);
                     }
 
@@ -915,7 +1029,7 @@ class AdPurchaseOrderController extends Controller
 
         $oldStatus = $order->status;
 
-        DB::transaction(function () use ($request, $order, $oldStatus, $postedPartialItems, $postedPartialReceipts) {
+        DB::transaction(function () use ($request, $order, $oldStatus, $postedPartialItems, $postedPartialReceipts, $isCrateRefillVerification, $verificationItemIds, $existingVerificationProofs) {
             $order->status = $request->status;
 
             if ($request->status === 'Cancelled' && $oldStatus !== 'Cancelled') {
@@ -999,6 +1113,63 @@ class AdPurchaseOrderController extends Controller
 
             if ($request->has('remarks')) {
                 $order->remarks = $request->remarks;
+            }
+
+            if ($isCrateRefillVerification && $request->hasFile('verification_attachments')) {
+                $uploadPath = public_path('uploads/adpo/verification-proofs');
+                if (!is_dir($uploadPath)) {
+                    mkdir($uploadPath, 0755, true);
+                }
+
+                // Keep previously submitted proof files so a corrected quantity does not
+                // discard the evidence that warehouse has already received.
+                $proofs = $existingVerificationProofs->all();
+                foreach ($request->file('verification_attachments') as $file) {
+                    $filename = 'verification-' . $order->id . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $path = 'uploads/adpo/verification-proofs/' . $filename;
+                    $file->move($uploadPath, $filename);
+                    $proofs[] = ['path' => $path, 'name' => $file->getClientOriginalName()];
+                }
+                $order->verification_proofs = json_encode($proofs);
+            }
+
+            if ($isCrateRefillVerification) {
+                $legacyVerificationItems = [];
+                // Save a row for every verification product, including a submitted
+                // quantity of zero. This makes a later correction an update instead
+                // of silently omitting the product from the verification record.
+                foreach ($order->items->whereIn('id', $verificationItemIds) as $item) {
+                    $submittedQty = min(
+                        max((int) data_get($request->input('verification_items', []), $item->id . '.qty', 0), 0),
+                        (int) $item->qty
+                    );
+                    $existingItem = $order->verificationItems()
+                        ->where('ad_purchase_order_item_id', $item->id)
+                        ->first();
+                    $attributes = [
+                        'product_name' => $item->product_name,
+                        'ordered_qty' => (int) $item->qty,
+                        'submitted_qty' => $submittedQty,
+                        // A revised AD submission requires warehouse review again.
+                        'warehouse_verified_qty' => !$existingItem || (int) $existingItem->submitted_qty !== $submittedQty
+                            ? null
+                            : $existingItem->warehouse_verified_qty,
+                    ];
+                    $order->verificationItems()->updateOrCreate(
+                        ['ad_purchase_order_item_id' => (int) $item->id],
+                        $attributes
+                    );
+                    $legacyVerificationItems[] = array_merge(['item_id' => (int) $item->id], $attributes);
+                }
+
+                // Retain a JSON snapshot for orders created before the normalized table
+                // was introduced and for safe display if a relation is unavailable.
+                $order->verification_items = json_encode($legacyVerificationItems);
+                // The AD has submitted a corrected verification; remove the prior
+                // warehouse incomplete notice from the order screen.
+                $order->verification_incomplete_remarks = null;
+                $order->verification_incomplete_notified_at = null;
+                $order->verification_incomplete_notified_by = null;
             }
 
             if ($request->status === 'For Delivery' && $request->filled('delivery_date')) {
@@ -1104,8 +1275,14 @@ class AdPurchaseOrderController extends Controller
                     );
                 });
                 $pendingTotal = max($orderedTotal - $confirmedTotal, 0);
+                $requiresCrateRefillVerification = $items->contains(function ($item) {
+                    return preg_match('/\b(crate|refill)s?\b/i', (string) $item->product_name) === 1;
+                });
 
-                $order->status = $orderedTotal > 0 && $pendingTotal === 0
+                // A fully received DPO containing crates/refills is not complete
+                // until the AD has submitted its verification details and the
+                // warehouse has reviewed them.
+                $order->status = $orderedTotal > 0 && $pendingTotal === 0 && !$requiresCrateRefillVerification
                     ? 'Completed'
                     : 'Partial Received';
             }
@@ -1117,14 +1294,215 @@ class AdPurchaseOrderController extends Controller
 
         if ($oldStatus !== $order->status) {
             $this->notifyAdpoStatusChanged($order, $oldStatus);
-            $this->notifyWarehouseStatusChanged($order, $oldStatus);
 
             if ($order->status === 'SO Created') {
                 $this->notifySoCreated($order, $oldStatus);
             }
         }
 
+        if ($oldStatus !== $order->status || $isCrateRefillVerification) {
+            $this->notifyWarehouseStatusChanged($order, $oldStatus);
+        }
+
         Alert::success('ADPO Updated', 'ADPO updated successfully.');
+
+        return back();
+    }
+
+    /**
+     * Let the assigned warehouse return an incomplete crate/refill verification
+     * submission to the Area Distributor without changing the ADPO status.
+     */
+    public function notifyIncompleteVerification(Request $request, $id)
+    {
+        $user = auth()->user();
+        if ($user->role !== 'Admin' || blank($user->warehouse)) {
+            abort(403);
+        }
+
+        $order = AdPurchaseOrder::with(['items', 'verificationItems', 'ad.userAds'])->findOrFail($id);
+        $assignedWarehouse = $this->warehouseForOrder($order);
+        if ($assignedWarehouse && strtolower(trim((string) $user->warehouse)) !== $assignedWarehouse) {
+            abort(403);
+        }
+
+        if ($order->status !== 'For Verification') {
+            Alert::warning('Verification Unavailable', 'Only ADPOs currently under verification can be returned for incomplete quantities.');
+
+            return back();
+        }
+
+        $request->validate([
+            'warehouse_remarks' => 'nullable|string|max:1000',
+            'warehouse_attachments' => 'nullable|array|max:5',
+            'warehouse_attachments.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'warehouse_verification_items' => 'required|array',
+            'warehouse_verification_items.*.qty' => 'required|integer|min:0',
+        ]);
+
+        $submittedByItem = $this->verificationSubmissionByItem($order);
+        $incompleteItems = $this->verificationProducts($order)
+            ->map(function ($item) use ($submittedByItem, $request) {
+                $submittedItem = $submittedByItem->get($item->id);
+                $submittedQty = (int) data_get($submittedItem, 'submitted_qty', 0);
+                $warehouseQty = (int) data_get($request->input('warehouse_verification_items', []), $item->id . '.qty', -1);
+
+                if ($warehouseQty < 0 || $warehouseQty > (int) $item->qty) {
+                    throw ValidationException::withMessages([
+                        'warehouse_verification_items' => 'Warehouse quantities must match the products ordered.',
+                    ]);
+                }
+
+                if ($submittedItem instanceof \App\AdPurchaseOrderVerificationItem) {
+                    $submittedItem->warehouse_verified_qty = $warehouseQty;
+                    $submittedItem->save();
+                }
+
+                return [
+                    'product_name' => $item->product_name,
+                    'ordered_qty' => (int) $item->qty,
+                    'ad_submitted_qty' => $submittedQty,
+                    'warehouse_qty' => $warehouseQty,
+                    'missing_qty' => max((int) $item->qty - $warehouseQty, 0),
+                ];
+            })
+            ->filter(function ($item) {
+                return $item['missing_qty'] > 0;
+            })
+            ->values();
+
+        if ($incompleteItems->isEmpty()) {
+            Alert::info('Submission Complete', 'All verification quantities have been fully submitted; no incomplete notice was sent.');
+
+            return back();
+        }
+
+        $recipients = collect([
+                $order->email_address,
+                optional($order->ad)->email_address,
+                optional(optional($order->ad)->userAds)->email,
+            ])
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($recipients->isEmpty()) {
+            Log::warning('ADPO incomplete-verification email skipped: no AD recipient email found.', [
+                'ad_purchase_order_id' => $order->id,
+                'po_number' => $order->po_number,
+            ]);
+            Alert::error('Email Not Sent', 'No email address is available for this Area Distributor.');
+
+            return back();
+        }
+
+        // Keep a visible warehouse-to-AD response in the ADPO, even after the
+        // email has been delivered, until the AD submits corrected quantities.
+        $warehouseProofs = collect(json_decode($order->warehouse_verification_proofs ?: '[]', true) ?: [])
+            ->filter(function ($proof) {
+                return filled(data_get($proof, 'path'));
+            })
+            ->values()
+            ->all();
+
+        if ($request->hasFile('warehouse_attachments')) {
+            if (count($warehouseProofs) + count($request->file('warehouse_attachments')) > 5) {
+                throw ValidationException::withMessages([
+                    'warehouse_attachments' => 'You can attach a maximum of 5 warehouse verification files.',
+                ]);
+            }
+
+            $uploadPath = public_path('uploads/adpo/warehouse-verification-proofs');
+            if (!is_dir($uploadPath)) {
+                mkdir($uploadPath, 0755, true);
+            }
+
+            foreach ($request->file('warehouse_attachments') as $file) {
+                $filename = 'warehouse-verification-' . $order->id . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $path = 'uploads/adpo/warehouse-verification-proofs/' . $filename;
+                $file->move($uploadPath, $filename);
+                $warehouseProofs[] = ['path' => $path, 'name' => $file->getClientOriginalName()];
+            }
+            $order->warehouse_verification_proofs = json_encode($warehouseProofs);
+        }
+
+        // Sending an incomplete notice never approves the order. Keep it in
+        // warehouse review until the AD submits corrected quantities.
+        $order->status = 'Completed';
+        $order->verification_incomplete_remarks = $request->input('warehouse_remarks');
+        $order->verification_incomplete_notified_at = now();
+        $order->verification_incomplete_notified_by = $user->id;
+        $order->save();
+
+        try {
+            Mail::to($recipients->all())->send(new AdPurchaseOrderVerificationIncompleteNotification(
+                $order,
+                $incompleteItems,
+                $request->input('warehouse_remarks')
+            ));
+        } catch (\Exception $exception) {
+            Log::error('ADPO incomplete-verification email failed.', [
+                'ad_purchase_order_id' => $order->id,
+                'po_number' => $order->po_number,
+                'error' => $exception->getMessage(),
+            ]);
+            Alert::error('Email Not Sent', 'The incomplete verification notice could not be sent. Please try again.');
+
+            return back();
+        }
+
+        Alert::success('Incomplete Notice Sent', 'The Area Distributor was emailed the incomplete crate/refill quantities.');
+
+        return back();
+    }
+
+    /**
+     * Complete a crate/refill verification only after the assigned warehouse has
+     * confirmed that every submitted quantity meets the quantity ordered.
+     */
+    public function completeVerification($id)
+    {
+        $user = auth()->user();
+        if ($user->role !== 'Admin' || blank($user->warehouse)) {
+            abort(403);
+        }
+
+        $order = AdPurchaseOrder::with(['items', 'verificationItems', 'ad.userAds'])->findOrFail($id);
+        $assignedWarehouse = $this->warehouseForOrder($order);
+        if ($assignedWarehouse && strtolower(trim((string) $user->warehouse)) !== $assignedWarehouse) {
+            abort(403);
+        }
+
+        if ($order->status !== 'For Verification') {
+            Alert::warning('Verification Unavailable', 'Only ADPOs currently under verification can be marked complete.');
+
+            return back();
+        }
+
+        $verificationProducts = $this->verificationProducts($order);
+        $submittedByItem = $this->verificationSubmissionByItem($order);
+        $hasIncompleteQuantity = $verificationProducts->isEmpty() || $verificationProducts->contains(function ($item) use ($submittedByItem) {
+            return (int) optional($submittedByItem->get($item->id))->submitted_qty < (int) $item->qty;
+        });
+
+        if ($hasIncompleteQuantity) {
+            Alert::warning('Verification Incomplete', 'Every product under verification must have its full ordered quantity submitted before warehouse can complete this verification.');
+
+            return back();
+        }
+
+        $oldStatus = $order->status;
+        $order->status = 'Completed';
+        $order->verification_incomplete_remarks = null;
+        $order->verification_incomplete_notified_at = null;
+        $order->verification_incomplete_notified_by = null;
+        $order->save();
+
+        // The standard ADPO status email notifies the AD that warehouse has
+        // accepted the complete verification and completed the order.
+        $this->notifyAdpoStatusChanged($order, $oldStatus);
+
+        Alert::success('Verification Completed', 'Warehouse verified the submitted quantities and emailed the Area Distributor.');
 
         return back();
     }
@@ -1272,6 +1650,27 @@ class AdPurchaseOrderController extends Controller
                         }
                     });
                 });
+            });
+    }
+
+    /**
+     * Uses the normalized verification table first, with the JSON snapshot as a
+     * backward-compatible fallback for older ADPO submissions.
+     */
+    private function verificationSubmissionByItem(AdPurchaseOrder $order)
+    {
+        $submittedItems = $order->verificationItems->keyBy('ad_purchase_order_item_id');
+
+        if ($submittedItems->isNotEmpty()) {
+            return $submittedItems;
+        }
+
+        return collect(json_decode($order->verification_items ?: '[]', true) ?: [])
+            ->filter(function ($item) {
+                return filled(data_get($item, 'item_id'));
+            })
+            ->keyBy(function ($item) {
+                return (int) data_get($item, 'item_id');
             });
     }
 

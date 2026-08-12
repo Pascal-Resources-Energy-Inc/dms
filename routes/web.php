@@ -128,6 +128,8 @@ Route::get('/warehouse/ad-purchase-orders/region-v', 'AdPurchaseOrderController@
 Route::get('/warehouse/ad-purchase-orders/region-v/export', 'AdPurchaseOrderController@exportRegionVWarehouse')->name('warehouse-ad-purchase-orders.region-v.export');
 Route::get('/ad-purchase-orders/{id}', 'AdPurchaseOrderController@show')->name('ad-purchase-orders.show');
 Route::patch('/ad-purchase-orders/{id}/status', 'AdPurchaseOrderController@updateStatus')->name('ad-purchase-orders.updateStatus');
+Route::post('/ad-purchase-orders/{id}/verification-incomplete', 'AdPurchaseOrderController@notifyIncompleteVerification')->name('ad-purchase-orders.verification-incomplete');
+Route::post('/ad-purchase-orders/{id}/verification-complete', 'AdPurchaseOrderController@completeVerification')->name('ad-purchase-orders.verification-complete');
 Route::delete('/ad-purchase-orders/{id}', 'AdPurchaseOrderController@destroy')->name('ad-purchase-orders.destroy');
 
 Route::get('/dealers','DealerController@index')->name('dealers');

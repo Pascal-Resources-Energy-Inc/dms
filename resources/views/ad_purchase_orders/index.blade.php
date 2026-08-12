@@ -60,7 +60,7 @@
     .status-for-verification { background: #f5f3ff; color: #6d28d9; }
     .status-completed { background: #ecfdf3; color: #027a48; }
     .status-cancelled { background: #fef2f2; color: #b42318; }
-    .task-board { display: grid; overflow: auto; grid-template-columns: repeat(6, minmax(300px, 1fr)); gap: 14px; padding: 14px; background: #f8fafc; align-items: start; }
+    .task-board { display: grid; overflow: auto; grid-template-columns: repeat(7, minmax(300px, 1fr)); gap: 14px; padding: 14px; background: #f8fafc; align-items: start; }
     .task-column { min-width: 0; border: 1px solid #e6e9ef; border-radius: 8px; background: #fff; overflow: hidden; box-shadow: 0 10px 24px rgba(15, 23, 42, .04); }
     .task-column-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 14px; border-bottom: 1px solid #edf0f5; background: #fcfcfd; }
     .task-column-title { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0; color: #101828; font-size: 13px; font-weight: 900; }
@@ -112,6 +112,18 @@
     .status-modal-item strong { display: block; margin-top: 4px; color: #101828; font-size: 13px; overflow-wrap: anywhere; }
     .verification-note { display: none; }
     .verification-note.is-visible { display: block; }
+    .dpo-verify-banner { display: flex; align-items: flex-start; gap: 11px; padding: 13px; border: 1px solid #ddd6fe; border-radius: 10px; background: #faf5ff; color: #4c1d95; }
+    .dpo-verify-banner i { font-size: 20px; }
+    .dpo-verify-banner strong { display: block; color: #3b0764; font-size: 13px; }
+    .dpo-verify-banner span { display: block; margin-top: 2px; color: #6b7280; font-size: 12px; line-height: 1.4; }
+    .dpo-verify-items { display: grid; gap: 9px; margin-top: 14px; }
+    .dpo-verify-row { display: grid; grid-template-columns: minmax(0, 1fr) 118px; align-items: center; gap: 14px; padding: 12px; border: 1px solid #e9e5f6; border-radius: 9px; background: #fff; }
+    .dpo-verify-name { overflow: hidden; color: #1f2937; font-size: 13px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .dpo-verify-meta { margin-top: 3px; color: #667085; font-size: 11px; font-weight: 700; }
+    .dpo-verify-qty label { display: block; margin-bottom: 4px; color: #6d28d9; font-size: 10px; font-weight: 900; letter-spacing: .04em; text-align: center; text-transform: uppercase; }
+    .dpo-verify-qty .form-control { min-height: 38px; border-color: #c4b5fd; color: #4c1d95; font-weight: 900; text-align: center; }
+    .dpo-verify-files { margin-top: 14px; padding-top: 14px; border-top: 1px solid #e9e5f6; }
+    .dpo-verify-saved { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .partial-received-items { display: none; margin-bottom: 14px; }
     .partial-received-items.is-visible { display: block; }
     .partial-items-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
@@ -136,15 +148,6 @@
     .partial-items-empty { padding: 14px; border: 1px dashed #d0d5dd; border-radius: 8px; color: #667085; font-size: 12px; text-align: center; }
     .partial-doc-input { font-weight: 700; }
     .partial-readonly-doc { min-height: 31px; display: flex; align-items: center; justify-content: center; padding: 5px 8px; border: 1px solid #edf0f5; border-radius: 6px; background: #f8fafc; color: #344054; font-size: 12px; font-weight: 800; text-align: center; overflow-wrap: anywhere; }
-    .status-proof-panel { border: 1px solid #dbe7f5; border-radius: 8px; overflow: hidden; background: #f8fbff; }
-    .status-proof-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 10px; border-bottom: 1px solid #dbe7f5; color: #1e40af; font-size: 11px; font-weight: 800; }
-    .status-proof-count { flex: 0 0 auto; padding: 3px 7px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: 10px; }
-    .status-proof-list { display: grid; gap: 7px; padding: 9px; }
-    .status-proof-file { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px; border: 1px solid #e5eaf1; border-radius: 6px; background: #fff; }
-    .status-proof-file-icon { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 6px; background: #eff6ff; color: #0d6efd; font-size: 15px; }
-    .status-proof-file-name { overflow: hidden; color: #344054; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-    .status-proof-file-meta { margin-top: 2px; color: #667085; font-size: 10px; font-weight: 700; }
-    .status-proof-view { min-height: 30px; padding: 0 9px; font-size: 11px; font-weight: 800; }
     @media (max-width: 992px) {
         .adpo-head { align-items: stretch; flex-direction: column; }
         .adpo-panel-head > div:first-child { align-items: flex-start; flex-direction: column; }
@@ -169,8 +172,7 @@
         .task-date { justify-self: start; }
         .task-actions { grid-template-columns: 1fr 38px; }
         .partial-summary, .partial-item-row { grid-template-columns: 1fr; }
-        .status-proof-file { grid-template-columns: 30px minmax(0, 1fr); }
-        .status-proof-view { grid-column: 1 / -1; width: 100%; }
+        .dpo-verify-row { grid-template-columns: 1fr 96px; }
     }
     @media (max-width: 576px) { .adpo-summary { grid-template-columns: 1fr; } }
     @media (max-width: 576px) { .status-modal-summary { grid-template-columns: 1fr; } }
@@ -193,8 +195,8 @@
     $exportRoute = $exportRoute ?? route('ad-purchase-orders.export', request()->query());
     $viewRouteName = $viewRouteName ?? 'ad-purchase-orders.show';
     $statusOptions = auth()->user()->role === 'Area Distributor'
-        ? ['Pending', 'Partial Received', 'Completed', 'Cancelled']
-        : ['Pending', 'For Delivery', 'SO Created', 'Partial Received', 'Completed', 'Cancelled'];
+        ? ['Pending', 'SO Created', 'For Verification', 'Completed', 'Partial Received', 'Cancelled']
+        : ['Pending', 'For Delivery', 'For Verification', 'SO Created', 'Partial Received', 'Completed', 'Cancelled'];
     $shippingOptions = [
         'delivered' => 'Delivered',
         'pickup_lubao' => 'Pick Up Lubao',
@@ -213,6 +215,7 @@
         'Pending' => $favoriteSummary['pending'] ?? 0,
         'For Delivery' => $favoriteSummary['for_delivery'] ?? 0,
         'SO Created' => $favoriteSummary['so_created'] ?? 0,
+        'For Verification' => $favoriteSummary['for_verification'] ?? 0,
         'Partial Received' => $favoriteSummary['partial_received'] ?? 0,
         'Completed' => $favoriteSummary['completed'] ?? 0,
         'Cancelled' => $favoriteSummary['Cancelled'] ?? 0,
@@ -221,12 +224,13 @@
         '' => 'All',
         'Pending' => 'Pending',
         'For Delivery' => 'Delivery',
-        'SO Created' => 'Verification',
+        'SO Created' => 'SO Created',
+        'For Verification' => 'Verification',
         'Partial Received' => 'Partial',
         'Completed' => 'Completed',
         'Cancelled' => 'Cancelled',
     ];
-    $editableAdpoStatuses = ['Pending', 'For Delivery', 'SO Created', 'Partial Received'];
+    $editableAdpoStatuses = ['Pending', 'For Delivery', 'SO Created', 'For Verification', 'Partial Received'];
     $canUpdateAdpoStatus = auth()->user()->role === 'Area Distributor';
     $isWarehouseTaskView = auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse);
     $taskColumns = [
@@ -234,10 +238,26 @@
         'For Delivery' => ['label' => 'For Delivery', 'dot' => 'delivery'],
         'SO Created' => ['label' => 'SO Created', 'dot' => 'verification'],
         'Partial Received' => ['label' => 'Partial Received', 'dot' => 'partial'],
+        'For Verification' => ['label' => 'For Verification', 'dot' => 'verification'],
         'Completed' => ['label' => 'Completed', 'dot' => 'completed'],
         'Cancelled' => ['label' => 'Cancelled', 'dot' => 'cancelled'],
     ];
     $adpoOrderItemsJson = $orders->mapWithKeys(function ($order) {
+        if ($order->status === 'For Verification') {
+            $submittedVerificationItems = $order->verificationItems->keyBy('ad_purchase_order_item_id');
+
+            return [strval($order->id) => $order->items->filter(function ($item) {
+                return preg_match('/\b(crate|refill)s?\b/i', (string) $item->product_name) === 1;
+            })->map(function ($item) use ($submittedVerificationItems) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->product_name,
+                    'qty' => (int) $item->qty,
+                    'submitted_qty' => (int) optional($submittedVerificationItems->get($item->id))->submitted_qty,
+                ];
+            })->values()];
+        }
+
         if (auth()->user()->role === 'Area Distributor' && $order->status === 'Partial Received' && $order->partialReceipts->isNotEmpty()) {
             return [
                 strval($order->id) => $order->partialReceipts->filter(function ($receipt) {
@@ -282,6 +302,25 @@
                 ];
             })->values(),
         ];
+    });
+    $adpoVerificationItemsJson = $orders->mapWithKeys(function ($order) {
+        $savedVerificationItems = $order->verificationItems->keyBy('ad_purchase_order_item_id');
+
+        return [strval($order->id) => $order->items
+            ->filter(function ($item) {
+                return preg_match('/\b(crate|refill)s?\b/i', (string) $item->product_name) === 1;
+            })
+            ->map(function ($item) use ($savedVerificationItems) {
+                $savedItem = $savedVerificationItems->get($item->id);
+
+                return [
+                    'id' => (int) $item->id,
+                    'name' => $item->product_name,
+                    'qty' => (int) $item->qty,
+                    'submitted_qty' => $savedItem ? (int) $savedItem->submitted_qty : (int) $item->qty,
+                ];
+            })
+            ->values()];
     });
 @endphp
     <div class="adpo-head">
@@ -499,6 +538,18 @@
                                     && $order->partialReceipts->every(function ($receipt) {
                                         return (int) $receipt->confirmed_qty >= (int) $receipt->received_qty;
                                     });
+                                $crateRefillItems = $order->items->filter(function ($item) {
+                                    return preg_match('/\b(crate|refill)s?\b/i', (string) $item->product_name) === 1;
+                                });
+                                $requiresCrateRefillVerification = $crateRefillItems->isNotEmpty();
+                                // Keep a fully received crate/refill DPO open until
+                                // the AD submits its required verification details.
+                                $canAutoCompleteReceiving = $canAutoCompleteReceiving && !$requiresCrateRefillVerification;
+                                $canVerifyFullyReceivedCrateRefill = $crateRefillItems->isNotEmpty()
+                                    && $order->items->isNotEmpty()
+                                    && $order->items->every(function ($item) {
+                                        return (int) ($item->partial_received_qty ?? 0) >= (int) $item->qty;
+                                    });
                             @endphp
                             <tr>
                                 <td>
@@ -553,6 +604,35 @@
                                                 data-total="PHP {{ number_format($order->total_amount, 2) }}">
                                                 <i class="ti ti-shield-check"></i> {{ auth()->user()->role === 'Area Distributor' && $order->status === 'Partial Received' ? 'Confirm Partial' : 'Status' }}
                                             </button>
+                                            @if(auth()->user()->role === 'Area Distributor' && $order->status === 'Partial Received' && $canVerifyFullyReceivedCrateRefill)
+                                                @php
+                                                    $partialVerificationItems = $crateRefillItems
+                                                        ->map(function ($item) use ($order) {
+                                                            $saved = $order->verificationItems->firstWhere('ad_purchase_order_item_id', $item->id);
+
+                                                            return [
+                                                                'id' => $item->id,
+                                                                'name' => $item->product_name,
+                                                                'qty' => (int) $item->qty,
+                                                                'submitted_qty' => $saved ? (int) $saved->submitted_qty : (int) $item->qty,
+                                                            ];
+                                                        })
+                                                        ->values();
+                                                @endphp
+                                                <button type="button"
+                                                    class="btn btn-sm btn-primary js-verification-modal"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#dpoVerificationModal"
+                                                    data-action="{{ route('ad-purchase-orders.updateStatus', $order->id) }}"
+                                                    data-order-id="{{ $order->id }}"
+                                                    data-po="{{ $order->po_number }}"
+                                                    data-current-status="{{ $order->status }}"
+                                                    data-remarks="{{ $order->remarks }}"
+                                                    data-verification-proofs='@json(json_decode($order->verification_proofs ?: "[]", true) ?: [])'
+                                                    data-verification-items="{{ e($partialVerificationItems->toJson()) }}">
+                                                    <i class="ti ti-shield-check"></i> Submit DPO for Verification
+                                                </button>
+                                            @endif
                                         @endif
                                         <a href="{{ route($viewRouteName, $order->id) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="ti ti-eye"></i> View
@@ -580,6 +660,9 @@
     @if($canUpdateAdpoStatus)
         <script type="application/json" id="adpoOrderItemsJson">
             @json($adpoOrderItemsJson)
+        </script>
+        <script type="application/json" id="adpoVerificationItemsJson">
+            @json($adpoVerificationItemsJson)
         </script>
         <div class="modal fade" id="adpoStatusModal" tabindex="-1" aria-labelledby="adpoStatusModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -615,6 +698,10 @@
                                 <span>SO Number</span>
                                 <strong id="statusModalSo">N/A</strong>
                             </div>
+                            <div class="status-modal-item d-none" id="statusModalDrWrap">
+                                <span>DR Number</span>
+                                <strong id="statusModalDr">N/A</strong>
+                            </div>
                             <div class="status-modal-item d-none" id="statusModalSiWrap">
                                 <span>SI Number</span>
                                 <strong id="statusModalSi">N/A</strong>
@@ -624,19 +711,7 @@
                         <input type="hidden" name="payment_method" id="statusPaymentMethod">
                         <input type="hidden" name="reference_no" id="statusReferenceNo">
 
-                        {{-- <div class="mb-3">
-                            <label class="form-label small fw-bold text-uppercase text-muted">Proof of Payment</label>
-                            <div class="status-proof-panel d-none" id="statusCurrentProof">
-                                <div class="status-proof-head">
-                                    <span><i class="ti ti-paperclip"></i> Attached files</span>
-                                    <span class="status-proof-count" id="statusProofCount">0 files</span>
-                                </div>
-                                <div class="status-proof-list" id="statusProofList"></div>
-                            </div>
-                            <div class="form-text d-none" id="statusNoCurrentProof">No proof of payment attachment is available.</div>
-                        </div> --}}
-
-                        <div class="mb-3">
+                        <div class="mb-3" id="statusSelectionWrap">
                             <label class="form-label small fw-bold text-uppercase text-muted">Status</label>
                             <select name="status" id="statusModalSelect" class="form-select" required>
                                 @foreach($statusOptions as $status)
@@ -645,18 +720,21 @@
                                     </option>
                                 @endforeach
                             </select>
+                            <div class="form-text text-primary d-none" id="statusPendingUnavailableNotice">
+                                <i class="ti ti-info-circle"></i> Pending is unavailable after an SO has been created.
+                            </div>
                         </div>
 
                         <div class="verification-note mb-3" id="statusSoWrap">
                             <label class="form-label small fw-bold text-uppercase text-muted">SO Number</label>
-                            <input type="text" name="so_number" id="statusSoNumber" class="form-control form-control-sm" placeholder="Enter SO number" data-uppercase disabled>
+                            <input type="text" name="so_number" id="statusSoNumber" class="form-control form-control-sm" placeholder="Enter SO number" data-uppercase readonly>
                         </div>
 
                         <div class="verification-note mb-3" id="statusDeliveryWrap">
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold text-uppercase text-muted">Delivery Date</label>
-                                    <input type="date" name="delivery_date" id="statusDeliveryDate" class="form-control form-control-sm" disabled>
+                                    <input type="date" name="delivery_date" id="statusDeliveryDate" class="form-control form-control-sm" readonly>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold text-uppercase text-muted">DR Number</label>
@@ -665,8 +743,23 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold text-uppercase text-muted">SI Number</label>
-                                    <input type="text" name="si_number" id="statusSiNumber" class="form-control form-control-sm" placeholder="Enter SI number" data-uppercase disabled>
+                                    <input type="text" name="si_number" id="statusSiNumber" class="form-control form-control-sm" placeholder="Enter SI number" data-uppercase readonly>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="d-none mb-3" id="statusDeliveryVerificationWrap">
+                            <div class="dpo-verify-banner mb-3">
+                                <i class="ti ti-shield-check"></i>
+                                <div><strong>Delivery verification</strong><span>Confirm every delivered product quantity and attach proof for warehouse review.</span></div>
+                            </div>
+                            <label class="form-label small fw-bold text-uppercase text-muted">Delivered products</label>
+                            <div class="dpo-verify-items" id="statusDeliveryVerificationItems"></div>
+                            <div class="dpo-verify-files mt-3">
+                                <label for="statusDeliveryVerificationFiles" class="form-label fw-bold mb-1">Delivery attachments <span class="text-danger">*</span></label>
+                                <input type="file" name="verification_attachments[]" id="statusDeliveryVerificationFiles" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple disabled>
+                                <div class="form-text">Attach delivery receipts, photos, or signed documents. JPG, PNG, or PDF; maximum five files, 5 MB each.</div>
+                                <div class="small text-muted mt-2" id="statusDeliveryVerificationNewFiles"></div>
                             </div>
                         </div>
 
@@ -724,6 +817,45 @@
                 </form>
             </div>
         </div>
+
+        <div class="modal fade" id="dpoVerificationModal" tabindex="-1" aria-labelledby="dpoVerificationModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <form method="POST" enctype="multipart/form-data" id="dpoVerificationForm" class="modal-content">
+                    @csrf
+                    @method('PATCH')
+                    <input type="hidden" name="status" value="For Verification">
+                    <div class="modal-header">
+                        <div>
+                            <h5 class="modal-title" id="dpoVerificationModalLabel">Submit DPO for Verification</h5>
+                            <div class="text-muted small" id="dpoVerificationSubtitle">Record the actual crate and refill quantities for warehouse review.</div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="dpo-verify-banner">
+                            <i class="ti ti-shield-check"></i>
+                            <div><strong id="dpoVerificationPo">DPO</strong><span>Enter the actual quantities. The order will remain under warehouse verification until it is reviewed.</span></div>
+                        </div>
+                        <div class="dpo-verify-items" id="dpoVerificationItems"></div>
+                        <div class="dpo-verify-files">
+                            <label for="dpoVerificationFiles" class="form-label fw-bold mb-1">Proof attachments <span class="text-danger" id="dpoVerificationRequired">*</span></label>
+                            <input type="file" name="verification_attachments[]" id="dpoVerificationFiles" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple>
+                            <div class="form-text" id="dpoVerificationFilesHelp">Attach at least one JPG, PNG, or PDF proof. Maximum five files, 5 MB each.</div>
+                            <div class="dpo-verify-saved" id="dpoVerificationSavedFiles"></div>
+                            <div class="small text-muted mt-2" id="dpoVerificationNewFiles"></div>
+                        </div>
+                        <div class="mt-3">
+                            <label for="dpoVerificationRemarks" class="form-label fw-bold mb-1">Remarks <span class="text-muted fw-normal">(optional)</span></label>
+                            <textarea name="remarks" id="dpoVerificationRemarks" class="form-control" rows="3" maxlength="1000" placeholder="Add instructions or notes for the warehouse."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="dpoVerificationSubmit"><i class="ti ti-send me-1"></i> Submit for Verification</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     @endif
 @endsection
 
@@ -732,7 +864,9 @@
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 const orderItemsJson = document.getElementById('adpoOrderItemsJson');
+                const verificationItemsJson = document.getElementById('adpoVerificationItemsJson');
                 let orderItemsById = {};
+                let verificationItemsById = {};
 
                 try {
                     orderItemsById = JSON.parse(orderItemsJson ? orderItemsJson.textContent : '{}') || {};
@@ -740,8 +874,15 @@
                     orderItemsById = {};
                 }
 
+                try {
+                    verificationItemsById = JSON.parse(verificationItemsJson ? verificationItemsJson.textContent : '{}') || {};
+                } catch (error) {
+                    verificationItemsById = {};
+                }
+
                 const form = document.getElementById('adpoStatusForm');
                 const statusSelect = document.getElementById('statusModalSelect');
+                const statusSelectionWrap = document.getElementById('statusSelectionWrap');
                 const remarksWrap = document.getElementById('statusVerificationWrap');
                 const remarks = document.getElementById('statusVerificationRemarks');
                 const remarksLabel = document.getElementById('statusVerificationLabel');
@@ -757,6 +898,10 @@
                 const statusDrNumber = document.getElementById('statusDrNumber');
                 const statusDrLockedHelp = document.getElementById('statusDrLockedHelp');
                 const statusSiNumber = document.getElementById('statusSiNumber');
+                const deliveryVerificationWrap = document.getElementById('statusDeliveryVerificationWrap');
+                const deliveryVerificationItems = document.getElementById('statusDeliveryVerificationItems');
+                const deliveryVerificationFiles = document.getElementById('statusDeliveryVerificationFiles');
+                const deliveryVerificationNewFiles = document.getElementById('statusDeliveryVerificationNewFiles');
 
                 if (!form || !statusSelect || !partialWrap || !partialItems || !statusSoWrap || !statusSoNumber || !statusDeliveryWrap || !statusDeliveryDate || !statusDrNumber || !statusSiNumber) {
                     return;
@@ -765,7 +910,6 @@
                 const statusesNeedingRemarks = ['For Delivery', 'SO Created', 'Partial Received', 'Cancelled'];
                 const canEditPartialDocs = @json(auth()->user()->role === 'Admin');
                 let currentItems = [];
-
                 function syncPartialRow(row) {
                     if (!row) {
                         return;
@@ -790,8 +934,11 @@
                 function toggleRemarks() {
                     const needsRemarks = statusesNeedingRemarks.includes(statusSelect.value);
                     const needsSoDetails = statusSelect.value === 'SO Created';
+                    const showsDeliveryDetails = ['For Delivery', 'Partial Received'].includes(statusSelect.value);
                     const needsDeliveryDetails = statusSelect.value === 'For Delivery';
                     const needsPartialItems = statusSelect.value === 'Partial Received';
+                    const needsDeliveryVerification = statusSelect.value === 'For Verification'
+                        && statusSelect.dataset.currentStatus === 'For Delivery';
 
                     remarksWrap.classList.toggle('is-visible', needsRemarks);
                     remarks.required = needsRemarks;
@@ -806,14 +953,14 @@
                     statusSoNumber.disabled = !needsSoDetails;
                     statusSoNumber.required = needsSoDetails;
 
-                    statusDeliveryWrap.classList.toggle('is-visible', needsDeliveryDetails);
-                    statusDeliveryDate.disabled = !needsDeliveryDetails;
+                    statusDeliveryWrap.classList.toggle('is-visible', showsDeliveryDetails);
+                    statusDeliveryDate.disabled = !showsDeliveryDetails;
                     statusDeliveryDate.required = needsDeliveryDetails;
-                    statusDrNumber.disabled = !needsDeliveryDetails;
+                    statusDrNumber.disabled = !showsDeliveryDetails;
                     statusDrNumber.required = needsDeliveryDetails;
-                    statusDrNumber.readOnly = needsDeliveryDetails && statusDrNumber.dataset.hasSavedDr === '1';
+                    statusDrNumber.readOnly = showsDeliveryDetails && statusDrNumber.dataset.hasSavedDr === '1';
                     statusDrLockedHelp.classList.toggle('d-none', !statusDrNumber.readOnly);
-                    statusSiNumber.disabled = !needsDeliveryDetails;
+                    statusSiNumber.disabled = !showsDeliveryDetails;
                     statusSiNumber.required = needsDeliveryDetails;
 
                     partialWrap.classList.toggle('is-visible', needsPartialItems);
@@ -821,6 +968,21 @@
                         input.disabled = !needsPartialItems;
                     });
                     partialItems.querySelectorAll('.partial-item-row').forEach(syncPartialRow);
+
+                    deliveryVerificationWrap.classList.toggle('d-none', !needsDeliveryVerification);
+                    deliveryVerificationFiles.disabled = !needsDeliveryVerification;
+                    deliveryVerificationFiles.required = needsDeliveryVerification;
+                    deliveryVerificationItems.querySelectorAll('input').forEach(function (input) {
+                        input.disabled = !needsDeliveryVerification;
+                    });
+                }
+
+                function renderDeliveryVerificationItems(items) {
+                    items = Array.isArray(items) ? items : Object.values(items || {});
+                    deliveryVerificationItems.innerHTML = items.map(function (item) {
+                        const orderedQty = Math.max(Number(item.qty || 0), 0);
+                        return '<div class="dpo-verify-row"><div><div class="dpo-verify-name" title="' + escapeHtml(item.name) + '">' + escapeHtml(item.name) + '</div><div class="dpo-verify-meta">Ordered quantity: ' + orderedQty.toLocaleString() + '</div></div><div class="dpo-verify-qty"><label>Delivered qty</label><input type="number" class="form-control" name="verification_items[' + Number(item.id) + '][qty]" min="0" max="' + orderedQty + '" value="' + orderedQty + '" required disabled></div></div>';
+                    }).join('') || '<div class="alert alert-warning mb-0">No products are available for delivery verification.</div>';
                 }
 
                 function escapeHtml(value) {
@@ -1096,82 +1258,20 @@
                         document.getElementById('statusModalBusiness').textContent = button.dataset.business || 'N/A';
                         document.getElementById('statusModalCurrent').textContent = button.dataset.currentStatus || 'N/A';
                         const modalSoWrap = document.getElementById('statusModalSoWrap');
+                        const modalDrWrap = document.getElementById('statusModalDrWrap');
                         const modalSiWrap = document.getElementById('statusModalSiWrap');
                         const savedSoNumber = (button.dataset.soNumber || '').trim();
+                        const savedDrNumber = (button.dataset.drNumber || '').trim();
                         const savedSiNumber = (button.dataset.siNumber || '').trim();
                         document.getElementById('statusModalSo').textContent = savedSoNumber || 'N/A';
+                        document.getElementById('statusModalDr').textContent = savedDrNumber || 'N/A';
                         document.getElementById('statusModalSi').textContent = savedSiNumber || 'N/A';
                         modalSoWrap.classList.toggle('d-none', savedSoNumber === '');
-                        modalSiWrap.classList.toggle('d-none', savedSiNumber === '');
+                        const showsDeliveryReferences = ['For Delivery', 'Partial Received'].includes(button.dataset.currentStatus || '');
+                        modalDrWrap.classList.toggle('d-none', !showsDeliveryReferences || savedDrNumber === '');
+                        modalSiWrap.classList.toggle('d-none', !showsDeliveryReferences || savedSiNumber === '');
                         document.getElementById('statusPaymentMethod').value = button.dataset.paymentMethod || 'cash';
                         document.getElementById('statusReferenceNo').value = button.dataset.referenceNo || '';
-                        const proofInput = document.getElementById('statusProofOfPayment');
-                        const hasProof = button.dataset.hasProof === '1';
-                        const currentProof = document.getElementById('statusCurrentProof');
-                        const proofList = document.getElementById('statusProofList');
-                        const proofCount = document.getElementById('statusProofCount');
-                        const noCurrentProof = document.getElementById('statusNoCurrentProof');
-
-                        if (proofInput) {
-                            proofInput.value = '';
-                            proofInput.required = !hasProof;
-                            document.getElementById('statusProofHelp').textContent = hasProof
-                                ? 'A proof is already saved. Select a file only to replace it.'
-                                : 'Required. JPG, PNG, or PDF. Maximum size: 5 MB.';
-                        }
-
-                        let proofFiles = [];
-                        try {
-                            proofFiles = JSON.parse(button.dataset.proofFiles || '[]');
-                        } catch (error) {
-                            proofFiles = [];
-                        }
-
-                        if (!proofFiles.length && button.dataset.proofUrl) {
-                            proofFiles = [{
-                                name: 'Current proof of payment',
-                                path: button.dataset.proofUrl,
-                                size: null
-                            }];
-                        }
-
-                        proofList.innerHTML = '';
-                        proofFiles.forEach(function (proof) {
-                            const file = document.createElement('div');
-                            file.className = 'status-proof-file';
-
-                            const extension = String(proof.name || '').split('.').pop().toLowerCase();
-                            const isPdf = extension === 'pdf';
-                            const icon = document.createElement('span');
-                            icon.className = 'status-proof-file-icon';
-                            icon.innerHTML = '<i class="ti ' + (isPdf ? 'ti-file-type-pdf' : 'ti-photo') + '"></i>';
-
-                            const details = document.createElement('div');
-                            const name = document.createElement('div');
-                            name.className = 'status-proof-file-name';
-                            name.textContent = proof.name || 'Proof of payment';
-                            const meta = document.createElement('div');
-                            meta.className = 'status-proof-file-meta';
-                            meta.textContent = proof.size ? (Math.round((Number(proof.size) / 1024) * 10) / 10) + ' KB' : (extension ? extension.toUpperCase() : 'FILE');
-                            details.appendChild(name);
-                            details.appendChild(meta);
-
-                            const view = document.createElement('a');
-                            view.className = 'btn btn-sm btn-outline-primary status-proof-view';
-                            view.href = proof.path;
-                            view.target = '_blank';
-                            view.rel = 'noopener';
-                            view.innerHTML = '<i class="ti ti-external-link me-1"></i> View';
-
-                            file.appendChild(icon);
-                            file.appendChild(details);
-                            file.appendChild(view);
-                            proofList.appendChild(file);
-                        });
-
-                        currentProof.classList.toggle('d-none', !hasProof);
-                        proofCount.textContent = proofFiles.length + ' file' + (proofFiles.length === 1 ? '' : 's');
-                        noCurrentProof.classList.toggle('d-none', hasProof);
                         statusDeliveryDate.value = button.dataset.deliveryDate || '';
                         statusSoNumber.value = button.dataset.soNumber || '';
                         statusDrNumber.value = button.dataset.drNumber || '';
@@ -1179,11 +1279,33 @@
                         statusSiNumber.value = button.dataset.siNumber || '';
                         currentItems = orderItemsById[button.dataset.orderId] || [];
                         renderPartialItems(currentItems);
+                        renderDeliveryVerificationItems(currentItems);
+                        deliveryVerificationFiles.value = '';
+                        deliveryVerificationNewFiles.textContent = '';
                         const requestedStatus = button.dataset.currentStatus || '';
+                        statusSelect.dataset.currentStatus = requestedStatus;
                         const modalTitle = document.getElementById('adpoStatusModalLabel');
                         const modalSubtitle = document.getElementById('adpoStatusModalSubtitle');
                         const hasNoReceivingProducts = currentItems.length === 0;
                         const canCompleteReceiving = button.dataset.canCompleteReceiving === '1';
+
+                        // Reset each time the modal opens, then apply rules for the current order status.
+                        const isPendingOrder = requestedStatus === 'Pending';
+                        Array.from(statusSelect.options).forEach(function (option) {
+                            const isAllowedForPending = ['Pending', 'Cancelled'].includes(option.value);
+                            option.hidden = isPendingOrder && !isAllowedForPending;
+                            option.disabled = isPendingOrder && !isAllowedForPending;
+                        });
+
+                        const verificationOption = Array.from(statusSelect.options).find(function (option) {
+                            return option.value === 'For Verification';
+                        });
+                        if (verificationOption) {
+                            const canSubmitDeliveryForVerification = requestedStatus === 'For Delivery';
+                            verificationOption.hidden = !canSubmitDeliveryForVerification;
+                            verificationOption.disabled = !canSubmitDeliveryForVerification;
+                        }
+
                         const cancelledOption = Array.from(statusSelect.options).find(function (option) {
                             return option.value === 'Cancelled';
                         });
@@ -1206,6 +1328,34 @@
                             cancelledOption.disabled = !canCancel;
                         }
 
+                        if (statusSelectionWrap) {
+                            statusSelectionWrap.classList.remove('d-none');
+                        }
+
+                        const pendingOption = Array.from(statusSelect.options).find(function (option) {
+                            return option.value === 'Pending';
+                        });
+                        const soCreatedOption = Array.from(statusSelect.options).find(function (option) {
+                            return option.value === 'SO Created';
+                        });
+                        const shouldHidePending = ['SO Created', 'For Delivery', 'Partial Received'].includes(requestedStatus);
+                        const shouldHideSoCreated = ['For Delivery', 'Partial Received'].includes(requestedStatus);
+
+                        if (pendingOption) {
+                            pendingOption.hidden = shouldHidePending;
+                            pendingOption.disabled = shouldHidePending;
+                        }
+
+                        if (soCreatedOption) {
+                            soCreatedOption.hidden = shouldHideSoCreated;
+                            soCreatedOption.disabled = shouldHideSoCreated;
+                        }
+
+                        const pendingNotice = document.getElementById('statusPendingUnavailableNotice');
+                        if (pendingNotice) {
+                            pendingNotice.classList.toggle('d-none', !shouldHidePending);
+                        }
+
                         const selectableOptions = Array.from(statusSelect.options).filter(function (option) {
                             return !option.disabled;
                         });
@@ -1224,13 +1374,41 @@
                 });
 
                 statusSelect.addEventListener('change', toggleRemarks);
-
+                deliveryVerificationFiles.addEventListener('change', function () {
+                    const files = Array.from(deliveryVerificationFiles.files || []);
+                    deliveryVerificationNewFiles.textContent = files.length
+                        ? files.map(function (file) { return file.name; }).join(', ')
+                        : '';
+                    deliveryVerificationFiles.setCustomValidity(files.length > 5 ? 'You can attach a maximum of five files.' : '');
+                });
                 form.addEventListener('submit', function (event) {
                     if (form.dataset.confirmed === 'true') {
                         return;
                     }
 
                     event.preventDefault();
+
+                    if (statusSelect.value === 'For Verification' && statusSelect.dataset.currentStatus === 'For Delivery') {
+                        const qtyInputs = Array.from(deliveryVerificationItems.querySelectorAll('input[type="number"]'));
+                        const hasInvalidQty = qtyInputs.some(function (input) {
+                            return Number(input.value || 0) < 0 || Number(input.value || 0) > Number(input.max || 0);
+                        });
+                        const totalQty = qtyInputs.reduce(function (total, input) {
+                            return total + Math.max(Number(input.value || 0), 0);
+                        }, 0);
+                        const attachmentCount = Array.from(deliveryVerificationFiles.files || []).length;
+
+                        if (!qtyInputs.length || hasInvalidQty || totalQty < 1 || attachmentCount < 1 || attachmentCount > 5) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Verification details required',
+                                text: !qtyInputs.length || hasInvalidQty || totalQty < 1
+                                    ? 'Enter valid delivered quantities for the products.'
+                                    : (attachmentCount > 5 ? 'You can attach a maximum of five files.' : 'Attach at least one delivery proof file.')
+                            });
+                            return;
+                        }
+                    }
 
                     if (statusSelect.value === 'Partial Received' && !canEditPartialDocs) {
                         const confirmation = partialConfirmationData();
@@ -1417,6 +1595,81 @@
                             submitConfirmedForm();
                         }
                     });
+                });
+                const verificationForm = document.getElementById('dpoVerificationForm');
+                const verificationItems = document.getElementById('dpoVerificationItems');
+                const verificationFiles = document.getElementById('dpoVerificationFiles');
+                const verificationSavedFiles = document.getElementById('dpoVerificationSavedFiles');
+                const verificationNewFiles = document.getElementById('dpoVerificationNewFiles');
+                const verificationRequired = document.getElementById('dpoVerificationRequired');
+                const verificationFilesHelp = document.getElementById('dpoVerificationFilesHelp');
+                let savedVerificationFiles = 0;
+
+                function renderVerificationFileNames() {
+                    const files = Array.from(verificationFiles.files || []);
+                    verificationNewFiles.textContent = files.length ? files.map(function (file) { return file.name; }).join(', ') : '';
+                    verificationFiles.setCustomValidity(files.length > 5 ? 'You can attach a maximum of five files.' : '');
+                }
+
+                document.querySelectorAll('.js-verification-modal').forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        let items = [];
+                        try { items = JSON.parse(button.dataset.verificationItems || '[]'); } catch (error) { items = []; }
+                        items = Array.isArray(verificationItemsById[button.dataset.orderId])
+                            ? verificationItemsById[button.dataset.orderId]
+                            : items;
+                        items = Array.isArray(items) && items.length ? items : (orderItemsById[button.dataset.orderId] || []).filter(function (item) {
+                            return /\b(crate|refill)s?\b/i.test(String(item.name || ''));
+                        });
+                        const isResubmission = button.dataset.currentStatus === 'For Verification';
+                        let proofs = [];
+                        try { proofs = JSON.parse(button.dataset.verificationProofs || '[]'); } catch (error) { proofs = []; }
+                        proofs = Array.isArray(proofs) ? proofs : [];
+
+                        verificationForm.action = button.dataset.action;
+                        verificationForm.dataset.saving = '';
+                        verificationForm.querySelector('#dpoVerificationRemarks').value = button.dataset.remarks || '';
+                        document.getElementById('dpoVerificationPo').textContent = button.dataset.po || 'DPO';
+                        document.getElementById('dpoVerificationModalLabel').textContent = isResubmission ? 'Update Verification Submission' : 'Submit DPO for Verification';
+                        document.getElementById('dpoVerificationSubtitle').textContent = isResubmission
+                            ? 'Correct quantities or add proof files, then send the updated submission to warehouse.'
+                            : 'Record the actual crate and refill quantities for warehouse review.';
+                        document.getElementById('dpoVerificationSubmit').innerHTML = isResubmission
+                            ? '<i class="ti ti-refresh me-1"></i> Update Verification'
+                            : '<i class="ti ti-send me-1"></i> Submit for Verification';
+                        verificationItems.innerHTML = items.map(function (item) {
+                            const orderedQty = Math.max(Number(item.qty || 0), 0);
+                            const submittedQty = Math.min(Math.max(Number(item.submitted_qty == null ? orderedQty : item.submitted_qty), 0), orderedQty);
+                            return '<div class="dpo-verify-row"><div><div class="dpo-verify-name" title="' + escapeHtml(item.name) + '">' + escapeHtml(item.name) + '</div><div class="dpo-verify-meta">Ordered quantity: ' + orderedQty.toLocaleString() + '</div></div><div class="dpo-verify-qty"><label>Submit qty</label><input type="number" class="form-control" name="verification_items[' + Number(item.id) + '][qty]" min="0" max="' + orderedQty + '" value="' + submittedQty + '" required></div></div>';
+                        }).join('') || '<div class="alert alert-warning mb-0">This DPO has no crate or refill products to verify.</div>';
+                        savedVerificationFiles = proofs.length;
+                        verificationFiles.value = '';
+                        verificationSavedFiles.innerHTML = proofs.map(function (proof) {
+                            return '<a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="' + window.location.origin + '/' + escapeHtml(String(proof.path || '')) + '"><i class="ti ti-paperclip me-1"></i>' + escapeHtml(proof.name || 'Saved proof') + '</a>';
+                        }).join('');
+                        verificationRequired.classList.toggle('d-none', savedVerificationFiles > 0);
+                        verificationFiles.required = savedVerificationFiles === 0;
+                        verificationFilesHelp.textContent = savedVerificationFiles
+                            ? 'Saved proof files are kept. You may add more files; maximum five in total, 5 MB each.'
+                            : 'Attach at least one JPG, PNG, or PDF proof. Maximum five files, 5 MB each.';
+                        renderVerificationFileNames();
+                    });
+                });
+
+                verificationFiles.addEventListener('change', renderVerificationFileNames);
+                verificationForm.addEventListener('submit', function (event) {
+                    if (verificationForm.dataset.saving === 'true') return;
+                    const qtyInputs = Array.from(verificationItems.querySelectorAll('input[type="number"]'));
+                    const totalQty = qtyInputs.reduce(function (total, input) { return total + Math.max(Number(input.value || 0), 0); }, 0);
+                    const fileCount = savedVerificationFiles + Array.from(verificationFiles.files || []).length;
+                    const invalidQty = qtyInputs.some(function (input) { return Number(input.value || 0) < 0 || Number(input.value || 0) > Number(input.max || 0); });
+
+                    if (!qtyInputs.length || totalQty < 1 || invalidQty || fileCount < 1 || fileCount > 5) {
+                        event.preventDefault();
+                        Swal.fire({ icon: 'warning', title: 'Verification details required', text: !qtyInputs.length || totalQty < 1 || invalidQty ? 'Enter valid submitted quantities for the crate or refill products.' : (fileCount > 5 ? 'You can keep or attach a maximum of five proof files.' : 'Attach at least one proof file for warehouse review.') });
+                        return;
+                    }
+                    verificationForm.dataset.saving = 'true';
                 });
             });
         </script>
