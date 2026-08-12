@@ -6,395 +6,390 @@
 @endsection
 
 @section('content')
-@php
-    $totalProducts = $products->count();
-    $activeProducts = $products->where('status', 'Activate')->count();
-    $bundleProducts = $products->filter(function ($product) {
-        return (($product->item_type ?? optional($product->item)->item_type) === 'bundle')
-            || collect($product->bundle_product_ids ?? [])->filter()->isNotEmpty();
-    })->count();
-@endphp
-<section class="welcome product-page">
-    <div class="product-head">
-        <div>
-            <h4 class="product-title">Products</h4>
-            <p class="product-copy">Manage product catalog, prices, bundle composition, and availability.</p>
+    @php
+        $totalProducts = $products->count();
+        $activeProducts = $products->where('status', 'Activate')->count();
+        $bundleProducts = $products->filter(function ($product) {
+            return (($product->item_type ?? optional($product->item)->item_type) === 'bundle')
+                || collect($product->bundle_product_ids ?? [])->filter()->isNotEmpty();
+        })->count();
+    @endphp
+    <section class="welcome product-page">
+        <div class="product-head">
+            <div>
+                <h4 class="product-title">Products</h4>
+                <p class="product-copy">Manage product catalog, prices, bundle composition, and availability.</p>
+            </div>
+            <div class="product-actions">
+                <a href="{{ route('products.create') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    Price Matrix
+                </a>
+                <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                    <i class="bi bi-plus-lg"></i>
+                    Add Product
+                </button>
+            </div>
         </div>
-        <div class="product-actions">
-            <a href="{{ route('products.create') }}" class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-grid-3x3-gap"></i>
-                Price Matrix
-            </a>
-            <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#addProductModal">
-                <i class="bi bi-plus-lg"></i>
-                Add Product
-            </button>
-        </div>
-    </div>
 
-    <div class="product-summary" aria-label="Product summary">
-        <div class="product-tile is-total">
-            <span class="product-tile-icon"><i class="bi bi-box-seam"></i></span>
-            <div>
-                <span>Total Products</span>
-                <strong>{{ number_format($totalProducts) }}</strong>
+        <div class="product-summary" aria-label="Product summary">
+            <div class="product-tile is-total">
+                <span class="product-tile-icon"><i class="bi bi-box-seam"></i></span>
+                <div>
+                    <span>Total Products</span>
+                    <strong>{{ number_format($totalProducts) }}</strong>
+                </div>
+            </div>
+            <div class="product-tile is-active">
+                <span class="product-tile-icon active"><i class="bi bi-check2-circle"></i></span>
+                <div>
+                    <span>Active</span>
+                    <strong>{{ number_format($activeProducts) }}</strong>
+                </div>
+            </div>
+            <div class="product-tile is-bundle">
+                <span class="product-tile-icon bundle"><i class="bi bi-boxes"></i></span>
+                <div>
+                    <span>Bundles</span>
+                    <strong>{{ number_format($bundleProducts) }}</strong>
+                </div>
             </div>
         </div>
-        <div class="product-tile is-active">
-            <span class="product-tile-icon active"><i class="bi bi-check2-circle"></i></span>
-            <div>
-                <span>Active</span>
-                <strong>{{ number_format($activeProducts) }}</strong>
-            </div>
-        </div>
-        <div class="product-tile is-bundle">
-            <span class="product-tile-icon bundle"><i class="bi bi-boxes"></i></span>
-            <div>
-                <span>Bundles</span>
-                <strong>{{ number_format($bundleProducts) }}</strong>
-            </div>
-        </div>
-    </div>
 
-    <div class="product-panel">
-        <div class="product-panel-head">
-            <div>
-                <div class="fw-bold text-dark">Product List</div>
-                <div class="text-muted small">{{ number_format($totalProducts) }} product(s) found</div>
+        <div class="product-panel">
+            <div class="product-panel-head">
+                <div>
+                    <div class="fw-bold text-dark">Product List</div>
+                    <div class="text-muted small">{{ number_format($totalProducts) }} product(s) found</div>
+                </div>
             </div>
-        </div>
-        <div class="table-responsive product-table-wrap">
-                        <table class="table align-middle product-table" id="example">
-                            <thead>
-                                <tr>
-                                    <th>Product Image</th>
-                                    <th>Product Name</th>
-                                    <th>Description</th>
-                                    <th>SKU</th>
-                                    <th>Price</th>
-                                    <th>Mega Dealer Price</th>
-                                    <th>Dealer Price</th>
-                                    <th>End User Price</th>
-                                    <th>Deposit</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php
-                                    $productsById = $products->keyBy('id');
-                                @endphp
-                                @foreach ($products as $product)
-                                @php
-                                    $bundleProductIds = collect($product->bundle_product_ids ?? [])->filter()->values();
-                                    $isBundle = ($product->item_type ?? optional($product->item)->item_type) === 'bundle' || $bundleProductIds->isNotEmpty();
-                                    $bundlePreviewProducts = $bundleProductIds
-                                        ->map(function ($productId) use ($productsById) {
-                                            return $productsById->get((int) $productId);
-                                        })
-                                        ->filter()
-                                        ->take(4);
-                                @endphp
-                                <tr id="row-{{ $product->id }}">
-                                    <td class="product-image-column">
-                                        <div class="{{ $isBundle ? 'product-image-cell is-bundle' : 'product-image-cell' }}">
-                                            @if($isBundle && $bundlePreviewProducts->isNotEmpty())
-                                                <div class="bundle-card-image">
-                                                    <div class="bundle-card-grid">
-                                                        @foreach($bundlePreviewProducts as $bundlePreviewProduct)
-                                                            @php
-                                                                $bundlePreviewImage = $bundlePreviewProduct->product_image && file_exists(public_path('uploads/products/' . $bundlePreviewProduct->product_image))
-                                                                    ? asset('uploads/products/' . $bundlePreviewProduct->product_image)
-                                                                    : asset('images/logo_nya.png');
-                                                            @endphp
-                                                            <img src="{{ $bundlePreviewImage }}" alt="{{ $bundlePreviewProduct->product_name }}">
-                                                        @endforeach
-                                                    </div>
-                                                    <span class="bundle-card-badge">
-                                                        <i class="bi bi-boxes"></i>
-                                                    </span>
-                                                    @if($bundleProductIds->count() > 4)
-                                                        <span class="bundle-card-count">+{{ $bundleProductIds->count() - 4 }}</span>
-                                                    @endif
-                                                </div>
-                                            @else
-                                                <div class="product-image-frame">
-                                                    @if($product->product_image && file_exists(public_path('uploads/products/' . $product->product_image)))
-                                                        <img src="{{ asset('uploads/products/' . $product->product_image) }}" alt="{{ $product->product_name }}">
-                                                    @else
-                                                        <span class="product-image-empty">No Image</span>
-                                                    @endif
-
-                                                    @if($isBundle)
-                                                        <span class="product-image-badge">
-                                                            <i class="bi bi-boxes"></i> Bundle
+            <div class="table-responsive product-table-wrap">
+                            <table class="table align-middle product-table" id="example">
+                                <thead>
+                                    <tr>
+                                        <th>Product Image</th>
+                                        <th>Product Name</th>
+                                        <th>Description</th>
+                                        <th>SKU</th>
+                                        <th>Price</th>
+                                        <th>Mega Dealer Price</th>
+                                        <th>Dealer Price</th>
+                                        <th>End User Price</th>
+                                        <th>Deposit</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @php
+                                        $productsById = $products->keyBy('id');
+                                    @endphp
+                                    @foreach ($products as $product)
+                                    @php
+                                        $bundleProductIds = collect($product->bundle_product_ids ?? [])->filter()->values();
+                                        $isBundle = ($product->item_type ?? optional($product->item)->item_type) === 'bundle' || $bundleProductIds->isNotEmpty();
+                                        $bundlePreviewProducts = $bundleProductIds
+                                            ->map(function ($productId) use ($productsById) {
+                                                return $productsById->get((int) $productId);
+                                            })
+                                            ->filter()
+                                            ->take(4);
+                                    @endphp
+                                    <tr id="row-{{ $product->id }}">
+                                        <td class="product-image-column">
+                                            <div class="{{ $isBundle ? 'product-image-cell is-bundle' : 'product-image-cell' }}">
+                                                @if($isBundle && $bundlePreviewProducts->isNotEmpty())
+                                                    <div class="bundle-card-image">
+                                                        <div class="bundle-card-grid">
+                                                            @foreach($bundlePreviewProducts as $bundlePreviewProduct)
+                                                                @php
+                                                                    $bundlePreviewImage = $bundlePreviewProduct->product_image && file_exists(public_path('uploads/products/' . $bundlePreviewProduct->product_image))
+                                                                        ? asset('uploads/products/' . $bundlePreviewProduct->product_image)
+                                                                        : asset('images/logo_nya.png');
+                                                                @endphp
+                                                                <img src="{{ $bundlePreviewImage }}" alt="{{ $bundlePreviewProduct->product_name }}">
+                                                            @endforeach
+                                                        </div>
+                                                        <span class="bundle-card-badge">
+                                                            <i class="bi bi-boxes"></i>
                                                         </span>
-                                                    @endif
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </td>
+                                                        @if($bundleProductIds->count() > 4)
+                                                            <span class="bundle-card-count">+{{ $bundleProductIds->count() - 4 }}</span>
+                                                        @endif
+                                                    </div>
+                                                @else
+                                                    <div class="product-image-frame">
+                                                        @if($product->product_image && file_exists(public_path('uploads/products/' . $product->product_image)))
+                                                            <img src="{{ asset('uploads/products/' . $product->product_image) }}" alt="{{ $product->product_name }}">
+                                                        @else
+                                                            <span class="product-image-empty">No Image</span>
+                                                        @endif
 
-                                    <td class="fw-semibold text-dark" data-label="Product name">{{ strtoupper($product->product_name) }}</td>
-                                    <td class="text-muted product-description-cell" data-label="Description">{{ strtoupper($product->description) ?? '-' }}</td>
-                                    <td data-label="SKU"><span class="product-sku">{{ strtoupper($product->sku) }}</span></td>
-                                    <td data-label="Price">₱{{ number_format($product->price, 2) }}</td>
-                                    <td data-label="Mega Dealer price">₱{{ number_format($product->mega_dealer_price ?? $product->price, 2) }}</td>
-                                    <td data-label="Dealer price">₱{{ number_format($product->dealer_price ?? $product->price, 2) }}</td>
-                                    <td data-label="End User price">₱{{ number_format($product->client_price ?? $product->price, 2) }}</td>
-                                    <td data-label="Deposit">{{ $product->deposit ? '₱'.number_format($product->deposit,2) : '-' }}</td>
-
-                                    <td data-label="Status">
-                                        @if($product->status == 'Activate')
-                                            <span class="product-status active"><i class="bi bi-circle-fill"></i> Activate</span>
-                                        @else
-                                            <span class="product-status inactive"><i class="bi bi-circle-fill"></i> Deactivate</span>
-                                        @endif
-                                    </td>
-
-                                    <td data-label="Action">
-                                        @if($product->is_new === 1)
-                                            <button class="btn btn-sm btn-outline-primary product-icon-btn edit-btn"
-                                                data-id="{{ $product->id }}"
-                                                data-name="{{ $product->product_name }}"
-                                                data-description="{{ $product->description }}"
-                                                data-sku="{{ $product->sku }}"
-                                                data-price="{{ $product->price }}"
-                                                data-mega-dealer-price="{{ $product->mega_dealer_price ?? $product->price }}"
-                                                data-dealer-price="{{ $product->dealer_price ?? $product->price }}"
-                                                data-client-price="{{ $product->client_price ?? $product->price }}"
-                                                data-deposit="{{ $product->deposit }}"
-                                                data-status="{{ $product->status }}"
-                                                data-item-type="{{ $isBundle ? 'bundle' : 'product' }}"
-                                                data-bundle-product-ids='@json($bundleProductIds->values())'
-                                                data-image="{{ asset('uploads/products/'.$product->product_image) }}">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                        @endif
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-        </div>
-    </div>
-</section>
-
-<div class="modal fade product-form-modal" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-sm-down">
-        <div class="modal-content product-modal">
-            <div class="modal-header product-modal-header">
-                <div class="product-modal-heading">
-                    <span class="product-modal-icon"><i class="bi bi-box-seam"></i></span>
-                    <div>
-                    <h5 id="addProductModalTitle" class="mb-0">Add Product</h5>
-                    <small id="addProductModalSubtitle" class="text-muted">Create a single product for your catalog.</small>
-                    </div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="productForm" action="{{ route('products.store') }}" method="POST" enctype="multipart/form-data">
-                @csrf
-                <div class="modal-body">
-                    @if ($newProductCount >= $maxNewProducts)
-                        <div class="alert alert-warning">
-                            You have reached the limit of {{ $maxNewProducts }} new products for this AD user.
-                        </div>
-                    @endif
-
-                    @if ($errors->any())
-                        <div class="alert alert-danger">
-                            <ul class="mb-0">
-                                @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-
-                    <div class="row g-3">
-                        <div class="col-md-12 mb-3">
-                            <input type="hidden" name="selected_item_type" id="selected_item_type" value="{{ old('selected_item_type', 'product') }}">
-                            <div class="bundle-switch-panel">
-                                <div>
-                                    <div class="bundle-switch-title">
-                                        <i class="bi bi-boxes"></i> Bundle
-                                    </div>
-                                    <div class="bundle-switch-copy">Turn this on to create a new bundle from existing products.</div>
-                                </div>
-                                <div class="form-check form-switch m-0">
-                                    <input class="form-check-input js-bundle-toggle" type="checkbox" role="switch" id="bundleToggle" {{ old('selected_item_type') === 'bundle' ? 'checked' : '' }}>
-                                    <label class="form-check-label fw-bold" for="bundleToggle">Bundle</label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-4 text-center mb-2">
-                            <div class="bundle-visual-shell">
-                                <div class="avatar-wrapper mx-auto mb-2">
-                                    <img id="avatar" src="{{ asset('images/logo_nya.png') }}" alt="Preview">
-                                </div>
-
-                                <label for="inputImage" class="btn btn-outline-primary btn-sm">
-                                    <i class="ti ti-upload"></i> Upload Image
-                                </label>
-
-                                <input type="file" name="product_image" id="inputImage" accept="image/jpeg,image/png,image/jpg,image/gif" onchange="uploadImage(this)" style="display: none">
-
-                                {{-- <small id="productImageHelp" class="d-block text-muted mt-1">
-                                    Optional override. JPG, PNG, or GIF (Max: 2MB)
-                                </small> --}}
-                                <div id="bundleImagePreview" class="bundle-image-preview d-none mt-3"></div>
-                            </div>
-                        </div>
-                        <div class="col-lg-8 mb-2">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="product_name" id="productNameLabel" class="form-label">Product Name&nbsp;<span class="text-danger">*</span></label>
-                                    <input type="text" id="product_name" name="product_name" class="form-control" value="{{ old('product_name') }}" placeholder="Product Name" data-uppercase required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="sku" class="form-label">Stock Keeping Unit (SKU)&nbsp;<span class="text-danger">*</span></label>
-                                    <input type="text" id="sku" name="sku" class="form-control" value="{{ old('sku') }}" required placeholder="Enter Stock Keeping Unit" data-uppercase>
-                                </div>
-                                <div class="col-12">
-                                    <label for="description" id="descriptionLabel" class="form-label">Product Description</label>
-                                    <textarea id="description" name="description" class="form-control" rows="3" placeholder="Product Description" data-uppercase>{{ old('description') }}</textarea>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="price" id="priceLabel" class="form-label">Price (PHP)&nbsp;<span class="text-danger">*</span></label>
-                                    <input type="number" id="price" name="price" class="form-control" value="{{ old('price') }}" step="0.01" min="0" required placeholder="0.00">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="mega_dealer_price" class="form-label">Mega Dealer Price (PHP)</label>
-                                    <input type="number" id="mega_dealer_price" name="mega_dealer_price" class="form-control" value="{{ old('mega_dealer_price') }}" step="0.01" min="0" placeholder="0.00">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="dealer_price" class="form-label">Dealer Price (PHP)</label>
-                                    <input type="number" id="dealer_price" name="dealer_price" class="form-control" value="{{ old('dealer_price') }}" step="0.01" min="0" placeholder="0.00">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="client_price" class="form-label">End User Price (PHP)</label>
-                                    <input type="number" id="client_price" name="client_price" class="form-control" value="{{ old('client_price') }}" step="0.01" min="0" placeholder="0.00">
-                                </div>
-                                {{-- <div class="col-md-6">
-                                    <label for="deposit" class="form-label-optional">Deposit (PHP)</label>
-                                    <input type="number" id="deposit" name="deposit" class="form-control" value="{{ old('deposit') }}" step="0.01" min="0" placeholder="0.00">
-                                </div> --}}
-                                <div class="col-md-6">
-                                    <label for="status" class="form-label">Status</label>
-                                    <select id="status" name="status" class="form-control">
-                                        <option value="Activate" {{ old('status', 'Activate') === 'Activate' ? 'selected' : '' }}>Activate</option>
-                                        <option value="Deactivate" {{ old('status') === 'Deactivate' ? 'selected' : '' }}>Deactivate</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-12 mb-3 d-none" id="bundleProductsWrap">
-                            <div class="bundle-builder-layout">
-                                <div class="bundle-products-panel">
-                                    <div class="bundle-products-head">
-                                        <div>
-                                            <label class="form-label mb-0">Products in this bundle&nbsp;<span class="text-danger">*</span></label>
-                                            <span class="d-block text-muted small">Choose existing products to combine.</span>
-                                        </div>
-                                        <span class="badge bg-light text-dark">
-                                            <span id="bundleSelectedCount">0</span> items / PHP <span id="bundleTotal">0.00</span>
-                                        </span>
-                                    </div>
-                                    <div class="bundle-search-wrap">
-                                        <i class="bi bi-search"></i>
-                                        <input type="search" id="bundleProductSearch" class="form-control form-control-sm" placeholder="Search product name or SKU">
-                                    </div>
-                                    <div class="bundle-products-list">
-                                        @forelse($bundleableProducts as $product)
-                                            @php
-                                                $productImage = $product->product_image && file_exists(public_path('uploads/products/' . $product->product_image))
-                                                    ? asset('uploads/products/' . $product->product_image)
-                                                    : asset('images/logo_nya.png');
-                                                $bundlePrice = $product->client_price ?? $product->price ?? 0;
-                                            @endphp
-                                            <div class="bundle-product-row js-bundle-row" role="button" tabindex="0" aria-pressed="false" data-checkbox-id="bundleProduct{{ $product->id }}" data-search="{{ strtolower($product->product_name . ' ' . ($product->sku ?: '')) }}">
-                                                <input type="checkbox"
-                                                    class="form-check-input mt-0 bundle-product-check js-bundle-product"
-                                                    id="bundleProduct{{ $product->id }}"
-                                                    name="bundle_product_ids[]"
-                                                    value="{{ $product->id }}"
-                                                    data-name="{{ $product->product_name }}"
-                                                    data-price="{{ $bundlePrice }}"
-                                                    data-mega-dealer-price="{{ $product->mega_dealer_price ?? 0 }}"
-                                                    data-dealer-price="{{ $product->dealer_price ?? 0 }}"
-                                                    data-image-src="{{ $productImage }}"
-                                                    {{ in_array($product->id, old('bundle_product_ids', [])) ? 'checked' : '' }}
-                                                    hidden>
-                                                <span class="bundle-selected-indicator">
-                                                    <i class="bi bi-check"></i>
-                                                </span>
-                                                <img src="{{ $productImage }}" alt="{{ $product->product_name }}">
-                                                <span class="bundle-product-main">
-                                                    <span class="d-block fw-bold">{{ $product->product_name }}</span>
-                                                    <span class="d-block text-muted small">{{ $product->sku ?: 'No SKU' }}</span>
-                                                </span>
-                                                <span class="bundle-product-price">PHP {{ number_format($bundlePrice, 2) }}</span>
+                                                        @if($isBundle)
+                                                            <span class="product-image-badge">
+                                                                <i class="bi bi-boxes"></i> Bundle
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                @endif
                                             </div>
-                                        @empty
-                                            <div class="text-muted small">No existing products are available.</div>
-                                        @endforelse
+                                        </td>
+
+                                        <td class="fw-semibold text-dark" data-label="Product name">{{ strtoupper($product->product_name) }}</td>
+                                        <td class="text-muted product-description-cell" data-label="Description">{{ strtoupper($product->description) ?? '-' }}</td>
+                                        <td data-label="SKU"><span class="product-sku">{{ strtoupper($product->sku) }}</span></td>
+                                        <td data-label="Price">₱{{ number_format($product->price, 2) }}</td>
+                                        <td data-label="Mega Dealer price">₱{{ number_format($product->mega_dealer_price ?? $product->price, 2) }}</td>
+                                        <td data-label="Dealer price">₱{{ number_format($product->dealer_price ?? $product->price, 2) }}</td>
+                                        <td data-label="End User price">₱{{ number_format($product->client_price ?? $product->price, 2) }}</td>
+                                        <td data-label="Deposit">{{ $product->deposit ? '₱'.number_format($product->deposit,2) : '-' }}</td>
+
+                                        <td data-label="Status">
+                                            @if($product->status == 'Activate')
+                                                <span class="product-status active"><i class="bi bi-circle-fill"></i> Activate</span>
+                                            @else
+                                                <span class="product-status inactive"><i class="bi bi-circle-fill"></i> Deactivate</span>
+                                            @endif
+                                        </td>
+
+                                        <td data-label="Action">
+                                            @if($product->is_new === 1)
+                                                <button class="btn btn-sm btn-outline-primary product-icon-btn edit-btn"
+                                                    data-id="{{ $product->id }}"
+                                                    data-name="{{ $product->product_name }}"
+                                                    data-description="{{ $product->description }}"
+                                                    data-sku="{{ $product->sku }}"
+                                                    data-price="{{ $product->price }}"
+                                                    data-mega-dealer-price="{{ $product->mega_dealer_price ?? $product->price }}"
+                                                    data-dealer-price="{{ $product->dealer_price ?? $product->price }}"
+                                                    data-client-price="{{ $product->client_price ?? $product->price }}"
+                                                    data-deposit="{{ $product->deposit }}"
+                                                    data-status="{{ $product->status }}"
+                                                    data-item-type="{{ $isBundle ? 'bundle' : 'product' }}"
+                                                    data-bundle-product-ids='@json($bundleProductIds->values())'
+                                                    data-image="{{ asset('uploads/products/'.$product->product_image) }}">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+            </div>
+        </div>
+    </section>
+
+    <div class="modal fade" id="addProductModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content product-modal">
+                <div class="modal-header">
+                    <div>
+                        <h5 id="addProductModalTitle" class="mb-0">Add Product</h5>
+                        <small id="addProductModalSubtitle" class="text-muted">Create a single product for your catalog.</small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="productForm" action="{{ route('products.store') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-body">
+                        @if ($newProductCount >= $maxNewProducts)
+                            <div class="alert alert-warning">
+                                You have reached the limit of {{ $maxNewProducts }} new products for this AD user.
+                            </div>
+                        @endif
+
+                        @if ($errors->any())
+                            <div class="alert alert-danger">
+                                <ul class="mb-0">
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        <div class="row g-3">
+                            <div class="col-md-12 mb-3">
+                                <input type="hidden" name="selected_item_type" id="selected_item_type" value="{{ old('selected_item_type', 'product') }}">
+                                <div class="bundle-switch-panel">
+                                    <div>
+                                        <div class="bundle-switch-title">
+                                            <i class="bi bi-boxes"></i> Bundle
+                                        </div>
+                                        <div class="bundle-switch-copy">Turn this on to create a new bundle from existing products.</div>
                                     </div>
-                                    <small id="productEmptyMessage" class="text-muted {{ $bundleableProducts->isEmpty() ? '' : 'd-none' }}">No existing products are available for this bundle.</small>
-                                    <small id="bundleNoSearchResults" class="text-muted d-none">No products match your search.</small>
+                                    <div class="form-check form-switch m-0">
+                                        <input class="form-check-input js-bundle-toggle" type="checkbox" role="switch" id="bundleToggle" {{ old('selected_item_type') === 'bundle' ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-bold" for="bundleToggle">Bundle</label>
+                                    </div>
                                 </div>
-                                <div class="bundle-summary-panel">
-                                    <div class="bundle-summary-title">
-                                        <i class="bi bi-receipt"></i>
-                                        Bundle Summary
+                            </div>
+                            <div class="col-lg-4 text-center mb-2">
+                                <div class="bundle-visual-shell">
+                                    <div class="avatar-wrapper mx-auto mb-2">
+                                        <img id="avatar" src="{{ asset('images/logo_nya.png') }}" alt="Preview">
                                     </div>
-                                    <div class="bundle-summary-line">
-                                        <span>Items</span>
-                                        <strong><span id="bundleSummaryCount">0</span></strong>
+
+                                    <label for="inputImage" class="btn btn-outline-primary btn-sm">
+                                        <i class="ti ti-upload"></i> Upload Image
+                                    </label>
+
+                                    <input type="file" name="product_image" id="inputImage" accept="image/jpeg,image/png,image/jpg,image/gif" onchange="uploadImage(this)" style="display: none">
+
+                                    {{-- <small id="productImageHelp" class="d-block text-muted mt-1">
+                                        Optional override. JPG, PNG, or GIF (Max: 2MB)
+                                    </small> --}}
+                                    <div id="bundleImagePreview" class="bundle-image-preview d-none mt-3"></div>
+                                </div>
+                            </div>
+                            <div class="col-lg-8 mb-2">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="product_name" id="productNameLabel" class="form-label">Product Name&nbsp;<span class="text-danger">*</span></label>
+                                        <input type="text" id="product_name" name="product_name" class="form-control" value="{{ old('product_name') }}" placeholder="Product Name" data-uppercase required>
                                     </div>
-                                    <div class="bundle-summary-line">
-                                        <span>Subtotal</span>
-                                        <strong>PHP <span id="bundleSubtotal">0.00</span></strong>
+                                    <div class="col-md-6">
+                                        <label for="sku" class="form-label">Stock Keeping Unit (SKU)&nbsp;<span class="text-danger">*</span></label>
+                                        <input type="text" id="sku" name="sku" class="form-control" value="{{ old('sku') }}" required placeholder="Enter Stock Keeping Unit" data-uppercase>
                                     </div>
-                                    <div class="bundle-summary-line">
-                                        <span>Bundle price</span>
-                                        <strong>PHP <span id="bundleFinalPrice">0.00</span></strong>
+                                    <div class="col-12">
+                                        <label for="description" id="descriptionLabel" class="form-label">Product Description</label>
+                                        <textarea id="description" name="description" class="form-control" rows="3" placeholder="Product Description" data-uppercase>{{ old('description') }}</textarea>
                                     </div>
-                                    <div class="bundle-summary-line bundle-summary-savings">
-                                        <span>Savings</span>
-                                        <strong>PHP <span id="bundleSavings">0.00</span></strong>
+                                    <div class="col-md-3">
+                                        <label for="price" id="priceLabel" class="form-label">Price (PHP)&nbsp;<span class="text-danger">*</span></label>
+                                        <input type="number" id="price" name="price" class="form-control" value="{{ old('price') }}" step="0.01" min="0" required placeholder="0.00">
                                     </div>
-                                    <div id="bundleEmptySelection" class="bundle-empty-selection">
-                                        Select products to build the preview and totals.
+                                    <div class="col-md-3">
+                                        <label for="mega_dealer_price" class="form-label">Mega Dealer Price (PHP)</label>
+                                        <input type="number" id="mega_dealer_price" name="mega_dealer_price" class="form-control" value="{{ old('mega_dealer_price') }}" step="0.01" min="0" placeholder="0.00">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="dealer_price" class="form-label">Dealer Price (PHP)</label>
+                                        <input type="number" id="dealer_price" name="dealer_price" class="form-control" value="{{ old('dealer_price') }}" step="0.01" min="0" placeholder="0.00">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="client_price" class="form-label">End User Price (PHP)</label>
+                                        <input type="number" id="client_price" name="client_price" class="form-control" value="{{ old('client_price') }}" step="0.01" min="0" placeholder="0.00">
+                                    </div>
+                                    {{-- <div class="col-md-6">
+                                        <label for="deposit" class="form-label-optional">Deposit (PHP)</label>
+                                        <input type="number" id="deposit" name="deposit" class="form-control" value="{{ old('deposit') }}" step="0.01" min="0" placeholder="0.00">
+                                    </div> --}}
+                                    <div class="col-md-6">
+                                        <label for="status" class="form-label">Status</label>
+                                        <select id="status" name="status" class="form-control">
+                                            <option value="Activate" {{ old('status', 'Activate') === 'Activate' ? 'selected' : '' }}>Activate</option>
+                                            <option value="Deactivate" {{ old('status') === 'Deactivate' ? 'selected' : '' }}>Deactivate</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 mb-3 d-none" id="bundleProductsWrap">
+                                <div class="bundle-builder-layout">
+                                    <div class="bundle-products-panel">
+                                        <div class="bundle-products-head">
+                                            <div>
+                                                <label class="form-label mb-0">Products in this bundle&nbsp;<span class="text-danger">*</span></label>
+                                                <span class="d-block text-muted small">Choose existing products to combine.</span>
+                                            </div>
+                                            <span class="badge bg-light text-dark">
+                                                <span id="bundleSelectedCount">0</span> items / PHP <span id="bundleTotal">0.00</span>
+                                            </span>
+                                        </div>
+                                        <div class="bundle-search-wrap">
+                                            <i class="bi bi-search"></i>
+                                            <input type="search" id="bundleProductSearch" class="form-control form-control-sm" placeholder="Search product name or SKU">
+                                        </div>
+                                        <div class="bundle-products-list">
+                                            @forelse($bundleableProducts as $product)
+                                                @php
+                                                    $productImage = $product->product_image && file_exists(public_path('uploads/products/' . $product->product_image))
+                                                        ? asset('uploads/products/' . $product->product_image)
+                                                        : asset('images/logo_nya.png');
+                                                    $bundlePrice = $product->client_price ?? $product->price ?? 0;
+                                                @endphp
+                                                <div class="bundle-product-row js-bundle-row" role="button" tabindex="0" aria-pressed="false" data-checkbox-id="bundleProduct{{ $product->id }}" data-search="{{ strtolower($product->product_name . ' ' . ($product->sku ?: '')) }}">
+                                                    <input type="checkbox"
+                                                        class="form-check-input mt-0 bundle-product-check js-bundle-product"
+                                                        id="bundleProduct{{ $product->id }}"
+                                                        name="bundle_product_ids[]"
+                                                        value="{{ $product->id }}"
+                                                        data-name="{{ $product->product_name }}"
+                                                        data-price="{{ $bundlePrice }}"
+                                                        data-mega-dealer-price="{{ $product->mega_dealer_price ?? 0 }}"
+                                                        data-dealer-price="{{ $product->dealer_price ?? 0 }}"
+                                                        data-image-src="{{ $productImage }}"
+                                                        {{ in_array($product->id, old('bundle_product_ids', [])) ? 'checked' : '' }}
+                                                        hidden>
+                                                    <span class="bundle-selected-indicator">
+                                                        <i class="bi bi-check"></i>
+                                                    </span>
+                                                    <img src="{{ $productImage }}" alt="{{ $product->product_name }}">
+                                                    <span class="bundle-product-main">
+                                                        <span class="d-block fw-bold">{{ $product->product_name }}</span>
+                                                        <span class="d-block text-muted small">{{ $product->sku ?: 'No SKU' }}</span>
+                                                    </span>
+                                                    <span class="bundle-product-price">PHP {{ number_format($bundlePrice, 2) }}</span>
+                                                </div>
+                                            @empty
+                                                <div class="text-muted small">No existing products are available.</div>
+                                            @endforelse
+                                        </div>
+                                        <small id="productEmptyMessage" class="text-muted {{ $bundleableProducts->isEmpty() ? '' : 'd-none' }}">No existing products are available for this bundle.</small>
+                                        <small id="bundleNoSearchResults" class="text-muted d-none">No products match your search.</small>
+                                    </div>
+                                    <div class="bundle-summary-panel">
+                                        <div class="bundle-summary-title">
+                                            <i class="bi bi-receipt"></i>
+                                            Bundle Summary
+                                        </div>
+                                        <div class="bundle-summary-line">
+                                            <span>Items</span>
+                                            <strong><span id="bundleSummaryCount">0</span></strong>
+                                        </div>
+                                        <div class="bundle-summary-line">
+                                            <span>Subtotal</span>
+                                            <strong>PHP <span id="bundleSubtotal">0.00</span></strong>
+                                        </div>
+                                        <div class="bundle-summary-line">
+                                            <span>Bundle price</span>
+                                            <strong>PHP <span id="bundleFinalPrice">0.00</span></strong>
+                                        </div>
+                                        <div class="bundle-summary-line bundle-summary-savings">
+                                            <span>Savings</span>
+                                            <strong>PHP <span id="bundleSavings">0.00</span></strong>
+                                        </div>
+                                        <div id="bundleEmptySelection" class="bundle-empty-selection">
+                                            Select products to build the preview and totals.
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="modal-footer product-modal-footer">
-                    <button type="button" class="btn btn-light product-modal-cancel" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" id="addProductSubmitButton" class="btn btn-success product-modal-submit" {{ $newProductCount >= $maxNewProducts ? 'disabled' : '' }}><i class="bi bi-check2-circle"></i> Save Product</button>
-                </div>
-            </form>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" id="addProductSubmitButton" class="btn btn-success" {{ $newProductCount >= $maxNewProducts ? 'disabled' : '' }}>Save Product</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
+@endsection
 
-<div class="modal fade product-form-modal" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-sm-down">
+<div class="modal fade" id="editProductModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content product-modal">
-            <div class="modal-header product-modal-header">
-                <div class="product-modal-heading">
-                    <span class="product-modal-icon is-edit"><i class="bi bi-pencil-square"></i></span>
-                    <div>
+            <div class="modal-header">
+                <div>
                     <h5 id="editProductModalTitle" class="mb-0">Edit Product</h5>
                     <small id="editProductModalSubtitle" class="text-muted">Update a single product in your catalog.</small>
-                    </div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editProductForm">
                 @csrf
@@ -556,9 +551,9 @@
                     </div>
                 </div>
 
-                <div class="modal-footer product-modal-footer">
-                    <button type="button" class="btn btn-light product-modal-cancel" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" id="editProductSubmitButton" class="btn btn-success product-modal-submit"><i class="bi bi-check2-circle"></i> Update Product</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="editProductSubmitButton" class="btn btn-success">Update Product</button>
                 </div>
 
             </form>
@@ -726,25 +721,8 @@
     .bundle-card-grid img:first-child:nth-last-child(3) { grid-row: 1 / -1; }
     .bundle-card-badge { position: absolute; right: 5px; bottom: 5px; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff; border-radius: 999px; background: #15803d; color: #fff; font-size: 12px; box-shadow: 0 3px 8px rgba(21, 128, 61, 0.25); }
     .bundle-card-count { position: absolute; top: 5px; right: 5px; min-width: 22px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: rgba(15, 23, 42, 0.82); color: #fff; font-size: 10px; font-weight: 800; padding: 0 6px; }
-    .product-form-modal .modal-dialog { margin: 1.25rem auto; }
-    .product-form-modal .modal-dialog-scrollable .product-modal { display: flex; flex-direction: column; overflow: hidden; }
-    .product-modal { overflow: hidden; border: 0; border-radius: 16px; box-shadow: 0 24px 70px rgba(15, 23, 42, .22); }
-    .product-modal .modal-header { padding: 18px 22px; border-bottom: 1px solid #e8edf3; background: linear-gradient(135deg, #fff 0%, #f6faff 100%); }
-    .product-modal > form { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow: hidden; }
-    .product-modal .modal-body { flex: 1 1 auto; min-height: 0; padding: 22px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; background: #fbfcfe; }
-    .product-modal .modal-footer { padding: 14px 22px; border-top: 1px solid #e8edf3; background: #fff; }
-    .product-modal-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .product-modal-heading h5 { color: #101828; font-size: 18px; font-weight: 800; }
-    .product-modal-heading small { display: block; margin-top: 2px; font-size: 12px; }
-    .product-modal-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; width: 40px; height: 40px; border-radius: 12px; background: #eff6ff; color: #2563eb; font-size: 19px; }
-    .product-modal-icon.is-edit { background: #ecfdf3; color: #15803d; }
-    .product-modal .form-label { margin-bottom: 6px; color: #344054; font-size: 12px; font-weight: 800; }
-    .product-modal .form-control { min-height: 42px; border-color: #d8e0ea; border-radius: 9px; box-shadow: none; }
-    .product-modal textarea.form-control { min-height: 92px; }
-    .product-modal .form-control:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
-    .product-modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-    .product-modal-cancel, .product-modal-submit { min-height: 42px; padding: 9px 16px; border-radius: 9px; font-weight: 800; }
-    .product-modal-submit { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+    .product-modal .modal-header { border-bottom: 1px solid #eef2f7; }
+    .product-modal .modal-body { background: #fbfcfe; }
     .bundle-switch-panel { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px; border: 1px solid #dbe4ef; border-radius: 8px; background: #fff; }
     .bundle-switch-title { color: #111827; font-weight: 800; }
     .bundle-switch-copy { color: #64748b; font-size: 12px; }
@@ -815,14 +793,6 @@
         .product-table tbody td .product-status { justify-self: start; }
         .dataTables_wrapper .product-table-controls { padding: 0 0 12px; }
         .dataTables_wrapper .product-table-footer { padding: 12px 0 0; border-top: 0; }
-        .product-form-modal .modal-dialog { margin: 0; }
-        .product-modal { min-height: 100%; height: 100%; border-radius: 0; }
-        .product-modal .modal-header { position: sticky; top: 0; z-index: 2; padding: 14px 16px; }
-        .product-modal .modal-body { padding: 16px; }
-        .product-modal .modal-footer { position: sticky; bottom: 0; z-index: 2; padding: 12px 16px; box-shadow: 0 -8px 20px rgba(15, 23, 42, .06); }
-        .bundle-visual-shell { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 12px; text-align: left !important; }
-        .bundle-visual-shell .avatar-wrapper { margin: 0 !important; }
-        .bundle-visual-shell .bundle-image-preview { grid-column: 1 / -1; }
     }
     @media (max-width: 575.98px) {
         .product-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -837,16 +807,6 @@
         .bundle-switch-panel, .bundle-products-head { align-items: flex-start; flex-direction: column; }
         .bundle-product-row { align-items: flex-start; }
         .bundle-product-price { margin-left: auto; }
-        .product-modal-icon { flex-basis: 36px; width: 36px; height: 36px; border-radius: 10px; font-size: 17px; }
-        .product-modal-heading h5 { font-size: 16px; }
-        .product-modal-heading small { max-width: 235px; white-space: normal; }
-        .product-modal-footer { display: grid; grid-template-columns: 1fr 1.35fr; gap: 8px; }
-        .product-modal-cancel, .product-modal-submit { width: 100%; padding-inline: 8px; }
-        .bundle-visual-shell { grid-template-columns: 76px minmax(0, 1fr); padding: 12px; }
-        .avatar-wrapper img { width: 66px !important; height: 66px !important; }
-        .bundle-product-row { gap: 8px; padding: 8px; }
-        .bundle-product-row img { width: 38px; height: 38px; }
-        .bundle-product-price { font-size: 11px; }
     }
 </style>
 
