@@ -180,15 +180,18 @@
     </div>
 </section>
 
-<div class="modal fade" id="addProductModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
+<div class="modal fade product-form-modal" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content product-modal">
-            <div class="modal-header">
-                <div>
+            <div class="modal-header product-modal-header">
+                <div class="product-modal-heading">
+                    <span class="product-modal-icon"><i class="bi bi-box-seam"></i></span>
+                    <div>
                     <h5 id="addProductModalTitle" class="mb-0">Add Product</h5>
                     <small id="addProductModalSubtitle" class="text-muted">Create a single product for your catalog.</small>
+                    </div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="productForm" action="{{ route('products.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
@@ -371,25 +374,27 @@
                     </div>
                 </div>
 
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" id="addProductSubmitButton" class="btn btn-success" {{ $newProductCount >= $maxNewProducts ? 'disabled' : '' }}>Save Product</button>
+                <div class="modal-footer product-modal-footer">
+                    <button type="button" class="btn btn-light product-modal-cancel" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="addProductSubmitButton" class="btn btn-success product-modal-submit" {{ $newProductCount >= $maxNewProducts ? 'disabled' : '' }}><i class="bi bi-check2-circle"></i> Save Product</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-@endsection
 
-<div class="modal fade" id="editProductModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
+<div class="modal fade product-form-modal" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content product-modal">
-            <div class="modal-header">
-                <div>
+            <div class="modal-header product-modal-header">
+                <div class="product-modal-heading">
+                    <span class="product-modal-icon is-edit"><i class="bi bi-pencil-square"></i></span>
+                    <div>
                     <h5 id="editProductModalTitle" class="mb-0">Edit Product</h5>
                     <small id="editProductModalSubtitle" class="text-muted">Update a single product in your catalog.</small>
+                    </div>
                 </div>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="editProductForm">
                 @csrf
@@ -551,9 +556,9 @@
                     </div>
                 </div>
 
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" id="editProductSubmitButton" class="btn btn-success">Update Product</button>
+                <div class="modal-footer product-modal-footer">
+                    <button type="button" class="btn btn-light product-modal-cancel" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="editProductSubmitButton" class="btn btn-success product-modal-submit"><i class="bi bi-check2-circle"></i> Update Product</button>
                 </div>
 
             </form>
@@ -721,8 +726,25 @@
     .bundle-card-grid img:first-child:nth-last-child(3) { grid-row: 1 / -1; }
     .bundle-card-badge { position: absolute; right: 5px; bottom: 5px; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff; border-radius: 999px; background: #15803d; color: #fff; font-size: 12px; box-shadow: 0 3px 8px rgba(21, 128, 61, 0.25); }
     .bundle-card-count { position: absolute; top: 5px; right: 5px; min-width: 22px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: rgba(15, 23, 42, 0.82); color: #fff; font-size: 10px; font-weight: 800; padding: 0 6px; }
-    .product-modal .modal-header { border-bottom: 1px solid #eef2f7; }
-    .product-modal .modal-body { background: #fbfcfe; }
+    .product-form-modal .modal-dialog { margin: 1.25rem auto; }
+    .product-form-modal .modal-dialog-scrollable .product-modal { display: flex; flex-direction: column; overflow: hidden; }
+    .product-modal { overflow: hidden; border: 0; border-radius: 16px; box-shadow: 0 24px 70px rgba(15, 23, 42, .22); }
+    .product-modal .modal-header { padding: 18px 22px; border-bottom: 1px solid #e8edf3; background: linear-gradient(135deg, #fff 0%, #f6faff 100%); }
+    .product-modal > form { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow: hidden; }
+    .product-modal .modal-body { flex: 1 1 auto; min-height: 0; padding: 22px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; background: #fbfcfe; }
+    .product-modal .modal-footer { padding: 14px 22px; border-top: 1px solid #e8edf3; background: #fff; }
+    .product-modal-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .product-modal-heading h5 { color: #101828; font-size: 18px; font-weight: 800; }
+    .product-modal-heading small { display: block; margin-top: 2px; font-size: 12px; }
+    .product-modal-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; width: 40px; height: 40px; border-radius: 12px; background: #eff6ff; color: #2563eb; font-size: 19px; }
+    .product-modal-icon.is-edit { background: #ecfdf3; color: #15803d; }
+    .product-modal .form-label { margin-bottom: 6px; color: #344054; font-size: 12px; font-weight: 800; }
+    .product-modal .form-control { min-height: 42px; border-color: #d8e0ea; border-radius: 9px; box-shadow: none; }
+    .product-modal textarea.form-control { min-height: 92px; }
+    .product-modal .form-control:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
+    .product-modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+    .product-modal-cancel, .product-modal-submit { min-height: 42px; padding: 9px 16px; border-radius: 9px; font-weight: 800; }
+    .product-modal-submit { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
     .bundle-switch-panel { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px; border: 1px solid #dbe4ef; border-radius: 8px; background: #fff; }
     .bundle-switch-title { color: #111827; font-weight: 800; }
     .bundle-switch-copy { color: #64748b; font-size: 12px; }
@@ -793,6 +815,14 @@
         .product-table tbody td .product-status { justify-self: start; }
         .dataTables_wrapper .product-table-controls { padding: 0 0 12px; }
         .dataTables_wrapper .product-table-footer { padding: 12px 0 0; border-top: 0; }
+        .product-form-modal .modal-dialog { margin: 0; }
+        .product-modal { min-height: 100%; height: 100%; border-radius: 0; }
+        .product-modal .modal-header { position: sticky; top: 0; z-index: 2; padding: 14px 16px; }
+        .product-modal .modal-body { padding: 16px; }
+        .product-modal .modal-footer { position: sticky; bottom: 0; z-index: 2; padding: 12px 16px; box-shadow: 0 -8px 20px rgba(15, 23, 42, .06); }
+        .bundle-visual-shell { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 12px; text-align: left !important; }
+        .bundle-visual-shell .avatar-wrapper { margin: 0 !important; }
+        .bundle-visual-shell .bundle-image-preview { grid-column: 1 / -1; }
     }
     @media (max-width: 575.98px) {
         .product-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -807,6 +837,16 @@
         .bundle-switch-panel, .bundle-products-head { align-items: flex-start; flex-direction: column; }
         .bundle-product-row { align-items: flex-start; }
         .bundle-product-price { margin-left: auto; }
+        .product-modal-icon { flex-basis: 36px; width: 36px; height: 36px; border-radius: 10px; font-size: 17px; }
+        .product-modal-heading h5 { font-size: 16px; }
+        .product-modal-heading small { max-width: 235px; white-space: normal; }
+        .product-modal-footer { display: grid; grid-template-columns: 1fr 1.35fr; gap: 8px; }
+        .product-modal-cancel, .product-modal-submit { width: 100%; padding-inline: 8px; }
+        .bundle-visual-shell { grid-template-columns: 76px minmax(0, 1fr); padding: 12px; }
+        .avatar-wrapper img { width: 66px !important; height: 66px !important; }
+        .bundle-product-row { gap: 8px; padding: 8px; }
+        .bundle-product-row img { width: 38px; height: 38px; }
+        .bundle-product-price { font-size: 11px; }
     }
 </style>
 

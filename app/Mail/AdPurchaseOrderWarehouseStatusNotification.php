@@ -22,7 +22,24 @@ class AdPurchaseOrderWarehouseStatusNotification extends Mailable
 
     public function build()
     {
-        return $this->subject('Warehouse Action Needed: ' . $this->order->po_number . ' - ' . $this->order->status)
+        $this->order->loadMissing('paymentProofs', 'verificationItems');
+        $mail = $this->subject('Warehouse Action Needed: ' . $this->order->po_number . ' - ' . $this->order->status)
             ->view('emails.adpo_warehouse_status_notification');
+
+        $this->order->paymentProofs->each(function ($proof) use ($mail) {
+            $file = public_path($proof->path);
+            if (is_file($file)) {
+                $mail->attach($file, ['as' => $proof->original_name ?: basename($proof->path)]);
+            }
+        });
+
+        foreach (json_decode($this->order->verification_proofs ?: '[]', true) ?: [] as $proof) {
+            $file = public_path($proof['path'] ?? '');
+            if (is_file($file)) {
+                $mail->attach($file, ['as' => $proof['name'] ?? basename($file)]);
+            }
+        }
+
+        return $mail;
     }
 }

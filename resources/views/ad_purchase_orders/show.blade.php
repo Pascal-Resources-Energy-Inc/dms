@@ -19,7 +19,6 @@
     .payment-proof-modal .btn-close { filter: invert(1) grayscale(1) brightness(4); }
     .payment-proof-modal .modal-body { max-height: min(62vh, 540px); padding: 20px; overflow-y: auto; background: #f8fafc; }
     .payment-proof-intro { margin: 0 0 14px; color: #667085; font-size: 12px; line-height: 1.5; }
-    .payment-proof-list { display: grid; gap: 10px; }
     .payment-proof-row { display: flex; align-items: center; gap: 13px; padding: 13px; border: 1px solid #e4eaf2; border-radius: 11px; background: #fff; box-shadow: 0 3px 10px rgba(16, 24, 40, .025); transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease; }
     .payment-proof-row:hover { border-color: #b8d2f4; transform: translateY(-1px); box-shadow: 0 7px 16px rgba(16, 24, 40, .07); }
     .payment-proof-icon { flex: 0 0 43px; width: 43px; height: 43px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: #eff6ff; color: #0d6efd; font-size: 19px; }
@@ -28,6 +27,30 @@
     .payment-proof-meta { display: flex; align-items: center; gap: 6px; margin-top: 5px; color: #667085; font-size: 11px; font-weight: 700; }
     .payment-proof-type { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 6px; background: #f1f5f9; color: #475467; font-size: 10px; font-weight: 800; letter-spacing: .04em; }
     .payment-proof-open { flex: 0 0 auto; min-width: 72px; border-radius: 7px; font-weight: 800; }
+    .verification-review { padding: 22px 24px; border-bottom: 1px solid #dbe7f4; background: linear-gradient(135deg, #f5f3ff 0%, #f8fbff 52%, #eef6ff 100%); }
+    .verification-review-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+    .verification-review-kicker { display: inline-flex; align-items: center; gap: 7px; color: #6d28d9; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+    .verification-review-title { margin: 5px 0 3px; color: #1f1637; font-size: 18px; font-weight: 900; }
+    .verification-review-copy { margin: 0; color: #667085; font-size: 13px; }
+    .verification-review-badge { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid #ddd6fe; border-radius: 999px; background: #fff; color: #6d28d9; font-size: 11px; font-weight: 900; white-space: nowrap; }
+    .verification-review-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(250px, .7fr); gap: 14px; }
+    .verification-review-card { min-width: 0; padding: 14px; border: 1px solid #dfe7f5; border-radius: 10px; background: rgba(255, 255, 255, .9); box-shadow: 0 8px 20px rgba(63, 40, 102, .05); }
+    .verification-review-label { display: flex; align-items: center; gap: 7px; margin-bottom: 11px; color: #475467; font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+    .verification-review-label i { color: #6d28d9; font-size: 14px; }
+    .verification-product-list, .verification-file-list { display: grid; gap: 8px; }
+    .verification-product-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 11px; border: 1px solid #ede9fe; border-radius: 8px; background: #fafaff; }
+    .verification-product-name { min-width: 0; color: #1f2937; font-size: 13px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .verification-product-order { display: block; margin-top: 3px; color: #667085; font-size: 11px; font-weight: 700; }
+    .verification-product-qty { flex: 0 0 auto; min-width: 74px; padding: 6px 8px; border-radius: 7px; background: #ede9fe; color: #5b21b6; font-size: 12px; font-weight: 900; text-align: center; }
+    .verification-file { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid #dbe7f4; border-radius: 8px; background: #fff; }
+    .verification-file-icon { flex: 0 0 34px; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: #f3e8ff; color: #7e22ce; font-size: 16px; }
+    .verification-file-name { min-width: 0; flex: 1; color: #344054; font-size: 12px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .verification-file .btn { flex: 0 0 auto; font-size: 11px; font-weight: 800; }
+    .ad-verification-submit { margin-bottom: 18px; padding: 22px 24px; border: 1px solid #bfdbfe; border-radius: 10px; background: linear-gradient(135deg, #eff6ff, #f8fbff 58%, #f5f3ff); box-shadow: 0 10px 28px rgba(30, 64, 175, .08); }
+    .ad-verification-item { display: grid; grid-template-columns: minmax(0, 1fr) 118px; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #dbe7f4; border-radius: 8px; background: #fff; }
+    .ad-verification-item + .ad-verification-item { margin-top: 8px; }
+    .ad-verification-item-name { color: #1e293b; font-size: 13px; font-weight: 800; }
+    .ad-verification-item-meta { margin-top: 3px; color: #64748b; font-size: 11px; font-weight: 700; }
     .status-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 800; background: #fff7ed; color: #c2410c; }
     .update-panel { padding: 22px 24px; border-bottom: 1px solid #edf0f5; background: linear-gradient(180deg, #f8fafc 0%, #eef5ff 100%); }
     .admin-update-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
@@ -114,12 +137,21 @@
         .admin-update-state { width: 100%; justify-content: center; border-radius: 8px; }
         .update-panel-main { align-items: stretch; }
         .status-details-head { flex-direction: column; }
+        .verification-review-grid { grid-template-columns: 1fr; }
         .partial-summary, .partial-item-row { grid-template-columns: 1fr; }
         .table-wrap { overflow-x: auto; }
         .table { min-width: 760px; }
     }
     @media (max-width: 575.98px) {
         .payment-proof-view { width: 100%; justify-content: center; padding: 9px 10px; }
+        .verification-review { padding: 18px 16px; }
+        .verification-review-head { flex-direction: column; }
+        .verification-review-badge { width: 100%; justify-content: center; }
+        .verification-product-row { align-items: flex-start; }
+        .verification-file { flex-wrap: wrap; }
+        .verification-file .btn { width: 100%; }
+        .ad-verification-submit { padding: 18px 16px; }
+        .ad-verification-item { grid-template-columns: 1fr; }
         .payment-proof-modal .modal-dialog { margin: .75rem; }
         .payment-proof-modal .modal-header { padding: 17px 16px; }
         .payment-proof-modal .modal-body { max-height: 68vh; padding: 14px; }
@@ -146,19 +178,67 @@
         $isFinalStatus = in_array($order->status, ['Completed', 'Cancelled']);
         $availableStatuses = $order->status === 'Pending'
             ? ['Pending', 'SO Created', 'Cancelled']
-            : ['Pending', 'SO Created', 'For Delivery', 'Partial Delivery', 'Completed'];
+            : ['Pending', 'SO Created', 'For Verification', 'For Delivery', 'Partial Received', 'Completed'];
 
         if ($order->status === 'SO Created') {
             $availableStatuses[] = 'Cancelled';
         }
-        $partialEditableItems = $order->items;
-        $partialOrderedQty = $partialEditableItems->sum('qty');
-        $partialReceivedQty = $partialEditableItems->sum(function ($item) {
+        $partialOrderedQty = $order->items->sum('qty');
+        $partialReceivedQty = $order->items->sum(function ($item) {
             return (int) ($item->partial_received_qty ?? 0);
         });
         $partialPendingQty = max($partialOrderedQty - $partialReceivedQty, 0);
         $paymentProofs = $order->paymentProofs;
         $hasPaymentProof = $paymentProofs->isNotEmpty() || filled($order->proof_of_payment);
+        $storedVerificationItems = $order->verificationItems;
+        if ($storedVerificationItems->isEmpty()) {
+            $storedVerificationItems = collect(json_decode($order->verification_items ?: '[]', true) ?: []);
+        }
+        $isDeliveryVerification = $order->status === 'For Delivery' || $storedVerificationItems->contains(function ($item) {
+            return preg_match('/\b(crate|refill)s?\b/i', (string) data_get($item, 'product_name')) !== 1;
+        });
+        $verificationItems = $isDeliveryVerification ? $order->items : $order->items->filter(function ($item) {
+            return preg_match('/\b(crate|refill)s?\b/i', (string) $item->product_name) === 1;
+        });
+        $canVerifyFullyReceivedCrateRefill = $verificationItems->isNotEmpty()
+            && $order->items->isNotEmpty()
+            && $order->items->every(function ($item) {
+                return (int) ($item->partial_received_qty ?? 0) >= (int) $item->qty;
+            });
+        $verificationProofs = collect(json_decode($order->verification_proofs ?: '[]', true) ?: [])
+            ->filter(function ($proof) {
+                return filled(data_get($proof, 'path'));
+            })
+            ->values();
+        $submittedVerificationByItem = $order->verificationItems->keyBy('ad_purchase_order_item_id');
+        if ($submittedVerificationByItem->isEmpty()) {
+            $submittedVerificationByItem = collect(json_decode($order->verification_items ?: '[]', true) ?: [])
+                ->filter(function ($item) {
+                    return filled(data_get($item, 'item_id'));
+                })
+                ->keyBy(function ($item) {
+                    return (int) data_get($item, 'item_id');
+                });
+        }
+        $hasVerificationSubmission = $submittedVerificationByItem->isNotEmpty() && $verificationProofs->isNotEmpty();
+        // Always show every crate/refill product, including rows the AD did not submit.
+        $submittedVerificationItems = $verificationItems->map(function ($orderItem) use ($submittedVerificationByItem) {
+            $submittedItem = $submittedVerificationByItem->get($orderItem->id);
+
+            return [
+                'item_id' => (int) $orderItem->id,
+                'product_name' => data_get($submittedItem, 'product_name') ?: $orderItem->product_name,
+                'ordered_qty' => (int) $orderItem->qty,
+                'submitted_qty' => (int) data_get($submittedItem, 'submitted_qty', 0),
+            ];
+        })->values();
+        $isVerificationIncomplete = $verificationItems->isNotEmpty()
+            && $submittedVerificationItems->contains(function ($item) {
+                return (int) data_get($item, 'submitted_qty', 0) < (int) data_get($item, 'ordered_qty', 0);
+            });
+        $isWarehouseVerificationReview = auth()->user()->role === 'Admin'
+            && filled(auth()->user()->warehouse)
+            && ($order->status === 'For Verification' || $verificationProofs->isNotEmpty() || $submittedVerificationItems->isNotEmpty());
     @endphp
 
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -167,9 +247,149 @@
         </a>
     </div>
 
+    @if($canReviewIncompleteVerification && $order->status === 'For Verification' && $verificationItems->isNotEmpty() && $hasVerificationSubmission)
+        <div class="modal fade" id="incompleteVerificationModal" tabindex="-1" aria-labelledby="incompleteVerificationModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <form action="{{ route('ad-purchase-orders.verification-incomplete', $order->id) }}" method="POST" enctype="multipart/form-data" class="modal-content">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="incompleteVerificationModalLabel">Verify Incomplete &amp; Email AD</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted">Confirm the warehouse quantity for each product. The email will show the AD submitted quantity, warehouse verified quantity, and remaining quantity.</p>
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th class="text-center">Ordered</th>
+                                        <th class="text-center">AD Submitted</th>
+                                        <th style="min-width:130px;">Warehouse Qty</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($submittedVerificationItems as $item)
+                                        <tr>
+                                            <td>{{ data_get($item, 'product_name') }}</td>
+                                            <td class="text-center">{{ number_format(data_get($item, 'ordered_qty', 0)) }}</td>
+                                            <td class="text-center">{{ number_format(data_get($item, 'submitted_qty', 0)) }}</td>
+                                            <td>
+                                                <input type="number"
+                                                    name="warehouse_verification_items[{{ data_get($item, 'item_id') }}][qty]"
+                                                    class="form-control form-control-sm"
+                                                    min="0"
+                                                    max="{{ data_get($item, 'ordered_qty', 0) }}"
+                                                    value="{{ data_get($item, 'submitted_qty', 0) }}"
+                                                    required>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mb-3">
+                            <label for="warehouseIncompleteRemarks" class="form-label">Warehouse remarks <span class="text-muted">(optional)</span></label>
+                            <textarea name="warehouse_remarks" id="warehouseIncompleteRemarks" class="form-control" rows="3" maxlength="1000" placeholder="Add instructions for the Area Distributor..."></textarea>
+                        </div>
+                        <div class="mb-0">
+                            <label for="warehouseIncompleteAttachments" class="form-label">Warehouse attachments <span class="text-muted">(optional)</span></label>
+                            <input type="file" name="warehouse_attachments[]" id="warehouseIncompleteAttachments" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple>
+                            <div class="form-text">JPG, PNG, or PDF; maximum 5 files, 5 MB each. Attached files are included in the email to the AD.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning"><i class="bi bi-envelope-exclamation"></i> Send Incomplete Notice</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+    @if($canReviewIncompleteVerification && $order->status === 'For Verification' && !$isVerificationIncomplete && $verificationItems->isNotEmpty() && $hasVerificationSubmission)
+        <form id="completeVerificationForm" action="{{ route('ad-purchase-orders.verification-complete', $order->id) }}" method="POST">
+            @csrf
+        </form>
+    @endif
+
     @if($errors->any())
         <div class="alert alert-danger">
             {{ $errors->first() }}
+        </div>
+    @endif
+
+    @if(auth()->user()->role === 'Area Distributor' && $order->status === 'Partial Received' && $canVerifyFullyReceivedCrateRefill)
+        <div class="alert alert-info border d-flex align-items-start gap-2">
+            <i class="bi bi-info-circle-fill fs-5"></i>
+            <div>
+                <strong>All products have been fully received.</strong>
+                <div class="small mt-1">This DPO remains open until you submit the crate/refill verification details and attachments for warehouse review.</div>
+            </div>
+        </div>
+    @endif
+
+    @if(auth()->user()->role === 'Area Distributor' && ($order->status === 'For Delivery' || ($order->status === 'Partial Received' && $canVerifyFullyReceivedCrateRefill) || ($order->status === 'For Verification' && $isDeliveryVerification)))
+        @php $isPartialReceiptVerification = $order->status === 'Partial Received'; @endphp
+        <form action="{{ route('ad-purchase-orders.updateStatus', $order->id) }}" method="POST" enctype="multipart/form-data" class="ad-verification-submit">
+            @csrf
+            @method('PATCH')
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 mb-3">
+                <div>
+                    <div class="verification-review-kicker"><i class="bi bi-clipboard2-check"></i> {{ $isPartialReceiptVerification ? 'Crate / refill verification' : 'Delivery verification' }}</div>
+                    <h5 class="verification-review-title mb-1">{{ $isPartialReceiptVerification ? 'Submit DPO for Verification' : 'Submit delivery for warehouse verification' }}</h5>
+                    <p class="verification-review-copy">Confirm the {{ $isPartialReceiptVerification ? 'crate and refill' : 'delivered' }} quantity for each product and attach clear supporting evidence. The warehouse will review this submission before closing the DPO.</p>
+                </div>
+                <span class="verification-review-badge"><i class="bi {{ $order->status === 'For Delivery' ? 'bi-truck' : ($isPartialReceiptVerification ? 'bi-box-seam' : 'bi-arrow-repeat') }}"></i> {{ $order->status === 'For Delivery' ? 'For delivery' : ($isPartialReceiptVerification ? 'Partial received' : 'Correction requested') }}</span>
+            </div>
+            <div class="row g-3">
+                <div class="col-lg-7">
+                    <label class="form-label fw-bold small text-uppercase text-muted">{{ $isPartialReceiptVerification ? 'Crate / refill quantities' : 'Delivered product quantities' }}</label>
+                    @foreach($verificationItems as $item)
+                        @php $submittedQty = data_get($submittedVerificationByItem->get($item->id), 'submitted_qty', $item->qty); @endphp
+                        <div class="ad-verification-item">
+                            <div>
+                                <div class="ad-verification-item-name">{{ $item->product_name }}</div>
+                                <div class="ad-verification-item-meta">Ordered quantity: {{ number_format($item->qty) }}</div>
+                            </div>
+                            <div>
+                                <label class="visually-hidden" for="verificationQty{{ $item->id }}">Delivered quantity for {{ $item->product_name }}</label>
+                                <input type="number" name="verification_items[{{ $item->id }}][qty]" id="verificationQty{{ $item->id }}" class="form-control form-control-sm text-center fw-bold" min="0" max="{{ $item->qty }}" value="{{ old('verification_items.' . $item->id . '.qty', $submittedQty) }}" required>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="col-lg-5">
+                    <label for="deliveryVerificationStatus" class="form-label fw-bold small text-uppercase text-muted">New status</label>
+                    <select name="status" id="deliveryVerificationStatus" class="form-select mb-3" required>
+                        <option value="For Verification" selected>FOR VERIFICATION</option>
+                    </select>
+                    <div class="form-text mb-3">Submitting this DPO sends its delivery details to the warehouse for review.</div>
+                    <label for="verificationAttachments" class="form-label fw-bold small text-uppercase text-muted">{{ $isPartialReceiptVerification ? 'Verification attachments' : 'Delivery attachments' }}</label>
+                    <input type="file" name="verification_attachments[]" id="verificationAttachments" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple {{ $verificationProofs->isEmpty() ? 'required' : '' }}>
+                    <div class="form-text">Attach delivery receipts, photos, or signed documents. JPG, PNG, or PDF; up to 5 files, 5 MB each.</div>
+                    @if($verificationProofs->isNotEmpty())
+                        <div class="small text-success fw-bold mt-2"><i class="bi bi-check-circle"></i> {{ $verificationProofs->count() }} supporting file(s) already attached.</div>
+                    @endif
+                    <div class="mt-3">
+                        <label for="deliveryVerificationRemarks" class="form-label fw-bold small text-uppercase text-muted">Notes <span class="text-muted text-lowercase">(optional)</span></label>
+                        <textarea name="remarks" id="deliveryVerificationRemarks" class="form-control" rows="3" maxlength="1000" placeholder="Add a note for the warehouse...">{{ old('remarks', $order->remarks) }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mt-3"><i class="bi bi-send-check"></i> Submit for Verification</button>
+                </div>
+            </div>
+        </form>
+    @endif
+
+    @if(auth()->user()->role === 'Area Distributor' && $order->status === 'For Verification' && $order->verification_incomplete_notified_at)
+        <div class="alert alert-warning d-flex align-items-start gap-2">
+            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+            <div>
+                <strong>Warehouse requested a corrected crate / refill submission.</strong>
+                <div class="small mt-1">One or more submitted quantities are incomplete. Open the status action to correct the quantities and save your verification submission again.</div>
+                @if($order->verification_incomplete_remarks)
+                    <div class="small mt-2"><strong>Warehouse remarks:</strong> {{ $order->verification_incomplete_remarks }}</div>
+                @endif
+            </div>
         </div>
     @endif
 
@@ -192,6 +412,81 @@
                 <span class="status-pill">{{ $order->status }}</span>
             </div>
         </div>
+
+        @if($isWarehouseVerificationReview)
+            <section class="verification-review" aria-labelledby="verificationReviewTitle">
+                <div class="verification-review-head">
+                    <div>
+                        <div class="verification-review-kicker"><i class="bi bi-shield-check"></i> Warehouse review</div>
+                        <h5 class="verification-review-title" id="verificationReviewTitle">{{ $isDeliveryVerification ? 'Delivery Verification Details' : 'Crate / Refill Verification Details' }}</h5>
+                        <p class="verification-review-copy">Review the quantities and supporting files submitted by the Area Distributor before completing this order.</p>
+                    </div>
+                    @if($canReviewIncompleteVerification && $order->status === 'For Verification' && $verificationItems->isNotEmpty() && $hasVerificationSubmission)
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#incompleteVerificationModal">
+                                <i class="bi bi-envelope-exclamation"></i> Verify Incomplete &amp; Email AD
+                            </button>
+                            <button type="button" class="btn btn-sm btn-success" id="completeVerificationButton" @if($isVerificationIncomplete) disabled title="All crate and refill quantities must be complete first." @endif>
+                                <i class="bi bi-check-circle"></i> Verify Complete &amp; Email AD
+                            </button>
+                        </div>
+                    @else
+                        <span class="verification-review-badge"><i class="bi bi-hourglass-split"></i> {{ $hasVerificationSubmission ? 'Review unavailable' : 'Awaiting AD submission' }}</span>
+                    @endif
+                </div>
+                <div class="verification-review-grid">
+                    <div class="verification-review-card">
+                        <div class="verification-review-label"><i class="bi bi-box-seam"></i> Submitted quantities</div>
+                        <div class="verification-product-list">
+                            @forelse($submittedVerificationItems as $item)
+                                <div class="verification-product-row">
+                                    <div class="min-w-0">
+                                        <div class="verification-product-name" title="{{ data_get($item, 'product_name') }}">{{ data_get($item, 'product_name') }}</div>
+                                        <span class="verification-product-order">Ordered: {{ number_format(data_get($item, 'ordered_qty', 0)) }}</span>
+                                    </div>
+                                    <span class="verification-product-qty {{ data_get($item, 'submitted_qty', 0) < data_get($item, 'ordered_qty', 0) ? 'text-danger' : '' }}">{{ number_format(data_get($item, 'submitted_qty', 0)) }} submitted</span>
+                                </div>
+                            @empty
+                                <div class="text-muted small py-2">No submitted verification quantities were saved for this order.</div>
+                            @endforelse
+                        </div>
+                    </div>
+                    <div class="verification-review-card">
+                        <div class="verification-review-label"><i class="bi bi-paperclip"></i> Verification attachments</div>
+                        <div class="verification-file-list">
+                            @forelse($verificationProofs as $proof)
+                                @php
+                                    $verificationFileName = data_get($proof, 'name') ?: basename(data_get($proof, 'path'));
+                                    $verificationExtension = strtoupper(pathinfo($verificationFileName, PATHINFO_EXTENSION) ?: 'FILE');
+                                    $verificationIsPdf = strtolower($verificationExtension) === 'pdf';
+                                @endphp
+                                <div class="verification-file">
+                                    <span class="verification-file-icon"><i class="bi {{ $verificationIsPdf ? 'bi-file-earmark-pdf' : 'bi-file-earmark-image' }}"></i></span>
+                                    <span class="verification-file-name" title="{{ $verificationFileName }}">{{ $verificationFileName }}</span>
+                                    <a href="{{ asset(data_get($proof, 'path')) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-box-arrow-up-right"></i> View
+                                    </a>
+                                </div>
+                            @empty
+                                <div class="text-muted small py-2">No verification attachments were submitted.</div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+                @if($order->status === 'For Verification' && !$hasVerificationSubmission)
+                    <div class="alert alert-secondary mt-3 mb-0 small">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        The Area Distributor must submit both quantities and at least one verification attachment. Warehouse actions will be available after the complete AD submission is saved.
+                    </div>
+                @endif
+                @if($canReviewIncompleteVerification && $isVerificationIncomplete && $order->status === 'For Verification')
+                    <div class="alert alert-warning mt-3 mb-0 small">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        One or more submitted quantities are below the ordered quantity. Email the AD to request correction.
+                    </div>
+                @endif
+            </section>
+        @endif
 
         @if(auth()->user()->role === 'Admin')
             <div class="update-panel">
@@ -218,7 +513,7 @@
                             </label>
                             <select name="status" id="adpoStatus" class="form-select form-select-sm" @if($isFinalStatus) disabled @endif>
                                 @foreach($availableStatuses as $status)
-                                    <option value="{{ $status }}" @if(old('status', $order->status) === $status) selected @endif>{{ strtoupper($status) }}</option>
+                                    <option value="{{ $status }}" @if(old('status', $order->status) === $status) selected @endif>{{ $status === 'Partial Received' ? 'PARTIAL DELIVERY' : strtoupper($status) }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -341,7 +636,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-12 status-details @if(in_array(old('status', $order->status), ['For Delivery', 'Partial Delivery'])) is-visible @endif" id="deliveryDetailsWrap">
+                    <div class="col-12 status-details @if(in_array(old('status', $order->status), ['For Delivery', 'Partial Received'])) is-visible @endif" id="deliveryDetailsWrap">
                         <div class="status-details-head">
                             <div>
                                 <h6 class="status-details-title">
@@ -375,7 +670,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-12 status-details @if(old('status', $order->status) === 'Partial Delivery') is-visible @endif" id="partialDetailsWrap">
+                    <div class="col-12 status-details @if(old('status', $order->status) === 'Partial Received') is-visible @endif" id="partialDetailsWrap">
                         <div class="status-details-head">
                             <div>
                                 <h6 class="status-details-title">
@@ -404,11 +699,11 @@
                             <input type="checkbox"
                                 id="samePartialDeliveryDate"
                                 class="form-check-input"
-                                @if(old('status', $order->status) !== 'Partial Delivery' || $isFinalStatus) disabled @endif>
+                                @if(old('status', $order->status) !== 'Partial Received' || $isFinalStatus) disabled @endif>
                             Use the same delivery date for all received products
                         </label>
                         <div class="partial-item-list" id="showPartialItems">
-                            @forelse($partialEditableItems as $item)
+                            @forelse($order->items as $item)
                                 @php
                                     $orderedQty = (int) $item->qty;
                                     $previousReceivedQty = min(max((int) ($item->partial_received_qty ?? 0), 0), $orderedQty);
@@ -448,7 +743,7 @@
                                             name="partial_items[{{ $item->id }}][receive_mode]"
                                             class="partial-receive-mode"
                                             value="increment"
-                                            @if(old('status', $order->status) !== 'Partial Delivery' || $isFullyReceived) disabled @endif>
+                                            @if(old('status', $order->status) !== 'Partial Received' || $isFullyReceived) disabled @endif>
                                         <input type="number"
                                             name="partial_items[{{ $item->id }}][received_qty]"
                                             class="form-control form-control-sm partial-received-qty"
@@ -458,7 +753,7 @@
                                             data-ordered-qty="{{ $orderedQty }}"
                                             data-previous-received-qty="{{ $previousReceivedQty }}"
                                             data-remaining-qty="{{ $remainingBeforeQty }}"
-                                            @if(old('status', $order->status) !== 'Partial Delivery' || $isFullyReceived) disabled @endif
+                                            @if(old('status', $order->status) !== 'Partial Received' || $isFullyReceived) disabled @endif
                                             @if($isFinalStatus) readonly @endif>
                                     </div>
                                     <div class="partial-doc-wrap @if($isFullyReceived) is-locked @endif">
@@ -470,7 +765,7 @@
                                             @if($isFullyReceived)
                                                 disabled readonly
                                             @endif
-                                            @if(old('status', $order->status) !== 'Partial Delivery') disabled @endif
+                                            @if(old('status', $order->status) !== 'Partial Received') disabled @endif
                                             @if($isFinalStatus) readonly @endif>
                                         <div class="partial-locked-field">Not required</div>
                                     </div>
@@ -486,7 +781,7 @@
                                             @if($isFullyReceived)
                                                 disabled readonly
                                             @endif
-                                            @if(old('status', $order->status) !== 'Partial Delivery') disabled @endif
+                                            @if(old('status', $order->status) !== 'Partial Received') disabled @endif
                                             @if($isFinalStatus) readonly @endif>
                                         <div class="partial-locked-field">Not required</div>
                                     </div>
@@ -498,13 +793,13 @@
                             @endforelse
                         </div>
                     </div>
-                    <div class="col-12 status-remarks @if(in_array(old('status', $order->status), ['Cancelled', 'Partial Delivery'])) is-visible @endif" id="statusRemarksWrap">
+                    <div class="col-12 status-remarks @if(in_array(old('status', $order->status), ['Cancelled', 'Partial Received'])) is-visible @endif" id="statusRemarksWrap">
                         <div class="update-field-card">
                             <label class="update-field-label" for="statusRemarks">
                                 <i class="bi bi-chat-left-text"></i>
-                                <span id="statusRemarksLabel">{{ old('status', $order->status) === 'Partial Delivery' ? 'Partial Delivery Remarks' : 'Cancellation Remarks' }}</span>
+                                <span id="statusRemarksLabel">{{ old('status', $order->status) === 'Partial Received' ? 'Partial Delivery Remarks' : 'Cancellation Remarks' }}</span>
                             </label>
-                            <textarea name="remarks" id="statusRemarks" class="form-control form-control-sm" rows="3" @if(in_array(old('status', $order->status), ['Cancelled', 'Partial Delivery'])) required @endif @if($isFinalStatus) readonly @endif>{{ old('remarks', $order->remarks) }}</textarea>
+                            <textarea name="remarks" id="statusRemarks" class="form-control form-control-sm" rows="3" @if(in_array(old('status', $order->status), ['Cancelled', 'Partial Received'])) required @endif @if($isFinalStatus) readonly @endif>{{ old('remarks', $order->remarks) }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -607,7 +902,7 @@
                         <tr>
                             <th>Product</th>
                             <th class="text-center">Order Qty</th>
-                            @if($order->status === 'Partial Delivery')
+                            @if($order->status === 'Partial Received')
                                 <th class="text-center">Received / Pending</th>
                                 <th class="text-center">Delivery Date</th>
                                 <th class="text-center">DR No.</th>
@@ -658,7 +953,7 @@
                                         {{ number_format($item->qty) }}
                                     @endif
                                 </td>
-                                @if($order->status === 'Partial Delivery')
+                                @if($order->status === 'Partial Received')
                                     @php
                                         $tableReceivedQty = (int) ($item->partial_received_qty ?? 0);
                                         $tablePendingQty = max((int) $item->qty - $tableReceivedQty, 0);
@@ -679,7 +974,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ $order->status === 'Partial Delivery' ? 7 : 4 }}" class="text-center text-muted py-4">
+                                <td colspan="{{ $order->status === 'Partial Received' ? 7 : 4 }}" class="text-center text-muted py-4">
                                     No products yet.
                                 </td>
                             </tr>
@@ -688,7 +983,7 @@
                 </table>
             </div>
 
-            @if($order->remarks && in_array($order->status, ['Cancelled', 'Partial Delivery']))
+            @if($order->remarks && in_array($order->status, ['Cancelled', 'Partial Received']))
                 <div class="alert {{ $order->status === 'Cancelled' ? 'alert-danger' : 'alert-warning' }} border mt-3">
                     <strong>Remarks:</strong> {{ $order->remarks }}
                 </div>
@@ -756,13 +1051,37 @@
                 const partialReceived = document.getElementById('showPartialReceived');
                 const partialPending = document.getElementById('showPartialPending');
                 const samePartialDeliveryDate = document.getElementById('samePartialDeliveryDate');
+                const completeVerificationButton = document.getElementById('completeVerificationButton');
+                const completeVerificationForm = document.getElementById('completeVerificationForm');
                 const warehousePreviousDrNumber = @json(
                     optional($order->partialReceipts->sortByDesc('id')->first())->dr_number
                         ?: $order->dr_number
                 );
+                const hasWarehousePartialReceipt = @json($order->partialReceipts->isNotEmpty());
 
                 if (!form || !status || !remarksWrap || !remarksLabel || !remarks || !soDetailsWrap || !deliveryDetailsWrap || !partialDetailsWrap || !partialItems || !soNumber || !deliveryDate || !drNumber || !siNumber || !samePartialDeliveryDate) {
                     return;
+                }
+
+                if (completeVerificationButton && completeVerificationForm) {
+                    completeVerificationButton.addEventListener('click', function () {
+                        Swal.fire({
+                            icon: 'question',
+                            title: 'Complete this verification?',
+                            text: 'Warehouse confirms every crate and refill quantity has been fully submitted. The ADPO will be marked Completed and the Area Distributor will be emailed.',
+                            showCancelButton: true,
+                            confirmButtonText: 'Verify complete',
+                            cancelButtonText: 'Cancel',
+                            confirmButtonColor: '#198754',
+                            reverseButtons: true
+                        }).then(function (result) {
+                            if (result.isConfirmed) {
+                                completeVerificationButton.disabled = true;
+                                completeVerificationButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Completing...';
+                                completeVerificationForm.submit();
+                            }
+                        });
+                    });
                 }
 
                 function applySharedPartialDeliveryDate(sourceInput) {
@@ -793,7 +1112,7 @@
                 }
 
                 function applyMainDeliveryDateToPartialItems() {
-                    if (!['For Delivery', 'Partial Delivery'].includes(status.value)) {
+                    if (!['For Delivery', 'Partial Received'].includes(status.value)) {
                         return;
                     }
 
@@ -811,14 +1130,14 @@
                             input.value = deliveryDate.value;
                         }
 
-                        if (status.value === 'Partial Delivery') {
+                        if (status.value === 'Partial Received') {
                             input.readOnly = hasMainDeliveryDate || @json($isFinalStatus);
                         }
                     });
                 }
 
                 function applyMainDrNumberToPartialItems() {
-                    if (status.value !== 'Partial Delivery' || !@json(filled(auth()->user()->warehouse))) {
+                    if (status.value !== 'Partial Received' || !@json(filled(auth()->user()->warehouse))) {
                         drNumber.readOnly = @json($isFinalStatus);
                         return;
                     }
@@ -827,7 +1146,7 @@
                         warehousePreviousDrNumber
                         && drNumber.dataset.partialDrGenerated !== '1'
                     ) {
-                        drNumber.value = incrementPartialDrNumber(warehousePreviousDrNumber);
+                        drNumber.value = incrementPartialDrNumber(warehousePreviousDrNumber, hasWarehousePartialReceipt);
                         drNumber.dataset.partialDrGenerated = '1';
                     }
 
@@ -862,15 +1181,15 @@
                     return normalizedDrNumber;
                 }
 
-                function incrementPartialDrNumber(previousDrNumber) {
+                function incrementPartialDrNumber(previousDrNumber, isExistingPartialDr) {
                     const normalizedDrNumber = normalizePartialDrNumber(previousDrNumber);
-                    const incrementMatch = normalizedDrNumber.match(/^(.*)-(\d+)$/);
+                    const incrementMatch = normalizedDrNumber.match(/^(.*)\((\d+)\)$/);
 
-                    if (incrementMatch) {
-                        return incrementMatch[1] + '-' + (Number(incrementMatch[2]) + 1);
+                    if (isExistingPartialDr && incrementMatch) {
+                        return incrementMatch[1] + '(' + (Number(incrementMatch[2]) + 1) + ')';
                     }
 
-                    return normalizedDrNumber ? normalizedDrNumber + '-1' : '';
+                    return normalizedDrNumber ? normalizedDrNumber + '(1)' : '';
                 }
 
                 function applyNextPartialDrNumber(row) {
@@ -889,7 +1208,7 @@
                     }
 
                     if (receivedQty > 0 && (!drInput.value.trim() || drInput.dataset.autoGenerated === '1')) {
-                        drInput.value = incrementPartialDrNumber(previousDrNumber);
+                        drInput.value = incrementPartialDrNumber(previousDrNumber, true);
                         drInput.dataset.autoGenerated = '1';
                     } else if (receivedQty <= 0 && drInput.dataset.autoGenerated === '1') {
                         drInput.value = '';
@@ -910,7 +1229,7 @@
                     const receivedQty = Number(qtyInput ? qtyInput.value || 0 : 0);
                     const orderedQty = Number(qtyInput ? qtyInput.dataset.orderedQty || 0 : 0);
                     const previousReceivedQty = Number(qtyInput ? qtyInput.dataset.previousReceivedQty || 0 : 0);
-                    const isPartialStatus = status.value === 'Partial Delivery';
+                    const isPartialStatus = status.value === 'Partial Received';
                     const wasAlreadyFullyReceived = previousReceivedQty >= orderedQty;
                     const needsDocs = isPartialStatus && !wasAlreadyFullyReceived && receivedQty > 0;
 
@@ -974,11 +1293,11 @@
                 }
 
                 function toggleStatusFields() {
-                    const needsRemarks = ['Cancelled', 'Partial Delivery'].includes(status.value);
+                    const needsRemarks = ['Cancelled', 'Partial Received'].includes(status.value);
                     const needsSoDetails = status.value === 'SO Created';
-                    const showsDeliveryDetails = ['For Delivery', 'Partial Delivery'].includes(status.value);
+                    const showsDeliveryDetails = ['For Delivery', 'Partial Received'].includes(status.value);
                     const needsDeliveryDetails = status.value === 'For Delivery';
-                    const needsPartialDetails = status.value === 'Partial Delivery';
+                    const needsPartialDetails = status.value === 'Partial Received';
                     const needsWarehousePartialDr = needsPartialDetails && @json(filled(auth()->user()->warehouse));
                     const proofIsRequired = proofOfPayment
                         && proofOfPayment.dataset.hasCurrentProof !== '1'
@@ -998,10 +1317,10 @@
 
                     remarksWrap.classList.toggle('is-visible', needsRemarks);
                     remarks.required = needsRemarks;
-                    remarksLabel.textContent = status.value === 'Partial Delivery'
+                    remarksLabel.textContent = status.value === 'Partial Received'
                         ? 'Partial Delivery Remarks'
                         : 'Cancellation Remarks';
-                    remarks.placeholder = status.value === 'Partial Delivery'
+                    remarks.placeholder = status.value === 'Partial Received'
                         ? 'Add the items or quantity still pending.'
                         : 'Add the reason for cancellation.';
 
@@ -1186,7 +1505,7 @@
 
                     event.preventDefault();
 
-                    if (['Cancelled', 'Partial Delivery'].includes(status.value) && remarks.value.trim() === '') {
+                    if (['Cancelled', 'Partial Received'].includes(status.value) && remarks.value.trim() === '') {
                         Swal.fire({
                             icon: 'warning',
                             title: 'Remarks required',
@@ -1227,7 +1546,7 @@
                         return;
                     }
 
-                    if (status.value === 'Partial Delivery') {
+                    if (status.value === 'Partial Received') {
                         const qtyInputs = Array.from(partialItems.querySelectorAll('.partial-received-qty'));
                         const hasReceivedQty = qtyInputs.some(function (input) {
                             return Number(input.value || 0) > 0;

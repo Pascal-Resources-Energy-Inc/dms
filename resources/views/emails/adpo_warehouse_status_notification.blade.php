@@ -46,6 +46,31 @@
                     </tr>
                 @endif
             </table>
+
+            @if($order->status === 'For Verification' && $order->verificationItems->isNotEmpty())
+                <div style="margin-top:22px; padding:16px; border:1px solid #ddd6fe; border-radius:8px; background:#faf5ff;">
+                    <div style="margin-bottom:10px; color:#6d28d9; font-size:12px; font-weight:bold; letter-spacing:.04em; text-transform:uppercase;">Crate / Refill Verification Submitted by AD</div>
+                    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <thead>
+                            <tr>
+                                <th align="left" style="padding:8px; border-bottom:1px solid #ddd6fe; color:#475467;">Product</th>
+                                <th align="center" style="padding:8px; border-bottom:1px solid #ddd6fe; color:#475467;">Ordered</th>
+                                <th align="center" style="padding:8px; border-bottom:1px solid #ddd6fe; color:#475467;">Submitted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($order->verificationItems as $item)
+                                <tr>
+                                    <td style="padding:8px; border-bottom:1px solid #eeeaf9;">{{ $item->product_name }}</td>
+                                    <td align="center" style="padding:8px; border-bottom:1px solid #eeeaf9;">{{ number_format($item->ordered_qty) }}</td>
+                                    <td align="center" style="padding:8px; border-bottom:1px solid #eeeaf9; color:#5b21b6; font-weight:bold;">{{ number_format($item->submitted_qty) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                    <p style="margin:11px 0 0; color:#667085; font-size:12px;">The supporting verification files are attached to this email.</p>
+                </div>
+            @endif
         </div>
     </div>
 </body>

@@ -25,6 +25,12 @@ class AdPurchaseOrder extends Model implements Auditable
         'bank_name',
         'reference_no',
         'proof_of_payment',
+        'verification_proofs',
+        'verification_items',
+        'warehouse_verification_proofs',
+        'verification_incomplete_remarks',
+        'verification_incomplete_notified_at',
+        'verification_incomplete_notified_by',
         'so_number',
         'payment_date',
         'delivery_date',
@@ -53,6 +59,7 @@ class AdPurchaseOrder extends Model implements Auditable
         'delivery_date',
         'payment_date',
         'submitted_at',
+        'verification_incomplete_notified_at',
         'deleted_at',
     ];
 
@@ -69,6 +76,11 @@ class AdPurchaseOrder extends Model implements Auditable
     public function paymentProofs()
     {
         return $this->hasMany(AdPurchaseOrderPaymentProof::class, 'ad_purchase_order_id');
+    }
+
+    public function verificationItems()
+    {
+        return $this->hasMany(AdPurchaseOrderVerificationItem::class, 'ad_purchase_order_id');
     }
 
     public function ad()
