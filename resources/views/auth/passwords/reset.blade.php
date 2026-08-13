@@ -119,6 +119,44 @@
         border-color: #dc3545 !important;
     }
 
+    .password-field {
+        position: relative;
+    }
+
+    .password-field .form-control {
+        padding-right: 52px !important;
+    }
+
+    .password-toggle {
+        position: absolute;
+        top: 50%;
+        right: 8px;
+        transform: translateY(-50%);
+        width: 38px;
+        height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 8px;
+        color: #6c757d;
+        background: transparent;
+        cursor: pointer;
+        transition: color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .password-toggle:hover,
+    .password-toggle:focus-visible {
+        color: #2589c4;
+        background: rgba(79, 172, 254, 0.12);
+        outline: none;
+    }
+
+    .password-toggle svg {
+        width: 20px;
+        height: 20px;
+    }
+
     .btn-success {
         background-color: #5DADE2;
         border: none !important;
@@ -300,7 +338,7 @@
                             </div>
 
                             <div class="p-2">
-                                <form method="POST" action="{{ route('password.update') }}">
+                                <form method="POST" action="{{ route('password.update') }}" id="resetPasswordForm">
                                     @csrf
                                     <input type="hidden" name="email" value="{{ $email }}">
                                     
@@ -311,7 +349,12 @@
 
                                     <div class="mb-4">
                                         <label class="form-label">New Password</label>
-                                        <input id="password" type="password" placeholder="New Password" class="form-control{{ $errors->has('password') ? ' is-invalid' : '' }}" name="password" required>
+                                        <div class="password-field">
+                                            <input id="password" type="password" placeholder="New Password" class="form-control{{ $errors->has('password') ? ' is-invalid' : '' }}" name="password" required>
+                                            <button type="button" class="password-toggle" data-toggle-password="password" aria-label="Show new password" aria-pressed="false" title="Show password">
+                                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            </button>
+                                        </div>
                                         
                                         <div class="password-strength" id="password-strength"></div>
                                         
@@ -329,7 +372,12 @@
 
                                     <div class="mb-4">
                                         <label class="form-label">Confirm New Password</label>
-                                        <input id="password-confirm" type="password" placeholder="Confirm New Password" class="form-control" name="password_confirmation" required>
+                                        <div class="password-field">
+                                            <input id="password-confirm" type="password" placeholder="Confirm New Password" class="form-control" name="password_confirmation" required>
+                                            <button type="button" class="password-toggle" data-toggle-password="password-confirm" aria-label="Show confirmed password" aria-pressed="false" title="Show password">
+                                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            </button>
+                                        </div>
                                         <div id="password-match" class="mt-2" style="font-size: 13px;"></div>
                                     </div>
 
@@ -365,6 +413,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const strengthDiv = document.getElementById('password-strength');
     const matchDiv = document.getElementById('password-match');
     const resetBtn = document.getElementById('reset-btn');
+    const showPasswordIcon = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const hidePasswordIcon = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 4.2A10.7 10.7 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-3 4.3M6.6 6.6C3.7 8.5 2 12 2 12s3.5 8 10 8a9.8 9.8 0 0 0 4.1-.9"/></svg>';
+
+    document.querySelectorAll('[data-toggle-password]').forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            const input = document.getElementById(this.dataset.togglePassword);
+            const isHidden = input.type === 'password';
+
+            input.type = isHidden ? 'text' : 'password';
+            this.setAttribute('aria-pressed', String(isHidden));
+            this.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+            this.setAttribute('title', isHidden ? 'Hide password' : 'Show password');
+            this.innerHTML = isHidden ? hidePasswordIcon : showPasswordIcon;
+        });
+    });
+
+    const resetPasswordForm = document.getElementById('resetPasswordForm');
+    resetPasswordForm.addEventListener('submit', function () {
+        if (!this.checkValidity()) {
+            return;
+        }
+
+        resetBtn.disabled = true;
+        resetBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span><span>Resetting Password...</span>';
+    });
     
     // Password strength checker
     passwordInput.addEventListener('input', function() {

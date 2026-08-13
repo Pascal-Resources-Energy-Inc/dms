@@ -199,7 +199,7 @@
     .forgot-input {
         width: 100%;
         height: 52px;
-        padding: 0 16px 0 44px;
+        padding: 0 20px;
         color: var(--reset-ink);
         background: #fff;
         border: 1px solid var(--reset-line);
