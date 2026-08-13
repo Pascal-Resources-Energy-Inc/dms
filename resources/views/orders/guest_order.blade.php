@@ -188,18 +188,15 @@
                                         $defaultTerritory = old('guest_authorized_territory', $authorizedTerritories->count() === 1 ? $authorizedTerritories->first() : '');
                                         $hasSingleTerritory = $authorizedTerritories->count() === 1;
                                     @endphp
-                                    <label class="guest-label" for="guestAuthorizedTerritory">Authorized Territory</label>
+                                    <label class="guest-label" for="guestAuthorizedTerritory">Authorized Territory <span class="text-danger">*</span></label>
                                     @if($hasSingleTerritory)
                                         <div class="guest-readonly-field{{ $errors->has('guest_authorized_territory') ? ' is-invalid' : '' }}">{{ strtoupper($defaultTerritory) }}</div>
                                         <input type="hidden" name="guest_authorized_territory" value="{{ $defaultTerritory }}">
                                         <div class="form-text text-muted">Your assigned territory has been pre-filled.</div>
                                         @if($errors->has('guest_authorized_territory'))<div class="invalid-feedback d-block">{{ $errors->first('guest_authorized_territory') }}</div>@endif
                                     @else
-                                        <select name="guest_authorized_territory" id="guestAuthorizedTerritory" class="form-select {{ $errors->has('guest_authorized_territory') ? 'is-invalid' : '' }}">
+                                        <select name="guest_authorized_territory" id="guestAuthorizedTerritory" class="form-select {{ $errors->has('guest_authorized_territory') ? 'is-invalid' : '' }}" required>
                                             <option value="">Select territory</option>
-                                            @if($defaultTerritory && !$authorizedTerritories->contains($defaultTerritory))
-                                                <option value="{{ $defaultTerritory }}" selected>{{ strtoupper($defaultTerritory) }}</option>
-                                            @endif
                                             @foreach($authorizedTerritories as $territory)
                                                 <option value="{{ $territory }}" @if($defaultTerritory === $territory) selected @endif>{{ strtoupper($territory) }}</option>
                                             @endforeach

@@ -4,6 +4,9 @@
 <style>
     .pricing-page { width: min(100%, 1480px); margin: 0 auto; }
     .pricing-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+    .pricing-title-row { display: flex; align-items: center; gap: 10px; }
+    .pricing-back { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px solid #dbe3ee; border-radius: 8px; color: #475569; background: #fff; text-decoration: none; transition: color .2s ease, border-color .2s ease, background-color .2s ease; }
+    .pricing-back:hover { color: #0f766e; border-color: #99d5cd; background: #f0fdfa; }
     .pricing-title { margin: 0; color: #111827; font-size: clamp(20px, 2.4vw, 24px); font-weight: 800; }
     .pricing-subtitle { margin: 4px 0 0; color: #64748b; font-size: 13px; }
     .pricing-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
@@ -98,7 +101,7 @@
     })->count();
 @endphp
 
-<form action="{{ route('products.storeBulk') }}" method="POST" class="pricing-page">
+<form action="{{ route('products.storeBulk') }}" method="POST" class="pricing-page" id="priceMatrixForm">
     @csrf
 
     @if ($errors->any())
@@ -115,12 +118,17 @@
 
     <div class="pricing-header">
         <div>
-            <h4 class="pricing-title">Product Price Matrix</h4>
+            <div class="pricing-title-row">
+                <h4 class="pricing-title">Product Price Matrix</h4>
+            </div>
             <p class="pricing-subtitle">Show the item SRP and manage selling prices for Mega Dealer, Dealer, and Client.</p>
         </div>
         <div class="pricing-actions">
             <input type="search" id="productSearch" class="form-control pricing-search" placeholder="Search product or SKU" aria-label="Search product or SKU">
-            <button class="btn btn-success px-4" type="submit">
+            <a href="{{ route('products') }}" class="btn btn-secondary" aria-label="Back to products" title="Back to products">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+            <button class="btn btn-success px-4 js-save-prices" type="submit">
                 <i class="bi bi-check2-circle"></i> Save
             </button>
         </div>
@@ -252,7 +260,7 @@
     </div>
 
     <div class="save-bar">
-        <button class="btn btn-success px-4" type="submit">
+        <button class="btn btn-success px-4 js-save-prices" type="submit">
             <i class="bi bi-check2-circle"></i> Save
         </button>
     </div>
@@ -262,8 +270,20 @@
 @section('js')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const priceMatrixForm = document.getElementById('priceMatrixForm');
     const search = document.getElementById('productSearch');
     const rows = document.querySelectorAll('.product-row');
+
+    priceMatrixForm.addEventListener('submit', function () {
+        if (!this.checkValidity()) {
+            return;
+        }
+
+        document.querySelectorAll('.js-save-prices').forEach(function(button) {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span><span>Saving...</span>';
+        });
+    });
 
     function updateLegacyPrice(row) {
         const clientInput = row.querySelector('.js-client-price');

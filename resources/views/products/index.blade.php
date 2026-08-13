@@ -64,118 +64,118 @@
                 </div>
             </div>
             <div class="table-responsive product-table-wrap">
-                            <table class="table align-middle product-table" id="example">
-                                <thead>
-                                    <tr>
-                                        <th>Product Image</th>
-                                        <th>Product Name</th>
-                                        <th>Description</th>
-                                        <th>SKU</th>
-                                        <th>Price</th>
-                                        <th>Mega Dealer Price</th>
-                                        <th>Dealer Price</th>
-                                        <th>End User Price</th>
-                                        <th>Deposit</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @php
-                                        $productsById = $products->keyBy('id');
-                                    @endphp
-                                    @foreach ($products as $product)
-                                    @php
-                                        $bundleProductIds = collect($product->bundle_product_ids ?? [])->filter()->values();
-                                        $isBundle = ($product->item_type ?? optional($product->item)->item_type) === 'bundle' || $bundleProductIds->isNotEmpty();
-                                        $bundlePreviewProducts = $bundleProductIds
-                                            ->map(function ($productId) use ($productsById) {
-                                                return $productsById->get((int) $productId);
-                                            })
-                                            ->filter()
-                                            ->take(4);
-                                    @endphp
-                                    <tr id="row-{{ $product->id }}">
-                                        <td class="product-image-column">
-                                            <div class="{{ $isBundle ? 'product-image-cell is-bundle' : 'product-image-cell' }}">
-                                                @if($isBundle && $bundlePreviewProducts->isNotEmpty())
-                                                    <div class="bundle-card-image">
-                                                        <div class="bundle-card-grid">
-                                                            @foreach($bundlePreviewProducts as $bundlePreviewProduct)
-                                                                @php
-                                                                    $bundlePreviewImage = $bundlePreviewProduct->product_image && file_exists(public_path('uploads/products/' . $bundlePreviewProduct->product_image))
-                                                                        ? asset('uploads/products/' . $bundlePreviewProduct->product_image)
-                                                                        : asset('images/logo_nya.png');
-                                                                @endphp
-                                                                <img src="{{ $bundlePreviewImage }}" alt="{{ $bundlePreviewProduct->product_name }}">
-                                                            @endforeach
-                                                        </div>
-                                                        <span class="bundle-card-badge">
-                                                            <i class="bi bi-boxes"></i>
-                                                        </span>
-                                                        @if($bundleProductIds->count() > 4)
-                                                            <span class="bundle-card-count">+{{ $bundleProductIds->count() - 4 }}</span>
-                                                        @endif
-                                                    </div>
-                                                @else
-                                                    <div class="product-image-frame">
-                                                        @if($product->product_image && file_exists(public_path('uploads/products/' . $product->product_image)))
-                                                            <img src="{{ asset('uploads/products/' . $product->product_image) }}" alt="{{ $product->product_name }}">
-                                                        @else
-                                                            <span class="product-image-empty">No Image</span>
-                                                        @endif
-
-                                                        @if($isBundle)
-                                                            <span class="product-image-badge">
-                                                                <i class="bi bi-boxes"></i> Bundle
-                                                            </span>
-                                                        @endif
-                                                    </div>
-                                                @endif
+                <table class="table align-middle product-table" id="example">
+                    <thead>
+                        <tr>
+                            <th>Product Image</th>
+                            <th>Product Name</th>
+                            <th>Description</th>
+                            <th>SKU</th>
+                            <th>Price</th>
+                            <th>Mega Dealer Price</th>
+                            <th>Dealer Price</th>
+                            {{-- <th>End User Price</th> --}}
+                            {{-- <th>Deposit</th> --}}
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @php
+                            $productsById = $products->keyBy('id');
+                        @endphp
+                        @foreach ($products as $product)
+                        @php
+                            $bundleProductIds = collect($product->bundle_product_ids ?? [])->filter()->values();
+                            $isBundle = ($product->item_type ?? optional($product->item)->item_type) === 'bundle' || $bundleProductIds->isNotEmpty();
+                            $bundlePreviewProducts = $bundleProductIds
+                                ->map(function ($productId) use ($productsById) {
+                                    return $productsById->get((int) $productId);
+                                })
+                                ->filter()
+                                ->take(4);
+                        @endphp
+                        <tr id="row-{{ $product->id }}">
+                            <td class="product-image-column">
+                                <div class="{{ $isBundle ? 'product-image-cell is-bundle' : 'product-image-cell' }}">
+                                    @if($isBundle && $bundlePreviewProducts->isNotEmpty())
+                                        <div class="bundle-card-image">
+                                            <div class="bundle-card-grid">
+                                                @foreach($bundlePreviewProducts as $bundlePreviewProduct)
+                                                    @php
+                                                        $bundlePreviewImage = $bundlePreviewProduct->product_image && file_exists(public_path('uploads/products/' . $bundlePreviewProduct->product_image))
+                                                            ? asset('uploads/products/' . $bundlePreviewProduct->product_image)
+                                                            : asset('images/logo_nya.png');
+                                                    @endphp
+                                                    <img src="{{ $bundlePreviewImage }}" alt="{{ $bundlePreviewProduct->product_name }}">
+                                                @endforeach
                                             </div>
-                                        </td>
-
-                                        <td class="fw-semibold text-dark" data-label="Product name">{{ strtoupper($product->product_name) }}</td>
-                                        <td class="text-muted product-description-cell" data-label="Description">{{ strtoupper($product->description) ?? '-' }}</td>
-                                        <td data-label="SKU"><span class="product-sku">{{ strtoupper($product->sku) }}</span></td>
-                                        <td data-label="Price">₱{{ number_format($product->price, 2) }}</td>
-                                        <td data-label="Mega Dealer price">₱{{ number_format($product->mega_dealer_price ?? $product->price, 2) }}</td>
-                                        <td data-label="Dealer price">₱{{ number_format($product->dealer_price ?? $product->price, 2) }}</td>
-                                        <td data-label="End User price">₱{{ number_format($product->client_price ?? $product->price, 2) }}</td>
-                                        <td data-label="Deposit">{{ $product->deposit ? '₱'.number_format($product->deposit,2) : '-' }}</td>
-
-                                        <td data-label="Status">
-                                            @if($product->status == 'Activate')
-                                                <span class="product-status active"><i class="bi bi-circle-fill"></i> Activate</span>
+                                            <span class="bundle-card-badge">
+                                                <i class="bi bi-boxes"></i>
+                                            </span>
+                                            @if($bundleProductIds->count() > 4)
+                                                <span class="bundle-card-count">+{{ $bundleProductIds->count() - 4 }}</span>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <div class="product-image-frame">
+                                            @if($product->product_image && file_exists(public_path('uploads/products/' . $product->product_image)))
+                                                <img src="{{ asset('uploads/products/' . $product->product_image) }}" alt="{{ $product->product_name }}">
                                             @else
-                                                <span class="product-status inactive"><i class="bi bi-circle-fill"></i> Deactivate</span>
+                                                <span class="product-image-empty">No Image</span>
                                             @endif
-                                        </td>
 
-                                        <td data-label="Action">
-                                            @if($product->is_new === 1)
-                                                <button class="btn btn-sm btn-outline-primary product-icon-btn edit-btn"
-                                                    data-id="{{ $product->id }}"
-                                                    data-name="{{ $product->product_name }}"
-                                                    data-description="{{ $product->description }}"
-                                                    data-sku="{{ $product->sku }}"
-                                                    data-price="{{ $product->price }}"
-                                                    data-mega-dealer-price="{{ $product->mega_dealer_price ?? $product->price }}"
-                                                    data-dealer-price="{{ $product->dealer_price ?? $product->price }}"
-                                                    data-client-price="{{ $product->client_price ?? $product->price }}"
-                                                    data-deposit="{{ $product->deposit }}"
-                                                    data-status="{{ $product->status }}"
-                                                    data-item-type="{{ $isBundle ? 'bundle' : 'product' }}"
-                                                    data-bundle-product-ids='@json($bundleProductIds->values())'
-                                                    data-image="{{ asset('uploads/products/'.$product->product_image) }}">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
+                                            @if($isBundle)
+                                                <span class="product-image-badge">
+                                                    <i class="bi bi-boxes"></i> Bundle
+                                                </span>
                                             @endif
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                                        </div>
+                                    @endif
+                                </div>
+                            </td>
+
+                            <td class="fw-semibold text-dark" data-label="Product name">{{ strtoupper($product->product_name) }}</td>
+                            <td class="text-muted product-description-cell" data-label="Description">{{ strtoupper($product->description) ?? '-' }}</td>
+                            <td data-label="SKU"><span class="product-sku">{{ strtoupper($product->sku) }}</span></td>
+                            <td data-label="Price">₱{{ number_format($product->price, 2) }}</td>
+                            <td data-label="Mega Dealer price">₱{{ number_format($product->mega_dealer_price ?? $product->price, 2) }}</td>
+                            <td data-label="Dealer price">₱{{ number_format($product->dealer_price ?? $product->price, 2) }}</td>
+                            {{-- <td data-label="End User price">₱{{ number_format($product->client_price ?? $product->price, 2) }}</td> --}}
+                            {{-- <td data-label="Deposit">{{ $product->deposit ? '₱'.number_format($product->deposit,2) : '-' }}</td> --}}
+
+                            <td data-label="Status">
+                                @if($product->status == 'Activate')
+                                    <span class="product-status active"><i class="bi bi-circle-fill"></i> Activate</span>
+                                @else
+                                    <span class="product-status inactive"><i class="bi bi-circle-fill"></i> Deactivate</span>
+                                @endif
+                            </td>
+
+                            <td data-label="Action">
+                                @if($product->is_new === 1)
+                                    <button class="btn btn-sm btn-outline-primary product-icon-btn edit-btn"
+                                        data-id="{{ $product->id }}"
+                                        data-name="{{ $product->product_name }}"
+                                        data-description="{{ $product->description }}"
+                                        data-sku="{{ $product->sku }}"
+                                        data-price="{{ $product->price }}"
+                                        data-mega-dealer-price="{{ $product->mega_dealer_price ?? $product->price }}"
+                                        data-dealer-price="{{ $product->dealer_price ?? $product->price }}"
+                                        data-client-price="{{ $product->client_price ?? $product->price }}"
+                                        data-deposit="{{ $product->deposit }}"
+                                        data-status="{{ $product->status }}"
+                                        data-item-type="{{ $isBundle ? 'bundle' : 'product' }}"
+                                        data-bundle-product-ids='@json($bundleProductIds->values())'
+                                        data-image="{{ asset('uploads/products/'.$product->product_image) }}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                @endif
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
     </section>
@@ -187,6 +187,7 @@
                     <div class="product-modal-heading">
                         <span class="product-modal-icon"><i class="bi bi-box-seam"></i></span>
                         <div>
+                        <span class="product-modal-kicker" id="addProductModalKicker">Catalog item</span>
                         <h5 id="addProductModalTitle" class="mb-0">Add Product</h5>
                         <small id="addProductModalSubtitle" class="text-muted">Create a single product for your catalog.</small>
                         </div>
@@ -228,14 +229,15 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-lg-4 text-center mb-2">
+                            <div class="col-lg-4 text-center mb-2 bundle-image-column">
                                 <div class="bundle-visual-shell">
-                                    <div class="avatar-wrapper mx-auto mb-2">
+                                    <div class="avatar-wrapper product-image-preview mx-auto mb-2" id="productImagePreviewFrame">
                                         <img id="avatar" src="{{ asset('images/logo_nya.png') }}" alt="Preview">
                                     </div>
 
-                                    <label for="inputImage" class="btn btn-outline-primary btn-sm">
-                                        <i class="ti ti-upload"></i> Upload Image
+                                    <label for="inputImage" class="product-image-upload" id="inputImageLabel">
+                                        <i class="ti ti-upload" aria-hidden="true"></i>
+                                        <span class="product-image-upload-copy"><strong>Upload image</strong><small>JPG, PNG or GIF · Max 2MB</small></span>
                                     </label>
 
                                     <input type="file" name="product_image" id="inputImage" accept="image/jpeg,image/png,image/jpg,image/gif" onchange="uploadImage(this)" style="display: none">
@@ -246,7 +248,7 @@
                                     <div id="bundleImagePreview" class="bundle-image-preview d-none mt-3"></div>
                                 </div>
                             </div>
-                            <div class="col-lg-8 mb-2">
+                            <div class="col-lg-8 mb-2 bundle-details-column">
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label for="product_name" id="productNameLabel" class="form-label">Product Name&nbsp;<span class="text-danger">*</span></label>
@@ -272,10 +274,10 @@
                                         <label for="dealer_price" class="form-label">Dealer Price (PHP)</label>
                                         <input type="number" id="dealer_price" name="dealer_price" class="form-control" value="{{ old('dealer_price') }}" step="0.01" min="0" placeholder="0.00">
                                     </div>
-                                    <div class="col-md-3">
+                                    {{-- <div class="col-md-3">
                                         <label for="client_price" class="form-label">End User Price (PHP)</label>
                                         <input type="number" id="client_price" name="client_price" class="form-control" value="{{ old('client_price') }}" step="0.01" min="0" placeholder="0.00">
-                                    </div>
+                                    </div> --}}
                                     {{-- <div class="col-md-6">
                                         <label for="deposit" class="form-label-optional">Deposit (PHP)</label>
                                         <input type="number" id="deposit" name="deposit" class="form-control" value="{{ old('deposit') }}" step="0.01" min="0" placeholder="0.00">
@@ -298,8 +300,8 @@
                                                 <label class="form-label mb-0">Products in this bundle&nbsp;<span class="text-danger">*</span></label>
                                                 <span class="d-block text-muted small">Choose existing products to combine.</span>
                                             </div>
-                                            <span class="badge bg-light text-dark">
-                                                <span id="bundleSelectedCount">0</span> items / PHP <span id="bundleTotal">0.00</span>
+                                            <span class="bundle-selection-count" aria-live="polite">
+                                                <span id="bundleSelectedCount">0</span> selected · PHP <span id="bundleTotal">0.00</span>
                                             </span>
                                         </div>
                                         <div class="bundle-search-wrap">
@@ -455,10 +457,10 @@
                             <label for="edit_dealer_price" class="form-label">Dealer Price (PHP)</label>
                             <input type="number" id="edit_dealer_price" class="form-control mb-2" step="0.01" min="0" placeholder="0.00">
                         </div>
-                        <div class="col-md-6">
+                        {{-- <div class="col-md-6">
                             <label for="edit_client_price" class="form-label">End User Price (PHP)</label>
                             <input type="number" id="edit_client_price" class="form-control mb-2" step="0.01" min="0" placeholder="0.00">
-                        </div>
+                        </div> --}}
                         {{-- <div class="col-md-6">
                             <label for="edit_deposit" class="form-label-optional">Deposit (PHP)</label>
                             <input type="number" id="edit_deposit" class="form-control mb-2" step="0.01" min="0" placeholder="0.00">
@@ -734,6 +736,7 @@
     .product-modal-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .product-modal-heading h5 { color: #101828; font-size: 18px; font-weight: 800; }
     .product-modal-heading small { display: block; margin-top: 2px; font-size: 12px; }
+    .product-modal-kicker { display: block; margin-bottom: 2px; color: #64748b; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
     .product-modal-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; width: 40px; height: 40px; border-radius: 12px; background: #eff6ff; color: #2563eb; font-size: 19px; }
     .product-modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
     .product-modal-cancel, .product-modal-submit { min-height: 42px; padding: 9px 16px; border-radius: 9px; font-weight: 800; }
@@ -741,10 +744,21 @@
     .bundle-switch-panel { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px; border: 1px solid #dbe4ef; border-radius: 8px; background: #fff; }
     .bundle-switch-title { color: #111827; font-weight: 800; }
     .bundle-switch-copy { color: #64748b; font-size: 12px; }
-    .bundle-visual-shell { height: 100%; padding: 14px; border: 1px solid #dbe4ef; border-radius: 8px; background: #fff; }
+    .bundle-visual-shell { height: 100%; display: flex; flex-direction: column; align-items: center; padding: 14px; border: 1px solid #dbe4ef; border-radius: 12px; background: linear-gradient(145deg, #fff 0%, #f8fbff 100%); }
+    .product-image-preview { width: 132px; height: 132px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin: 0 auto 12px !important; padding: 9px; border: 1px solid #dbeafe; border-radius: 14px; background: #fff; box-shadow: 0 8px 20px rgba(37, 99, 235, .08); transition: border-color .2s ease, box-shadow .2s ease; }
+    .product-image-preview img { width: 100% !important; height: 100% !important; object-fit: contain; }
+    .product-image-preview.is-selected { border-color: #86efac; box-shadow: 0 8px 20px rgba(21, 128, 61, .12); }
+    .product-image-upload { display: inline-flex; align-items: center; justify-content: flex-start; gap: 9px; width: min(100%, 240px); max-width: 100%; min-height: 48px; padding: 9px 12px; color: #1d4ed8; border: 1px dashed #93c5fd; border-radius: 10px; cursor: pointer; background: #eff6ff; text-align: left; transition: color .18s ease, border-color .18s ease, background-color .18s ease, transform .18s ease; }
+    .product-image-upload:hover { color: #fff; border-color: #2563eb; background: #2563eb; transform: translateY(-1px); }
+    .product-image-upload i { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; color: #fff; background: #2563eb; font-size: 15px; }
+    .product-image-upload:hover i { color: #2563eb; background: #fff; }
+    .product-image-upload-copy { display: grid; min-width: 0; line-height: 1.2; }
+    .product-image-upload-copy strong { overflow: hidden; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .product-image-upload-copy small { overflow: hidden; font-size: 10px; opacity: .8; text-overflow: ellipsis; white-space: nowrap; }
     .bundle-builder-layout { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 14px; align-items: start; }
     .bundle-products-panel { border: 1px solid #dbe4ef; border-radius: 8px; background: #fff; overflow: hidden; }
     .bundle-products-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #e5e7eb; }
+    .bundle-selection-count { display: inline-flex; align-items: center; flex: 0 0 auto; padding: 6px 9px; border: 1px solid #bbf7d0; border-radius: 999px; color: #166534; font-size: 11px; font-weight: 800; background: #f0fdf4; white-space: nowrap; }
     .bundle-search-wrap { position: relative; padding: 10px 12px 0; }
     .bundle-search-wrap i { position: absolute; left: 24px; top: 18px; color: #94a3b8; font-size: 13px; }
     .bundle-search-wrap .form-control { padding-left: 32px; }
@@ -759,12 +773,14 @@
     .bundle-product-price { color: #0f172a; font-weight: 800; white-space: nowrap; }
     .bundle-selected-indicator { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #cbd5e1; border-radius: 999px; color: transparent; background: #fff; flex: 0 0 24px; }
     .bundle-product-row.is-selected .bundle-selected-indicator { border-color: #22c55e; background: #22c55e; color: #fff; }
-    .bundle-image-preview { position: relative; border: 1px solid #dbe4ef; border-radius: 8px; padding: 10px; background: linear-gradient(135deg, #f8fafc 0%, #eefdf5 100%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7); }
-    .bundle-image-preview::after { content: "\F3F8"; font-family: bootstrap-icons; position: absolute; right: 12px; bottom: 10px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #15803d; color: #fff; font-size: 14px; box-shadow: 0 6px 14px rgba(21, 128, 61, 0.22); }
-    .bundle-image-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 76px; gap: 8px; }
-    .bundle-image-preview-grid img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 2px solid #fff; background: #fff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12); }
+    .bundle-image-preview { position: relative; overflow: hidden; border: 1px solid #bbf7d0; border-radius: 12px; padding: 11px; background: linear-gradient(135deg, #ecfdf5 0%, #f8fafc 58%, #fff 100%); box-shadow: 0 10px 24px rgba(21, 128, 61, .09), inset 0 0 0 1px rgba(255, 255, 255, .75); }
+    .bundle-image-preview::after { content: "\F3F8"; font-family: bootstrap-icons; position: absolute; right: 12px; bottom: 12px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff; border-radius: 999px; background: #15803d; color: #fff; font-size: 14px; box-shadow: 0 5px 12px rgba(21, 128, 61, .28); }
+    .bundle-image-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 9px; color: #166534; font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+    .bundle-image-preview-head span { padding: 3px 7px; border: 1px solid #bbf7d0; border-radius: 999px; color: #15803d; font-size: 10px; background: rgba(255, 255, 255, .7); letter-spacing: 0; text-transform: none; }
+    .bundle-image-preview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: clamp(66px, 8vw, 84px); gap: 7px; }
+    .bundle-image-preview-grid img { width: 100%; height: 100%; object-fit: contain; border-radius: 9px; border: 2px solid #fff; background: #fff; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.12); }
     .bundle-image-preview-grid img:first-child { grid-row: span 2; }
-    .bundle-image-preview-grid img:nth-child(n+5) { display: none; }
+    .bundle-preview-more { display: flex; align-items: center; justify-content: center; min-height: 100%; border: 2px solid #fff; border-radius: 9px; color: #fff; font-size: 15px; font-weight: 900; background: linear-gradient(135deg, #15803d, #22c55e); box-shadow: 0 3px 10px rgba(21, 128, 61, .22); }
     .bundle-summary-panel { position: sticky; top: 10px; border: 1px solid #dbe4ef; border-radius: 8px; background: #fff; padding: 14px; }
     .bundle-summary-title { display: flex; align-items: center; gap: 8px; color: #111827; font-weight: 800; margin-bottom: 12px; }
     .bundle-summary-title i { color: #15803d; }
@@ -772,6 +788,16 @@
     .bundle-summary-line strong { color: #111827; text-align: right; }
     .bundle-summary-savings strong { color: #15803d; }
     .bundle-empty-selection { margin-top: 12px; padding: 10px; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 12px; text-align: center; }
+    .product-modal.is-bundle-mode .product-modal-icon { color: #15803d; background: #dcfce7; }
+    .product-modal.is-bundle-mode .modal-header { background: linear-gradient(135deg, #f0fdf4 0%, #f8fafc 64%, #fff 100%); }
+    .product-modal.is-bundle-mode .product-modal-kicker { color: #15803d; }
+    .product-modal.is-bundle-mode .bundle-switch-panel { border-color: #86efac; background: linear-gradient(100deg, #f0fdf4 0%, #fff 68%); }
+    .product-modal.is-bundle-mode .bundle-switch-title { color: #166534; }
+    .product-modal.is-bundle-mode .bundle-visual-shell,
+    .product-modal.is-bundle-mode .bundle-products-panel,
+    .product-modal.is-bundle-mode .bundle-summary-panel { border-color: #ccebd7; }
+    .product-modal.is-bundle-mode .bundle-summary-panel { background: linear-gradient(180deg, #f0fdf4 0%, #fff 42%); box-shadow: 0 12px 24px rgba(21, 128, 61, .08); }
+    .product-modal.is-bundle-mode .bundle-details-column .form-control:focus { border-color: #22c55e; box-shadow: 0 0 0 .2rem rgba(34, 197, 94, .12); }
     @media (max-width: 991.98px) {
         .product-head { align-items: stretch; flex-direction: column; }
         .product-summary { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
@@ -816,6 +842,8 @@
         .bundle-visual-shell { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 12px; text-align: left !important; }
         .bundle-visual-shell .avatar-wrapper { margin: 0 !important; }
         .bundle-visual-shell .bundle-image-preview { grid-column: 1 / -1; }
+        .product-image-upload { width: 100%; }
+        .product-image-preview { width: 92px; height: 92px; padding: 7px; border-radius: 12px; }
     }
     @media (max-width: 575.98px) {
         .product-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -836,7 +864,22 @@
         .product-modal-footer { display: grid; grid-template-columns: 1fr 1.35fr; gap: 8px; }
         .product-modal-cancel, .product-modal-submit { width: 100%; padding-inline: 8px; }
         .bundle-visual-shell { grid-template-columns: 76px minmax(0, 1fr); padding: 12px; }
-        .avatar-wrapper img { width: 66px !important; height: 66px !important; }
+        .product-image-preview { width: 76px; height: 76px; padding: 6px; border-radius: 10px; }
+        .bundle-products-list { max-height: min(44vh, 360px); padding: 8px; }
+        .bundle-product-row { gap: 8px; min-height: 70px; padding: 8px; }
+        .bundle-product-row img { width: 42px; height: 42px; }
+        .bundle-product-price { grid-column: 3; margin-left: 0; font-size: 12px; }
+        .bundle-selection-count { max-width: 100%; white-space: normal; }
+        .bundle-image-preview { padding: 9px; }
+        .bundle-image-preview-grid { grid-auto-rows: clamp(58px, 20vw, 76px); gap: 6px; }
+        .bundle-image-preview-head { margin-bottom: 7px; font-size: 10px; }
+        .product-image-upload { 
+            min-height: 42px; 
+            padding: 7px 9px;        
+            width: 200px;
+            margin-left: 5em; 
+        }
+        .product-image-upload i { width: 26px; height: 26px; }
     }
 </style>
 
@@ -936,11 +979,11 @@
 
                 const selectedImages = editSelectedBundleProducts()
                     .map(function(input) { return input.dataset.imageSrc || ''; })
-                    .filter(function(image) { return image.length > 0; })
-                    .slice(0, 8);
-                const previewImages = editUploadedProductImagePreviewSrc
-                    ? [editUploadedProductImagePreviewSrc].concat(selectedImages).slice(0, 8)
+                    .filter(function(image) { return image.length > 0; });
+                const allPreviewImages = editUploadedProductImagePreviewSrc
+                    ? [editUploadedProductImagePreviewSrc].concat(selectedImages)
                     : selectedImages;
+                const previewImages = allPreviewImages.slice(0, 8);
 
                 editBundleImagePreview.classList.toggle('d-none', editSelectedItemType() !== 'bundle' || previewImages.length === 0);
 
@@ -949,7 +992,7 @@
                     return;
                 }
 
-                editBundleImagePreview.innerHTML = '<div class="bundle-image-preview-grid"></div>';
+                editBundleImagePreview.innerHTML = '<div class="bundle-image-preview-head"><strong>Bundle preview</strong><span>' + allPreviewImages.length + ' image' + (allPreviewImages.length === 1 ? '' : 's') + '</span></div><div class="bundle-image-preview-grid"></div>';
                 const grid = editBundleImagePreview.querySelector('.bundle-image-preview-grid');
 
                 previewImages.forEach(function(image) {
@@ -958,6 +1001,13 @@
                     img.alt = 'Bundle image';
                     grid.appendChild(img);
                 });
+                if (allPreviewImages.length > previewImages.length) {
+                    const more = document.createElement('div');
+                    more.className = 'bundle-preview-more';
+                    more.textContent = '+' + (allPreviewImages.length - previewImages.length);
+                    more.setAttribute('aria-label', (allPreviewImages.length - previewImages.length) + ' more bundle images');
+                    grid.appendChild(more);
+                }
             }
 
             function updateEditBundleSummary() {
@@ -1272,7 +1322,11 @@
         const productEmptyMessage = document.getElementById('productEmptyMessage');
         const addProductModalTitle = document.getElementById('addProductModalTitle');
         const addProductModalSubtitle = document.getElementById('addProductModalSubtitle');
+        const addProductModalKicker = document.getElementById('addProductModalKicker');
+        const addProductModalContent = document.querySelector('#addProductModal .product-modal');
         const addProductSubmitButton = document.getElementById('addProductSubmitButton');
+        const inputImageLabel = document.getElementById('inputImageLabel');
+        const productImagePreviewFrame = document.getElementById('productImagePreviewFrame');
         const productNameLabel = document.getElementById('productNameLabel');
         const descriptionLabel = document.getElementById('descriptionLabel');
         const priceLabel = document.getElementById('priceLabel');
@@ -1427,6 +1481,14 @@
         function setBundleModeText(type) {
             const isBundle = type === 'bundle';
 
+            if (addProductModalContent) {
+                addProductModalContent.classList.toggle('is-bundle-mode', isBundle);
+            }
+
+            if (addProductModalKicker) {
+                addProductModalKicker.textContent = isBundle ? 'Bundle builder' : 'Catalog item';
+            }
+
             if (addProductModalTitle) {
                 addProductModalTitle.textContent = isBundle ? 'Add Bundle' : 'Add Product';
             }
@@ -1471,11 +1533,11 @@
                 })
                 .filter(function(image) {
                     return image.length > 0;
-                })
-                .slice(0, 8);
-            const previewImages = uploadedProductImagePreviewSrc
-                ? [uploadedProductImagePreviewSrc].concat(selectedImages).slice(0, 8)
+                });
+            const allPreviewImages = uploadedProductImagePreviewSrc
+                ? [uploadedProductImagePreviewSrc].concat(selectedImages)
                 : selectedImages;
+            const previewImages = allPreviewImages.slice(0, 8);
 
             bundleImagePreview.classList.toggle('d-none', selectedItemType() !== 'bundle' || previewImages.length === 0);
 
@@ -1484,7 +1546,7 @@
                 return;
             }
 
-            bundleImagePreview.innerHTML = '<div class="bundle-image-preview-grid"></div>';
+            bundleImagePreview.innerHTML = '<div class="bundle-image-preview-head"><strong>Bundle preview</strong><span>' + allPreviewImages.length + ' image' + (allPreviewImages.length === 1 ? '' : 's') + '</span></div><div class="bundle-image-preview-grid"></div>';
             const grid = bundleImagePreview.querySelector('.bundle-image-preview-grid');
 
             previewImages.forEach(function(image) {
@@ -1493,6 +1555,13 @@
                 img.alt = 'Bundle image';
                 grid.appendChild(img);
             });
+            if (allPreviewImages.length > previewImages.length) {
+                const more = document.createElement('div');
+                more.className = 'bundle-preview-more';
+                more.textContent = '+' + (allPreviewImages.length - previewImages.length);
+                more.setAttribute('aria-label', (allPreviewImages.length - previewImages.length) + ' more bundle images');
+                grid.appendChild(more);
+            }
         }
 
         function updateBundleSummary() {
@@ -1740,9 +1809,17 @@
 
         updateAddProductMode();
 
+        let isSavingProduct = false;
+
         addProductForm.addEventListener('submit', function (e) {
+            if (isSavingProduct) {
+                e.preventDefault();
+                return;
+            }
+
             if (!addProductForm.checkValidity()) {
                 addProductForm.reportValidity();
+                e.preventDefault();
                 return;
             }
 
@@ -1752,17 +1829,11 @@
                 return;
             }
 
-            e.preventDefault();
-
-            Swal.fire({
-                title: 'Saving Product...',
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading()
-            });
-
-            setTimeout(() => {
-                addProductForm.submit();
-            }, 300);
+            isSavingProduct = true;
+            if (addProductSubmitButton) {
+                addProductSubmitButton.disabled = true;
+                addProductSubmitButton.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Saving ' + (selectedItemType() === 'bundle' ? 'Bundle' : 'Product') + '...</span>';
+            }
         });
 
         function uploadImage(input) {
@@ -1770,6 +1841,8 @@
 
             if (!file) {
                 uploadedProductImagePreviewSrc = '';
+                if (inputImageLabel) inputImageLabel.querySelector('strong').textContent = 'Upload image';
+                if (productImagePreviewFrame) productImagePreviewFrame.classList.remove('is-selected');
                 updateBundleImagePreview();
                 return;
             }
@@ -1795,6 +1868,8 @@
             reader.onload = function (e) {
                 uploadedProductImagePreviewSrc = e.target.result;
                 document.getElementById('avatar').src = e.target.result;
+                if (inputImageLabel) inputImageLabel.querySelector('strong').textContent = file.name;
+                if (productImagePreviewFrame) productImagePreviewFrame.classList.add('is-selected');
                 updateBundleImagePreview();
             };
 
