@@ -824,6 +824,18 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
 </style>
 
 <script>
+    @if (session('status'))
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'success',
+                title: 'Password reset successful',
+                text: @json(session('status')),
+                confirmButtonText: 'Continue to login',
+                confirmButtonColor: '#2f9bd7'
+            });
+        });
+    @endif
+
     let currentRole = "{{ old('selected_role') }}";
 
     window.showLandingPage = function () {
@@ -888,7 +900,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
         const formData = new FormData(this);
 
         btn.disabled = true;
-        btn.innerHTML = "Signing in...";
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Signing in...</span>';
 
         try {
             const res = await fetch("{{ route('login') }}", {
