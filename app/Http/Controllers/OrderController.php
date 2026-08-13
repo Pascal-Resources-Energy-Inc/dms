@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use RealRashid\SweetAlert\Facades\Alert;
 
@@ -243,32 +244,21 @@ class OrderController extends Controller
 
     public function guestOrder(Request $request)
     {
+        $user = $request->user();
+        abort_unless($user && $user->role === 'Area Distributor', 403);
+
         $products = Product::with('item')
+            ->where('ad_user_id', $user->id)
             ->where('status', 'Activate')
             ->orderBy('product_name')
             ->get();
 
-        $user = auth()->user();
-        $authorizedTerritories = collect();
-
-        if ($user && $user->role !== 'Admin' && optional($user->ad)->exists()) {
-            $authorizedTerritories = optional($user->ad)->areas
-                ->pluck('area_name')
-                ->filter()
-                ->unique()
-                ->sort()
-                ->values();
-        }
-
-        if ($authorizedTerritories->isEmpty() && Schema::hasTable('ad_areas')) {
-            $authorizedTerritories = DB::table('ad_areas')
-                ->whereNull('deleted_at')
-                ->whereNotNull('area_name')
-                ->where('area_name', '<>', '')
-                ->distinct()
-                ->orderBy('area_name')
-                ->pluck('area_name');
-        }
+        $authorizedTerritories = collect(optional($user->ad)->areas)
+            ->pluck('area_name')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
 
         $prefillClient = null;
 
@@ -396,11 +386,20 @@ class OrderController extends Controller
 
     public function storeGuest(Request $request)
     {
+        $user = $request->user();
+        abort_unless($user && $user->role === 'Area Distributor', 403);
+
+        $authorizedTerritories = collect(optional($user->ad)->areas)
+            ->pluck('area_name')
+            ->filter()
+            ->unique()
+            ->values();
+
         $request->validate([
             'guest_name' => 'nullable|string|max:150',
             'guest_email' => 'nullable|email|max:150',
             'guest_phone' => 'nullable|string|max:40',
-            'guest_authorized_territory' => 'nullable|string|max:150',
+            'guest_authorized_territory' => ['required', 'string', 'max:150', Rule::in($authorizedTerritories->all())],
             'guest_notes' => 'nullable|string|max:1000',
             'loyalty_client_id' => 'nullable|integer|exists:clients,id',
             'products' => 'required|array',
@@ -431,6 +430,7 @@ class OrderController extends Controller
         })->values();
 
         $products = Product::whereIn('id', $productIds)
+            ->where('ad_user_id', $user->id)
             ->where('status', 'Activate')
             ->get()
             ->keyBy('id');
@@ -452,7 +452,7 @@ class OrderController extends Controller
                 continue;
             }
 
-            $ad = AreaDistributor::where('user_id', $product->ad_user_id)->first();
+            $ad = $user->ad;
             $order = new OrderDetail();
             $order->transaction_id = $poNumber;
             $order->item = $product->product_name;

@@ -1295,7 +1295,7 @@
         .modal .modal-body video,
         .modal .modal-body canvas {
             max-width: 100%;
-            height: auto;
+            height: 80px;
         }
 
         .modal .form-control,
@@ -1377,6 +1377,7 @@
             .modal .form-select,
             .modal .input-group-text {
                 min-height: 42px;
+                width: 100%;
             }
 
             .modal .row {

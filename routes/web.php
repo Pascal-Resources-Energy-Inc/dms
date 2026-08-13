@@ -15,8 +15,8 @@ use App\Http\Controllers\DealerController;
 
 Route::get('/', 'HomeController@index')->name('home');
 Route::get('/ad-dashboard', 'HomeController@adDashboard')->name('ad-dashboard');
-Route::get('/guest-order', 'OrderController@guestOrder')->name('guest-order');
-Route::post('/guest-order', 'OrderController@storeGuest')->name('guest-order.store');
+Route::get('/guest-order', 'OrderController@guestOrder')->middleware('auth')->name('guest-order');
+Route::post('/guest-order', 'OrderController@storeGuest')->middleware('auth')->name('guest-order.store');
 
 Auth::routes();
 
