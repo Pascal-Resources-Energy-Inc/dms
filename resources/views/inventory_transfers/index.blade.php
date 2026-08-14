@@ -169,7 +169,7 @@
                     <div class="soft-note mb-3">
                         Use IN to establish or correct stock, OUT for pull-out or return, and TRANSFER to move stock between assigned areas.
                     </div>
-                    <form method="POST" action="{{ route('inventory-transfers.store') }}">
+                    <form method="POST" action="{{ route('inventory-transfers.store') }}" id="newMovementForm">
                         @csrf
 
                         <div class="mb-3">
@@ -282,7 +282,7 @@
                             <div class="fw-semibold" id="movementPreview">Select product, area, and quantity.</div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100">
+                        <button type="submit" class="btn btn-primary w-100" id="saveMovementButton">
                             Save Movement
                         </button>
                     </form>
@@ -941,7 +941,7 @@
         const balanceLookup = @json($balanceLookup ?? []);
         const singleArea = @json($areas->count() === 1 ? $areas->first() : null);
         const stockProducts = @json($productOptions ?? []);
-        const adProducts = @json($adProductOptions ?? $productOptions ?? []);
+        const availableBalanceProducts = @json($availableBalanceProductOptions ?? []);
         const movementInputs = document.querySelectorAll('input[name="movement_type"]');
         const movementOptions = document.querySelectorAll('.movement-type-option');
         const productSelect = document.getElementById('productSelect');
@@ -962,7 +962,7 @@
         let stockBalanceTable = null;
         let syncingMovementFields = false;
         let activeProducts = [];
-        let renderedProductType = null;
+        let renderedProductKey = null;
         const movementReasons = {
             in: ['Beginning Balance', 'Inventory Adjustment'],
             out: ['Return and Refund', 'Pull Out', 'Replace']
@@ -999,13 +999,29 @@
         }
 
         function productOptionsForType(type) {
-            return type === 'in' ? stockProducts : adProducts;
+            if (type === 'in') {
+                return stockProducts;
+            }
+
+            const sourceArea = fromAreaSelect.value;
+
+            return availableBalanceProducts.filter(function(product) {
+                if (sourceArea) {
+                    return Number(balanceLookup[product.id + '|' + sourceArea] || 0) > 0;
+                }
+
+                return Object.keys(balanceLookup).some(function(key) {
+                    return key.indexOf(product.id + '|') === 0 && Number(balanceLookup[key] || 0) > 0;
+                });
+            });
         }
 
         function renderProductOptions() {
             const type = selectedType();
+            const sourceArea = type === 'in' ? '' : fromAreaSelect.value;
+            const renderKey = type + '|' + sourceArea;
 
-            if (renderedProductType === type) {
+            if (renderedProductKey === renderKey) {
                 return;
             }
 
@@ -1021,7 +1037,10 @@
             options.forEach(function (product) {
                 const option = document.createElement('option');
                 option.value = product.id;
-                option.textContent = optionText(product);
+                const available = sourceArea ? Number(balanceLookup[product.id + '|' + sourceArea] || 0) : null;
+                option.textContent = available === null
+                    ? optionText(product)
+                    : optionText(product) + ' (Available: ' + available.toLocaleString() + ' pcs)';
 
                 if (currentValueExists && String(product.id) === String(selectedValue)) {
                     option.selected = true;
@@ -1036,7 +1055,7 @@
                 option.disabled = true;
                 option.textContent = type === 'in'
                     ? 'No stock products available'
-                    : 'No completed AD purchase order items available';
+                    : 'No products with available stock' + (sourceArea ? ' in ' + sourceArea : '');
                 productSelect.appendChild(option);
             }
 
@@ -1045,7 +1064,7 @@
             }
 
             productSelect.dataset.selectedValue = '';
-            renderedProductType = type;
+            renderedProductKey = renderKey;
             syncSelect2(productSelect);
         }
 
@@ -1166,8 +1185,6 @@
             syncingMovementFields = true;
             const type = selectedType();
 
-            renderProductOptions();
-
             const needsFromArea = type === 'out' || type === 'transfer';
             const needsToArea = type === 'in' || type === 'transfer';
             const needsMovementReason = type === 'in' || type === 'out';
@@ -1204,6 +1221,7 @@
                 setSelectValue(toAreaSelect, '');
             }
 
+            renderProductOptions();
             updateActiveType();
             preventSameArea();
             updateAvailableQty();
@@ -1278,8 +1296,16 @@
             window.jQuery(toAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
         }
 
-        const movementForm = productSelect.closest('form');
+        const movementForm = document.getElementById('newMovementForm');
+        const saveMovementButton = document.getElementById('saveMovementButton');
+        let isSavingMovement = false;
+
         movementForm.addEventListener('submit', function (event) {
+            if (isSavingMovement) {
+                event.preventDefault();
+                return;
+            }
+
             const type = selectedType();
             const requestedQty = Number(qtyInput.value || 0);
             const available = sourceAvailableQty();
@@ -1307,7 +1333,16 @@
                 event.preventDefault();
                 updateAvailableQty();
                 qtyInput.focus();
+                return;
             }
+
+            if (!movementForm.checkValidity()) {
+                return;
+            }
+
+            isSavingMovement = true;
+            saveMovementButton.disabled = true;
+            saveMovementButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span><span>Saving Movement...</span>';
         });
 
         balanceSearch.addEventListener('keyup', filterBalanceRows);

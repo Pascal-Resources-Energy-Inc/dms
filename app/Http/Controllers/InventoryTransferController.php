@@ -167,6 +167,21 @@ class InventoryTransferController extends Controller
             ->appends($request->query());
 
         $balanceLookup = collect();
+        $availableBalanceProductOptions = $balances
+            ->filter(function ($balance) {
+                return $balance->product_id && (float) ($balance->available_qty ?? $balance->qty) > 0;
+            })
+            ->groupBy('product_id')
+            ->map(function ($rows) {
+                $product = $rows->first();
+
+                return [
+                    'id' => (int) $product->product_id,
+                    'name' => $product->product_name ?: $product->item_name,
+                    'sku' => $product->sku,
+                ];
+            })
+            ->values();
         foreach ($balances as $balance) {
             $availableQty = $balance->available_qty ?? $balance->qty;
 
@@ -193,6 +208,7 @@ class InventoryTransferController extends Controller
             'areaSummaries',
             'productSummaries',
             'productOptions',
+            'availableBalanceProductOptions',
             'adProductOptions',
             'stockProducts',
             'adItems'
@@ -280,18 +296,13 @@ class InventoryTransferController extends Controller
             return back()->withInput()->with('error', 'Please select a product from your AD stock product list.');
         }
 
-        if (in_array($type, ['out', 'transfer']) && !$adItem) {
-            return back()->withInput()->with('error', 'Please select a product from completed AD purchase order items.');
+        if (in_array($type, ['out', 'transfer']) && !$stockProduct) {
+            return back()->withInput()->with('error', 'Please select a product from Current Stock by Area.');
         }
 
-        $product = $type === 'in' ? $stockProduct : Product::find($request->product_id);
+        $product = $stockProduct;
 
-        if (!$product && $adItem) {
-            $product = new Product();
-            $product->id = $request->product_id;
-            $product->sku = $adItem->sku;
-            $product->product_name = $adItem->product_name;
-        } elseif ($adItem) {
+        if ($adItem) {
             $product->product_name = $adItem->product_name;
             $product->sku = $adItem->sku ?: $product->sku;
         }

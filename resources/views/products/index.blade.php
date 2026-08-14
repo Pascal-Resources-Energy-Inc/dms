@@ -69,7 +69,7 @@
                 <span class="product-result-count"><i class="bi bi-boxes"></i> {{ number_format($totalProducts) }} product{{ $totalProducts === 1 ? '' : 's' }}</span>
             </div>
             <div class="table-responsive product-table-wrap">
-                <table class="table align-middle product-table" id="example">
+                <table class="table align-middle product-table fs-3" id="example">
                     <thead>
                         <tr>
                             <th>Product Image</th>
