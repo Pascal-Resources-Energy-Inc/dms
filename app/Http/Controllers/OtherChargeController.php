@@ -127,6 +127,12 @@ class OtherChargeController extends Controller
         $user = auth()->user();
         $isDistributor = $user && in_array($user->role, ['Area Distributor', 'Provincial Distributor'], true);
         $amountRules = ['required', 'numeric', 'min:0'];
+        $adUserId = $isDistributor ? $user->id : $request->input('ad_user_id');
+
+        $request->merge([
+            'name' => trim((string) $request->input('name')),
+            'code' => strtoupper(trim((string) $request->input('code'))),
+        ]);
 
         if ($request->input('charge_type') === 'percentage') {
             $amountRules[] = 'max:100';
@@ -140,12 +146,21 @@ class OtherChargeController extends Controller
                     $query->whereIn('role', ['Area Distributor', 'Provincial Distributor']);
                 }),
             ],
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('other_charges', 'name')
+                    ->where('ad_user_id', $adUserId)
+                    ->ignore($ignoreId),
+            ],
             'code' => [
                 'required',
                 'string',
                 'max:60',
-                Rule::unique('other_charges', 'code')->ignore($ignoreId),
+                Rule::unique('other_charges', 'code')
+                    ->where('ad_user_id', $adUserId)
+                    ->ignore($ignoreId),
             ],
             'description' => ['nullable', 'string', 'max:1000'],
             'amount' => $amountRules,
@@ -153,14 +168,15 @@ class OtherChargeController extends Controller
             'charge_type' => ['required', Rule::in(['fixed', 'percentage'])],
             'applies_to' => ['required', Rule::in(['order', 'delivery', 'dealer', 'customer', 'ad_purchase_order'])],
             'is_active' => ['nullable', 'boolean'],
+        ], [
+            'name.unique' => 'This charge name already exists for the selected Area Distributor.',
+            'code.unique' => 'This charge code already exists for the selected Area Distributor.',
         ]);
 
         if ($isDistributor) {
             $data['ad_user_id'] = $user->id;
         }
 
-        $data['code'] = strtoupper(trim($data['code']));
-        $data['name'] = trim($data['name']);
         $data['amount'] = $data['type'] === 'discount'
             ? -abs((float) $data['amount'])
             : abs((float) $data['amount']);

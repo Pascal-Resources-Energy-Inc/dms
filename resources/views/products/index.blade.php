@@ -17,6 +17,7 @@
     <section class="welcome product-page">
         <div class="product-head">
             <div>
+                <div class="product-kicker"><i class="bi bi-box-seam"></i> Catalog</div>
                 <h4 class="product-title">Products</h4>
                 <p class="product-copy">Manage product catalog, prices, bundle composition, and availability.</p>
             </div>
@@ -58,10 +59,14 @@
 
         <div class="product-panel">
             <div class="product-panel-head">
-                <div>
-                    <div class="fw-bold text-dark">Product List</div>
-                    <div class="text-muted small">{{ number_format($totalProducts) }} product(s) found</div>
+                <div class="product-list-heading">
+                    <span class="product-list-icon"><i class="bi bi-grid-3x3-gap"></i></span>
+                    <div>
+                        <div class="fw-bold text-dark">Product List</div>
+                        <div class="text-muted small">Browse and update your catalog items.</div>
+                    </div>
                 </div>
+                <span class="product-result-count"><i class="bi bi-boxes"></i> {{ number_format($totalProducts) }} product{{ $totalProducts === 1 ? '' : 's' }}</span>
             </div>
             <div class="table-responsive product-table-wrap">
                 <table class="table align-middle product-table" id="example">
@@ -138,9 +143,9 @@
                             <td class="fw-semibold text-dark" data-label="Product name">{{ strtoupper($product->product_name) }}</td>
                             <td class="text-muted product-description-cell" data-label="Description">{{ strtoupper($product->description) ?? '-' }}</td>
                             <td data-label="SKU"><span class="product-sku">{{ strtoupper($product->sku) }}</span></td>
-                            <td data-label="Price">₱{{ number_format($product->price, 2) }}</td>
-                            <td data-label="Mega Dealer price">₱{{ number_format($product->mega_dealer_price ?? $product->price, 2) }}</td>
-                            <td data-label="Dealer price">₱{{ number_format($product->dealer_price ?? $product->price, 2) }}</td>
+                            <td data-label="Price"><span class="product-price">₱{{ number_format($product->price, 2) }}</span></td>
+                            <td data-label="Mega Dealer price"><span class="product-price">₱{{ number_format($product->mega_dealer_price ?? $product->price, 2) }}</span></td>
+                            <td data-label="Dealer price"><span class="product-price">₱{{ number_format($product->dealer_price ?? $product->price, 2) }}</span></td>
                             {{-- <td data-label="End User price">₱{{ number_format($product->client_price ?? $product->price, 2) }}</td> --}}
                             {{-- <td data-label="Deposit">{{ $product->deposit ? '₱'.number_format($product->deposit,2) : '-' }}</td> --}}
 
@@ -611,7 +616,11 @@
         background: #fff;
         box-shadow: 0 10px 26px rgba(15, 23, 42, .06);
     }
+    .product-kicker { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 7px; color: #1d4ed8; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
     .product-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-bottom: 1px solid #edf0f5; background: #fcfcfd; }
+    .product-list-heading { display: flex; align-items: center; gap: 10px; }
+    .product-list-icon { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; color: #1d4ed8; border-radius: 8px; background: #dbeafe; font-size: 17px; }
+    .product-result-count { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; color: #475569; border: 1px solid #dbe4ef; border-radius: 999px; background: #fff; font-size: 11px; font-weight: 800; white-space: nowrap; }
     .product-table-wrap { width: 100%; }
     .product-table { width: 100% !important; margin: 0 !important; color: #344054; }
     .product-table thead th {
@@ -649,6 +658,7 @@
     .product-status i { font-size: 7px; }
     .product-status.active { background: #dcfce7; color: #166534; }
     .product-status.inactive { background: #fee2e2; color: #991b1b; }
+    .product-price { color: #0f766e; font-size: 14px; font-weight: 900; white-space: nowrap; }
     .product-icon-btn { width: 34px; height: 34px; padding: 0; }
     .dataTables_wrapper .dataTables_length label,
     .dataTables_wrapper .dataTables_filter label,
@@ -813,6 +823,7 @@
         .product-actions .btn { flex: 1 1 180px; min-height: 40px; }
         .product-panel { overflow: visible; border: 0; background: transparent; box-shadow: none; }
         .product-panel-head { padding: 0 2px 10px; border: 0; background: transparent; }
+        .product-list-icon { width: 34px; height: 34px; font-size: 15px; }
         .product-table-wrap { overflow: visible !important; padding: 0; }
         .product-table,
         .product-table tbody,
@@ -852,6 +863,8 @@
         .product-tile-icon { width: 38px; height: 38px; font-size: 17px; }
         .product-tile strong { font-size: 19px; }
         .product-actions .btn { flex: 1 1 100%; }
+        .product-panel-head { align-items: flex-start; }
+        .product-result-count { margin-top: 2px; }
         .product-table-controls, .product-table-footer { align-items: stretch; flex-direction: column; }
         .dataTables_wrapper .dataTables_filter input { width: 100%; min-width: 0; }
         .product-table tbody td[data-label] { grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr); }
