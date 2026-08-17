@@ -50,15 +50,20 @@
     .product-search-clear { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; display: none; align-items: center; justify-content: center; color: var(--gl-muted); background: transparent; border: 0; border-radius: 8px; }
     .product-search-clear:hover { color: var(--gl-red); background: #fff1f2; }
     .product-list { display: grid; gap: 10px; }
-    .product-row { display: grid; grid-template-columns: 74px minmax(0, 1fr) 112px; gap: 12px; align-items: center; padding: 12px; background: #fff; border: 1px solid var(--gl-line); border-radius: 8px; transition: border-color .16s ease, box-shadow .16s ease; }
+    .product-row { display: grid; grid-template-columns: 74px minmax(0, 1fr) minmax(130px, 150px) 88px; gap: 12px; align-items: center; padding: 12px; background: #fff; border: 1px solid var(--gl-line); border-radius: 8px; transition: border-color .16s ease, box-shadow .16s ease; }
     .product-row.is-hidden { display: none; }
     .product-row.is-selected { border-color: var(--gl-red); box-shadow: 0 10px 24px rgba(193, 18, 31, .08); }
     .product-img { width: 74px; height: 74px; object-fit: contain; background: var(--gl-soft); border: 1px solid #edf0f5; border-radius: 8px; }
     .product-name { margin-bottom: 4px; font-size: 14px; font-weight: 900; line-height: 1.25; }
     .product-desc { color: var(--gl-muted); font-size: 12px; line-height: 1.35; }
     .product-price { margin-top: 6px; color: var(--gl-red); font-size: 13px; font-weight: 900; }
-    .product-qty label { display: block; margin-bottom: 5px; color: var(--gl-muted); font-size: 10px; font-weight: 900; text-align: center; text-transform: uppercase; }
-    .product-qty input { width: 100%; min-height: 40px; text-align: center; border: 1px solid #d0d5dd; border-radius: 8px; }
+    .product-price small { color: var(--gl-muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+    .product-custom-price label, .product-qty label { display: block; margin-bottom: 5px; color: var(--gl-muted); font-size: 10px; font-weight: 900; text-align: center; text-transform: uppercase; }
+    .product-custom-price .input-group-text { min-height: 40px; border-color: #fecaca; background: #fff7f7; font-size: 11px; font-weight: 900; }
+    .product-custom-price input, .product-qty input { width: 100%; min-height: 40px; text-align: center; border: 1px solid #d0d5dd; border-radius: 8px; }
+    .product-custom-price input { color: #991b1b; font-weight: 900; border-color: #fecaca; background: #fffafa; }
+    .product-custom-price input:focus { border-color: var(--gl-red); box-shadow: 0 0 0 3px rgba(193, 18, 31, .1); outline: 0; }
+    .product-price-hint { display: block; margin-top: 4px; color: var(--gl-muted); font-size: 10px; text-align: center; }
 
     .summary-card { position: sticky; top: 86px; }
     .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -87,7 +92,9 @@
         .guest-head { display: block; }
         .product-row { grid-template-columns: 58px minmax(0, 1fr); }
         .product-img { width: 58px; height: 58px; }
-        .product-qty { grid-column: 1 / -1; }
+        .product-custom-price, .product-qty { display: grid; grid-template-columns: 108px minmax(0, 1fr); grid-column: 1 / -1; align-items: center; gap: 10px; }
+        .product-custom-price label, .product-qty label { margin: 0; text-align: left; }
+        .product-price-hint { display: none; }
         .summary-grid, .guest-payments { grid-template-columns: 1fr; }
     }
 </style>
@@ -249,7 +256,27 @@
                                             <div>
                                                 <div class="product-name">{{ $product->product_name }}</div>
                                                 <div class="product-desc">{{ \Illuminate\Support\Str::limit($product->description, 70) }}</div>
-                                                <div class="product-price">PHP {{ number_format($price, 2) }}</div>
+                                                <div class="product-price"><small>Base price</small> PHP {{ number_format($price, 2) }}</div>
+                                            </div>
+                                            <div class="product-custom-price">
+                                                {{-- <label for="productPrice{{ $product->id }}">Order Price</label> --}}
+                                                <small class="product-price-hint">Custom price for this order</small>
+                                                <div>
+                                                    <div class="input-group" style="flex-wrap: nowrap;">
+                                                        <span class="input-group-text">PHP</span>
+                                                        <input type="number"
+                                                            id="productPrice{{ $product->id }}"
+                                                            name="products[{{ $product->id }}][price]"
+                                                            value="{{ old('products.' . $product->id . '.price', $price) }}"
+                                                            min="0"
+                                                            step="0.01"
+                                                            inputmode="decimal"
+                                                            data-product-price
+                                                            data-default-price="{{ $price }}"
+                                                            aria-label="Order price for {{ $product->product_name }}">
+                                                    </div>
+                                                    
+                                                </div>
                                             </div>
                                             <div class="product-qty">
                                                 <label for="productQty{{ $product->id }}">Qty</label>
@@ -342,11 +369,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         productRows.forEach(function(row) {
             const qtyInput = row.querySelector('[data-product-qty]');
+            const priceInput = row.querySelector('[data-product-price]');
             let qty = parseInt(qtyInput.value || 0, 10);
-            const price = parseFloat(qtyInput.dataset.price || 0);
+            let price = parseFloat(priceInput.value || priceInput.dataset.defaultPrice || 0);
 
             if (qty < 0 || Number.isNaN(qty)) {
                 qty = 0;
+            }
+
+            if (price < 0 || Number.isNaN(price)) {
+                price = 0;
             }
 
             qtyInput.value = qty;
@@ -401,6 +433,8 @@ document.addEventListener('DOMContentLoaded', function () {
     productRows.forEach(function(row) {
         row.querySelector('[data-product-qty]').addEventListener('input', calculate);
         row.querySelector('[data-product-qty]').addEventListener('change', calculate);
+        row.querySelector('[data-product-price]').addEventListener('input', calculate);
+        row.querySelector('[data-product-price]').addEventListener('change', calculate);
     });
 
     if (productSearch) {

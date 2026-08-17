@@ -404,6 +404,7 @@ class OrderController extends Controller
             'loyalty_client_id' => 'nullable|integer|exists:clients,id',
             'products' => 'required|array',
             'products.*.qty' => 'nullable|integer|min:0',
+            'products.*.price' => 'nullable|numeric|min:0',
             'payment_method' => 'required|in:cash,gcash,bank_transfer',
         ]);
 
@@ -459,7 +460,9 @@ class OrderController extends Controller
             $order->item_description = $product->description;
             $order->ad_id = optional($ad)->id;
             $order->qty = (int) $line['qty'];
-            $order->price = $this->guestPrice($product);
+            $order->price = isset($line['price']) && $line['price'] !== ''
+                ? (float) $line['price']
+                : $this->guestPrice($product);
             $order->dealer_id = 0;
             $order->ad_address = optional($ad)->address;
             $order->payment_method = $request->payment_method;
