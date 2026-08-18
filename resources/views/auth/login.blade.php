@@ -94,7 +94,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
                         <span class="selected-indicator" aria-hidden="true">&#10003;</span>
                     </button>
 
-                    <button class="role-button" type="button" onclick="selectRole('sedp', this)">
+                    <button class="role-button" type="button" onclick="selectRole('mfi', this)">
                         <span class="role-icon" aria-hidden="true">
                             <svg width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
                                 <path d="M8 1.5 1.75 4.25 8 7l6.25-2.75z"/>
@@ -145,7 +145,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
                 <div class="role-indicator" id="roleIndicator" style="display: {{ $showLoginDirectly ? 'flex' : 'none' }};">
                     <span class="role-label">Signing in as</span>
                     <strong class="role-name" id="selectedRoleName">
-                        @if(strtolower(old('selected_role')) === 'sedp')
+                        @if(strtolower(old('selected_role')) === 'mfi')
                             MFI
                         @else
                             {{ $hasSelectedRole ? ucwords(old('selected_role')) : 'User' }}
@@ -886,7 +886,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
     }
 
     function formatRoleName(role) {
-        if ((role || '').toLowerCase() === 'sedp') {
+        if ((role || '').toLowerCase() === 'mfi') {
             return 'MFI';
         }
 

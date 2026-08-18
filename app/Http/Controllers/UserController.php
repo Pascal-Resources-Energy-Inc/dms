@@ -40,7 +40,7 @@ class UserController extends Controller
     public function store(Request $request)
     {
        $isAdmin = $request->role === 'Admin';
-       $isSedp = $request->role === 'SEDP';
+       $isSedp = $request->role === 'MFI';
        $isAdminLike = $isAdmin || $isSedp;
        $needsDeliveryAddress = in_array($request->role, ['Area Distributor', 'Provincial Distributor'], true);
        $normalizedContactNumber = $this->normalizeMobileNumber($request->contact_number);
@@ -65,10 +65,10 @@ class UserController extends Controller
 
        $request->validate([
             'warehouse' => 'nullable|in:lubao,guinobatan',
-            'sedp_center' => 'required_if:role,SEDP|array',
+            'sedp_center' => 'required_if:role,MFI|array',
             'sedp_center.*' => 'string|max:255',
             'delivery_address' => 'nullable|string|max:1000',
-            'designation' => 'required_if:role,Admin|required_if:role,SEDP|nullable|string|max:255',
+            'designation' => 'required_if:role,Admin|required_if:role,MFI|nullable|string|max:255',
             'employee_number' => 'required_if:role,Admin|nullable|string|max:255',
             'department' => 'required_if:role,Admin|nullable|string|max:255',
             'contact_number' => 'nullable|regex:/^09[0-9]{9}$/',
@@ -833,10 +833,10 @@ class UserController extends Controller
 
         $user = User::findOrFail($request->id);
 
-        if (!in_array($user->role, ['Admin', 'SEDP'], true)) {
+        if (!in_array($user->role, ['Admin', 'MFI'], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Access can only be assigned to Admin or SEDP users.'
+                'message' => 'Access can only be assigned to Admin or MFI users.'
             ], 422);
         }
 
@@ -972,7 +972,7 @@ class UserController extends Controller
                 $role = strtoupper($user->role ?? 'N/A');
                 $roleClass = 'is-muted';
 
-                if (in_array($user->role, ['Admin', 'SEDP'], true)) {
+                if (in_array($user->role, ['Admin', 'MFI'], true)) {
                     $roleClass = 'is-admin';
                 } elseif ($user->role === 'Client') {
                     $roleClass = 'is-client';
@@ -1018,7 +1018,7 @@ class UserController extends Controller
 
             ->addColumn('actions', function ($user) {
                 $currentUser = auth()->user();
-                $currentUserIsAdminLike = $currentUser && in_array($currentUser->role, ['Admin', 'SEDP'], true);
+                $currentUserIsAdminLike = $currentUser && in_array($currentUser->role, ['Admin', 'MFI'], true);
                 $canEdit = $currentUserIsAdminLike && $currentUser->can_edit === 'on';
                 $canAdd = $currentUserIsAdminLike && $currentUser->can_add === 'on';
 
@@ -1043,7 +1043,7 @@ class UserController extends Controller
                     $buttons[] = '<button type="button" class="btn-custom btn-edit-custom btn-edit-user" data-id="'.$user->id.'" title="Edit User"><i class="fas fa-edit"></i></button>';
                 }
 
-                if (in_array($user->role, ['Admin', 'SEDP'], true) && ($canEdit || $canAdd)) {
+                if (in_array($user->role, ['Admin', 'MFI'], true) && ($canEdit || $canAdd)) {
                     $buttons[] = '<button type="button" class="btn-custom btn-access-custom btn-access-user" data-id="'.$user->id.'" title="Access Control"><i class="fas fa-key"></i></button>';
                 }
 

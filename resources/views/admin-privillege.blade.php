@@ -169,7 +169,7 @@
                                 <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
                             </div>
                             <div class="access-row">
-                                <div><strong>SEDP Reports</strong><small>Sign up and repeat purchase incentives</small></div>
+                                <div><strong>MFI Reports</strong><small>Sign up and repeat purchase incentives</small></div>
                                 <label><input type="checkbox" class="access-permission-check" data-module="reports" data-submodule="sedp" data-action="view"><span></span></label>
                                 <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
                                 <label class="is-disabled"><input type="checkbox" disabled><span></span></label>

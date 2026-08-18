@@ -353,7 +353,7 @@
 @section('content')
 @php
     $currentUser = auth()->user();
-    $canShowAddAdmin = $currentUser && in_array($currentUser->role, ['Admin', 'SEDP'], true) && $currentUser->can_add === 'on';
+    $canShowAddAdmin = $currentUser && in_array($currentUser->role, ['Admin', 'MFI'], true) && $currentUser->can_add === 'on';
 @endphp
 
 <section class="users-page">
@@ -387,7 +387,7 @@
                     <select id="roleFilter" class="form-control custom-dropdown">
                         <option value="">All Roles</option>
                         <option value="Admin">Admin</option>
-                        <option value="SEDP">SEDP</option>
+                        <option value="MFI">MFI</option>
                         <option value="Dealer">Dealer</option>
                         <option value="Client">Client</option>
                         <option value="Provincial Distributor">Provincial Distributor</option>
@@ -961,7 +961,7 @@
             }
 
             const isAdmin = selectedRole === 'Admin';
-            const isSedp = selectedRole === 'SEDP';
+            const isSedp = selectedRole === 'MFI';
             const isAdminLike = isAdmin || isSedp;
             const isProvincialDistributor = selectedRole === 'Provincial Distributor';
             const isAreaDistributor = selectedRole === 'Area Distributor';
@@ -1050,7 +1050,7 @@
 
             const role = roleFilter.val();
 
-            if (!role || role === 'Admin' || role === 'SEDP') {
+            if (!role || role === 'Admin' || role === 'MFI') {
                 partnerCode.val('');
                 return;
             }

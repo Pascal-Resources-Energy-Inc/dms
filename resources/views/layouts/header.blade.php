@@ -1650,7 +1650,7 @@
                 $sidebarRole = $sidebarUser->role ?? '';
                 $sidebarWarehouse = strtolower((string) ($sidebarUser->warehouse ?? ''));
                 $sidebarIsAdmin = $sidebarRole === 'Admin';
-                $sidebarIsSedp = $sidebarRole === 'SEDP';
+                $sidebarIsSedp = $sidebarRole === 'MFI';
                 $sedpCanAccess = function ($field) use ($sidebarUser, $sidebarIsAdmin, $sidebarIsSedp) {
                     if ($sidebarIsAdmin) {
                         return true;

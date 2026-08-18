@@ -296,13 +296,14 @@
     ];
 @endphp
 
-<section class="sedp-command" style="margin-top: 5.5em;">
+{{-- <section class="sedp-command" style="margin-top: 5.5em;"> --}}
+<section class="sedp-command">
     <form method="GET" action="{{ route('home') }}">
         <section class="sedp-hero">
             <div class="sedp-hero-copy">
-                <span class="sedp-eyebrow"><i class="ti ti-heart-handshake"></i>Social Enterprise Development Program</span>
+                <span class="sedp-eyebrow"><i class="ti ti-heart-handshake"></i>MFI</span>
                 <h1 class="sedp-title">Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ auth()->user()->name }}</h1>
-                <p class="sedp-subtitle">A live view of the lives changed, livelihoods supported, and 330g LPG refills delivered through SEDP.</p>
+                <p class="sedp-subtitle">A live view of the lives changed, livelihoods supported, and 330g LPG refills delivered through MFI.</p>
             </div>
 
             <div class="sedp-hero-actions">
@@ -314,7 +315,7 @@
         </section>
     </form>
 
-    <div class="sedp-tabs" aria-label="SEDP projects">
+    <div class="sedp-tabs" aria-label="MFI projects">
         @foreach ($projects as $project)
             <div class="sedp-tab {{ $project['accent'] }}">
                 <i class="ti {{ $project['accent'] === 'rise' ? 'ti-trending-up' : 'ti-sparkles' }}"></i>
@@ -325,7 +326,7 @@
 
     <div class="sedp-source-bar">
         <div>
-            <h2 class="sedp-source-name">SEDP Impact Overview</h2>
+            <h2 class="sedp-source-name">MFI Impact Overview</h2>
             <p class="sedp-source-copy">Combined contribution of Project Rise and Project Genesis.</p>
         </div>
         <span class="sedp-asof"><i class="ti ti-calendar-event"></i>Updated through {{ $asOf->format('M d, Y') }}</span>
@@ -373,7 +374,7 @@
 
         <aside class="sedp-panel sedp-refill-card">
             <h5>330g Cylinder Refill Count</h5>
-            <p>All SEDP refill activity as of {{ $asOf->format('M d, Y') }}.</p>
+            <p>All MFI refill activity as of {{ $asOf->format('M d, Y') }}.</p>
 
             <div class="sedp-cylinder-wrap">
                 <div class="sedp-refill-total">{{ number_format($totals['refills']) }}<small>Total cylinder refills</small></div>

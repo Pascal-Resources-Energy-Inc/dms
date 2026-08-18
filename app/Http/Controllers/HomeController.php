@@ -39,7 +39,7 @@ class HomeController extends Controller
      */
     public function index(Request $request)
     {
-        if (strtolower((string) auth()->user()->role) === 'sedp') {
+        if (strtolower((string) auth()->user()->role) === 'mfi') {
             return $this->sedpDashboard($request);
         }
 
