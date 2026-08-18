@@ -538,7 +538,7 @@
                         <span class="inventory-report-chip">14-day target stock</span>
                     </div>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body">
                     <div class="table-responsive">
                         <table class="table inventory-report-table align-middle mb-0" id="stockInventoryTable">
                             <thead>
@@ -619,7 +619,7 @@
                         <span class="stock-level-chip">{{ number_format(($stockLevels ?? collect())->sum('remaining_qty')) }} Remaining</span>
                     </div>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body">
                     <div class="table-responsive">
                         <table class="table stock-level-table align-middle mb-0" id="stockLevelTable">
                             <thead>

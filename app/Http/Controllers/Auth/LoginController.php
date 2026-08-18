@@ -129,7 +129,7 @@ class LoginController extends Controller
     {
         switch (strtolower($user->role)) {
             case 'admin':
-            case 'sedp':
+            case 'mfi':
                 return '/';
             case 'area distributor':
                 return '/ad-dashboard';

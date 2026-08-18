@@ -169,14 +169,14 @@
                     <div class="soft-note mb-3">
                         Use IN to establish or correct stock, OUT for pull-out or return, and TRANSFER to move stock between assigned areas.
                     </div>
-                    <form method="POST" action="{{ route('inventory-transfers.store') }}">
+                    <form method="POST" action="{{ route('inventory-transfers.store') }}" id="newMovementForm">
                         @csrf
 
                         <div class="mb-3">
                             <label class="form-label">Movement Type</label>
                             @php
                                 $transferDisabled = !$canTransfer;
-                                $oldMovementType = old('movement_type', 'out');
+                                $oldMovementType = old('movement_type', 'in');
                                 $oldMovementType = $transferDisabled && $oldMovementType === 'transfer' ? 'in' : $oldMovementType;
                             @endphp
                             <div class="movement-type-grid" id="movementTypeGrid">
@@ -282,7 +282,7 @@
                             <div class="fw-semibold" id="movementPreview">Select product, area, and quantity.</div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100">
+                        <button type="submit" class="btn btn-primary w-100" id="saveMovementButton">
                             Save Movement
                         </button>
                     </form>
@@ -294,11 +294,14 @@
             <div class="inventory-card mb-3 card">
                 <div class="card-header bg-white">
                     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
-                        <div>
+                        <div class="stock-section-title">
+                            <span class="stock-section-icon"><i class="bi bi-boxes"></i></span>
+                            <div>
                             <h5 class="mb-0">Current Stock by Area</h5>
                             <div class="small text-muted">Available stock deducts completed dealer orders in the same area.</div>
+                            </div>
                         </div>
-                        <span class="badge bg-light text-dark mt-2 mt-lg-0">Ledger balance</span>
+                        <span class="stock-ledger-badge mt-2 mt-lg-0"><i class="bi bi-journal-check"></i> Ledger balance</span>
                     </div>
                     <div class="balance-tools mt-3">
                         <input type="text" id="balanceSearch" class="form-control" placeholder="Search area, SKU, or product">
@@ -310,7 +313,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body p-3">
                     <div class="table-responsive">
                         <table class="table inventory-table align-middle mb-0" id="stockBalanceTable">
                             <thead>
@@ -332,28 +335,28 @@
                                         $balanceStatus = $availableQty <= 0 ? 'none' : ($availableQty <= 10 ? 'low' : 'good');
                                     @endphp
                                     <tr class="js-balance-row" data-search="{{ strtolower($balance->area . ' ' . ($balance->sku ?? '') . ' ' . $balance->product_name) }}" data-status="{{ $balanceStatus }}">
-                                        <td>
+                                        <td data-label="Area">
                                             <div class="fw-bold text-dark">{{ $balance->area }}</div>
                                             <div class="small text-muted">Area stock</div>
                                         </td>
-                                        <td>
+                                        <td data-label="Product">
                                             <div class="fw-semibold">{{ strtoupper($balance->product_name) }}</div>
                                             <div class="small text-muted">{{ strtoupper($balance->sku ?? 'No SKU') }}</div>
                                         </td>
-                                        <td class="text-end">
+                                        <td class="text-end" data-label="Stock after movement">
                                             <span class="stock-pill stock-pill-in">{{ number_format($stockAfterMovement) }} pcs</span>
                                         </td>
-                                        <td class="text-end">
+                                        <td class="text-end" data-label="Sales orders">
                                             @if($orderedQty > 0)
                                                 <span class="stock-pill stock-pill-order">{{ number_format($orderedQty) }} pcs</span>
                                             @else
                                                 <span class="stock-pill stock-pill-muted">0 pcs</span>
                                             @endif
                                         </td>
-                                        <td class="text-end">
-                                            <span class="remaining-qty {{ $availableQty < 0 ? 'text-danger' : '' }}">{{ number_format($availableQty) }}</span>
+                                        <td class="text-end" data-label="Available stock">
+                                            <span class="remaining-qty {{ $availableQty < 0 ? 'text-danger' : '' }}">{{ number_format($availableQty) }} <small>pcs</small></span>
                                         </td>
-                                        <td>
+                                        <td data-label="Status">
                                             @if($availableQty <= 0)
                                                 <span class="status-badge status-none">No stock</span>
                                             @elseif($availableQty <= 10)
@@ -417,11 +420,11 @@
                             <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
                         </div>
                         <div class="col-lg-1 col-md-4">
-                            <button class="btn btn-primary w-100">Filter</button>
+                            <button class="btn btn-primary">Filter</button>
                         </div>
                     </form>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body p-3">
                     <div class="table-responsive">
                         <table class="table inventory-table align-middle mb-0" id="movementHistoryTable">
                             <thead>
@@ -431,17 +434,18 @@
                                     <th>Product</th>
                                     <th>From</th>
                                     <th>To</th>
-                                    <th class="text-end">Qty</th>
+                                    <th>Qty</th>
+                                    <th class="text-center">Unit Cost</th>
                                     {{-- <th>Reference</th> --}}
-                                    <th>Remarks</th>
-                                    <th></th>
+                                    <th class="text-center">Remarks</th>
+                                    {{-- <th></th> --}}
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($movements as $movement)
                                     <tr>
-                                        <td>{{ $movement->transfer_date ? $movement->transfer_date->format('M d, Y') : '-' }}</td>
-                                        <td>
+                                        <td data-label="Date">{{ $movement->transfer_date ? $movement->transfer_date->format('M d, Y') : '-' }}</td>
+                                        <td data-label="Type">
                                             @if($movement->movement_type == 'in')
                                                 <span class="badge bg-success movement-badge">IN</span>
                                             @elseif($movement->movement_type == 'out')
@@ -450,28 +454,35 @@
                                                 <span class="badge bg-primary movement-badge">TRANSFER</span>
                                             @endif
                                         </td>
-                                        <td>
+                                        <td data-label="Product">
                                             <div class="fw-semibold">{{ optional($movement->product)->product_name ?: $movement->item_name }}</div>
                                             <div class="small text-muted">{{ $movement->sku ?? 'No SKU' }}</div>
                                         </td>
-                                        <td>{{ $movement->from_area ?? '-' }}</td>
-                                        <td>{{ $movement->to_area ?? '-' }}</td>
-                                        <td class="text-end">{{ number_format($movement->qty) }}</td>
+                                        <td data-label="From">{{ $movement->from_area ?? '-' }}</td>
+                                        <td data-label="To">{{ $movement->to_area ?? '-' }}</td>
+                                        <td data-label="Quantity"><span class="movement-qty">{{ number_format($movement->qty) }}</span></td>
+                                        <td data-label="Unit cost" class="text-center">
+                                            @if($movement->unit_cost !== null)
+                                                <span class="movement-unit-cost">₱{{ number_format($movement->unit_cost, 2) }}</span>
+                                            @else
+                                                <span class="movement-cost-empty">Not set</span>
+                                            @endif
+                                        </td>
                                         {{-- <td>{{ $movement->reference_no ?? '-' }}</td> --}}
-                                        <td>
+                                        <td data-label="Remarks" class="text-center">
                                             @if(trim((string) $movement->remarks) !== '')
                                                 <div class="movement-remarks">{{ $movement->remarks }}</div>
                                             @else
                                                 <span class="text-muted">-</span>
                                             @endif
                                         </td>
-                                        <td class="text-end">
+                                        {{-- <td class="text-end" data-label="Action">
                                             <form method="POST" action="{{ route('inventory-transfers.destroy', $movement->id) }}" onsubmit="return confirm('Delete this inventory movement?');">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                                             </form>
-                                        </td>
+                                        </td> --}}
                                     </tr>
                                 @empty
                                 @endforelse
@@ -595,6 +606,22 @@
         display: inline-block;
     }
 
+    .movement-qty { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; min-height: 30px; padding: 4px 9px; color: #1d4ed8; border-radius: 8px; background: #eff6ff; font-size: 13px; font-weight: 900; }
+
+    .movement-unit-cost { display: inline-flex; align-items: center; justify-content: center; min-width: 88px; min-height: 30px; padding: 4px 9px; color: #0f766e; border: 1px solid #99f6e4; border-radius: 8px; background: #f0fdfa; font-size: 13px; font-weight: 900; white-space: nowrap; }
+
+    .movement-cost-empty { color: #94a3b8; font-size: 12px; font-style: italic; }
+
+    .stock-section-title { display: flex; align-items: center; gap: 11px; }
+
+    .stock-section-icon { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; color: #1d4ed8; border-radius: 10px; background: #dbeafe; font-size: 18px; }
+
+    .stock-ledger-badge { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 6px 10px; color: #475569; border: 1px solid #dbe4ef; border-radius: 999px; background: #f8fafc; font-size: 11px; font-weight: 800; white-space: nowrap; }
+
+    .balance-tools .form-control { min-height: 42px; border-color: #dbe4ef; border-radius: 8px; }
+
+    .balance-tools .form-control:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, .11); }
+
     .movement-remarks {
         max-width: 260px;
         min-width: 160px;
@@ -643,12 +670,16 @@
     }
 
     .remaining-qty {
-        display: inline-block;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 4px;
         min-width: 62px;
         font-size: 18px;
         font-weight: 800;
         color: #111827;
     }
+
+    .remaining-qty small { color: #64748b; font-size: 10px; font-weight: 800; text-transform: uppercase; }
 
     .status-badge {
         min-width: 78px;
@@ -853,6 +884,53 @@
             border-bottom: 1px solid #edf0f5;
         }
     }
+
+    @media (max-width: 767.98px) {
+        .inventory-card .card-header { padding: 16px; }
+        .inventory-card .card-header form { margin-top: 14px !important; }
+        .inventory-card .card-header .btn { min-height: 40px; }
+        .inventory-card .table-responsive { overflow: visible; }
+        #movementHistoryTable,
+        #movementHistoryTable tbody,
+        #movementHistoryTable tr,
+        #movementHistoryTable td { display: block; width: 100%; min-width: 0; }
+        #movementHistoryTable thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+        #movementHistoryTable tbody { display: grid; gap: 12px; padding: 0 12px 12px; }
+        #movementHistoryTable tbody tr { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 5px 16px rgba(15, 23, 42, .05); }
+        #movementHistoryTable tbody td { display: grid; grid-template-columns: minmax(105px, .82fr) minmax(0, 1.18fr); align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #edf0f5; text-align: left !important; white-space: normal; }
+        #movementHistoryTable tbody td::before { content: attr(data-label); color: #64748b; font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+        #movementHistoryTable tbody td[data-label="Product"] { display: block; padding: 14px; background: #f8fafc; }
+        #movementHistoryTable tbody td[data-label="Product"]::before { display: none; }
+        #movementHistoryTable tbody td[data-label="Remarks"] { align-items: start; }
+        #movementHistoryTable tbody td[data-label="Action"] { border-bottom: 0; }
+        #movementHistoryTable .movement-remarks { min-width: 0; max-width: none; }
+        #movementHistoryTable .movement-badge,
+        #movementHistoryTable .movement-qty,
+        #movementHistoryTable .movement-unit-cost { justify-self: start; }
+
+        #stockBalanceTable,
+        #stockBalanceTable tbody,
+        #stockBalanceTable tr,
+        #stockBalanceTable td { display: block; width: 100%; min-width: 0; }
+        #stockBalanceTable thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+        #stockBalanceTable tbody { display: grid; gap: 12px; }
+        #stockBalanceTable tbody tr { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 5px 16px rgba(15, 23, 42, .05); }
+        #stockBalanceTable tbody td { display: grid; grid-template-columns: minmax(118px, .88fr) minmax(0, 1.12fr); align-items: center; gap: 10px; padding: 10px 13px; border-bottom: 1px solid #edf0f5; text-align: left !important; white-space: normal; }
+        #stockBalanceTable tbody td::before { content: attr(data-label); color: #64748b; font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+        #stockBalanceTable tbody td[data-label="Product"] { display: block; padding: 14px; background: #f8fafc; }
+        #stockBalanceTable tbody td[data-label="Product"]::before { display: none; }
+        #stockBalanceTable .stock-pill,
+        #stockBalanceTable .remaining-qty,
+        #stockBalanceTable .status-badge { justify-self: start; }
+        .stock-section-icon { width: 36px; height: 36px; flex-basis: 36px; font-size: 16px; }
+    }
+
+    @media (max-width: 420px) {
+        #movementHistoryTable tbody { padding: 0 8px 8px; }
+        #movementHistoryTable tbody td { grid-template-columns: minmax(90px, .75fr) minmax(0, 1.25fr); gap: 8px; padding: 10px 12px; }
+        #stockBalanceTable tbody td { grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr); gap: 8px; padding: 10px 12px; }
+        .stock-section-title { align-items: flex-start; }
+    }
 </style>
 
 @section('javascript')
@@ -863,7 +941,7 @@
         const balanceLookup = @json($balanceLookup ?? []);
         const singleArea = @json($areas->count() === 1 ? $areas->first() : null);
         const stockProducts = @json($productOptions ?? []);
-        const adProducts = @json($adProductOptions ?? $productOptions ?? []);
+        const availableBalanceProducts = @json($availableBalanceProductOptions ?? []);
         const movementInputs = document.querySelectorAll('input[name="movement_type"]');
         const movementOptions = document.querySelectorAll('.movement-type-option');
         const productSelect = document.getElementById('productSelect');
@@ -884,7 +962,7 @@
         let stockBalanceTable = null;
         let syncingMovementFields = false;
         let activeProducts = [];
-        let renderedProductType = null;
+        let renderedProductKey = null;
         const movementReasons = {
             in: ['Beginning Balance', 'Inventory Adjustment'],
             out: ['Return and Refund', 'Pull Out', 'Replace']
@@ -921,13 +999,29 @@
         }
 
         function productOptionsForType(type) {
-            return type === 'in' ? stockProducts : adProducts;
+            if (type === 'in') {
+                return stockProducts;
+            }
+
+            const sourceArea = fromAreaSelect.value;
+
+            return availableBalanceProducts.filter(function(product) {
+                if (sourceArea) {
+                    return Number(balanceLookup[product.id + '|' + sourceArea] || 0) > 0;
+                }
+
+                return Object.keys(balanceLookup).some(function(key) {
+                    return key.indexOf(product.id + '|') === 0 && Number(balanceLookup[key] || 0) > 0;
+                });
+            });
         }
 
         function renderProductOptions() {
             const type = selectedType();
+            const sourceArea = type === 'in' ? '' : fromAreaSelect.value;
+            const renderKey = type + '|' + sourceArea;
 
-            if (renderedProductType === type) {
+            if (renderedProductKey === renderKey) {
                 return;
             }
 
@@ -943,7 +1037,10 @@
             options.forEach(function (product) {
                 const option = document.createElement('option');
                 option.value = product.id;
-                option.textContent = optionText(product);
+                const available = sourceArea ? Number(balanceLookup[product.id + '|' + sourceArea] || 0) : null;
+                option.textContent = available === null
+                    ? optionText(product)
+                    : optionText(product) + ' (Available: ' + available.toLocaleString() + ' pcs)';
 
                 if (currentValueExists && String(product.id) === String(selectedValue)) {
                     option.selected = true;
@@ -958,7 +1055,7 @@
                 option.disabled = true;
                 option.textContent = type === 'in'
                     ? 'No stock products available'
-                    : 'No completed AD purchase order items available';
+                    : 'No products with available stock' + (sourceArea ? ' in ' + sourceArea : '');
                 productSelect.appendChild(option);
             }
 
@@ -967,7 +1064,7 @@
             }
 
             productSelect.dataset.selectedValue = '';
-            renderedProductType = type;
+            renderedProductKey = renderKey;
             syncSelect2(productSelect);
         }
 
@@ -1088,8 +1185,6 @@
             syncingMovementFields = true;
             const type = selectedType();
 
-            renderProductOptions();
-
             const needsFromArea = type === 'out' || type === 'transfer';
             const needsToArea = type === 'in' || type === 'transfer';
             const needsMovementReason = type === 'in' || type === 'out';
@@ -1126,6 +1221,7 @@
                 setSelectValue(toAreaSelect, '');
             }
 
+            renderProductOptions();
             updateActiveType();
             preventSameArea();
             updateAvailableQty();
@@ -1200,8 +1296,16 @@
             window.jQuery(toAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
         }
 
-        const movementForm = productSelect.closest('form');
+        const movementForm = document.getElementById('newMovementForm');
+        const saveMovementButton = document.getElementById('saveMovementButton');
+        let isSavingMovement = false;
+
         movementForm.addEventListener('submit', function (event) {
+            if (isSavingMovement) {
+                event.preventDefault();
+                return;
+            }
+
             const type = selectedType();
             const requestedQty = Number(qtyInput.value || 0);
             const available = sourceAvailableQty();
@@ -1229,7 +1333,16 @@
                 event.preventDefault();
                 updateAvailableQty();
                 qtyInput.focus();
+                return;
             }
+
+            if (!movementForm.checkValidity()) {
+                return;
+            }
+
+            isSavingMovement = true;
+            saveMovementButton.disabled = true;
+            saveMovementButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span><span>Saving Movement...</span>';
         });
 
         balanceSearch.addEventListener('keyup', filterBalanceRows);

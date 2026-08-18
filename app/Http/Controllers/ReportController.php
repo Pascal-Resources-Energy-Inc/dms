@@ -63,7 +63,7 @@ class ReportController extends Controller
             return;
         }
 
-        if ($role !== 'sedp') {
+        if ($role !== 'mfi') {
             abort(403);
         }
 
@@ -111,7 +111,7 @@ class ReportController extends Controller
         $centerKey = $this->normalizeSignupCenter($center);
         $authUser = auth()->user();
 
-        if (strtolower(trim((string) ($authUser->role ?? ''))) === 'sedp') {
+        if (strtolower(trim((string) ($authUser->role ?? ''))) === 'mfi') {
             $territoryKeys = $this->splitSignupTerritories($authUser->territory ?? '')
                 ->map(function ($territoryCenter) {
                     return $this->normalizeSignupCenter($territoryCenter);
@@ -522,7 +522,7 @@ class ReportController extends Controller
 
             $authUser = auth()->user();
 
-            if (strtolower(trim((string) ($authUser->role ?? ''))) === 'sedp') {
+            if (strtolower(trim((string) ($authUser->role ?? ''))) === 'mfi') {
                 $territoryKeys = $this->splitSignupTerritories($authUser->territory ?? '')
                     ->map(function ($territoryCenter) {
                         return $this->normalizeSignupCenter($territoryCenter);
@@ -1047,7 +1047,7 @@ class ReportController extends Controller
         $centerOptions = $centers->pluck('name')->filter()->values();
         $centerKeyToName = [];
         $authUser = auth()->user();
-        $authIsSedp = strtolower(trim((string) ($authUser->role ?? ''))) === 'sedp';
+        $authIsSedp = strtolower(trim((string) ($authUser->role ?? ''))) === 'mfi';
         $allowedCenterKeys = null;
         $territoryCenters = collect();
 
@@ -1118,7 +1118,7 @@ class ReportController extends Controller
             }
         }
 
-        $sedpUsers = User::whereRaw('LOWER(TRIM(role)) = ?', ['sedp'])
+        $sedpUsers = User::whereRaw('LOWER(TRIM(role)) = ?', ['mfi'])
             ->whereIn('designation', ['CDW', 'CDW2', 'SPOM'])
             ->orderBy('designation')
             ->orderBy('name')
@@ -2209,7 +2209,7 @@ class ReportController extends Controller
             ? Carbon::parse($request->as_of)->endOfDay()
             : Carbon::today()->endOfDay();
         $authUser = auth()->user();
-        $isSedp = strtolower(trim((string) ($authUser->role ?? ''))) === 'sedp';
+        $isSedp = strtolower(trim((string) ($authUser->role ?? ''))) === 'mfi';
         $allowedCenterKeys = $isSedp
             ? $this->splitSignupTerritories($authUser->territory ?? '')
                 ->map(function ($center) { return $this->normalizeSignupCenter($center); })

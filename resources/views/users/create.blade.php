@@ -18,7 +18,7 @@
                             <select id="roleFilter2" name="role" class="form-control select2 shadow-sm mb-2" required>
                                 <option value="">Select Role</option>
                                 <option value="Admin">Admin</option>
-                                <option value="SEDP">MFI</option>
+                                <option value="MFI">MFI</option>
                                 <option value="Provincial Distributor">Provincial Distributor</option>
                                 <option value="Area Distributor">Area Distributor</option>
                                 <option value="Mega Dealer">Mega Dealer</option>
@@ -1167,7 +1167,7 @@
 
                 updateSedpCenterState();
             }).catch(function () {
-                console.error('Select2 could not be loaded for SEDP centers.');
+                console.error('Select2 could not be loaded for MFI centers.');
             });
         }
 
@@ -1206,7 +1206,7 @@
         }
 
         function validateSedpCenters(shouldOpen) {
-            const isSedp = roleSelect && roleSelect.value === 'SEDP';
+            const isSedp = roleSelect && roleSelect.value === 'MFI';
             const isInvalid = isSedp && selectedSedpCenters().length === 0;
 
             setSedpCenterInvalid(isInvalid);
@@ -2485,7 +2485,7 @@
 
         $('#new_users').on('shown.bs.modal', function () {
             initModalSelect2(this);
-            if (roleSelect && roleSelect.value === 'SEDP') {
+            if (roleSelect && roleSelect.value === 'MFI') {
                 ensureSedpCenterSelect2();
             }
             loadRegions();
