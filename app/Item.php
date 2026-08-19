@@ -18,6 +18,7 @@ class Item extends Model implements Auditable
         'green' => 'Green',
         'yellow' => 'Yellow',
         'red' => 'Red',
+        'assorted' => 'Assorted',
     ];
 
     protected $fillable = [

@@ -865,10 +865,54 @@
             dynamicAreaWrapper.hide();
         }
 
-        function toggleProjectAreas() {
-            $('.project-row').each(function () {
+        function toggleProjectAreas($scope = projectRows) {
+            const $rows = $scope.is('.project-row') ? $scope : $scope.find('.project-row');
+
+            $rows.each(function () {
                 $(this).find('.project-area').show();
                 $(this).find('select[name="area_name[]"]').prop('required', true);
+            });
+        }
+
+        function initializeAwardedAreaSearch($row) {
+            if (!window.jQuery || !$.fn || !$.fn.select2) {
+                return;
+            }
+
+            // Wait until the cloned template row is connected to the modal DOM.
+            requestAnimationFrame(function () {
+                $row.find('select.area_name.select2').each(function () {
+                    const $areaSelect = $(this);
+                    const $modal = $areaSelect.closest('.modal');
+                    const selectedValue = $areaSelect.val();
+
+                    if ($areaSelect.hasClass('select2-hidden-accessible')) {
+                        $areaSelect.select2('destroy');
+                    }
+
+                    $areaSelect.select2({
+                        width: '100%',
+                        dropdownParent: $modal.length ? $modal : $(document.body),
+                        placeholder: $areaSelect.data('placeholder') || 'Search awarded areas...',
+                        allowClear: true,
+                        minimumResultsForSearch: 0,
+                        theme: 'bootstrap-5',
+                        dropdownCssClass: $areaSelect.data('dropdown-css-class') || ''
+                    });
+
+                    if (selectedValue) {
+                        $areaSelect.val(selectedValue).trigger('change');
+                    }
+
+                    $areaSelect.off('select2:open.awardedAreaSearch').on('select2:open.awardedAreaSearch', function () {
+                        setTimeout(function () {
+                            $('.select2-container--open .select2-search__field')
+                                .attr('placeholder', 'Search awarded areas...')
+                                .trigger('focus');
+                        }, 0);
+                    });
+
+                });
             });
         }
 
@@ -879,15 +923,26 @@
             const $row = $(clone).children('.project-row');
             projectRows.append($row);
 
-            if (typeof initSelect2 === 'function') {
-                initSelect2($row);
-            }
+            initializeAwardedAreaSearch($row);
 
-            toggleProjectAreas();
+            toggleProjectAreas($row);
         }
 
-        $('#addProjectRow').on('click', function () {
-            addProjectRow();
+        let projectRowIsBeingAdded = false;
+
+        $('#addProjectRow').on('click', function (event) {
+            event.preventDefault();
+
+            if (projectRowIsBeingAdded) {
+                return;
+            }
+
+            projectRowIsBeingAdded = true;
+
+            requestAnimationFrame(function () {
+                addProjectRow();
+                projectRowIsBeingAdded = false;
+            });
         });
 
         $(document).on('click', '.remove-row', function () {

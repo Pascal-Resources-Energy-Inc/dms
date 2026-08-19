@@ -2636,8 +2636,7 @@
     <script src="{{asset('design/assets/js/theme/app.min.js')}}"></script>
     <script src="{{asset('design/assets/js/theme/sidebarmenu.js')}}"></script>
     <script src="{{asset('design/assets/js/theme/feather.min.js')}}"></script>
-    {{-- <script src="{{ asset('design/vendors/select2/select2.min.js') }}"></script> --}}
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="{{ asset('design/vendors/select2/select2.min.js') }}"></script>
     <!-- solar icons -->
     <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
