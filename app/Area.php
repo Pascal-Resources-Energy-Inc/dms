@@ -11,7 +11,7 @@ class Area extends Model implements Auditable
     use \OwenIt\Auditing\Auditable;
     
     protected $table = 'areas';
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'region', 'province', 'city_municipality', 'barangay'];
 
     public function usesTimestamps()
     {
@@ -27,5 +27,10 @@ class Area extends Model implements Auditable
     public function assignedAreas()
     {
         return $this->hasMany(AreaAd::class, 'area_name', 'name');
+    }
+
+    public function geographicCoverages()
+    {
+        return $this->hasMany(AreaGeographicCoverage::class)->orderBy('region')->orderBy('province')->orderBy('city_municipality')->orderBy('barangay');
     }
 }

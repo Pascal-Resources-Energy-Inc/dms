@@ -1891,19 +1891,27 @@ class ReportController extends Controller
 
     public function inventoryStockLevelReport(Request $request)
     {
-        abort_unless(auth()->user()->role === 'Admin', 403);
+        $user = auth()->user();
+        abort_unless(in_array($user->role, ['Admin', 'Area Distributor'], true), 403);
 
-        $report = $this->buildInventoryStockLevelReport($request);
+        $report = $this->buildInventoryStockLevelReport(
+            $request,
+            $user->role === 'Area Distributor' ? $user->id : null
+        );
 
         return view('reports.inventory_stock_level', $report);
     }
 
     public function exportInventoryStockLevel(Request $request)
     {
-        abort_unless(auth()->user()->role === 'Admin', 403);
+        $user = auth()->user();
+        abort_unless(in_array($user->role, ['Admin', 'Area Distributor'], true), 403);
 
-        $report = $this->buildInventoryStockLevelReport($request);
-        $fileName = 'inventory-stock-level-' . $report['asOf']->format('Y-m-d') . '.xlsx';
+        $report = $this->buildInventoryStockLevelReport(
+            $request,
+            $user->role === 'Area Distributor' ? $user->id : null
+        );
+        $fileName = 'stock-inventory-' . $report['asOf']->format('Y-m-d') . '.xlsx';
 
         return Excel::download(
             new InventoryStockLevelExport($report['rows'], $report['products'], $report['asOf']),
@@ -2573,7 +2581,7 @@ class ReportController extends Controller
         return strtolower(trim((string) $name));
     }
 
-    private function buildInventoryStockLevelReport(Request $request)
+    private function buildInventoryStockLevelReport(Request $request, $adUserId = null)
     {
         $asOf = $request->filled('as_of')
             ? Carbon::parse($request->as_of)->endOfDay()
@@ -2586,6 +2594,10 @@ class ReportController extends Controller
         ])->whereHas('userAds', function ($query) {
             $query->where('role', 'Area Distributor');
         });
+
+        if ($adUserId) {
+            $distributorQuery->where('user_id', $adUserId);
+        }
 
         if ($request->filled('region')) {
             $distributorQuery->where('location_region', $request->region);
@@ -2844,7 +2856,13 @@ class ReportController extends Controller
             );
         }
 
-        $products = $productsByKey
+        $productOptions = $productsByKey
+            ->sortBy(function ($product) {
+                return $this->normalizeProductName(($product->sku ?: 'zzzz') . ' ' . $product->product_name);
+            })
+            ->values();
+
+        $products = $productOptions
             ->when($request->filled('product'), function ($items) use ($request) {
                 $search = $this->normalizeProductName($request->product);
 
@@ -2852,9 +2870,6 @@ class ReportController extends Controller
                     return strpos($this->normalizeProductName($product->product_name), $search) !== false
                         || strpos($this->normalizeProductName($product->sku), $search) !== false;
                 });
-            })
-            ->sortBy(function ($product) {
-                return $this->normalizeProductName(($product->sku ?: 'zzzz') . ' ' . $product->product_name);
             })
             ->values();
 
@@ -2927,6 +2942,68 @@ class ReportController extends Controller
             }),
         ];
 
+        $distributorNames = $distributors->mapWithKeys(function ($distributor) {
+            return [(int) $distributor->user_id => $distributor->business_name ?: $distributor->name ?: optional($distributor->userAds)->name ?: 'Area Distributor'];
+        });
+
+        $movementLedgerQuery = InventoryTransfer::query()
+            ->whereIn('ad_user_id', $adUserIds)
+            ->where(function ($query) use ($asOf) {
+                $query->whereDate('transfer_date', '<=', $asOf->toDateString())
+                    ->orWhere(function ($inner) use ($asOf) {
+                        $inner->whereNull('transfer_date')
+                            ->whereDate('created_at', '<=', $asOf->toDateString());
+                    });
+            });
+
+        if ($request->filled('product')) {
+            $productSearch = '%' . trim((string) $request->product) . '%';
+            $movementLedgerQuery->where(function ($query) use ($productSearch) {
+                $query->where('sku', 'like', $productSearch)
+                    ->orWhere('item_name', 'like', $productSearch);
+            });
+        }
+
+        $runningBalances = [];
+        $movementLedger = $movementLedgerQuery
+            ->orderByRaw('COALESCE(transfer_date, DATE(created_at)) asc')
+            ->orderBy('id')
+            ->get(['id', 'ad_user_id', 'product_id', 'sku', 'item_name', 'movement_type', 'out_type', 'from_area', 'to_area', 'qty', 'reference_no', 'transfer_date', 'remarks', 'created_at'])
+            ->map(function ($movement) use (&$runningBalances, $distributorNames) {
+                $productKey = $movement->product_id ?: $this->normalizeProductName($movement->item_name);
+                $balanceKey = $movement->ad_user_id . '|' . $productKey;
+                $qtyIn = $movement->movement_type === 'in' ? (float) $movement->qty : 0;
+                $qtyOut = $movement->movement_type === 'out' ? (float) $movement->qty : 0;
+                $runningBalances[$balanceKey] = (float) ($runningBalances[$balanceKey] ?? 0) + $qtyIn - $qtyOut;
+
+                $context = array_filter([
+                    trim(($movement->sku ? $movement->sku . ' - ' : '') . $movement->item_name),
+                    $movement->movement_type === 'transfer'
+                        ? trim(($movement->from_area ?: 'Unassigned') . ' → ' . ($movement->to_area ?: 'Unassigned'))
+                        : null,
+                    $distributorNames->get((int) $movement->ad_user_id),
+                    $movement->remarks,
+                ]);
+
+                $movementLabel = $movement->movement_type === 'transfer'
+                    ? 'Transfer from ' . ($movement->from_area ?: 'area')
+                    : ($movement->out_type ?: ($movement->movement_type === 'in' ? 'Inventory In' : 'Inventory Out'));
+
+                return (object) [
+                    'date' => $movement->transfer_date ?: $movement->created_at,
+                    'reference_no' => $movement->reference_no ?: '—',
+                    'movement_type' => $movementLabel,
+                    'direction' => $movement->movement_type,
+                    'qty_in' => $qtyIn,
+                    'qty_out' => $qtyOut,
+                    'balance' => $runningBalances[$balanceKey],
+                    'remarks' => implode(' · ', $context),
+                ];
+            })
+            ->sortByDesc('date')
+            ->values();
+        $ledgerSkuLabel = $request->filled('product') ? trim((string) $request->product) : 'All SKUs';
+
         return compact(
             'rows',
             'products',
@@ -2934,7 +3011,10 @@ class ReportController extends Controller
             'statuses',
             'summary',
             'asOf',
-            'lowStockThreshold'
+            'lowStockThreshold',
+            'movementLedger',
+            'ledgerSkuLabel',
+            'productOptions'
         );
     }
 

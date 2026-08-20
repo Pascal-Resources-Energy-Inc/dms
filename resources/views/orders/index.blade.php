@@ -761,240 +761,240 @@ table.dataTable {
                                     </div>
                                 </div>
                                 <div class="table-responsive order-table-wrap">
-                        <table class="table table-hover align-middle transaction-table orders-data-table" id="ordersTable-{{ $orderTab['key'] }}" style="width:100%">
-                            <thead>
-                                <tr>
-                                    @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
-                                        <th scope="col" style="width: 50px; text-align: center;">
-                                            <div class="d-flex align-items-center justify-content-center">
-                                                <input type="checkbox" class="select-all" title="Select All" style="cursor: pointer;">
-                                            </div>
-                                        </th>
-                                    @endif
-                                    <th scope="col">Transaction ID</th>
-                                    <th scope="col">Date</th>
-                                    <th scope="col">Quantity</th>
-                                    <th scope="col">Amount</th>
-                                    <th scope="col">Name</th>
-                                    <th scope="col">Awarded Area</th>
-                                    <th scope="col">Points</th>
-                                    <th scope="col">Item</th>
-                                    <th scope="col">Payment Method</th>
-                                    <th scope="col">Delivery Type</th>
-                                    <th scope="col">Delivery Fee</th>
-                                    <th scope="col">Status</th>
-                                    <th scope="col">Action</th>
-                                    @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
-                                        <th scope="col" style="width: 80px; text-align: center;">Actions</th>
-                                    @endif
-                                </tr>
-                            </thead>
-                            <tbody id="transactionBody-{{ $orderTab['key'] }}">
-                                @foreach($tabOrders as $order)
-                                    @php
-                                        $orderName = (($order->is_guest ?? false) || $order->guest_name)
-                                            ? ($order->guest_name ?: 'GUEST CUSTOMER')
-                                            : ($order->dealer->name ?? '');
-                                        $orderArea = (($order->is_guest ?? false) || $order->guest_name)
-                                            ? ($order->guest_authorized_territory ?: 'GUEST')
-                                            : ($order->adDealer->area ?? '');
-                                        $orderStatusFilter = strtolower(trim((string) $order->status));
-                                        $orderPaymentFilter = strtolower(trim(str_replace('_', ' ', (string) $order->payment_method)));
-                                        $orderDeliveryFilter = strtolower(trim((string) $order->delivery_type));
-                                        $orderDateFilter = date('Y-m-d', strtotime($order->date));
-                                        $orderSearchText = strtolower(collect([
-                                            $order->transaction_id,
-                                            $orderName,
-                                            $orderArea,
-                                            $order->item,
-                                            $order->payment_method,
-                                            $order->delivery_type,
-                                            $order->status,
-                                        ])->filter()->implode(' '));
-                                    @endphp
-                                    <tr id="transaction-row-{{ $orderTab['key'] }}-{{$order->id}}"
-                                        data-order-status="{{ $orderStatusFilter }}"
-                                        data-order-payment="{{ $orderPaymentFilter }}"
-                                        data-order-delivery="{{ $orderDeliveryFilter }}"
-                                        data-order-date="{{ $orderDateFilter }}"
-                                        data-order-search="{{ e($orderSearchText) }}">
-                                        @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
-                                            <td style="text-align: center;">
-                                                @if(empty($order->is_remote))
-                                                    <input type="checkbox" class="checkbox-item" data-id="{{$order->id}}" style="cursor: pointer;">
-                                                @else
-                                                    <input type="checkbox" disabled title="Remote CRM order" style="cursor: not-allowed;">
+                                    <table class="table table-hover align-middle transaction-table orders-data-table" id="ordersTable-{{ $orderTab['key'] }}" style="width:100%">
+                                        <thead>
+                                            <tr>
+                                                @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
+                                                    <th scope="col" style="width: 50px; text-align: center;">
+                                                        <div class="d-flex align-items-center justify-content-center">
+                                                            <input type="checkbox" class="select-all" title="Select All" style="cursor: pointer;">
+                                                        </div>
+                                                    </th>
                                                 @endif
-                                            </td>
-                                        @endif
-                                        <td>{{ $order->transaction_id }}</td>
-                                        <td>{{ strtoupper(date('M d, Y', strtotime($order->date))) }}</td>
-                                        <td class="qty-cell">{{ number_format($order->qty, 2) }}</td>
-                                        <td class="amount-cell">{{ number_format(($order->qty * $order->price) + ($order->delivery_fee ?? 0), 2) }}</td>
-                                        <td>
-                                            @if(($order->is_guest ?? false) || $order->guest_name)
-                                                <div class="fw-semibold">{{ strtoupper($order->guest_name ?: 'GUEST CUSTOMER') }}</div>
-                                                <small class="text-muted d-block">{{ $order->guest_phone }}</small>
-                                                @if($order->guest_email)
-                                                    <small class="text-muted d-block">{{ $order->guest_email }}</small>
+                                                <th scope="col">Transaction ID</th>
+                                                <th scope="col">Date</th>
+                                                <th scope="col">Quantity</th>
+                                                <th scope="col">Amount</th>
+                                                <th scope="col">Name</th>
+                                                <th scope="col">Awarded Area</th>
+                                                <th scope="col">Points</th>
+                                                <th scope="col">Item</th>
+                                                <th scope="col">Payment Method</th>
+                                                <th scope="col">Delivery Type</th>
+                                                <th scope="col">Delivery Fee</th>
+                                                <th scope="col">Status</th>
+                                                <th scope="col">Action</th>
+                                                @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
+                                                    <th scope="col" style="width: 80px; text-align: center;">Actions</th>
                                                 @endif
-                                            @else
-                                                {{ strtoupper($order->dealer->name ?? '') }}
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if(($order->is_guest ?? false) || $order->guest_name)
-                                                <span class="badge rounded-pill bg-light text-dark border">{{ strtoupper($order->guest_authorized_territory ?: 'GUEST') }}</span>
-                                            @else
-                                                {{ strtoupper($order->adDealer->area ?? '') }}
-                                            @endif
-                                        </td>
-                                        <td class="dealer-points-cell"><span class='text-success'>{{ $order->points_dealer }}</span></td>
-                                        <td>
-                                            <div class="fw-semibold">{{ strtoupper($order->item) }}</div>
-                                            @if(auth()->user()->role !== 'Admin')
+                                            </tr>
+                                        </thead>
+                                        <tbody id="transactionBody-{{ $orderTab['key'] }}">
+                                            @foreach($tabOrders as $order)
                                                 @php
-                                                    $rowProduct = null;
-
-                                                    if(isset($order->product_id) && $order->product_id) {
-                                                        $rowProduct = $products->firstWhere('id', (int) $order->product_id);
-                                                    }
-
-                                                    if(!$rowProduct) {
-                                                        $rowProduct = $products->first(function($product) use ($order) {
-                                                            return strtolower(trim($product->product_name)) === strtolower(trim($order->item));
-                                                        });
-                                                    }
-
-                                                    $rowArea = $order->dealer->area ?? '';
-                                                    $rowInventoryStats = ($rowProduct && $rowArea)
-                                                        ? collect($inventoryStatsByAreaProduct->get($rowArea, []))->get($rowProduct->id)
-                                                        : null;
-                                                    $rowHasInventoryContext = $rowProduct && $rowArea;
-                                                    $rowStock = $rowHasInventoryContext
-                                                        ? (float) ($rowInventoryStats['available'] ?? 0)
-                                                        : null;
-                                                    $rowStockAfterMovement = $rowHasInventoryContext
-                                                        ? (float) ($rowInventoryStats['stock_after_movement'] ?? 0)
-                                                        : 0;
-                                                    $rowSalesOrders = $rowHasInventoryContext
-                                                        ? (float) ($rowInventoryStats['sales_orders'] ?? 0)
-                                                        : 0;
-                                                    $rowInventoryStatus = $rowStock !== null && $rowStock <= 0 ? 'No stock' : 'Good';
+                                                    $orderName = (($order->is_guest ?? false) || $order->guest_name)
+                                                        ? ($order->guest_name ?: 'GUEST CUSTOMER')
+                                                        : ($order->dealer->name ?? '');
+                                                    $orderArea = (($order->is_guest ?? false) || $order->guest_name)
+                                                        ? ($order->guest_authorized_territory ?: 'GUEST')
+                                                        : ($order->adDealer->area ?? '');
+                                                    $orderStatusFilter = strtolower(trim((string) $order->status));
+                                                    $orderPaymentFilter = strtolower(trim(str_replace('_', ' ', (string) $order->payment_method)));
+                                                    $orderDeliveryFilter = strtolower(trim((string) $order->delivery_type));
+                                                    $orderDateFilter = date('Y-m-d', strtotime($order->date));
+                                                    $orderSearchText = strtolower(collect([
+                                                        $order->transaction_id,
+                                                        $orderName,
+                                                        $orderArea,
+                                                        $order->item,
+                                                        $order->payment_method,
+                                                        $order->delivery_type,
+                                                        $order->status,
+                                                    ])->filter()->implode(' '));
                                                 @endphp
-                                                @if($rowStock !== null)
-                                                    @if($rowStock <= 0)
-                                                        <span class="order-stock-pill is-out mt-1">
-                                                            <i class="bi bi-exclamation-triangle-fill"></i> OUT OF STOCK
-                                                        </span>
-                                                    @elseif($rowStock <= 5)
-                                                        <span class="order-stock-pill is-low mt-1">
-                                                            <i class="bi bi-exclamation-circle-fill"></i> {{ number_format($rowStock) }} LEFT
-                                                        </span>
-                                                    @else
-                                                        <span class="order-stock-pill is-ok mt-1">
-                                                            <i class="bi bi-check-circle-fill"></i> {{ number_format($rowStock) }} IN STOCK
-                                                        </span>
+                                                <tr id="transaction-row-{{ $orderTab['key'] }}-{{$order->id}}"
+                                                    data-order-status="{{ $orderStatusFilter }}"
+                                                    data-order-payment="{{ $orderPaymentFilter }}"
+                                                    data-order-delivery="{{ $orderDeliveryFilter }}"
+                                                    data-order-date="{{ $orderDateFilter }}"
+                                                    data-order-search="{{ e($orderSearchText) }}">
+                                                    @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
+                                                        <td style="text-align: center;">
+                                                            @if(empty($order->is_remote))
+                                                                <input type="checkbox" class="checkbox-item" data-id="{{$order->id}}" style="cursor: pointer;">
+                                                            @else
+                                                                <input type="checkbox" disabled title="Remote CRM order" style="cursor: not-allowed;">
+                                                            @endif
+                                                        </td>
                                                     @endif
-                                                @endif
-                                            @endif
-                                        </td>
-                                        <td class="payment-method-cell">
-                                            <span class="badge rounded-pill px-3 py-2 text-dark bg-info border fw-semibold">
-                                                {{-- {{ ucfirst($order->payment_method) }} --}}
-                                                {{ strtoupper(ucwords(str_replace('_', ' ', $order->payment_method))) }}
-                                            </span>
-                                        </td>
+                                                    <td>{{ $order->transaction_id }}</td>
+                                                    <td>{{ strtoupper(date('M d, Y', strtotime($order->date))) }}</td>
+                                                    <td class="qty-cell">{{ number_format($order->qty, 2) }}</td>
+                                                    <td class="amount-cell">{{ number_format(($order->qty * $order->price) + ($order->delivery_fee ?? 0), 2) }}</td>
+                                                    <td>
+                                                        @if(($order->is_guest ?? false) || $order->guest_name)
+                                                            <div class="fw-semibold">{{ strtoupper($order->guest_name ?: 'GUEST CUSTOMER') }}</div>
+                                                            <small class="text-muted d-block">{{ $order->guest_phone }}</small>
+                                                            @if($order->guest_email)
+                                                                <small class="text-muted d-block">{{ $order->guest_email }}</small>
+                                                            @endif
+                                                        @else
+                                                            {{ strtoupper($order->dealer->name ?? '') }}
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if(($order->is_guest ?? false) || $order->guest_name)
+                                                            <span class="badge rounded-pill bg-light text-dark border">{{ strtoupper($order->guest_authorized_territory ?: 'GUEST') }}</span>
+                                                        @else
+                                                            {{ strtoupper($order->adDealer->area ?? '') }}
+                                                        @endif
+                                                    </td>
+                                                    <td class="dealer-points-cell"><span class='text-success'>{{ $order->points_dealer }}</span></td>
+                                                    <td>
+                                                        <div class="fw-semibold">{{ strtoupper($order->item) }}</div>
+                                                        @if(auth()->user()->role !== 'Admin')
+                                                            @php
+                                                                $rowProduct = null;
 
-                                        <td class="delivery-type-cell">
-                                            <span class="badge rounded-pill px-3 py-2 text-dark bg-info border fw-semibold">
-                                                {{ strtoupper(ucfirst($order->delivery_type)) }}
-                                            </span>
-                                        </td>
+                                                                if(isset($order->product_id) && $order->product_id) {
+                                                                    $rowProduct = $products->firstWhere('id', (int) $order->product_id);
+                                                                }
 
-                                        <td class="delivery-fee-cell">
-                                            @if($order->delivery_type === 'delivery')
-                                                {{ number_format($order->delivery_fee ?? 0, 2) }}
-                                            @else
-                                                -
-                                            @endif
-                                        </td>
+                                                                if(!$rowProduct) {
+                                                                    $rowProduct = $products->first(function($product) use ($order) {
+                                                                        return strtolower(trim($product->product_name)) === strtolower(trim($order->item));
+                                                                    });
+                                                                }
 
-                                        <td class="status-cell">
-                                            @if($order->status == 'Pending')
-                                                <span class="badge rounded-pill px-3 py-2 bg-secondary text-dark fw-semibold">
-                                                    <i class="bi bi-clock-history me-1"></i> PENDING
-                                                </span>
-                                            @elseif($order->status == 'SO Created')
-                                                <span class="badge rounded-pill px-3 py-2 bg-secondary text-dark fw-semibold">
-                                                   <i class="bi bi-clock-history me-1"></i> SO CREATED
-                                                </span>
-                                            @elseif($order->status == 'Completed')
-                                                <span class="badge rounded-pill px-3 py-2 bg-success fw-semibold">
-                                                    <i class="bi bi-check-circle me-1"></i> COMPLETED
-                                                </span>
-                                            @elseif($order->status == 'Cancelled')
-                                                <span class="badge rounded-pill px-3 py-2 bg-danger fw-semibold">
-                                                    <i class="bi bi-x-circle me-1"></i> CANCELLED
-                                                </span>
-                                            @else
-                                                <span class="badge rounded-pill px-3 py-2 bg-secondary fw-semibold">
-                                                    {{ strtoupper(ucfirst($order->status)) }}
-                                                </span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            <button type="button" 
-                                                class="btn btn-primary edit-btn"
-                                                data-id="{{ $order->id }}"
-                                                data-row-id="transaction-row-{{ $orderTab['key'] }}-{{$order->id}}"
-                                                data-source="{{ $order->source_database ?? 'dms_prei' }}"
-                                                data-qty="{{ $order->qty }}"
-                                                data-price="{{ $order->price }}"
-                                                data-payment="{{ $order->payment_method }}"
-                                                data-delivery="{{ $order->delivery_type }}"
-                                                data-delivery-fee="{{ $order->delivery_fee }}"
-                                                data-remarks="{{ $order->remarks }}"
-                                                data-dealer-type="{{ optional($order->adDealer)->dealer_type ?: 'Project' }}"
-                                                @if(empty($order->is_remote) && auth()->user()->role !== 'Admin')
-                                                    data-track-stock="1"
-                                                    data-stock="{{ $rowStock ?? 0 }}"
-                                                    data-editable-stock="{{ ($rowStock ?? 0) + (float) $order->qty }}"
-                                                    data-stock-after="{{ $rowStockAfterMovement ?? 0 }}"
-                                                    data-sales-orders="{{ $rowSalesOrders ?? 0 }}"
-                                                    data-inventory-status="{{ $rowInventoryStatus ?? 'No stock' }}"
-                                                    data-area="{{ $rowArea ?? '' }}"
-                                                @else
-                                                    data-track-stock="0"
-                                                    data-stock=""
-                                                    data-editable-stock=""
-                                                    data-stock-after=""
-                                                    data-sales-orders=""
-                                                    data-inventory-status=""
-                                                    data-area=""
-                                                @endif
-                                                data-status="{{ $order->status }}" {{ $order->status == 'Completed' ? 'disabled' : '' }}>
-                                                <i class="bi bi-pencil-square"></i>
-                                            </button>
-                                        </td>
-                                        @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
-                                            <td style="text-align: center;">
-                                                @if(empty($order->is_remote))
-                                                    <button type="button" class="btn btn-danger btn-sm delete-single" 
-                                                            data-id="{{ $order->id }}" 
-                                                            title="Delete"
-                                                            style="cursor: pointer;">
-                                                        <i class="bi bi-trash"></i>
-                                                    </button>
-                                                @else
-                                                    <span class="remote-order-pill"><i class="bi bi-shield-lock"></i> CRM</span>
-                                                @endif
-                                            </td>
-                                        @endif
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                                                $rowArea = $order->dealer->area ?? '';
+                                                                $rowInventoryStats = ($rowProduct && $rowArea)
+                                                                    ? collect($inventoryStatsByAreaProduct->get($rowArea, []))->get($rowProduct->id)
+                                                                    : null;
+                                                                $rowHasInventoryContext = $rowProduct && $rowArea;
+                                                                $rowStock = $rowHasInventoryContext
+                                                                    ? (float) ($rowInventoryStats['available'] ?? 0)
+                                                                    : null;
+                                                                $rowStockAfterMovement = $rowHasInventoryContext
+                                                                    ? (float) ($rowInventoryStats['stock_after_movement'] ?? 0)
+                                                                    : 0;
+                                                                $rowSalesOrders = $rowHasInventoryContext
+                                                                    ? (float) ($rowInventoryStats['sales_orders'] ?? 0)
+                                                                    : 0;
+                                                                $rowInventoryStatus = $rowStock !== null && $rowStock <= 0 ? 'No stock' : 'Good';
+                                                            @endphp
+                                                            @if($rowStock !== null)
+                                                                @if($rowStock <= 0)
+                                                                    <span class="order-stock-pill is-out mt-1">
+                                                                        <i class="bi bi-exclamation-triangle-fill"></i> OUT OF STOCK
+                                                                    </span>
+                                                                @elseif($rowStock <= 5)
+                                                                    <span class="order-stock-pill is-low mt-1">
+                                                                        <i class="bi bi-exclamation-circle-fill"></i> {{ number_format($rowStock) }} LEFT
+                                                                    </span>
+                                                                @else
+                                                                    <span class="order-stock-pill is-ok mt-1">
+                                                                        <i class="bi bi-check-circle-fill"></i> {{ number_format($rowStock) }} IN STOCK
+                                                                    </span>
+                                                                @endif
+                                                            @endif
+                                                        @endif
+                                                    </td>
+                                                    <td class="payment-method-cell">
+                                                        <span class="badge rounded-pill px-3 py-2 text-dark bg-info border fw-semibold">
+                                                            {{-- {{ ucfirst($order->payment_method) }} --}}
+                                                            {{ strtoupper(ucwords(str_replace('_', ' ', $order->payment_method))) }}
+                                                        </span>
+                                                    </td>
+
+                                                    <td class="delivery-type-cell">
+                                                        <span class="badge rounded-pill px-3 py-2 text-dark bg-info border fw-semibold">
+                                                            {{ strtoupper(ucfirst($order->delivery_type)) }}
+                                                        </span>
+                                                    </td>
+
+                                                    <td class="delivery-fee-cell">
+                                                        @if($order->delivery_type === 'delivery')
+                                                            {{ number_format($order->delivery_fee ?? 0, 2) }}
+                                                        @else
+                                                            -
+                                                        @endif
+                                                    </td>
+
+                                                    <td class="status-cell">
+                                                        @if($order->status == 'Pending')
+                                                            <span class="badge rounded-pill px-3 py-2 bg-secondary text-dark fw-semibold">
+                                                                <i class="bi bi-clock-history me-1"></i> PENDING
+                                                            </span>
+                                                        @elseif($order->status == 'SO Created')
+                                                            <span class="badge rounded-pill px-3 py-2 bg-secondary text-dark fw-semibold">
+                                                            <i class="bi bi-clock-history me-1"></i> SO CREATED
+                                                            </span>
+                                                        @elseif($order->status == 'Completed')
+                                                            <span class="badge rounded-pill px-3 py-2 bg-success fw-semibold">
+                                                                <i class="bi bi-check-circle me-1"></i> COMPLETED
+                                                            </span>
+                                                        @elseif($order->status == 'Cancelled')
+                                                            <span class="badge rounded-pill px-3 py-2 bg-danger fw-semibold">
+                                                                <i class="bi bi-x-circle me-1"></i> CANCELLED
+                                                            </span>
+                                                        @else
+                                                            <span class="badge rounded-pill px-3 py-2 bg-secondary fw-semibold">
+                                                                {{ strtoupper(ucfirst($order->status)) }}
+                                                            </span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        <button type="button" 
+                                                            class="btn btn-primary edit-btn"
+                                                            data-id="{{ $order->id }}"
+                                                            data-row-id="transaction-row-{{ $orderTab['key'] }}-{{$order->id}}"
+                                                            data-source="{{ $order->source_database ?? 'dms_prei' }}"
+                                                            data-qty="{{ $order->qty }}"
+                                                            data-price="{{ $order->price }}"
+                                                            data-payment="{{ $order->payment_method }}"
+                                                            data-delivery="{{ $order->delivery_type }}"
+                                                            data-delivery-fee="{{ $order->delivery_fee }}"
+                                                            data-remarks="{{ $order->remarks }}"
+                                                            data-dealer-type="{{ optional($order->adDealer)->dealer_type ?: 'Project' }}"
+                                                            @if(empty($order->is_remote) && auth()->user()->role !== 'Admin')
+                                                                data-track-stock="1"
+                                                                data-stock="{{ $rowStock ?? 0 }}"
+                                                                data-editable-stock="{{ ($rowStock ?? 0) + (float) $order->qty }}"
+                                                                data-stock-after="{{ $rowStockAfterMovement ?? 0 }}"
+                                                                data-sales-orders="{{ $rowSalesOrders ?? 0 }}"
+                                                                data-inventory-status="{{ $rowInventoryStatus ?? 'No stock' }}"
+                                                                data-area="{{ $rowArea ?? '' }}"
+                                                            @else
+                                                                data-track-stock="0"
+                                                                data-stock=""
+                                                                data-editable-stock=""
+                                                                data-stock-after=""
+                                                                data-sales-orders=""
+                                                                data-inventory-status=""
+                                                                data-area=""
+                                                            @endif
+                                                            data-status="{{ $order->status }}" {{ $order->status == 'Completed' ? 'disabled' : '' }}>
+                                                            <i class="bi bi-pencil-square"></i>
+                                                        </button>
+                                                    </td>
+                                                    @if(auth()->user()->role == "Admin" && auth()->user()->can_delete === "on")
+                                                        <td style="text-align: center;">
+                                                            @if(empty($order->is_remote))
+                                                                <button type="button" class="btn btn-danger btn-sm delete-single" 
+                                                                        data-id="{{ $order->id }}" 
+                                                                        title="Delete"
+                                                                        style="cursor: pointer;">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            @else
+                                                                <span class="remote-order-pill"><i class="bi bi-shield-lock"></i> CRM</span>
+                                                            @endif
+                                                        </td>
+                                                    @endif
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         @endforeach

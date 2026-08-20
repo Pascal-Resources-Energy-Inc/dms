@@ -222,6 +222,8 @@ Route::get('/reports/aging-report-customer', 'ReportController@customerAgingRepo
 Route::get('/reports/dpo-report', 'ReportController@dpoReport')->name('dpo');
 Route::get('/reports/isl-report', 'ReportController@inventoryStockLevelReport')->name('isl');
 Route::get('/reports/isl-report/export', 'ReportController@exportInventoryStockLevel')->name('isl.export');
+Route::get('/reports/stock-inventory', 'ReportController@inventoryStockLevelReport')->name('stock-inventory');
+Route::get('/reports/stock-inventory/export', 'ReportController@exportInventoryStockLevel')->name('stock-inventory.export');
 Route::get('/reports/monthly-sales', 'ReportController@monthlySalesReport')->name('monthly-sales');
 Route::get('/reports/monthly-sales/export', 'ReportController@exportMonthlySales')->name('monthly-sales.export');
 Route::get('/reports/voucher-history', 'ReportController@voucherHistoryReport')->name('voucher-history');

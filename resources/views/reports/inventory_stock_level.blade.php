@@ -492,6 +492,23 @@
         display: none;
     }
 
+    .isl-ledger-card { margin-top: 16px; }
+    .isl-ledger-sheet-title { display: flex; align-items: stretch; overflow: hidden; border-bottom: 1px solid #e7edf4; }
+    .isl-ledger-sheet-title strong { padding: 12px 16px; color: #172033; font-size: 15px; }
+    .isl-ledger-sku { min-width: 210px; padding: 12px 16px; color: #172033; background: #fff500; font-size: 12px; font-weight: 900; text-align: center; }
+    .isl-ledger-wrap { max-height: 520px; overflow: auto; overscroll-behavior: contain; }
+    .isl-ledger-table { width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+    .isl-ledger-table th, .isl-ledger-table td { padding: 12px 14px; border-bottom: 1px solid #e8edf3; vertical-align: middle; }
+    .isl-ledger-table th { position: sticky; top: 0; z-index: 2; color: #fff; background: #506579; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .isl-ledger-table tbody tr:hover td { background: #eef9fc; }
+    .isl-ledger-type { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 999px; color: #075d80; background: #e5f6fc; font-size: 10px; font-weight: 900; }
+    .isl-ledger-type.is-out { color: #9a3412; background: #ffedd5; }
+    .isl-ledger-type.is-transfer { color: #5b21b6; background: #ede9fe; }
+    .isl-ledger-qty { color: #166534; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .isl-ledger-qty.is-out { color: #b42318; }
+    .isl-ledger-balance { color: #0f5f5a; font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .isl-ledger-remarks { min-width: 280px; color: #667085; line-height: 1.45; }
+
     @media (max-width: 1199.98px) {
         .isl-visible-count {
             width: 100%;
@@ -529,6 +546,8 @@
         .isl-report-tools { align-items: stretch; flex-direction: column; }
         .isl-search-wrap { width: 100%; }
         .isl-scroll-hint { display: none; }
+        .isl-ledger-sheet-title { display: block; }
+        .isl-ledger-sheet-title strong, .isl-ledger-sku { display: block; width: 100%; }
     }
 
     @media print {
@@ -590,8 +609,8 @@
     <section class="isl-hero">
         <div class="isl-hero-copy">
             <div class="isl-eyebrow">Inventory Intelligence</div>
-            <h3>Inventory Stock Level Report</h3>
-            <p>Consolidated available stock by authorized distributor and product as of {{ $asOf->format('F d, Y') }}.</p>
+            <h3>Stock Inventory Sheet</h3>
+            <p>Consolidated available stock for Area Distributors by product as of {{ $asOf->format('F d, Y') }}.</p>
         </div>
         <div class="isl-actions">
             <span class="isl-date">
@@ -602,7 +621,7 @@
                 <i class="ti ti-printer" aria-hidden="true"></i>
                 Print
             </button>
-            <a href="{{ route('isl.export', request()->query()) }}" class="btn btn-success">
+            <a href="{{ route('stock-inventory.export', request()->query()) }}" class="btn btn-success">
                 <i class="ti ti-file-spreadsheet" aria-hidden="true"></i>
                 Export Excel
             </a>
@@ -649,7 +668,7 @@
     </div>
 
     <section class="isl-card isl-filter-card" aria-labelledby="inventoryFilters">
-        <form method="GET" action="{{ route('isl') }}" class="row g-3 align-items-end">
+        <form method="GET" action="{{ route('stock-inventory') }}" class="row g-3 align-items-end">
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center gap-2">
                     <h5 id="inventoryFilters" class="mb-0 fw-bold fs-6">Report Filters</h5>
@@ -695,7 +714,14 @@
             </div>
             <div class="col-xl-2 col-md-6">
                 <label class="form-label" for="islProduct">Product / SKU</label>
-                <input id="islProduct" type="search" name="product" class="form-control" value="{{ request('product') }}" placeholder="Find a product">
+                <select id="islProduct" name="product" class="form-select">
+                    <option value="">All products</option>
+                    @foreach($productOptions as $productOption)
+                        <option value="{{ $productOption->sku ?: $productOption->product_name }}" {{ request('product') === ($productOption->sku ?: $productOption->product_name) ? 'selected' : '' }}>
+                            {{ $productOption->sku ? $productOption->sku . ' — ' : '' }}{{ $productOption->product_name }}
+                        </option>
+                    @endforeach
+                </select>
             </div>
             <div class="col-xl-2 col-md-6">
                 <label class="form-label" for="islThreshold">Low-stock threshold</label>
@@ -706,7 +732,7 @@
                     <i class="ti ti-filter" aria-hidden="true"></i>
                     Apply filters
                 </button>
-                <a href="{{ route('isl') }}" class="btn btn-outline-secondary">
+                <a href="{{ route('stock-inventory') }}" class="btn btn-outline-secondary">
                     <i class="ti ti-refresh" aria-hidden="true"></i>
                     Reset
                 </a>
@@ -723,7 +749,7 @@
     <section class="isl-card isl-report-card" aria-labelledby="inventoryMatrix">
         <header class="isl-report-head">
             <div>
-                <h5 id="inventoryMatrix">Distributor Stock Matrix</h5>
+                <h5 id="inventoryMatrix">Area Distributor Stock Matrix</h5>
                 <p>{{ $rows->count() }} distributor{{ $rows->count() === 1 ? '' : 's' }} across {{ $products->count() }} product{{ $products->count() === 1 ? '' : 's' }}</p>
             </div>
             <div class="isl-legend" aria-label="Stock level legend">
@@ -821,6 +847,69 @@
                                 <span>Try another table search.</span>
                             </td>
                         </tr>
+                    @endif
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="isl-card isl-ledger-card" aria-labelledby="movementLedgerTitle">
+        <div class="isl-ledger-sheet-title">
+            <strong id="movementLedgerTitle">AD Stock Inventory Sheet</strong>
+            <span class="isl-ledger-sku">Per SKU: {{ $ledgerSkuLabel }}</span>
+        </div>
+        <header class="isl-report-head">
+            <div>
+                <h5>Stock Movement Ledger</h5>
+                <p>Select a Product / SKU above to review that product’s running balance, like a stock card.</p>
+            </div>
+            <span class="isl-visible-count m-0">{{ number_format($movementLedger->count()) }} movement{{ $movementLedger->count() === 1 ? '' : 's' }}</span>
+        </header>
+        <div class="isl-ledger-wrap" tabindex="0" aria-label="Scrollable stock movement ledger">
+            <table class="isl-ledger-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Reference #</th>
+                        <th>Movement Type</th>
+                        <th class="text-end">Qty In</th>
+                        <th class="text-end">Qty Out</th>
+                        <th class="text-end">Balance</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if(!request()->filled('product'))
+                        <tr>
+                            <td colspan="7" class="isl-empty">
+                                <i class="ti ti-package-search" aria-hidden="true"></i>
+                                <strong>Select a product or SKU</strong>
+                                <span>Choose one from the Product / SKU filter to open its stock inventory sheet.</span>
+                            </td>
+                        </tr>
+                    @else
+                    @forelse($movementLedger as $movement)
+                        @php
+                            $movementClass = strtolower($movement->direction);
+                        @endphp
+                        <tr>
+                            <td>{{ \Carbon\Carbon::parse($movement->date)->format('M d, Y') }}</td>
+                            <td>{{ $movement->reference_no }}</td>
+                            <td><span class="isl-ledger-type {{ $movementClass === 'out' ? 'is-out' : ($movementClass === 'transfer' ? 'is-transfer' : '') }}">{{ $movement->movement_type }}</span></td>
+                            <td class="text-end isl-ledger-qty">{{ $movement->qty_in > 0 ? number_format($movement->qty_in) : '—' }}</td>
+                            <td class="text-end isl-ledger-qty is-out">{{ $movement->qty_out > 0 ? number_format($movement->qty_out) : '—' }}</td>
+                            <td class="text-end isl-ledger-balance">{{ number_format($movement->balance) }}</td>
+                            <td class="isl-ledger-remarks">{{ $movement->remarks ?: '—' }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="isl-empty">
+                                <i class="ti ti-notes-off" aria-hidden="true"></i>
+                                <strong>No stock movements found</strong>
+                                <span>Inventory IN, OUT, and transfer entries will appear here.</span>
+                            </td>
+                        </tr>
+                    @endforelse
                     @endif
                 </tbody>
             </table>
