@@ -486,16 +486,24 @@
                                 </div>
                                 <div class="col-md-8 project-area">
                                     <label class="form-label fw-semibold">
-                                        Awarded Area&nbsp;<span class="text-danger">*</span>
+                                        <i class="bi bi-geo-alt me-1 text-primary"></i>Awarded Area&nbsp;<span class="text-danger">*</span>
                                     </label>
-                                    <select name="area_name[]" class="form-control area_name shadow-sm select2" data-placeholder="Select Area" required>
-                                        <option value=""></option>
-                                        @foreach($areas as $area)
-                                            <option value="{{ $area->name }}">
-                                                {{ $area->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
+                                    <div class="awarded-area-select">
+                                        <select name="area_name[]"
+                                                class="form-control area_name select2"
+                                                data-placeholder="Search awarded areas..."
+                                                data-minimum-results-for-search="0"
+                                                data-dropdown-css-class="awarded-area-search-dropdown"
+                                                aria-label="Search and select awarded area"
+                                                required>
+                                            <option value=""></option>
+                                            @foreach($areas as $area)
+                                                <option value="{{ $area->name }}">
+                                                    {{ $area->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="col-md-1 text-center">
                                     <button type="button" class="btn btn-sm btn-danger remove-row">
@@ -794,6 +802,46 @@
 
     .select2-container {
         width: 100% !important;
+    }
+
+    .awarded-area-select .select2-container--bootstrap-5 .select2-selection--single,
+    .awarded-area-select .select2-container--default .select2-selection--single {
+        align-items: center;
+        border: 1px solid #cbd5e1;
+        border-radius: 9px;
+        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05);
+        display: flex;
+        min-height: 42px;
+    }
+
+    .awarded-area-select .select2-container--bootstrap-5.select2-container--focus .select2-selection--single,
+    .awarded-area-select .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+    }
+
+    .awarded-area-search-hint {
+        color: #64748b;
+        display: block;
+        font-size: 11px;
+        margin-top: 6px;
+    }
+
+    .awarded-area-search-dropdown .select2-search--dropdown {
+        padding: 8px;
+    }
+
+    .awarded-area-search-dropdown .select2-search__field {
+        border: 1px solid #bfdbfe;
+        border-radius: 7px;
+        min-height: 36px;
+        outline: 0;
+        padding: 6px 9px;
+    }
+
+    .awarded-area-search-dropdown .select2-search__field:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
     }
 
     .sedp-panel {

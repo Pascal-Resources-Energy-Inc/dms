@@ -1866,7 +1866,7 @@
                             <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
-                        <div class="collapse @if(in_array(Route::currentRouteName(), ['dsr','aging','reports.distributor-other-charges'])) show @endif"
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['dsr','aging','distributor-other-charges', 'stock-inventory'])) show @endif"
                             id="reportsMenu">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
@@ -1876,7 +1876,10 @@
                                     <a href="{{ url('/reports/aging') }}" class="nav-link @if(Route::currentRouteName() == 'aging') active @endif" style="font-size: 14px">Aging Report</a>
                                 </li>
                                 <li class="nav-item">
-                                    <a href="{{ url('/reports/distributor-other-charges') }}" class="nav-link @if(Route::currentRouteName() == 'reports.distributor-other-charges') active @endif" style="font-size: 14px">Other Charges Transactions</a>
+                                    <a href="{{ url('/reports/distributor-other-charges') }}" class="nav-link @if(Route::currentRouteName() == 'distributor-other-charges') active @endif" style="font-size: 14px">Other Charges Transactions</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ url('/reports/stock-inventory') }}" class="nav-link @if(Route::currentRouteName() == 'stock-inventory') active @endif" style="font-size: 14px">Stock Inventory Sheet</a>
                                 </li>
                             </ul>
                         </div>
@@ -2636,8 +2639,7 @@
     <script src="{{asset('design/assets/js/theme/app.min.js')}}"></script>
     <script src="{{asset('design/assets/js/theme/sidebarmenu.js')}}"></script>
     <script src="{{asset('design/assets/js/theme/feather.min.js')}}"></script>
-    {{-- <script src="{{ asset('design/vendors/select2/select2.min.js') }}"></script> --}}
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="{{ asset('design/vendors/select2/select2.min.js') }}"></script>
     <!-- solar icons -->
     <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>

@@ -23,7 +23,15 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $stoves = Stove::whereNull('client_id')->get(['id', 'serial_number']);
-        $areas = Area::get();
+        // Keep areas assigned to an inactive AD available, but do not offer
+        // an area that is currently assigned to an active AD.
+        $activeAdAreaKeys = $this->activeAdAreaKeys();
+        $areas = Area::query()
+            ->when($activeAdAreaKeys->isNotEmpty(), function ($query) use ($activeAdAreaKeys) {
+                $query->whereNotIn(DB::raw('LOWER(TRIM(name))'), $activeAdAreaKeys->all());
+            })
+            ->orderBy('name')
+            ->get();
         $centers = Center::orderBy('name')->get();
         $users = User::with([
                 'dealer:id,user_id,address,status',
@@ -60,6 +68,21 @@ class UserController extends Controller
        if ($needsDeliveryAddress && trim((string) $request->delivery_address) === '') {
             return back()
                 ->withErrors(['delivery_address' => 'Delivery address is required.'])
+                ->withInput();
+       }
+
+       $requestedAreaKeys = collect($request->input('area_name', []))
+            ->map(function ($areaName) {
+                return strtolower(trim((string) $areaName));
+            })
+            ->filter()
+            ->unique();
+
+       $unavailableAreaKeys = $requestedAreaKeys->intersect($this->activeAdAreaKeys());
+
+       if ($unavailableAreaKeys->isNotEmpty()) {
+            return back()
+                ->withErrors(['area_name' => 'One or more awarded areas are already assigned to an active Area Distributor.'])
                 ->withInput();
        }
 
@@ -1083,5 +1106,20 @@ class UserController extends Controller
 
             ->rawColumns(['status', 'role', 'actions'])
             ->make(true);
+    }
+
+    private function activeAdAreaKeys()
+    {
+        return AreaAd::query()
+            ->join('area_distributors as assigned_ads', 'ad_areas.ad_id', '=', 'assigned_ads.id')
+            ->whereRaw("LOWER(TRIM(COALESCE(assigned_ads.status, ''))) = ?", ['active'])
+            ->whereNotNull('ad_areas.area_name')
+            ->pluck('ad_areas.area_name')
+            ->map(function ($areaName) {
+                return strtolower(trim((string) $areaName));
+            })
+            ->filter()
+            ->unique()
+            ->values();
     }
 }

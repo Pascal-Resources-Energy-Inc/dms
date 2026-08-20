@@ -1527,7 +1527,8 @@ class AdPurchaseOrderController extends Controller
 
     private function dealerPrice(Item $product)
     {
-        return (float) $product->price;
+        return (float) $product->dprice;
+        // return (float) $product->price;
     }
 
     private function pickupLubaoDiscount($shippingType, $items)
