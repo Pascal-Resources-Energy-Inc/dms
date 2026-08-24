@@ -78,6 +78,13 @@
     .cart-line span { color: var(--gl-red); font-size: 12px; font-weight: 900; white-space: nowrap; }
     .guest-submit { width: 100%; min-height: 48px; margin-top: 14px; color: #fff; font-size: 14px; font-weight: 900; background: var(--gl-green); border: 0; border-radius: 8px; box-shadow: 0 12px 24px rgba(21, 128, 61, .2); }
     .guest-submit:disabled { cursor: not-allowed; opacity: .65; box-shadow: none; }
+    .guest-loading { position: fixed; inset: 0; z-index: 2000; display: none; align-items: center; justify-content: center; padding: 24px; background: rgba(255, 255, 255, .82); backdrop-filter: blur(2px); }
+    .guest-loading.is-visible { display: flex; }
+    .guest-loading-box { width: min(100%, 340px); padding: 24px; border: 1px solid var(--gl-line); border-radius: 8px; background: #fff; box-shadow: 0 18px 48px rgba(15, 23, 42, .14); text-align: center; }
+    .guest-loading-spinner { width: 42px; height: 42px; margin: 0 auto 14px; border: 4px solid #dcfce7; border-top-color: var(--gl-green); border-radius: 50%; animation: guestSpin .8s linear infinite; }
+    .guest-loading-title { margin: 0; color: var(--gl-ink); font-size: 16px; font-weight: 800; }
+    .guest-loading-copy { margin: 6px 0 0; color: var(--gl-muted); font-size: 13px; line-height: 1.45; }
+    @keyframes guestSpin { to { transform: rotate(360deg); } }
     .guest-empty { padding: 18px; text-align: center; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; }
     .product-search-empty { display: none; margin-top: 10px; padding: 14px; color: var(--gl-muted); font-size: 12px; font-weight: 700; text-align: center; background: var(--gl-soft); border: 1px dashed #d0d5dd; border-radius: 8px; }
 
@@ -331,10 +338,19 @@
     </main>
 </div>
 
+<div class="guest-loading" id="guestLoading" aria-live="polite" aria-hidden="true">
+    <div class="guest-loading-box">
+        <div class="guest-loading-spinner"></div>
+        <p class="guest-loading-title">Submitting order</p>
+        <p class="guest-loading-copy">Please wait while we save your order.</p>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('guestOrderForm');
     const submitButton = document.getElementById('guestSubmit');
+    const loading = document.getElementById('guestLoading');
     const summaryItems = document.getElementById('summaryItems');
     const summaryQty = document.getElementById('summaryQty');
     const summarySubtotal = document.getElementById('summarySubtotal');
@@ -450,10 +466,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     form.addEventListener('submit', function(event) {
+        if (form.dataset.submitting === '1') {
+            event.preventDefault();
+            return;
+        }
+
         if (submitButton.disabled) {
             event.preventDefault();
             summaryCart.innerHTML = '<div class="cart-empty text-danger">Please add quantity to at least one product.</div>';
+            return;
         }
+
+        form.dataset.submitting = '1';
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Submitting...';
+        loading.classList.add('is-visible');
+        loading.setAttribute('aria-hidden', 'false');
     });
 
     calculate();

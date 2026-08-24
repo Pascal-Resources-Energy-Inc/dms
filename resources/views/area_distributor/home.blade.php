@@ -610,7 +610,7 @@
                 <div class="card-header bg-white d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
                     <div>
                         <h5 class="mb-0">Stock Level</h5>
-                        <div class="small text-muted">Completed AD minus item ordered and stock out.</div>
+                            <div class="small text-muted">Recorded inventory IN minus item ordered and stock OUT.</div>
                     </div>
                     <div class="d-flex flex-wrap gap-2 mt-2 mt-lg-0">
                         <span class="stock-level-chip">{{ number_format(($stockLevels ?? collect())->sum('stock_qty')) }} Stock In</span>

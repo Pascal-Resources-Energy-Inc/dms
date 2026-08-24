@@ -1842,41 +1842,20 @@ class HomeController extends Controller
                 return $rows->sum('qty');
             });
       
-        // $inventoryInByItem = InventoryTransfer::select(
-        //         'item_name',
-        //         DB::raw('MAX(sku) as sku'),
-        //         DB::raw('SUM(qty) as stock_qty')
-        //     )
-        //     ->where('movement_type', '!=', 'transfer')
-        //     ->where('ad_id', $adId)
-        //     ->groupBy('item_name')
-        //     ->get()
-        //     ->keyBy('item_name');
-
-        $inventoryInByItem = AdPurchaseOrderItem::select(
-                'product_name as item_name',
+        // Stock In is based on the AD's recorded inventory IN movements.
+        // Completed purchase orders are not treated as on-hand stock until they
+        // are recorded in inventory, which keeps this dashboard consistent with
+        // the movement history and stock inventory sheet.
+        $inventoryInByItem = InventoryTransfer::select(
+                'item_name',
                 DB::raw('MAX(sku) as sku'),
                 DB::raw('SUM(qty) as stock_qty')
             )
-            ->whereHas('purchaseOrder', function ($query) use ($adId) {
-                $query->where('ad_id', $adId)
-                      ->where('status', 'Completed');
-            })
+            ->where('ad_id', $adId)
+            ->where('movement_type', 'in')
             ->groupBy('item_name')
             ->get()
-            ->toBase()
-            ->merge($this->remoteAdPurchaseOrderStock($adId))
-            ->groupBy('item_name')
-            ->map(function ($rows) {
-                $first = $rows->first();
-
-                return (object) [
-                    'item_name' => $first->item_name,
-                    'sku' => $rows->pluck('sku')->filter()->first(),
-                    'stock_qty' => $rows->sum('stock_qty'),
-                ];
-            })
-            ->keyBy('item_name');   
+            ->keyBy('item_name');
          
 
         $outByItem = collect([$this->localInventoryOutByItem($adId), $this->remoteInventoryOutByItem($adId)])
