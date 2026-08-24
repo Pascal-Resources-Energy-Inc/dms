@@ -448,10 +448,13 @@
                                         <td data-label="Type">
                                             @if($movement->movement_type == 'in')
                                                 <span class="badge bg-success movement-badge">IN</span>
+                                                <span class="movement-type-detail">{{ $movement->out_type ?: 'Stock In' }}</span>
                                             @elseif($movement->movement_type == 'out')
                                                 <span class="badge bg-danger movement-badge">OUT</span>
+                                                <span class="movement-type-detail">{{ $movement->out_type ?: 'Stock Out' }}</span>
                                             @else
                                                 <span class="badge bg-primary movement-badge">TRANSFER</span>
+                                                <span class="movement-type-detail">{{ ($movement->from_area ?: 'Source area') . ' to ' . ($movement->to_area ?: 'Receiving area') }}</span>
                                             @endif
                                         </td>
                                         <td data-label="Product">
@@ -605,6 +608,7 @@
         min-width: 72px;
         display: inline-block;
     }
+    .movement-type-detail { display: block; margin-top: 4px; color: #64748b; font-size: 11px; font-weight: 700; line-height: 1.3; }
 
     .movement-qty { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; min-height: 30px; padding: 4px 9px; color: #1d4ed8; border-radius: 8px; background: #eff6ff; font-size: 13px; font-weight: 900; }
 
