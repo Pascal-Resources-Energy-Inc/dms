@@ -242,8 +242,9 @@ class InventoryTransferController extends Controller
             'to_area' => 'nullable|string|max:255',
             'qty' => 'required|integer|min:1',
             'unit_cost' => 'nullable|numeric|min:0',
-            'reference_no' => 'nullable|string|max:255',
             'out_type' => 'nullable|string|max:255',
+            'pull_out_attachments' => 'required_if:out_type,Pull Out|array|max:5',
+            'pull_out_attachments.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
             'transfer_date' => 'nullable|date',
             'remarks' => 'nullable|string',
         ]);
@@ -315,8 +316,26 @@ class InventoryTransferController extends Controller
             }
         }
 
-        DB::transaction(function () use ($request, $user, $ad, $product, $type) {
-            InventoryTransfer::create([
+        $pullOutAttachments = [];
+        if ($type === 'out' && $request->out_type === 'Pull Out' && $request->hasFile('pull_out_attachments')) {
+            $uploadPath = public_path('uploads/inventory-movements/pull-outs');
+            if (!is_dir($uploadPath)) {
+                mkdir($uploadPath, 0755, true);
+            }
+
+            foreach ($request->file('pull_out_attachments') as $file) {
+                $filename = 'pull-out-' . $user->id . '-' . str_replace('.', '', uniqid('', true)) . '.' . $file->getClientOriginalExtension();
+                $path = 'uploads/inventory-movements/pull-outs/' . $filename;
+                $file->move($uploadPath, $filename);
+                $pullOutAttachments[] = [
+                    'path' => $path,
+                    'name' => $file->getClientOriginalName(),
+                ];
+            }
+        }
+
+        $referenceNo = DB::transaction(function () use ($request, $user, $ad, $product, $type, $pullOutAttachments) {
+            $movement = InventoryTransfer::create([
                 'ad_id' => $ad ? $ad->id : null,
                 'ad_user_id' => $user->id,
                 'product_id' => $product->id,
@@ -327,15 +346,24 @@ class InventoryTransferController extends Controller
                 'to_area' => in_array($type, ['in', 'transfer']) ? $request->to_area : null,
                 'qty' => $request->qty,
                 'unit_cost' => $request->unit_cost,
-                'reference_no' => $request->reference_no,
+                'reference_no' => null,
+                'pull_out_attachments' => $pullOutAttachments ?: null,
                 'transfer_date' => $request->transfer_date ?: Carbon::today()->toDateString(),
                 'remarks' => $request->remarks,
                 'out_type' => $request->out_type,
                 'created_by' => $user->id,
             ]);
+
+            $referenceNo = 'MOV-' . Carbon::now()->format('Ymd') . '-' . str_pad($movement->id, 6, '0', STR_PAD_LEFT);
+
+            DB::table('inventory_transfers')
+                ->where('id', $movement->id)
+                ->update(['reference_no' => $referenceNo]);
+
+            return $referenceNo;
         });
 
-        return redirect()->route('inventory-transfers.index')->with('success', 'Inventory movement saved successfully.');
+        return redirect()->route('inventory-transfers.index')->with('success', 'Inventory movement ' . $referenceNo . ' saved successfully.');
     }
 
     public function destroy($id)

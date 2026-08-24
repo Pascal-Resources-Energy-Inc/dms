@@ -24,6 +24,7 @@ class InventoryTransfer extends Model implements Auditable
         'qty',
         'unit_cost',
         'reference_no',
+        'pull_out_attachments',
         'transfer_date',
         'remarks',
         'created_by',
@@ -32,6 +33,10 @@ class InventoryTransfer extends Model implements Auditable
     protected $dates = [
         'transfer_date',
         'deleted_at',
+    ];
+
+    protected $casts = [
+        'pull_out_attachments' => 'array',
     ];
 
     public function product()

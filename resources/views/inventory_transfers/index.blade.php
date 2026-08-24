@@ -169,7 +169,7 @@
                     <div class="soft-note mb-3">
                         Use IN to establish or correct stock, OUT for pull-out or return, and TRANSFER to move stock between assigned areas.
                     </div>
-                    <form method="POST" action="{{ route('inventory-transfers.store') }}" id="newMovementForm">
+                    <form method="POST" action="{{ route('inventory-transfers.store') }}" id="newMovementForm" enctype="multipart/form-data">
                         @csrf
 
                         <div class="mb-3">
@@ -256,15 +256,16 @@
                             </div>
                         </div>
 
-                        {{-- <div class="mb-3">
-                            <label class="form-label">Reference No.</label>
-                            <input type="text" name="reference_no" class="form-control" value="{{ old('reference_no') }}" placeholder="DR, invoice, or memo no." data-uppercase> 
-                        </div> --}}
-
                         <div class="mb-3 js-movement-reason">
                             <label class="form-label" id="movementReasonLabel">Movement Type</label>
                             <select name="out_type" id="outTypeSelect" class="form-control select2" data-selected-value="{{ old('out_type') }}"></select>
                             <div class="form-text" id="movementReasonHelp"></div>
+                        </div>
+
+                        <div class="mb-3 js-pull-out-attachments" style="display: none;">
+                            <label class="form-label" for="pullOutAttachments">Pull-out attachments <span class="text-danger">*</span></label>
+                            <input type="file" name="pull_out_attachments[]" id="pullOutAttachments" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple disabled>
+                            <div class="form-text">Attach pull-out proof files. JPG, PNG, or PDF; maximum 5 files, 5 MB each.</div>
                         </div>
 
                         <div class="mb-3">
@@ -435,10 +436,11 @@
                                     <th>From</th>
                                     <th>To</th>
                                     <th>Qty</th>
-                                    <th class="text-center">Unit Cost</th>
-                                    {{-- <th>Reference</th> --}}
-                                    <th class="text-center">Remarks</th>
-                                    {{-- <th></th> --}}
+                                    {{-- <th class="text-center">Unit Cost</th> --}}
+                                    <th>Reference No.</th>
+                                    {{-- <th>Attachments</th>
+                                    <th class="text-center">Remarks</th> --}}
+                                    <th class="text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -464,28 +466,58 @@
                                         <td data-label="From">{{ $movement->from_area ?? '-' }}</td>
                                         <td data-label="To">{{ $movement->to_area ?? '-' }}</td>
                                         <td data-label="Quantity"><span class="movement-qty">{{ number_format($movement->qty) }}</span></td>
-                                        <td data-label="Unit cost" class="text-center">
+                                        {{-- <td data-label="Unit cost" class="text-center">
                                             @if($movement->unit_cost !== null)
                                                 <span class="movement-unit-cost">₱{{ number_format($movement->unit_cost, 2) }}</span>
                                             @else
                                                 <span class="movement-cost-empty">Not set</span>
                                             @endif
+                                        </td> --}}
+                                        <td data-label="Reference">{{ $movement->reference_no ?? '-' }}</td>
+                                        {{-- <td data-label="Attachments">
+                                            @forelse($movement->pull_out_attachments ?: [] as $attachment)
+                                                @php
+                                                    $attachmentPath = is_array($attachment) ? ($attachment['path'] ?? null) : $attachment;
+                                                    $attachmentName = is_array($attachment) ? ($attachment['name'] ?? basename($attachmentPath)) : basename($attachmentPath);
+                                                @endphp
+                                                @if($attachmentPath)
+                                                    <a href="{{ asset($attachmentPath) }}" target="_blank" rel="noopener noreferrer" class="d-block small mb-1">
+                                                        <i class="bi bi-paperclip"></i> {{ $attachmentName }}
+                                                    </a>
+                                                @endif
+                                            @empty
+                                                <span class="text-muted">-</span>
+                                            @endforelse
                                         </td>
-                                        {{-- <td>{{ $movement->reference_no ?? '-' }}</td> --}}
                                         <td data-label="Remarks" class="text-center">
                                             @if(trim((string) $movement->remarks) !== '')
                                                 <div class="movement-remarks">{{ $movement->remarks }}</div>
                                             @else
                                                 <span class="text-muted">-</span>
                                             @endif
-                                        </td>
-                                        {{-- <td class="text-end" data-label="Action">
-                                            <form method="POST" action="{{ route('inventory-transfers.destroy', $movement->id) }}" onsubmit="return confirm('Delete this inventory movement?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                                            </form>
                                         </td> --}}
+                                        <td data-label="Action" class="text-center">
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-primary js-view-movement"
+                                                data-toggle="modal"
+                                                data-target="#movementDetailsModal"
+                                                data-date="{{ $movement->transfer_date ? $movement->transfer_date->format('M d, Y') : '-' }}"
+                                                data-type="{{ strtoupper($movement->movement_type) }}"
+                                                data-reason="{{ $movement->out_type ?: '-' }}"
+                                                data-product="{{ optional($movement->product)->product_name ?: $movement->item_name }}"
+                                                data-sku="{{ $movement->sku ?: '-' }}"
+                                                data-from-area="{{ $movement->from_area ?: '-' }}"
+                                                data-to-area="{{ $movement->to_area ?: '-' }}"
+                                                data-quantity="{{ number_format($movement->qty) }}"
+                                                data-unit-cost="{{ $movement->unit_cost !== null ? 'PHP ' . number_format($movement->unit_cost, 2) : 'Not set' }}"
+                                                data-reference="{{ $movement->reference_no ?: '-' }}"
+                                                data-remarks="{{ $movement->remarks ?: '-' }}"
+                                                data-attachments="{{ e(json_encode($movement->pull_out_attachments ?: [])) }}"
+                                            >
+                                                <i class="bi bi-eye"></i> View
+                                            </button>
+                                        </td>
                                     </tr>
                                 @empty
                                 @endforelse
@@ -497,6 +529,36 @@
                             {{ $movements->links() }}
                         </div>
                     @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="movementDetailsModal" tabindex="-1" role="dialog" aria-labelledby="movementDetailsModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="movementDetailsModalTitle"><i class="bi bi-journal-text me-1"></i> Movement Details</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Date</small><strong id="movementDetailDate">-</strong></div>
+                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Movement Type</small><strong id="movementDetailType">-</strong></div>
+                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Type / Reason</small><strong id="movementDetailReason">-</strong></div>
+                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Reference No.</small><strong id="movementDetailReference">-</strong></div>
+                        <div class="col-md-8 mb-3"><small class="text-muted d-block">Product</small><strong id="movementDetailProduct">-</strong></div>
+                        <div class="col-md-4 mb-3"><small class="text-muted d-block">SKU</small><strong id="movementDetailSku">-</strong></div>
+                        <div class="col-md-6 mb-3"><small class="text-muted d-block">From Area</small><strong id="movementDetailFromArea">-</strong></div>
+                        <div class="col-md-6 mb-3"><small class="text-muted d-block">To Area</small><strong id="movementDetailToArea">-</strong></div>
+                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Quantity</small><strong id="movementDetailQuantity">-</strong></div>
+                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Unit Cost</small><strong id="movementDetailUnitCost">-</strong></div>
+                        <div class="col-12 mb-3"><small class="text-muted d-block">Remarks</small><div id="movementDetailRemarks" class="border rounded p-2 bg-light">-</div></div>
+                        <div class="col-12"><small class="text-muted d-block mb-1">Attachments</small><div id="movementDetailAttachments" class="border rounded p-2 bg-light text-muted">No attachments.</div></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -956,6 +1018,8 @@
         const toArea = document.querySelector('.js-to-area');
         const movementReason = document.querySelector('.js-movement-reason');
         const outTypeSelect = document.getElementById('outTypeSelect');
+        const pullOutAttachments = document.querySelector('.js-pull-out-attachments');
+        const pullOutAttachmentsInput = document.getElementById('pullOutAttachments');
         const movementReasonLabel = document.getElementById('movementReasonLabel');
         const movementReasonHelp = document.getElementById('movementReasonHelp');
         const availableQty = document.getElementById('availableQty');
@@ -963,6 +1027,7 @@
         const movementPreview = document.getElementById('movementPreview');
         const balanceSearch = document.getElementById('balanceSearch');
         const balanceStatusFilter = document.getElementById('balanceStatusFilter');
+        const appUrl = @json(url('/'));
         let stockBalanceTable = null;
         let syncingMovementFields = false;
         let activeProducts = [];
@@ -1123,6 +1188,17 @@
             syncSelect2(outTypeSelect);
         }
 
+        function syncPullOutAttachments() {
+            const isPullOut = selectedType() === 'out' && outTypeSelect.value === 'Pull Out';
+            pullOutAttachments.style.display = isPullOut ? '' : 'none';
+            pullOutAttachmentsInput.disabled = !isPullOut;
+            pullOutAttachmentsInput.required = isPullOut;
+
+            if (!isPullOut) {
+                pullOutAttachmentsInput.value = '';
+            }
+        }
+
         function updateAvailableQty() {
             const type = selectedType();
             const available = sourceAvailableQty();
@@ -1220,6 +1296,7 @@
             }
 
             renderMovementReasons(needsMovementReason ? type : '');
+            syncPullOutAttachments();
 
             if (type === 'transfer' && fromAreaSelect.value && fromAreaSelect.value === toAreaSelect.value) {
                 setSelectValue(toAreaSelect, '');
@@ -1294,10 +1371,71 @@
             element.addEventListener('keyup', refreshAreaFields);
         });
 
+        outTypeSelect.addEventListener('change', syncPullOutAttachments);
+
+        document.querySelectorAll('.js-view-movement').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const details = {
+                    date: button.dataset.date,
+                    type: button.dataset.type,
+                    reason: button.dataset.reason,
+                    product: button.dataset.product,
+                    sku: button.dataset.sku,
+                    fromArea: button.dataset.fromArea,
+                    toArea: button.dataset.toArea,
+                    quantity: button.dataset.quantity,
+                    unitCost: button.dataset.unitCost,
+                    reference: button.dataset.reference,
+                    remarks: button.dataset.remarks
+                };
+
+                Object.keys(details).forEach(function (key) {
+                    const detailElement = document.getElementById('movementDetail' + key.charAt(0).toUpperCase() + key.slice(1));
+                    if (detailElement) {
+                        detailElement.textContent = details[key] || '-';
+                    }
+                });
+
+                const attachmentList = document.getElementById('movementDetailAttachments');
+                let attachments = [];
+                try {
+                    attachments = JSON.parse(button.dataset.attachments || '[]');
+                } catch (error) {
+                    attachments = [];
+                }
+
+                attachmentList.innerHTML = '';
+                if (!attachments.length) {
+                    attachmentList.textContent = 'No attachments.';
+                    attachmentList.classList.add('text-muted');
+                    return;
+                }
+
+                attachmentList.classList.remove('text-muted');
+                attachments.forEach(function (attachment) {
+                    const path = typeof attachment === 'object' ? attachment.path : attachment;
+                    const name = typeof attachment === 'object' ? (attachment.name || path) : path;
+                    if (!path) {
+                        return;
+                    }
+
+                    const link = document.createElement('a');
+                    link.href = appUrl + '/' + String(path).replace(/^\/+/, '');
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.className = 'd-block mb-1';
+                    link.innerHTML = '<i class="bi bi-paperclip"></i> ';
+                    link.appendChild(document.createTextNode(name));
+                    attachmentList.appendChild(link);
+                });
+            });
+        });
+
         if (window.jQuery) {
             window.jQuery(productSelect).on('change select2:select select2:clear', refreshAreaFields);
             window.jQuery(fromAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
             window.jQuery(toAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
+            window.jQuery(outTypeSelect).on('change select2:select select2:clear', syncPullOutAttachments);
         }
 
         const movementForm = document.getElementById('newMovementForm');
