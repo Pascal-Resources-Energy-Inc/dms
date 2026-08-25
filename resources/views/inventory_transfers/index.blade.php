@@ -244,30 +244,42 @@
                                 @endforeach
                             </select>
                         </div>
-
-                        <div class="row">
+                        <div class="mb-3 js-movement-reason">
+                            <label class="form-label" id="movementReasonLabel">Movement Type</label>
+                            <select name="out_type" id="outTypeSelect" class="form-control select2" data-selected-value="{{ old('out_type') }}"></select>
+                            <div class="form-text" id="movementReasonHelp"></div>
+                        </div>
+                        <div class="row js-movement-qty-cost">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Qty</label>
                                 <input type="number" min="1" name="qty" id="qtyInput" class="form-control" value="{{ old('qty') }}" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Unit Cost</label>
-                                <input type="number" min="0" step="0.01" name="unit_cost" class="form-control" value="{{ old('unit_cost') }}">
+                                <input type="number" min="0" step="0.01" name="unit_cost" id="unitCostInput" class="form-control" value="{{ old('unit_cost') }}">
                             </div>
                         </div>
-
-                        <div class="mb-3 js-movement-reason">
-                            <label class="form-label" id="movementReasonLabel">Movement Type</label>
-                            <select name="out_type" id="outTypeSelect" class="form-control select2" data-selected-value="{{ old('out_type') }}"></select>
-                            <div class="form-text" id="movementReasonHelp"></div>
+                        <div class="js-pull-out-replacement" style="display: none;">
+                            <div class="soft-note mb-3">
+                                <strong>Replacement stock</strong><br>
+                                The LPG selected above from <strong>Current Stock by Area</strong> is automatically added back into the same source area.
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="replacementQtyInput">Replacement Qty <span class="text-danger">*</span></label>
+                                    <input type="number" min="1" name="replacement_qty" id="replacementQtyInput" class="form-control" value="{{ old('replacement_qty') }}" disabled>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="replacementUnitCostInput">Replacement Unit Cost</label>
+                                    <input type="number" min="0" step="0.01" name="replacement_unit_cost" id="replacementUnitCostInput" class="form-control" value="{{ old('replacement_unit_cost') }}" disabled>
+                                </div>
+                            </div>
                         </div>
-
                         <div class="mb-3 js-pull-out-attachments" style="display: none;">
                             <label class="form-label" for="pullOutAttachments">Pull-out attachments <span class="text-danger">*</span></label>
                             <input type="file" name="pull_out_attachments[]" id="pullOutAttachments" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple disabled>
                             <div class="form-text">Attach pull-out proof files. JPG, PNG, or PDF; maximum 5 files, 5 MB each.</div>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label">Date</label>
                             <input type="date" name="transfer_date" class="form-control" value="{{ old('transfer_date', date('Y-m-d')) }}">
@@ -513,6 +525,12 @@
                                                 data-unit-cost="{{ $movement->unit_cost !== null ? 'PHP ' . number_format($movement->unit_cost, 2) : 'Not set' }}"
                                                 data-reference="{{ $movement->reference_no ?: '-' }}"
                                                 data-remarks="{{ $movement->remarks ?: '-' }}"
+                                                data-is-replacement-workflow="{{ in_array($movement->out_type, ['Pull Out', 'Replacement']) ? '1' : '0' }}"
+                                                data-workflow-status="{{ $movement->approval_status ?: '-' }}"
+                                                data-requested-quantity="{{ $movement->replacement_qty !== null ? number_format($movement->replacement_qty) : '-' }}"
+                                                data-approved-quantity="{{ $movement->approval_status !== 'Pending' ? number_format($movement->qty) : '-' }}"
+                                                data-dr-number="{{ $movement->replacement_dr_number ?: '-' }}"
+                                                data-warehouse-remarks="{{ $movement->warehouse_remarks ?: '-' }}"
                                                 data-attachments="{{ e(json_encode($movement->pull_out_attachments ?: [])) }}"
                                             >
                                                 <i class="bi bi-eye"></i> View
@@ -553,6 +571,18 @@
                         <div class="col-md-6 mb-3"><small class="text-muted d-block">To Area</small><strong id="movementDetailToArea">-</strong></div>
                         <div class="col-md-6 mb-3"><small class="text-muted d-block">Quantity</small><strong id="movementDetailQuantity">-</strong></div>
                         <div class="col-md-6 mb-3"><small class="text-muted d-block">Unit Cost</small><strong id="movementDetailUnitCost">-</strong></div>
+                        <div id="movementReplacementWorkflow" class="col-12 d-none">
+                            <div class="border rounded bg-light p-3 mb-3">
+                                <div class="fw-semibold mb-2">Pull Out Replacement</div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2"><small class="text-muted d-block">Status</small><strong id="movementDetailWorkflowStatus">-</strong></div>
+                                    <div class="col-md-4 mb-2"><small class="text-muted d-block">Requested Qty</small><strong id="movementDetailRequestedQuantity">-</strong></div>
+                                    <div class="col-md-4 mb-2"><small class="text-muted d-block">Approved Qty</small><strong id="movementDetailApprovedQuantity">-</strong></div>
+                                    <div class="col-md-4 mb-2 mb-md-0"><small class="text-muted d-block">DR #</small><strong id="movementDetailDrNumber">-</strong></div>
+                                    <div class="col-md-8 mb-0"><small class="text-muted d-block">Warehouse Remarks</small><strong id="movementDetailWarehouseRemarks">-</strong></div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="col-12 mb-3"><small class="text-muted d-block">Remarks</small><div id="movementDetailRemarks" class="border rounded p-2 bg-light">-</div></div>
                         <div class="col-12"><small class="text-muted d-block mb-1">Attachments</small><div id="movementDetailAttachments" class="border rounded p-2 bg-light text-muted">No attachments.</div></div>
                     </div>
@@ -1014,12 +1044,17 @@
         const fromAreaSelect = document.getElementById('fromAreaSelect');
         const toAreaSelect = document.getElementById('toAreaSelect');
         const qtyInput = document.getElementById('qtyInput');
+        const unitCostInput = document.getElementById('unitCostInput');
+        const movementQtyCost = document.querySelector('.js-movement-qty-cost');
         const fromArea = document.querySelector('.js-from-area');
         const toArea = document.querySelector('.js-to-area');
         const movementReason = document.querySelector('.js-movement-reason');
         const outTypeSelect = document.getElementById('outTypeSelect');
         const pullOutAttachments = document.querySelector('.js-pull-out-attachments');
         const pullOutAttachmentsInput = document.getElementById('pullOutAttachments');
+        const pullOutReplacement = document.querySelector('.js-pull-out-replacement');
+        const replacementQtyInput = document.getElementById('replacementQtyInput');
+        const replacementUnitCostInput = document.getElementById('replacementUnitCostInput');
         const movementReasonLabel = document.getElementById('movementReasonLabel');
         const movementReasonHelp = document.getElementById('movementReasonHelp');
         const availableQty = document.getElementById('availableQty');
@@ -1199,9 +1234,30 @@
             }
         }
 
+        function syncPullOutReplacement() {
+            const isPullOut = selectedType() === 'out' && outTypeSelect.value === 'Pull Out';
+            pullOutReplacement.style.display = isPullOut ? '' : 'none';
+            movementQtyCost.style.display = isPullOut ? 'none' : '';
+            qtyInput.disabled = isPullOut;
+            unitCostInput.disabled = isPullOut;
+            replacementQtyInput.disabled = !isPullOut;
+            replacementUnitCostInput.disabled = !isPullOut;
+            replacementQtyInput.required = isPullOut;
+
+            if (isPullOut && !replacementQtyInput.value) {
+                replacementQtyInput.value = qtyInput.value;
+            }
+
+            if (!isPullOut) {
+                replacementQtyInput.value = '';
+                replacementUnitCostInput.value = '';
+            }
+        }
+
         function updateAvailableQty() {
             const type = selectedType();
             const available = sourceAvailableQty();
+            const requestedQty = Number((type === 'out' && outTypeSelect.value === 'Pull Out' ? replacementQtyInput.value : qtyInput.value) || 0);
 
             availableQty.classList.remove('is-good', 'is-low', 'is-empty');
             availableQty.classList.add(available <= 0 ? 'is-empty' : (available <= 10 ? 'is-low' : 'is-good'));
@@ -1215,7 +1271,6 @@
 
             availableQty.textContent = 'Available: ' + available.toLocaleString() + ' pcs';
 
-            const requestedQty = Number(qtyInput.value || 0);
             if (requestedQty > available) {
                 stockWarning.textContent = 'Requested quantity is higher than available stock. Available: ' + available.toLocaleString() + ' pcs.';
                 stockWarning.classList.add('show');
@@ -1229,9 +1284,10 @@
             const type = selectedType();
             const product = selectedProduct();
             const productName = product ? ((product.sku ? product.sku + ' - ' : '') + product.name) : 'selected product';
-            const qty = Number(qtyInput.value || 0).toLocaleString();
+            const movementQty = type === 'out' && outTypeSelect.value === 'Pull Out' ? replacementQtyInput.value : qtyInput.value;
+            const qty = Number(movementQty || 0).toLocaleString();
 
-            if (!productSelect.value || Number(qtyInput.value || 0) <= 0) {
+            if (!productSelect.value || Number(movementQty || 0) <= 0) {
                 movementPreview.textContent = 'Select product, area, and quantity.';
                 return;
             }
@@ -1297,6 +1353,7 @@
 
             renderMovementReasons(needsMovementReason ? type : '');
             syncPullOutAttachments();
+            syncPullOutReplacement();
 
             if (type === 'transfer' && fromAreaSelect.value && fromAreaSelect.value === toAreaSelect.value) {
                 setSelectValue(toAreaSelect, '');
@@ -1372,6 +1429,12 @@
         });
 
         outTypeSelect.addEventListener('change', syncPullOutAttachments);
+        outTypeSelect.addEventListener('change', syncPullOutReplacement);
+
+        [replacementQtyInput, replacementUnitCostInput].forEach(function (element) {
+            element.addEventListener('change', refreshAreaFields);
+            element.addEventListener('input', refreshAreaFields);
+        });
 
         document.querySelectorAll('.js-view-movement').forEach(function (button) {
             button.addEventListener('click', function () {
@@ -1386,7 +1449,12 @@
                     quantity: button.dataset.quantity,
                     unitCost: button.dataset.unitCost,
                     reference: button.dataset.reference,
-                    remarks: button.dataset.remarks
+                    remarks: button.dataset.remarks,
+                    workflowStatus: button.dataset.workflowStatus,
+                    requestedQuantity: button.dataset.requestedQuantity,
+                    approvedQuantity: button.dataset.approvedQuantity,
+                    drNumber: button.dataset.drNumber,
+                    warehouseRemarks: button.dataset.warehouseRemarks
                 };
 
                 Object.keys(details).forEach(function (key) {
@@ -1395,6 +1463,11 @@
                         detailElement.textContent = details[key] || '-';
                     }
                 });
+
+                document.getElementById('movementReplacementWorkflow').classList.toggle(
+                    'd-none',
+                    button.dataset.isReplacementWorkflow !== '1'
+                );
 
                 const attachmentList = document.getElementById('movementDetailAttachments');
                 let attachments = [];
@@ -1436,6 +1509,7 @@
             window.jQuery(fromAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
             window.jQuery(toAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
             window.jQuery(outTypeSelect).on('change select2:select select2:clear', syncPullOutAttachments);
+            window.jQuery(outTypeSelect).on('change select2:select select2:clear', syncPullOutReplacement);
         }
 
         const movementForm = document.getElementById('newMovementForm');
@@ -1449,7 +1523,7 @@
             }
 
             const type = selectedType();
-            const requestedQty = Number(qtyInput.value || 0);
+            const requestedQty = Number((type === 'out' && outTypeSelect.value === 'Pull Out' ? replacementQtyInput.value : qtyInput.value) || 0);
             const available = sourceAvailableQty();
 
             if ((type === 'out' || type === 'transfer') && !fromAreaSelect.value) {

@@ -50,6 +50,18 @@ class InventoryTransferController extends Controller
                 'qty'
             )
             ->where('ad_user_id', $user->id)
+            ->where(function ($query) {
+                $query->whereNull('approval_status')
+                    ->orWhere('approval_status', 'Approved')
+                    ->orWhere(function ($query) {
+                        $query->where('out_type', 'Pull Out')
+                            ->where('approval_status', 'For Processing');
+                    })
+                    ->orWhere(function ($query) {
+                        $query->whereIn('out_type', ['Pull Out', 'Replacement'])
+                            ->where('approval_status', 'Replacing');
+                    });
+            })
             ->orderBy('transfer_date', 'desc')
             ->orderBy('id', 'desc')
             ->get();
@@ -235,6 +247,13 @@ class InventoryTransferController extends Controller
             }
         }
 
+        if ($request->input('movement_type') === 'out' && $request->input('out_type') === 'Pull Out') {
+            $request->merge([
+                'qty' => $request->input('replacement_qty'),
+                'unit_cost' => $request->input('replacement_unit_cost'),
+            ]);
+        }
+
         $request->validate([
             'movement_type' => 'required|in:in,out,transfer',
             'product_id' => 'required|integer',
@@ -245,6 +264,8 @@ class InventoryTransferController extends Controller
             'out_type' => 'nullable|string|max:255',
             'pull_out_attachments' => 'required_if:out_type,Pull Out|array|max:5',
             'pull_out_attachments.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'replacement_qty' => 'required_if:out_type,Pull Out|integer|min:1',
+            'replacement_unit_cost' => 'nullable|numeric|min:0',
             'transfer_date' => 'nullable|date',
             'remarks' => 'nullable|string',
         ]);
@@ -256,7 +277,7 @@ class InventoryTransferController extends Controller
         }
 
         $allowedReasons = [
-            'in' => ['Beginning Balance', 'Inventory Adjustment'],
+            'in' => ['Beginning Balance', 'Inventory Adjustment', 'Replacement'],
             'out' => ['Return and Refund', 'Pull Out', 'Replace'],
         ];
 
@@ -308,6 +329,8 @@ class InventoryTransferController extends Controller
             $product->sku = $adItem->sku ?: $product->sku;
         }
 
+        $replacementProduct = $type === 'out' && $request->out_type === 'Pull Out' ? $product : null;
+
         if (in_array($type, ['out', 'transfer'])) {
             $availableQty = $this->availableQty($user->id, $ad ? $ad->id : null, $request->from_area, $product);
 
@@ -334,7 +357,8 @@ class InventoryTransferController extends Controller
             }
         }
 
-        $referenceNo = DB::transaction(function () use ($request, $user, $ad, $product, $type, $pullOutAttachments) {
+        $assignedWarehouse = $replacementProduct ? $this->warehouseForAuthenticatedAd() : null;
+        $movementReferences = DB::transaction(function () use ($request, $user, $ad, $product, $replacementProduct, $type, $pullOutAttachments, $assignedWarehouse) {
             $movement = InventoryTransfer::create([
                 'ad_id' => $ad ? $ad->id : null,
                 'ad_user_id' => $user->id,
@@ -348,6 +372,13 @@ class InventoryTransferController extends Controller
                 'unit_cost' => $request->unit_cost,
                 'reference_no' => null,
                 'pull_out_attachments' => $pullOutAttachments ?: null,
+                'replacement_product_id' => $replacementProduct ? $replacementProduct->id : null,
+                'replacement_sku' => $replacementProduct ? $replacementProduct->sku : null,
+                'replacement_item_name' => $replacementProduct ? $replacementProduct->product_name : null,
+                'replacement_qty' => $replacementProduct ? $request->replacement_qty : null,
+                'replacement_unit_cost' => $replacementProduct ? $request->replacement_unit_cost : null,
+                'approval_status' => $replacementProduct ? 'Pending' : 'Approved',
+                'warehouse' => $replacementProduct ? $assignedWarehouse : null,
                 'transfer_date' => $request->transfer_date ?: Carbon::today()->toDateString(),
                 'remarks' => $request->remarks,
                 'out_type' => $request->out_type,
@@ -355,15 +386,174 @@ class InventoryTransferController extends Controller
             ]);
 
             $referenceNo = 'MOV-' . Carbon::now()->format('Ymd') . '-' . str_pad($movement->id, 6, '0', STR_PAD_LEFT);
+            $replacementReferenceNo = null;
+
+            if ($replacementProduct) {
+                DB::table('inventory_transfers')->where('id', $movement->id)->update(['reference_no' => $referenceNo]);
+                return [$referenceNo, null, true];
+            }
+
+            if ($replacementProduct) {
+                $replacementMovement = InventoryTransfer::create([
+                    'ad_id' => $ad ? $ad->id : null,
+                    'ad_user_id' => $user->id,
+                    'product_id' => $replacementProduct->id,
+                    'sku' => $replacementProduct->sku,
+                    'item_name' => $replacementProduct->product_name,
+                    'movement_type' => 'in',
+                    'to_area' => $request->from_area,
+                    'qty' => $request->replacement_qty,
+                    'unit_cost' => $request->replacement_unit_cost,
+                    'related_movement_id' => $movement->id,
+                    'transfer_date' => $request->transfer_date ?: Carbon::today()->toDateString(),
+                    'remarks' => 'Replacement for pull-out movement ' . $referenceNo,
+                    'out_type' => 'Replacement',
+                    'created_by' => $user->id,
+                ]);
+
+                $replacementReferenceNo = 'MOV-' . Carbon::now()->format('Ymd') . '-' . str_pad($replacementMovement->id, 6, '0', STR_PAD_LEFT);
+                DB::table('inventory_transfers')->where('id', $movement->id)->update(['related_movement_id' => $replacementMovement->id]);
+                DB::table('inventory_transfers')->where('id', $replacementMovement->id)->update(['reference_no' => $replacementReferenceNo]);
+            }
 
             DB::table('inventory_transfers')
                 ->where('id', $movement->id)
                 ->update(['reference_no' => $referenceNo]);
 
-            return $referenceNo;
+            return [$referenceNo, $replacementReferenceNo, false];
         });
 
-        return redirect()->route('inventory-transfers.index')->with('success', 'Inventory movement ' . $referenceNo . ' saved successfully.');
+        if ($movementReferences[2]) {
+            return redirect()->route('inventory-transfers.index')->with('success', 'Pull Out request ' . $movementReferences[0] . ' was sent to ' . ucfirst($assignedWarehouse) . ' warehouse for approval.');
+        }
+
+        $message = 'Inventory movement ' . $movementReferences[0] . ' saved successfully.';
+        if ($movementReferences[1]) {
+            $message .= ' Replacement movement ' . $movementReferences[1] . ' was added to the same area.';
+        }
+
+        return redirect()->route('inventory-transfers.index')->with('success', $message);
+    }
+
+    public function warehousePullOuts()
+    {
+        $this->ensureWarehouseUser();
+        $warehouse = strtolower((string) auth()->user()->warehouse);
+        $requests = InventoryTransfer::where('out_type', 'Pull Out')
+            ->where('warehouse', $warehouse)
+            ->with('product')
+            ->orderByRaw("CASE approval_status WHEN 'Pending' THEN 0 WHEN 'For Processing' THEN 1 WHEN 'Replacing' THEN 2 ELSE 3 END")
+            ->latest()
+            ->get();
+        return view('inventory_transfers.warehouse_pull_outs', compact('requests', 'warehouse'));
+    }
+
+    public function reviewPullOut(Request $request, $id)
+    {
+        $this->ensureWarehouseUser();
+        $request->validate([
+            'decision' => 'required|in:For Processing,Rejected,Replacing',
+            'replacement_qty' => 'required_if:decision,For Processing|integer|min:1',
+            'replacement_unit_cost' => 'nullable|numeric|min:0',
+            'replacement_dr_number' => 'required_if:decision,Replacing|string|max:255',
+            'warehouse_remarks' => 'nullable|string|max:1000',
+        ]);
+
+        $movement = InventoryTransfer::where('out_type', 'Pull Out')
+            ->where('warehouse', strtolower((string) auth()->user()->warehouse))
+            ->with('product')
+            ->findOrFail($id);
+
+        if ($request->decision === 'Rejected') {
+            if ($movement->approval_status !== 'Pending') {
+                return back()->with('error', 'Only pending Pull Out requests can be rejected.');
+            }
+
+            $movement->update([
+                'approval_status' => 'Rejected',
+                'warehouse_remarks' => $request->warehouse_remarks,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => Carbon::now(),
+            ]);
+
+            return back()->with('success', 'Pull Out request rejected. No stock movement was posted.');
+        }
+
+        if ($request->decision === 'For Processing') {
+            if ($movement->approval_status !== 'Pending') {
+                return back()->with('error', 'Only pending Pull Out requests can be processed.');
+            }
+
+            if ($request->replacement_qty > $movement->replacement_qty) {
+                return back()->with('error', 'Approved quantity cannot be higher than the requested quantity of ' . number_format($movement->replacement_qty) . '.');
+            }
+
+            $movement->update([
+                'qty' => $request->replacement_qty,
+                'unit_cost' => $request->replacement_unit_cost,
+                'approval_status' => 'For Processing',
+                'warehouse_remarks' => $request->warehouse_remarks,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => Carbon::now(),
+            ]);
+
+            return back()->with('success', 'Pull Out request is now For Processing.');
+        }
+
+        if ($movement->approval_status !== 'For Processing') {
+            return back()->with('error', 'Only requests marked For Processing can be replaced.');
+        }
+
+        $available = $this->availableQty($movement->ad_user_id, $movement->ad_id, $movement->from_area, $movement->product);
+        if ($movement->qty > $available) {
+            return back()->with('error', 'Replacement cannot exceed available stock: ' . number_format($available));
+        }
+
+        DB::transaction(function () use ($movement, $request) {
+            $movement->update([
+                'approval_status' => 'Replacing',
+                'replacement_dr_number' => strtoupper(trim($request->replacement_dr_number)),
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => Carbon::now(),
+            ]);
+
+            $replacement = InventoryTransfer::create([
+                'ad_id' => $movement->ad_id,
+                'ad_user_id' => $movement->ad_user_id,
+                'product_id' => $movement->product_id,
+                'sku' => $movement->sku,
+                'item_name' => $movement->item_name,
+                'movement_type' => 'in',
+                'to_area' => $movement->from_area,
+                'qty' => $movement->qty,
+                'unit_cost' => $movement->unit_cost,
+                'out_type' => 'Replacement',
+                'related_movement_id' => $movement->id,
+                'approval_status' => 'Replacing',
+                'replacement_dr_number' => strtoupper(trim($request->replacement_dr_number)),
+                'transfer_date' => $movement->transfer_date,
+                'remarks' => 'Warehouse replacement for ' . $movement->reference_no . ' (DR # ' . strtoupper(trim($request->replacement_dr_number)) . ')',
+                'created_by' => auth()->id(),
+            ]);
+
+            DB::table('inventory_transfers')->where('id', $replacement->id)->update([
+                'reference_no' => 'MOV-' . Carbon::now()->format('Ymd') . '-' . str_pad($replacement->id, 6, '0', STR_PAD_LEFT),
+            ]);
+            $movement->update(['related_movement_id' => $replacement->id]);
+        });
+
+        return back()->with('success', 'Replacement stock posted with DR # ' . strtoupper(trim($request->replacement_dr_number)) . '.');
+    }
+
+    private function ensureWarehouseUser() { if (auth()->user()->role !== 'Admin' || !in_array(strtolower((string) auth()->user()->warehouse), ['lubao', 'guinobatan'], true)) abort(403); }
+    private function warehouseForAuthenticatedAd()
+    {
+        $ad = auth()->user()->ad;
+        $text = strtolower(($ad->location_region ?? '') . ' ' . ($ad->location_province ?? ''));
+
+        return preg_match('/region v|region 5|bicol|albay|camarines|catanduanes|masbate|sorsogon/', $text)
+            ? 'guinobatan'
+            : 'lubao';
     }
 
     public function destroy($id)
@@ -395,6 +585,18 @@ class InventoryTransferController extends Controller
     {
         $movements = InventoryTransfer::where('ad_user_id', $adUserId)
             ->where('product_id', $product->id)
+            ->where(function ($query) {
+                $query->whereNull('approval_status')
+                    ->orWhere('approval_status', 'Approved')
+                    ->orWhere(function ($query) {
+                        $query->where('out_type', 'Pull Out')
+                            ->where('approval_status', 'For Processing');
+                    })
+                    ->orWhere(function ($query) {
+                        $query->whereIn('out_type', ['Pull Out', 'Replacement'])
+                            ->where('approval_status', 'Replacing');
+                    });
+            })
             ->get();
 
         $qty = 0;
