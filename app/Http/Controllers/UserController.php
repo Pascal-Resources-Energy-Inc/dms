@@ -88,6 +88,7 @@ class UserController extends Controller
 
        $request->validate([
             'warehouse' => 'nullable|in:lubao,guinobatan',
+            'mfi_type' => 'required_if:role,MFI|nullable|in:SEDP,ASHI',
             'sedp_center' => 'required_if:role,MFI|array',
             'sedp_center.*' => 'string|max:255',
             'delivery_address' => 'nullable|string|max:1000',
@@ -100,6 +101,20 @@ class UserController extends Controller
             // 'tin' => 'nullable|string|max:50',
             // 'store_picture' => 'nullable|image|max:2048',
         ]);
+
+       if ($isSedp) {
+            $selectedCenters = collect($request->input('sedp_center', []));
+            $validCenters = Center::query()
+                ->whereRaw('UPPER(TRIM(mfi)) = ?', [$request->mfi_type])
+                ->whereIn('name', $selectedCenters)
+                ->pluck('name');
+
+            if ($selectedCenters->diff($validCenters)->isNotEmpty()) {
+                return back()
+                    ->withErrors(['sedp_center' => 'Please select centers assigned to the selected MFI type.'])
+                    ->withInput();
+            }
+       }
 
        if (!$isAdminLike && trim((string) $request->contact_number) === '' && trim((string) $request->facebook) === '') {
             return back()
@@ -169,6 +184,9 @@ class UserController extends Controller
             ? ($request->has('same_as_address') ? $request->address : $request->delivery_address)
             : null;
         $user->role = $request->role;
+        if (Schema::hasColumn('users', 'mfi_type')) {
+            $user->mfi_type = $isSedp ? $request->mfi_type : null;
+        }
 
         if (Schema::hasColumn('users', 'type')) {
             $user->type = json_encode($projectTags);

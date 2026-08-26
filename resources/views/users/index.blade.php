@@ -826,6 +826,7 @@
         const sedpDesignationField = $('.sedp-designation-field');
         const sedpFields = $('.sedp-fields');
         const sedpCenterSelect = $('#sedp_center');
+        const mfiTypeSelect = $('#mfi_type');
         const nonAdminPersonalFields = $('.non-admin-personal-fields');
         const locationFields = $('.location-fields');
         const nonAdminPersonalInputs = nonAdminPersonalFields.find('input, select, textarea');
@@ -872,6 +873,12 @@
                 $(this).find('.project-area').show();
                 $(this).find('select[name="area_name[]"]').prop('required', true);
             });
+        }
+
+        function refreshMfiCenters() {
+            if (typeof window.updateMfiCenters === 'function') {
+                window.updateMfiCenters();
+            }
         }
 
         function initializeAwardedAreaSearch($row) {
@@ -1009,6 +1016,8 @@
                 partnerCode.val('');
                 $('input[name="warehouse"]').prop('checked', false);
                 clearSedpCenters();
+                mfiTypeSelect.prop('disabled', true).prop('required', false).val('').trigger('change');
+                refreshMfiCenters();
                 $('#delivery_address').val('').prop('readonly', false);
                 $('#same_as_address').prop('checked', false);
                 $('#same_as_delivery_address').prop('checked', false);
@@ -1030,6 +1039,7 @@
             adminOnlyFields.toggle(isAdmin);
             adminOnlyEmploymentFields.toggle(isAdmin);
             sedpFields.toggle(isSedp);
+            mfiTypeSelect.prop('disabled', !isSedp).prop('required', isSedp);
             if (isSedp && typeof window.ensureSedpCenterSelect2 === 'function') {
                 setTimeout(window.ensureSedpCenterSelect2, 0);
             }
@@ -1085,6 +1095,8 @@
                 if (!isSedp) {
                     sedpDesignationField.val(null).trigger('change');
                     clearSedpCenters();
+                    mfiTypeSelect.val('').trigger('change');
+                    refreshMfiCenters();
                 }
                 if (typeof toggleContactRequired === 'function') {
                     toggleContactRequired();

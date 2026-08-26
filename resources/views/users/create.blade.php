@@ -345,6 +345,16 @@
                         </div>
                         <div class="col-md-12 sedp-fields" style="display:none;">
                             <div class="sedp-panel">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="mfi_type">MFI Type&nbsp;<span class="text-danger">*</span></label>
+                                        <select class="form-control select2" id="mfi_type" name="mfi_type" data-placeholder="Select MFI type" disabled>
+                                            <option value="">Select MFI Type</option>
+                                            <option value="SEDP">SEDP</option>
+                                            <option value="ASHI">ASHI</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="sedp-panel-header">
                                     <div>
                                         <div class="sedp-panel-title">
@@ -359,9 +369,10 @@
                                         id="sedp_center"
                                         name="sedp_center[]"
                                         data-placeholder="Search and select centers"
+                                        disabled
                                         multiple>
                                     @foreach($centers ?? [] as $center)
-                                        <option value="{{ $center->name }}">{{ $center->name }}</option>
+                                        <option value="{{ $center->name }}" data-mfi="{{ strtoupper(trim((string) $center->mfi)) }}">{{ $center->name }}</option>
                                     @endforeach
                                 </select>
                                 <div class="sedp-center-toolbar">
@@ -1104,6 +1115,7 @@
         const locationMapStatus = document.getElementById('locationMapStatus');
         const refreshLocationMapBtn = document.getElementById('refreshLocationMapBtn');
         const roleSelect = document.getElementById('roleFilter2');
+        const mfiTypeSelect = document.getElementById('mfi_type');
         const sedpCenterSelect = document.getElementById('sedp_center');
         const sedpCenterCount = document.getElementById('sedpCenterCount');
         const clearSedpCentersBtn = document.getElementById('clearSedpCenters');
@@ -1127,6 +1139,11 @@
         let verifiedMobileNumber = '';
         let resendTimer = null;
         let select2LoadPromise = null;
+        const allMfiCenters = sedpCenterSelect
+            ? Array.from(sedpCenterSelect.options).map(function (option) {
+                return { value: option.value, label: option.text, mfi: option.dataset.mfi || '' };
+            })
+            : [];
 
         function ensureSelect2Loaded() {
             if (window.jQuery && $.fn && $.fn.select2) {
@@ -1220,6 +1237,40 @@
         }
 
         window.ensureSedpCenterSelect2 = ensureSedpCenterSelect2;
+
+        function updateMfiCenters() {
+            if (!sedpCenterSelect) return;
+
+            const selectedMfiType = mfiTypeSelect ? mfiTypeSelect.value : '';
+            const matchingCenters = allMfiCenters.filter(function (center) {
+                return center.mfi === selectedMfiType;
+            });
+            const $select = $(sedpCenterSelect);
+
+            if ($select.hasClass('select2-hidden-accessible')) {
+                $select.select2('destroy');
+            }
+
+            sedpCenterSelect.innerHTML = '';
+            matchingCenters.forEach(function (center) {
+                const option = document.createElement('option');
+                option.value = center.value;
+                option.textContent = center.label;
+                sedpCenterSelect.appendChild(option);
+            });
+
+            sedpCenterSelect.disabled = !selectedMfiType;
+            setSedpCenterInvalid(false);
+            ensureSedpCenterSelect2();
+            updateSedpCenterState();
+        }
+
+        if (mfiTypeSelect && window.jQuery) {
+            // Select2 dispatches its value changes through jQuery, so bind here
+            // to ensure the Centers list refreshes for both mouse and keyboard use.
+            $(mfiTypeSelect).off('change.mfiCenters').on('change.mfiCenters', updateMfiCenters);
+        }
+        window.updateMfiCenters = updateMfiCenters;
 
         function selectedSedpCenters() {
             return sedpCenterSelect ? ($(sedpCenterSelect).val() || []) : [];

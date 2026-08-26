@@ -1928,6 +1928,14 @@
                         </a>
                     </div>
                     <div class="nav-item">
+                        <a href="{{url('warehouse/pull-out-requests')}}" class="nav-link @if(Route::currentRouteName() == 'warehouse-pull-outs.index')active @endif">
+                            <div class="nav-icon">
+                               <i class="bi bi-arrow-left-right fs-2"></i>
+                            </div>
+                            <span class="nav-text">Pull Out Request</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['dpo','isl']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
                                 <i class="ti ti-clipboard-data"></i>
@@ -1965,6 +1973,35 @@
                             </div>
                             <span class="nav-text">Purchase Orders</span>
                         </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="{{url('warehouse/pull-out-requests')}}" class="nav-link @if(Route::currentRouteName() == 'warehouse-pull-outs.index')active @endif">
+                            <div class="nav-icon">
+                                <i class="bi bi-arrow-left-right fs-2"></i>
+                            </div>
+                            <span class="nav-text">Pull Out Request</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['dpo','isl']) ? 'true' : 'false' }}">
+                            <div class="nav-icon">
+                                <i class="ti ti-clipboard-data"></i>
+                            </div>
+                            <span class="nav-text">Reports</span>
+                            <i class="ti ti-chevron-down ms-auto"></i>
+                        </a>
+
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['dpo','isl'])) show @endif"
+                            id="reportsMenu">
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a href="{{ url('/reports/dpo-report') }}" class="nav-link @if(Route::currentRouteName() == 'dpo') active @endif" style="font-size: 14px">Distributor Purchase Order Report</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ route('isl') }}" class="nav-link @if(Route::currentRouteName() == 'isl') active @endif" style="font-size: 14px">Inventory Stock Level Report</a>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 @endif
                 @if($sidebarIsSedp && $sedpCanAccess('can_access_purchase_orders'))

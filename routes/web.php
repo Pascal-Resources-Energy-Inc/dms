@@ -61,6 +61,8 @@ Route::post('/products/bulk-update', 'ProductController@storeBulk')
 Route::get('/inventory-transfers', 'InventoryTransferController@index')->name('inventory-transfers.index');
 Route::post('/inventory-transfers', 'InventoryTransferController@store')->name('inventory-transfers.store');
 Route::delete('/inventory-transfers/{id}', 'InventoryTransferController@destroy')->name('inventory-transfers.destroy');
+Route::get('/warehouse/pull-out-requests', 'InventoryTransferController@warehousePullOuts')->name('warehouse-pull-outs.index');
+Route::post('/warehouse/pull-out-requests/{id}/review', 'InventoryTransferController@reviewPullOut')->name('warehouse-pull-outs.review');
 
 Route::get('/storelocation', 'HomeController@storelocation')->name('storelocation');
 Route::get('/api/locations-map', 'HomeController@getLocationsForMap')->name('locations.map');
