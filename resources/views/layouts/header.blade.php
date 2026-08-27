@@ -1714,7 +1714,7 @@
                         <span class="nav-text">Dashboard</span>
                     </a>
                 </div>
-                @elseif(auth()->user()->role == "Area Distributor")
+                @elseif(auth()->user()->hasAreaDistributorAccess())
                     <div class="nav-item">
                         <a href="{{url('ad-dashboard')}}" class="nav-link @if(Route::currentRouteName() == 'ad-dashboard') active @endif">
                             <div class="nav-icon">
@@ -2298,7 +2298,7 @@
                 </div>
             </div>
             <div class="topbar-right">
-                @if(auth()->user()->role == "Area Distributor")
+                @if(auth()->user()->hasAreaDistributorAccess())
                     <a href="{{ route('guest-order') }}" class="guest-order-link topbar-action" target="_blank" rel="noopener" aria-label="Open guest order" title="Guest Order">
                         <i class="ti ti-shopping-cart-plus"></i>
                         <span>Guest Order</span>
@@ -2561,7 +2561,7 @@
                                 </div>
                             </div>
                         </li>
-                        @if(auth()->user()->role != "Admin" && auth()->user()->role != "Area Distributor")
+                        @if(auth()->user()->role != "Admin" && !auth()->user()->hasAreaDistributorAccess())
                         {{-- <li><a class="dropdown-item" href="{{url('user-profile')}}">
                             <i class="ti ti-user"></i>
                             <span>My Profile</span>

@@ -85,7 +85,7 @@ class TransactionController extends Controller
     {
         $user = auth()->user();
 
-        if (!in_array($user->role, ['Area Distributor', 'Admin'], true)) {
+        if ($user->role !== 'Admin' && !$user->hasAreaDistributorAccess()) {
             abort(403);
         }
 
@@ -96,7 +96,7 @@ class TransactionController extends Controller
 
         if ($selectedProject !== 'Regular') {
             $connection = $selectedProject === 'Project Rise' ? 'admin_crms' : 'admin_crms2';
-            $allowedAreas = $user->role === 'Area Distributor'
+            $allowedAreas = $user->hasAreaDistributorAccess()
                 ? AreaAd::where('ad_id', optional($user->ad)->id)
                     ->where('project_type', $selectedProject)
                     ->pluck('area_name')
@@ -119,7 +119,7 @@ class TransactionController extends Controller
 
         $areasQuery = AreaAd::query();
 
-        if ($user->role === 'Area Distributor') {
+        if ($user->hasAreaDistributorAccess()) {
             $areasQuery->where('ad_id', optional($user->ad)->id);
         }
 
@@ -139,7 +139,7 @@ class TransactionController extends Controller
             ->values();
 
         $applyProjectFilter = function ($query) use ($user, $selectedProject, $assignedAreas, $projectAreas, $regularAreas) {
-            if ($user->role === 'Area Distributor') {
+            if ($user->hasAreaDistributorAccess()) {
                 if ($assignedAreas->isEmpty()) {
                     $query->whereRaw('1 = 0');
 
@@ -247,7 +247,7 @@ class TransactionController extends Controller
                 $dealerQuery->whereNull('deleted_at');
             }
 
-            if (auth()->user()->role === 'Area Distributor') {
+            if (auth()->user()->hasAreaDistributorAccess()) {
                 if ($allowedAreas->isEmpty() || !$schema->hasColumn('dealers', 'area')) {
                     return ['transactions' => collect(), 'customers' => collect(), 'dealers' => collect()];
                 }

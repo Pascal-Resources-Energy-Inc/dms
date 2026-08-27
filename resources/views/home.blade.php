@@ -338,7 +338,7 @@
 
   @if(auth()->user()->role == "Admin")
     @include('alert')
-  @elseif( auth()->user()->role == "Area Distributor")
+  @elseif(auth()->user()->hasAreaDistributorAccess())
   @endif
 
   @if($isSuperAdminDashboard)

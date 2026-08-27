@@ -12,6 +12,9 @@ class User extends Authenticatable implements Auditable
     use \OwenIt\Auditing\Auditable;
     use Notifiable;
 
+    public const ROLE_PROVINCIAL_DISTRIBUTOR = 'Provincial Distributor';
+    public const ROLE_AREA_DISTRIBUTOR = 'Area Distributor';
+
     protected $fillable = [
         'name', 'email', 'password', 'role', 'serial', 'read_notifications',
         'warehouse', 'delivery_address', 'designation', 'employee_number', 'department',
@@ -54,6 +57,18 @@ class User extends Authenticatable implements Auditable
     public function redeemedHistory()
     {
         return $this->hasMany(RedeemedHistory::class);
+    }
+
+    /**
+     * Provincial Distributors use the same partner portal and permissions as
+     * Area Distributors while keeping their distinct stored role.
+     */
+    public function hasAreaDistributorAccess(): bool
+    {
+        return in_array($this->role, [
+            self::ROLE_AREA_DISTRIBUTOR,
+            self::ROLE_PROVINCIAL_DISTRIBUTOR,
+        ], true);
     }
 
     public function raffleEntries()

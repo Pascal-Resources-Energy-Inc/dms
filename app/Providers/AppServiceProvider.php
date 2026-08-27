@@ -36,7 +36,7 @@ class AppServiceProvider extends ServiceProvider
                 $adId = optional($user->ad)->id;
                 $pendingOrdersQuery = OrderDetail::whereRaw("LOWER(TRIM(status)) = 'pending'");
 
-                if ($user->role === 'Area Distributor') {
+                if ($user->hasAreaDistributorAccess()) {
                     $pendingOrdersQuery->where('ad_id', $adId);
                 } elseif ($user->role !== 'Admin') {
                     $pendingOrdersQuery->whereRaw('1 = 0');
@@ -44,7 +44,7 @@ class AppServiceProvider extends ServiceProvider
 
                 $pendingOrdersCount = $pendingOrdersQuery->count();
 
-                if ($user->role === 'Area Distributor' && $adId) {
+                if ($user->hasAreaDistributorAccess() && $adId) {
                     foreach (['admin_crms', 'admin_crms2'] as $connection) {
                         $pendingOrdersCount += $this->remotePendingOrdersCount($connection, $adId);
                     }

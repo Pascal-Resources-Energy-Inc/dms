@@ -78,12 +78,17 @@ class LoginController extends Controller
             return true;
         }
 
-        return $selectedRole === $userRole;
+        if ($selectedRole === $userRole) {
+            return true;
+        }
+
+        return $selectedRole === 'area distributor'
+            && $user->hasAreaDistributorAccess();
     }
 
     protected function isUserInactive($user)
     {
-        if (strtolower($user->role) === 'area distributor') {
+        if ($user->hasAreaDistributorAccess()) {
             $ad = AreaDistributor::where('user_id', $user->id)->first();
 
             return !$ad || strtolower($ad->status ?? '') === 'inactive';
@@ -132,6 +137,7 @@ class LoginController extends Controller
             case 'mfi':
                 return '/';
             case 'area distributor':
+            case 'provincial distributor':
                 return '/ad-dashboard';
             default:
                 return '/dashboard';

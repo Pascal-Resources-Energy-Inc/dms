@@ -1892,11 +1892,11 @@ class ReportController extends Controller
     public function inventoryStockLevelReport(Request $request)
     {
         $user = auth()->user();
-        abort_unless(in_array($user->role, ['Admin', 'Area Distributor'], true), 403);
+        abort_unless($user->role === 'Admin' || $user->hasAreaDistributorAccess(), 403);
 
         $report = $this->buildInventoryStockLevelReport(
             $request,
-            $user->role === 'Area Distributor' ? $user->id : null
+            $user->hasAreaDistributorAccess() ? $user->id : null
         );
 
         return view('reports.inventory_stock_level', $report);
@@ -1905,11 +1905,11 @@ class ReportController extends Controller
     public function exportInventoryStockLevel(Request $request)
     {
         $user = auth()->user();
-        abort_unless(in_array($user->role, ['Admin', 'Area Distributor'], true), 403);
+        abort_unless($user->role === 'Admin' || $user->hasAreaDistributorAccess(), 403);
 
         $report = $this->buildInventoryStockLevelReport(
             $request,
-            $user->role === 'Area Distributor' ? $user->id : null
+            $user->hasAreaDistributorAccess() ? $user->id : null
         );
         $fileName = 'stock-inventory-' . $report['asOf']->format('Y-m-d') . '.xlsx';
 

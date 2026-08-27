@@ -245,7 +245,7 @@ class OrderController extends Controller
     public function guestOrder(Request $request)
     {
         $user = $request->user();
-        abort_unless($user && $user->role === 'Area Distributor', 403);
+        abort_unless($user && $user->hasAreaDistributorAccess(), 403);
 
         $products = Product::with('item')
             ->where('ad_user_id', $user->id)
@@ -387,7 +387,7 @@ class OrderController extends Controller
     public function storeGuest(Request $request)
     {
         $user = $request->user();
-        abort_unless($user && $user->role === 'Area Distributor', 403);
+        abort_unless($user && $user->hasAreaDistributorAccess(), 403);
 
         $authorizedTerritories = collect(optional($user->ad)->areas)
             ->pluck('area_name')

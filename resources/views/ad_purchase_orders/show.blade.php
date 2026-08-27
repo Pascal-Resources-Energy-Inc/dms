@@ -318,7 +318,7 @@
         </div>
     @endif
 
-    @if(auth()->user()->role === 'Area Distributor' && $order->status === 'Partial Received' && $canVerifyFullyReceivedCrateRefill)
+    @if(auth()->user()->hasAreaDistributorAccess() && $order->status === 'Partial Received' && $canVerifyFullyReceivedCrateRefill)
         <div class="alert alert-info border d-flex align-items-start gap-2">
             <i class="bi bi-info-circle-fill fs-5"></i>
             <div>
@@ -328,7 +328,7 @@
         </div>
     @endif
 
-    @if(auth()->user()->role === 'Area Distributor' && ($order->status === 'For Delivery' || ($order->status === 'Partial Received' && $canVerifyFullyReceivedCrateRefill) || ($order->status === 'For Verification' && $isDeliveryVerification)))
+    @if(auth()->user()->hasAreaDistributorAccess() && ($order->status === 'For Delivery' || ($order->status === 'Partial Received' && $canVerifyFullyReceivedCrateRefill) || ($order->status === 'For Verification' && $isDeliveryVerification)))
         @php $isPartialReceiptVerification = $order->status === 'Partial Received'; @endphp
         <form action="{{ route('ad-purchase-orders.updateStatus', $order->id) }}" method="POST" enctype="multipart/form-data" class="ad-verification-submit">
             @csrf
@@ -380,7 +380,7 @@
         </form>
     @endif
 
-    @if(auth()->user()->role === 'Area Distributor' && $order->status === 'For Verification' && $order->verification_incomplete_notified_at)
+    @if(auth()->user()->hasAreaDistributorAccess() && $order->status === 'For Verification' && $order->verification_incomplete_notified_at)
         <div class="alert alert-warning d-flex align-items-start gap-2">
             <i class="bi bi-exclamation-triangle-fill fs-5"></i>
             <div>
