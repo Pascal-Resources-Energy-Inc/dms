@@ -25,6 +25,13 @@ class InventoryTransfer extends Model implements Auditable
         'unit_cost',
         'reference_no',
         'pull_out_attachments',
+        'ris_number',
+        'return_date',
+        'return_attachments',
+        'warehouse_received_qty',
+        'warehouse_reference_no',
+        'warehouse_received_at',
+        'ad_notified_at',
         'related_movement_id',
         'replacement_product_id',
         'replacement_sku',
@@ -38,6 +45,9 @@ class InventoryTransfer extends Model implements Auditable
         'reviewed_by',
         'reviewed_at',
         'transfer_date',
+        'return_date',
+        'warehouse_received_at',
+        'ad_notified_at',
         'remarks',
         'created_by',
     ];
@@ -49,6 +59,7 @@ class InventoryTransfer extends Model implements Auditable
 
     protected $casts = [
         'pull_out_attachments' => 'array',
+        'return_attachments' => 'array',
     ];
 
     public function product()

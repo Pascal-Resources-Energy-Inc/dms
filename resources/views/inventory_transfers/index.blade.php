@@ -509,6 +509,15 @@
                                             @endif
                                         </td> --}}
                                         <td data-label="Action" class="text-center">
+                                            @if($movement->out_type === 'Return and Refund' && $movement->approval_status === 'Approved')
+                                                <form method="POST" action="{{ route('inventory-transfers.return-documents', $movement->id) }}" enctype="multipart/form-data" class="text-start mb-2">
+                                                    @csrf
+                                                    <input class="form-control form-control-sm mb-1" name="ris_number" placeholder="RIS #" required>
+                                                    <input class="form-control form-control-sm mb-1" type="date" name="return_date" required>
+                                                    <input class="form-control form-control-sm mb-1" type="file" name="return_attachments[]" accept=".jpg,.jpeg,.png,.pdf" multiple required>
+                                                    <button class="btn btn-sm btn-success w-100" type="submit">Submit return documents</button>
+                                                </form>
+                                            @endif
                                             <button
                                                 type="button"
                                                 class="btn btn-sm btn-outline-primary js-view-movement"

@@ -147,6 +147,8 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
                     <strong class="role-name" id="selectedRoleName">
                         @if(strtolower(old('selected_role')) === 'mfi')
                             MFI
+                        @elseif(in_array(strtolower(old('selected_role')), ['area distributor', 'provincial distributor'], true))
+                            Partner
                         @else
                             {{ $hasSelectedRole ? ucwords(old('selected_role')) : 'User' }}
                         @endif
@@ -886,8 +888,14 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
     }
 
     function formatRoleName(role) {
-        if ((role || '').toLowerCase() === 'mfi') {
+        const normalizedRole = (role || '').toLowerCase();
+
+        if (normalizedRole === 'mfi') {
             return 'MFI';
+        }
+
+        if (['area distributor', 'provincial distributor'].includes(normalizedRole)) {
+            return 'Partner';
         }
 
         return role.replace(/\b\w/g, letter => letter.toUpperCase());

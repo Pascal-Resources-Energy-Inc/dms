@@ -1936,6 +1936,12 @@
                         </a>
                     </div>
                     <div class="nav-item">
+                        <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index')active @endif">
+                            <div class="nav-icon"><i class="bi bi-arrow-return-left fs-2"></i></div>
+                            <span class="nav-text">Return &amp; Refund</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['dpo','isl']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
                                 <i class="ti ti-clipboard-data"></i>
@@ -1980,6 +1986,12 @@
                                 <i class="bi bi-arrow-left-right fs-2"></i>
                             </div>
                             <span class="nav-text">Pull Out Request</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index')active @endif">
+                            <div class="nav-icon"><i class="bi bi-arrow-return-left fs-2"></i></div>
+                            <span class="nav-text">Return &amp; Refund</span>
                         </a>
                     </div>
                     <div class="nav-item">
@@ -2041,6 +2053,14 @@
                                 <i class="ti ti-cash"></i>
                             </div>
                             <span class="nav-text">Transactions</span>
+                        </a>
+                    </div>
+                @endif
+                @if($sidebarIsAdmin && strtolower(trim((string) auth()->user()->name)) === 'dennis villareal')
+                    <div class="nav-item">
+                        <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index')active @endif">
+                            <div class="nav-icon"><i class="bi bi-arrow-return-left fs-2"></i></div>
+                            <span class="nav-text">Return &amp; Refund</span>
                         </a>
                     </div>
                 @endif

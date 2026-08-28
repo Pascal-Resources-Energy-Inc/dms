@@ -63,6 +63,10 @@ Route::post('/inventory-transfers', 'InventoryTransferController@store')->name('
 Route::delete('/inventory-transfers/{id}', 'InventoryTransferController@destroy')->name('inventory-transfers.destroy');
 Route::get('/warehouse/pull-out-requests', 'InventoryTransferController@warehousePullOuts')->name('warehouse-pull-outs.index');
 Route::post('/warehouse/pull-out-requests/{id}/review', 'InventoryTransferController@reviewPullOut')->name('warehouse-pull-outs.review');
+Route::get('/return-refund-requests', 'InventoryTransferController@returnRefundRequests')->middleware('auth')->name('return-refunds.index');
+Route::post('/return-refund-requests/{id}/approve', 'InventoryTransferController@approveReturnRefund')->middleware('auth')->name('return-refunds.approve');
+Route::post('/inventory-transfers/{id}/return-documents', 'InventoryTransferController@uploadReturnDocuments')->middleware('auth')->name('inventory-transfers.return-documents');
+Route::post('/return-refund-requests/{id}/receive', 'InventoryTransferController@receiveReturnRefund')->middleware('auth')->name('return-refunds.receive');
 
 Route::get('/storelocation', 'HomeController@storelocation')->name('storelocation');
 Route::get('/api/locations-map', 'HomeController@getLocationsForMap')->name('locations.map');
