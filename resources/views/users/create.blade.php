@@ -23,6 +23,15 @@
                                 <option value="Area Distributor">Area Distributor</option>
                                 <option value="Mega Dealer">Mega Dealer</option>
                             </select>
+                            <label class="distributor-personnel-card distributor-personnel-field" style="display: none;" for="is_distributor_personnel">
+                                <input type="checkbox" id="is_distributor_personnel" name="is_distributor_personnel" value="1">
+                                <span class="distributor-personnel-icon"><i class="bi bi-person-workspace"></i></span>
+                                <span class="distributor-personnel-copy">
+                                    <strong>Distributor Personnel</strong>
+                                    <small>Identify this user as personnel assigned to the selected distributor.</small>
+                                </span>
+                                <span class="distributor-personnel-check"><i class="bi bi-check-lg"></i></span>
+                            </label>
                             <label class="form-label fw-semibold business-fields project-tag-fields">Project Tag</label>
                             <div class="border rounded p-2 bg-light business-fields project-tag-fields">
                                 <label class="project-card">
@@ -582,6 +591,67 @@
     .project-card input {
         margin-top: 5px;
         transform: scale(1.2);
+    }
+
+    .distributor-personnel-card {
+        align-items: center;
+        background: linear-gradient(135deg, #f8fbff, #ffffff);
+        border: 1px solid #d6e4f2;
+        border-radius: 12px;
+        color: #102a43;
+        cursor: pointer;
+        display: flex;
+        gap: 11px;
+        margin: 10px 0 12px;
+        min-height: 72px;
+        padding: 11px 12px;
+        transition: border-color .2s ease, box-shadow .2s ease, background .2s ease, transform .2s ease;
+    }
+
+    .distributor-personnel-card:hover {
+        border-color: #77aee6;
+        box-shadow: 0 7px 18px rgba(13, 110, 253, .09);
+        transform: translateY(-1px);
+    }
+
+    .distributor-personnel-card input {
+        height: 1px;
+        opacity: 0;
+        position: absolute;
+        width: 1px;
+    }
+
+    .distributor-personnel-icon,
+    .distributor-personnel-check {
+        align-items: center;
+        border-radius: 10px;
+        display: inline-flex;
+        flex: 0 0 auto;
+        height: 38px;
+        justify-content: center;
+        width: 38px;
+    }
+
+    .distributor-personnel-icon { background: #e9f3ff; color: #0d6efd; font-size: 18px; }
+    .distributor-personnel-check { background: #fff; border: 1px solid #c7d5e4; color: transparent; height: 22px; margin-left: auto; width: 22px; }
+    .distributor-personnel-copy { min-width: 0; }
+    .distributor-personnel-copy strong,
+    .distributor-personnel-copy small { display: block; line-height: 1.25; }
+    .distributor-personnel-copy strong { font-size: 13px; font-weight: 800; }
+    .distributor-personnel-copy small { color: #64748b; font-size: 11px; margin-top: 3px; }
+    .distributor-personnel-card:has(input:checked) { background: #eef6ff; border-color: #0d6efd; box-shadow: 0 0 0 3px rgba(13, 110, 253, .12); }
+    .distributor-personnel-card:has(input:checked) .distributor-personnel-icon,
+    .distributor-personnel-card:has(input:checked) .distributor-personnel-check { background: #0d6efd; border-color: #0d6efd; color: #fff; }
+    .distributor-personnel-card:has(input:focus-visible) { outline: 3px solid rgba(13, 110, 253, .22); outline-offset: 2px; }
+
+    @media (max-width: 575.98px) {
+        #new_users .modal-dialog { margin: 8px; }
+        #new_users .modal-footer { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; }
+        #new_users .modal-footer .btn { margin: 0; width: 100%; }
+        .distributor-personnel-card { align-items: flex-start; min-height: 0; padding: 12px; }
+        .distributor-personnel-icon { height: 34px; width: 34px; }
+        .distributor-personnel-check { margin-top: 5px; }
+        .distributor-personnel-copy strong { font-size: 12px; }
     }
 
     .warehouse-panel {

@@ -95,6 +95,7 @@ class UserController extends Controller
             'designation' => 'required_if:role,Admin|required_if:role,MFI|nullable|string|max:255',
             'employee_number' => 'required_if:role,Admin|nullable|string|max:255',
             'department' => 'required_if:role,Admin|nullable|string|max:255',
+            'is_distributor_personnel' => 'nullable|boolean',
             'contact_number' => 'nullable|regex:/^09[0-9]{9}$/',
             'type' => 'nullable|array',
             'type.*' => 'in:Project Rise,Project Genesis,Regular',
@@ -184,6 +185,10 @@ class UserController extends Controller
             ? ($request->has('same_as_address') ? $request->address : $request->delivery_address)
             : null;
         $user->role = $request->role;
+        if (Schema::hasColumn('users', 'is_distributor_personnel')) {
+            $user->is_distributor_personnel = in_array($request->role, ['Provincial Distributor', 'Area Distributor', 'Mega Dealer'], true)
+                && $request->boolean('is_distributor_personnel');
+        }
         if (Schema::hasColumn('users', 'mfi_type')) {
             $user->mfi_type = $isSedp ? $request->mfi_type : null;
         }
@@ -781,6 +786,7 @@ class UserController extends Controller
                 'can_access_inventory' => $user->can_access_inventory,
                 'can_access_reports' => $user->can_access_reports,
                 'can_access_settings' => $user->can_access_settings,
+                'can_access_stock_requests' => $user->can_access_stock_requests,
                 'access_permissions' => $this->decodeAccessPermissions($user->access_permissions ?? null),
                 'address' => optional($user->dealer)->address
                     ?? optional($user->client)->address
@@ -869,6 +875,7 @@ class UserController extends Controller
             'can_access_inventory' => 'nullable|in:on,off',
             'can_access_reports' => 'nullable|in:on,off',
             'can_access_settings' => 'nullable|in:on,off',
+            'can_access_stock_requests' => 'nullable|in:on,off',
             'access_permissions' => 'nullable|string',
         ]);
 
@@ -926,6 +933,7 @@ class UserController extends Controller
         $user->can_access_inventory = $hasPermission('inventory') ? 'on' : null;
         $user->can_access_reports = $hasPermission('reports') ? 'on' : null;
         $user->can_access_settings = $hasPermission('settings') ? 'on' : null;
+        $user->can_access_stock_requests = $hasPermission('stock_requests') ? 'on' : null;
         $user->access_permissions = json_encode($permissions);
 
         $user->save();
@@ -950,15 +958,23 @@ class UserController extends Controller
     private function sanitizeAccessPermissions(array $permissions)
     {
         $allowed = [
+            'dashboard' => ['overview'],
             'users' => ['accounts'],
             'distributors' => ['records'],
             'dealers' => ['records'],
             'customers' => ['records'],
             'transactions' => ['sales'],
+            'orders' => ['sales_orders'],
             'purchase_orders' => ['adpo'],
             'inventory' => ['stock'],
+            'inventory_transfers' => ['transfers'],
+            'return_refunds' => ['requests'],
             'settings' => ['items', 'rewards', 'campaigns'],
+            'products' => ['catalog'],
             'reports' => ['sales', 'operations', 'sedp'],
+            'stock_requests' => ['approvals'],
+            'charges' => ['records'],
+            'locations' => ['directory'],
         ];
         $allowedActions = ['view', 'add', 'edit', 'delete'];
         $clean = [];

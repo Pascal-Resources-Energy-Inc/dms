@@ -28,7 +28,7 @@ Route::get('password/reset/form', 'Auth\ForgotPasswordController@showResetForm')
 Route::post('password/update', 'Auth\ForgotPasswordController@reset')->name('password.update');
 
 
-Route::group(['middleware' => 'auth'], function () {
+Route::group(['middleware' => ['auth', 'module.access']], function () {
 
 Route::get('/home', 'HomeController@index')->name('home');
 Route::get('/transactions','TransactionController@index')->name('transactions');
@@ -197,7 +197,7 @@ Route::delete('/raffles/{raffle}/entries/{entry}', 'RaffleController@destroyEntr
 Route::post('/raffles/{raffle}/draw', 'RaffleController@draw')->name('raffles.draw');
 
 // Users
-Route::get('/users/{id}/show', 'UserController@show');
+Route::get('/users/{id}/show', 'UserController@show')->name('users.show');
 
 Route::post('/users/update', 'UserController@update')->name('users.update');
 Route::post('/users/access-update', 'UserController@updateAccess')->name('users.access.update');

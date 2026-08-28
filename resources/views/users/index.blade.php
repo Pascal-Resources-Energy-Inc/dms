@@ -2,9 +2,6 @@
 <link rel="icon" type="image/png" href="{{asset('images/logo_nya.png')}}">
 @section('css')
 <style>
-    .users-page {
-        padding-bottom: 32px;
-    }
 
     .users-hero {
         border: 1px solid #e2edf4;
@@ -600,7 +597,8 @@
             'can_access_purchase_orders',
             'can_access_inventory',
             'can_access_reports',
-            'can_access_settings'
+            'can_access_settings',
+            'can_access_stock_requests'
         ];
 
         function setAccessFieldsFromResponse(res) {
@@ -635,6 +633,8 @@
             setLegacyModuleView('inventory', res.can_access_inventory);
             setLegacyModuleView('reports', res.can_access_reports);
             setLegacyModuleView('settings', res.can_access_settings);
+            setLegacyModuleView('stock_requests', res.can_access_stock_requests);
+            syncAccessToggles();
         }
 
         function setLegacyModuleView(module, value) {
@@ -680,22 +680,56 @@
             return payload;
         }
 
-        $('#checkAllAccess').on('click', function () {
-            $('.access-permission-check').prop('checked', true);
+        function toggleModules($checks, checked) {
+            $checks.prop('checked', checked);
+            syncAccessToggles();
+        }
+
+        function moduleCheckboxes($toggle) {
+            const modules = (($toggle.data('modules') || $toggle.data('module') || '') + '').trim().split(/\s+/).filter(Boolean);
+            return $('.access-permission-check').filter(function () {
+                return modules.indexOf(String($(this).data('module'))) !== -1;
+            });
+        }
+
+        function syncAccessToggles() {
+            const $permissions = $('.access-permission-check');
+            const checkedCount = $permissions.filter(':checked').length;
+            const allAccess = document.getElementById('allModulesAccess');
+
+            if (allAccess) {
+                allAccess.checked = checkedCount === $permissions.length;
+                allAccess.indeterminate = checkedCount > 0 && checkedCount < $permissions.length;
+            }
+
+            $('.module-access-toggle').each(function () {
+                const $moduleChecks = moduleCheckboxes($(this));
+                const count = $moduleChecks.filter(':checked').length;
+                this.checked = count === $moduleChecks.length;
+                this.indeterminate = count > 0 && count < $moduleChecks.length;
+            });
+        }
+
+        $('#allModulesAccess').on('change', function () {
+            toggleModules($('.access-permission-check'), this.checked);
+        });
+
+        $(document).on('change', '.module-access-toggle', function () {
+            toggleModules(moduleCheckboxes($(this)), this.checked);
         });
 
         $('#clearAllAccess').on('click', function () {
-            $('.access-permission-check').prop('checked', false);
+            toggleModules($('.access-permission-check'), false);
         });
 
         $(document).on('change', '.access-permission-check', function () {
             const action = $(this).data('action');
 
-            if (!this.checked || action === 'view') {
-                return;
+            if (this.checked && action !== 'view') {
+                $('.access-permission-check[data-module="' + $(this).data('module') + '"][data-submodule="' + $(this).data('submodule') + '"][data-action="view"]').prop('checked', true);
             }
 
-            $('.access-permission-check[data-module="' + $(this).data('module') + '"][data-submodule="' + $(this).data('submodule') + '"][data-action="view"]').prop('checked', true);
+            syncAccessToggles();
         });
 
         $(document).on('click', '.btn-edit-user', function () {
@@ -744,6 +778,7 @@
                 $('#accessUserInitials').text(userInitials(res.name));
 
                 setAccessFieldsFromResponse(res);
+                syncAccessToggles();
 
                 showModal('#accessUserModal');
             }).fail(function () {
@@ -833,6 +868,8 @@
         const locationInputs = locationFields.find('input, select, textarea');
         const distributorDeliveryFields = $('.distributor-delivery-fields');
         const distributorDeliveryRequiredFields = $('.distributor-delivery-required');
+        const distributorPersonnelField = $('.distributor-personnel-field');
+        const distributorPersonnelInput = $('#is_distributor_personnel');
         const areaField = $('.project-area-field');
 
         const areaSelect = $('#area_name');
@@ -995,6 +1032,8 @@
                 nonAdminPersonalFields.show();
                 locationFields.show();
                 distributorDeliveryFields.hide();
+                distributorPersonnelField.hide();
+                distributorPersonnelInput.prop('disabled', true).prop('checked', false);
                 areaField.hide();
 
                 businessName.prop('required', false);
@@ -1029,6 +1068,7 @@
             const isAdminLike = isAdmin || isSedp;
             const isProvincialDistributor = selectedRole === 'Provincial Distributor';
             const isAreaDistributor = selectedRole === 'Area Distributor';
+            const isDistributorRole = ['Provincial Distributor', 'Area Distributor', 'Mega Dealer'].includes(selectedRole);
             const canShowAreas = canHaveAwardedAreas(selectedRole);
             const needsDeliveryAddress = isProvincialDistributor || isAreaDistributor;
 
@@ -1046,6 +1086,11 @@
             nonAdminPersonalFields.toggle(!isAdminLike);
             locationFields.toggle(!isAdminLike);
             distributorDeliveryFields.toggle(needsDeliveryAddress);
+            distributorPersonnelField.toggle(isDistributorRole);
+            distributorPersonnelInput.prop('disabled', !isDistributorRole);
+            if (!isDistributorRole) {
+                distributorPersonnelInput.prop('checked', false);
+            }
             areaField.toggle(canShowAreas);
 
             businessName.prop('required', !isAdminLike);

@@ -1,5 +1,5 @@
 <div class="modal fade access-modal" id="accessUserModal" tabindex="-1" aria-labelledby="accessUserModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header access-modal-header">
                 <div>
@@ -29,14 +29,16 @@
                     <div class="access-section-title">
                         <div>
                             <strong>Detailed Module Permissions</strong>
-                            <small>Set View, Add, Edit, and Delete access per submodule.</small>
+                            <small>Turn on every module at once, or fine-tune access by module and action.</small>
                         </div>
                     </div>
 
                     <div class="access-tools">
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="checkAllAccess">
-                            <i class="fas fa-check-double me-1"></i>Allow All
-                        </button>
+                        <label class="access-all-toggle" for="allModulesAccess">
+                            <input type="checkbox" id="allModulesAccess">
+                            <span class="access-toggle-ui" aria-hidden="true"></span>
+                            <span><strong>All modules access</strong><small>Enable every available permission</small></span>
+                        </label>
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="clearAllAccess">
                             <i class="fas fa-times me-1"></i>Clear
                         </button>
@@ -51,10 +53,24 @@
                             <span>Delete</span>
                         </div>
 
-                        <div class="access-module-group">
+                        <div class="access-module-group" data-module-group="dashboard">
                             <div class="access-module-heading">
-                                <i class="fas fa-users-cog"></i>
-                                <span>Administration</span>
+                                <span><i class="fas fa-th-large"></i> Workspace</span>
+                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-module="dashboard"><span>All</span></label>
+                            </div>
+                            <div class="access-row">
+                                <div><strong>Dashboard</strong><small>Overview, alerts, and performance summary</small></div>
+                                <label><input type="checkbox" class="access-permission-check" data-module="dashboard" data-submodule="overview" data-action="view"><span></span></label>
+                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
+                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
+                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
+                            </div>
+                        </div>
+
+                        <div class="access-module-group" data-module-group="users">
+                            <div class="access-module-heading">
+                                <span><i class="fas fa-users-cog"></i> Administration</span>
+                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-module="users"><span>All</span></label>
                             </div>
                             <div class="access-row">
                                 <div><strong>Users</strong><small>Account list and access control</small></div>
@@ -65,10 +81,10 @@
                             </div>
                         </div>
 
-                        <div class="access-module-group">
+                        <div class="access-module-group" data-module-group="distributors dealers customers">
                             <div class="access-module-heading">
-                                <i class="fas fa-handshake"></i>
-                                <span>Partners</span>
+                                <span><i class="fas fa-handshake"></i> Partners</span>
+                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-modules="distributors dealers customers"><span>All</span></label>
                             </div>
                             <div class="access-row">
                                 <div><strong>Distributors</strong><small>Provincial and Area Distributor records</small></div>
@@ -93,10 +109,10 @@
                             </div>
                         </div>
 
-                        <div class="access-module-group">
+                        <div class="access-module-group" data-module-group="transactions orders purchase_orders inventory inventory_transfers return_refunds stock_requests charges locations">
                             <div class="access-module-heading">
-                                <i class="fas fa-cash-register"></i>
-                                <span>Operations</span>
+                                <span><i class="fas fa-cash-register"></i> Operations</span>
+                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-modules="transactions orders purchase_orders inventory inventory_transfers return_refunds stock_requests charges locations"><span>All</span></label>
                             </div>
                             <div class="access-row">
                                 <div><strong>Transactions</strong><small>Sales and payment activity</small></div>
@@ -119,12 +135,54 @@
                                 <label><input type="checkbox" class="access-permission-check" data-module="inventory" data-submodule="stock" data-action="edit"><span></span></label>
                                 <label><input type="checkbox" class="access-permission-check" data-module="inventory" data-submodule="stock" data-action="delete"><span></span></label>
                             </div>
+                            <div class="access-row">
+                                <div><strong>Sales Orders</strong><small>Customer and dealer order management</small></div>
+                                <label><input type="checkbox" class="access-permission-check" data-module="orders" data-submodule="sales_orders" data-action="view"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="orders" data-submodule="sales_orders" data-action="add"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="orders" data-submodule="sales_orders" data-action="edit"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="orders" data-submodule="sales_orders" data-action="delete"><span></span></label>
+                            </div>
+                            <div class="access-row">
+                                <div><strong>Stock Requests</strong><small>Review and approve dealer stock requests</small></div>
+                                <label><input type="checkbox" class="access-permission-check" data-module="stock_requests" data-submodule="approvals" data-action="view"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="stock_requests" data-submodule="approvals" data-action="add"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="stock_requests" data-submodule="approvals" data-action="edit"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="stock_requests" data-submodule="approvals" data-action="delete"><span></span></label>
+                            </div>
+                            <div class="access-row">
+                                <div><strong>Inventory Transfers</strong><small>Stock transfers and warehouse pull-out requests</small></div>
+                                <label><input type="checkbox" class="access-permission-check" data-module="inventory_transfers" data-submodule="transfers" data-action="view"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="inventory_transfers" data-submodule="transfers" data-action="add"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="inventory_transfers" data-submodule="transfers" data-action="edit"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="inventory_transfers" data-submodule="transfers" data-action="delete"><span></span></label>
+                            </div>
+                            <div class="access-row">
+                                <div><strong>Return and Refund</strong><small>Return, replacement, and refund workflow</small></div>
+                                <label><input type="checkbox" class="access-permission-check" data-module="return_refunds" data-submodule="requests" data-action="view"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="return_refunds" data-submodule="requests" data-action="add"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="return_refunds" data-submodule="requests" data-action="edit"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="return_refunds" data-submodule="requests" data-action="delete"><span></span></label>
+                            </div>
+                            <div class="access-row">
+                                <div><strong>Other Charges</strong><small>Distributor charges and adjustments</small></div>
+                                <label><input type="checkbox" class="access-permission-check" data-module="charges" data-submodule="records" data-action="view"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="charges" data-submodule="records" data-action="add"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="charges" data-submodule="records" data-action="edit"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="charges" data-submodule="records" data-action="delete"><span></span></label>
+                            </div>
+                            <div class="access-row">
+                                <div><strong>Store Locations</strong><small>Store map and location directory</small></div>
+                                <label><input type="checkbox" class="access-permission-check" data-module="locations" data-submodule="directory" data-action="view"><span></span></label>
+                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
+                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
+                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
+                            </div>
                         </div>
 
-                        <div class="access-module-group">
+                        <div class="access-module-group" data-module-group="settings products">
                             <div class="access-module-heading">
-                                <i class="fas fa-cog"></i>
-                                <span>Settings and Rewards</span>
+                                <span><i class="fas fa-cog"></i> Settings and Rewards</span>
+                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-modules="settings products"><span>All</span></label>
                             </div>
                             <div class="access-row">
                                 <div><strong>Items</strong><small>Products, items, and catalog setup</small></div>
@@ -132,6 +190,13 @@
                                 <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="items" data-action="add"><span></span></label>
                                 <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="items" data-action="edit"><span></span></label>
                                 <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="items" data-action="delete"><span></span></label>
+                            </div>
+                            <div class="access-row">
+                                <div><strong>Product Catalog</strong><small>Product list, pricing, and product setup</small></div>
+                                <label><input type="checkbox" class="access-permission-check" data-module="products" data-submodule="catalog" data-action="view"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="products" data-submodule="catalog" data-action="add"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="products" data-submodule="catalog" data-action="edit"><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="products" data-submodule="catalog" data-action="delete"><span></span></label>
                             </div>
                             <div class="access-row">
                                 <div><strong>Rewards</strong><small>Reward setup and maintenance</small></div>
@@ -149,10 +214,10 @@
                             </div>
                         </div>
 
-                        <div class="access-module-group">
+                        <div class="access-module-group" data-module-group="reports">
                             <div class="access-module-heading">
-                                <i class="fas fa-chart-line"></i>
-                                <span>Reports</span>
+                                <span><i class="fas fa-chart-line"></i> Reports</span>
+                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-module="reports"><span>All</span></label>
                             </div>
                             <div class="access-row">
                                 <div><strong>Sales Reports</strong><small>Daily and monthly sales reports</small></div>
@@ -318,6 +383,62 @@
         margin-bottom: 10px;
     }
 
+    .access-all-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 42px;
+        margin: 0;
+        padding: 7px 11px;
+        border: 1px solid #cfe0f4;
+        border-radius: 8px;
+        background: #f8fbff;
+        color: #102a43;
+        cursor: pointer;
+    }
+
+    .access-all-toggle input,
+    .module-toggle input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .access-all-toggle strong,
+    .access-all-toggle small {
+        display: block;
+        line-height: 1.2;
+    }
+
+    .access-all-toggle strong { font-size: 12px; font-weight: 900; }
+    .access-all-toggle small { color: #64748b; font-size: 10px; margin-top: 2px; }
+
+    .access-toggle-ui {
+        width: 34px;
+        height: 20px;
+        position: relative;
+        border-radius: 999px;
+        background: #94a3b8;
+        transition: background .2s ease;
+        flex: 0 0 auto;
+    }
+
+    .access-toggle-ui::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform .2s ease;
+    }
+
+    .access-all-toggle input:checked + .access-toggle-ui { background: #0d6efd; }
+    .access-all-toggle input:checked + .access-toggle-ui::after { transform: translateX(14px); }
+    .access-all-toggle input:indeterminate + .access-toggle-ui { background: #4f8edb; }
+
     .access-tools .btn {
         display: inline-flex;
         align-items: center;
@@ -368,6 +489,49 @@
         font-size: 13px;
         font-weight: 900;
         padding: 10px;
+    }
+
+    .access-module-heading > span:first-child { display: inline-flex; align-items: center; gap: 8px; }
+
+    .module-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin: 0 0 0 auto;
+        color: #52606d;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .module-toggle span::before {
+        content: '';
+        display: inline-block;
+        width: 15px;
+        height: 15px;
+        margin-right: 5px;
+        vertical-align: -3px;
+        border: 1px solid #9fb3c8;
+        border-radius: 4px;
+        background: #fff;
+    }
+
+    .module-toggle input:checked + span::before {
+        content: '\2713';
+        border-color: #0d6efd;
+        background: #0d6efd;
+        color: #fff;
+        text-align: center;
+        line-height: 13px;
+    }
+
+    .module-toggle input:indeterminate + span::before {
+        content: '\2212';
+        border-color: #4f8edb;
+        background: #4f8edb;
+        color: #fff;
+        text-align: center;
+        line-height: 12px;
     }
 
     .access-module-group:first-of-type .access-module-heading {
@@ -557,5 +721,10 @@
         .access-modal-footer .btn {
             width: 100%;
         }
+
+        .access-tools { align-items: stretch; }
+        .access-all-toggle { width: 100%; }
+        .access-modal-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .access-modal-footer .btn { margin: 0; }
     }
 </style>
