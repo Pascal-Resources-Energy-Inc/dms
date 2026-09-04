@@ -26,6 +26,9 @@ class UserController extends Controller
         // Keep areas assigned to an inactive AD available, but do not offer
         // an area that is currently assigned to an active AD.
         $activeAdAreaKeys = $this->activeAdAreaKeys();
+        $allAreas = Area::query()
+            ->orderBy('name')
+            ->get();
         $areas = Area::query()
             ->when($activeAdAreaKeys->isNotEmpty(), function ($query) use ($activeAdAreaKeys) {
                 $query->whereNotIn(DB::raw('LOWER(TRIM(name))'), $activeAdAreaKeys->all());
@@ -42,7 +45,7 @@ class UserController extends Controller
             ->latest()
             ->paginate(20); // ✅ IMPORTANT
 
-        return view('users.index', compact('stoves', 'users', 'areas', 'centers'));
+        return view('users.index', compact('stoves', 'users', 'areas', 'allAreas', 'centers'));
     }
 
     public function store(Request $request)
@@ -78,7 +81,9 @@ class UserController extends Controller
             ->filter()
             ->unique();
 
-       $unavailableAreaKeys = $requestedAreaKeys->intersect($this->activeAdAreaKeys());
+       $unavailableAreaKeys = $request->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+            ? collect()
+            : $requestedAreaKeys->intersect($this->activeAdAreaKeys());
 
        if ($unavailableAreaKeys->isNotEmpty()) {
             return back()

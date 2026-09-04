@@ -1803,9 +1803,14 @@
                             <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
-                        <div class="collapse @if(in_array(Route::currentRouteName(), ['md-ads','dealer-ads','customer-ads','my-customers','charges'])) show @endif"
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['ads','md-ads','dealer-ads','customer-ads','my-customers','charges'])) show @endif"
                             id="partnersMenu">
                             <ul class="nav flex-column ms-3">
+                                @if(auth()->user()->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR)
+                                    <li class="nav-item">
+                                        <a href="{{ url('/ads') }}" class="nav-link @if(Route::currentRouteName() == 'ads') active @endif" style="font-size: 14px">Area Distributor</a>
+                                    </li>
+                                @endif
                                 <li class="nav-item">
                                     <a href="{{url('/md-ads')}}" class="nav-link @if(Route::currentRouteName() == 'md-ads')active @endif" style="font-size: 14px">Mega Dealer</a>
                                 </li>

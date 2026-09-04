@@ -13,12 +13,9 @@
         --text: #17324d;
         --muted: #64748b;
         --border: #d1d5db;
-        --background: #f6f8fb;
-        --total-background: #e2f0d9;
 
         min-height: 100vh;
         padding: 18px 12px 32px;
-        margin-top: 5.5em;
         background: var(--background);
     }
 

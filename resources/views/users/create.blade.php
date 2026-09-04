@@ -517,8 +517,9 @@
                                                 aria-label="Search and select awarded area"
                                                 required>
                                             <option value=""></option>
-                                            @foreach($areas as $area)
-                                                <option value="{{ $area->name }}">
+                                            @foreach($allAreas as $area)
+                                                <option value="{{ $area->name }}"
+                                                    data-available-for-area-distributor="{{ $areas->contains('id', $area->id) ? 'true' : 'false' }}">
                                                     {{ $area->name }}
                                                 </option>
                                             @endforeach

@@ -960,6 +960,26 @@
             });
         }
 
+        function updateAwardedAreaOptions(role) {
+            const showAllAreas = role === 'Provincial Distributor';
+
+            projectRows.find('select[name="area_name[]"]').each(function () {
+                const $select = $(this);
+                const selectedValue = $select.val();
+
+                $select.find('option[data-available-for-area-distributor="false"]').each(function () {
+                    const isAvailable = showAllAreas;
+                    $(this).prop('disabled', !isAvailable).prop('hidden', !isAvailable);
+                });
+
+                if (!showAllAreas && selectedValue && $select.find('option:selected').prop('disabled')) {
+                    $select.val(null);
+                }
+
+                $select.trigger('change.select2');
+            });
+        }
+
         function addProjectRow() {
             const template = document.querySelector('#project-row-template');
             const clone = template.content.cloneNode(true);
@@ -967,6 +987,7 @@
             const $row = $(clone).children('.project-row');
             projectRows.append($row);
 
+            updateAwardedAreaOptions(roleFilter.val());
             initializeAwardedAreaSearch($row);
 
             toggleProjectAreas($row);
@@ -1071,6 +1092,8 @@
             const isDistributorRole = ['Provincial Distributor', 'Area Distributor', 'Mega Dealer'].includes(selectedRole);
             const canShowAreas = canHaveAwardedAreas(selectedRole);
             const needsDeliveryAddress = isProvincialDistributor || isAreaDistributor;
+
+            updateAwardedAreaOptions(selectedRole);
 
             businessFields.toggle(!isAdminLike);
             projectTagFields.toggle(canShowAreas);
