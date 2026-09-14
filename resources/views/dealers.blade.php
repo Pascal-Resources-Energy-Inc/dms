@@ -91,7 +91,7 @@
         $adminRegularDealers = $adminRegularDealers ?? collect();
         $canCreateDealer = $canCreateDealer ?? (
             auth()->user()->role == 'Admin'
-            || (auth()->user()->role == 'Area Distributor' && Route::currentRouteName() !== 'mds')
+            || (auth()->user()->hasAreaDistributorAccess() && Route::currentRouteName() !== 'mds')
         );
 
         if ($isAdminDealerPage) {

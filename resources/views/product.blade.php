@@ -552,7 +552,7 @@
     <div class="page-header">
         <h1 class="page-title">Price List</h1>
         {{-- @if(Auth::user()->role === 'Admin' && Auth::user()->can_add === 'on') --}}
-        @if(Auth::user()->role === 'Area Distributor')
+        @if(Auth::user()->hasAreaDistributorAccess())
             <button class="add-product-btn" onclick="openModal()">
                 <span>+</span>
                 Add Product
@@ -603,7 +603,7 @@
             <p>Start by adding your first product to the system.</p>
             {{-- Only show Add First Product button if user is Admin and has can_add permission --}}
             {{-- @if(Auth::user()->role === 'Admin' && Auth::user()->can_add === 'on') --}}
-            @if(Auth::user()->role === 'Area Distributor')
+            @if(Auth::user()->hasAreaDistributorAccess())
                 <button class="add-product-btn" onclick="openModal()">
                     <span>+</span>
                     Add First Product
@@ -615,7 +615,7 @@
 
 {{-- Only show modal if user is Admin and has can_add permission --}}
 {{-- @if(Auth::user()->role === 'Admin' && Auth::user()->can_add === 'on') --}}
-@if(Auth::user()->role === 'Area Distributor')
+@if(Auth::user()->hasAreaDistributorAccess())
 <div id="addProductModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">

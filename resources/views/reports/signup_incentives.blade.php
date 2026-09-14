@@ -13,12 +13,9 @@
         --text: #17324d;
         --muted: #64748b;
         --border: #d1d5db;
-        --background: #f6f8fb;
-        --total-background: #e2f0d9;
 
         min-height: 100vh;
         padding: 18px 12px 32px;
-        margin-top: 5.5em;
         background: var(--background);
     }
 
@@ -157,6 +154,15 @@
         display: flex;
         gap: 8px;
     }
+
+    .sir-tabs { display: flex; gap: 4px; margin: 0 0 14px; padding: 4px; background: #e8f0f7; border-radius: 8px; }
+    .sir-tab { padding: 9px 14px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 800; cursor: pointer; }
+    .sir-tab.is-active { background: #ffffff; color: var(--primary-dark); box-shadow: 0 1px 4px rgba(15, 23, 42, .12); }
+    .sir-tab-panel { display: none; }
+    .sir-tab-panel.is-active { display: block; }
+    .sir-ad-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .sir-ad-summary h4 { margin: 0; color: var(--text); font-size: 16px; font-weight: 800; }
+    .sir-ad-summary p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
 
     /* Report table */
     .sir-report-card {
@@ -462,6 +468,14 @@
     }
 
     $reportGrandTotal = array_sum($monthlyTotals);
+    $activeTab = request('tab') === 'ad' ? 'ad' : 'clients';
+    $adSigningCount = $adReport['rows']->count();
+    $adCount = $adReport['rows']->pluck('ad')->filter(function ($ad) {
+        return $ad !== 'Unassigned';
+    })->unique()->count();
+    $adCenterCount = $adReport['rows']->pluck('center')->filter()->unique()->count();
+    $clientExportUrl = route('signup-incentives.export', array_merge(request()->query(), ['tab' => 'clients']));
+    $adExportUrl = route('signup-incentives.ad-export', ['year' => $year, 'ad_month' => $selectedAdMonth, 'tab' => 'ad']);
 @endphp
 
 <div class="container-fluid sir-page">
@@ -478,11 +492,12 @@
 
         <div class="sir-actions">
             <a
-                href="{{ route('signup-incentives.export', request()->query()) }}"
+                id="signupIncentivesExport"
+                href="{{ $activeTab === 'ad' ? $adExportUrl : $clientExportUrl }}"
                 class="btn btn-outline-primary"
             >
                 <i class="ti ti-download"></i>
-                Export CSV
+                <span id="signupIncentivesExportLabel">Export {{ $activeTab === 'ad' ? 'AD' : 'Client' }} CSV</span>
             </a>
 
             <button
@@ -495,6 +510,13 @@
             </button>
         </div>
     </section>
+
+    <nav class="sir-tabs" aria-label="Sign-up incentive report type">
+        <button type="button" class="sir-tab {{ $activeTab === 'clients' ? 'is-active' : '' }}" data-sir-tab="clients">Client Sign-ups</button>
+        <button type="button" class="sir-tab {{ $activeTab === 'ad' ? 'is-active' : '' }}" data-sir-tab="ad">AD Sign-ups</button>
+    </nav>
+
+    <div class="sir-tab-panel {{ $activeTab === 'clients' ? 'is-active' : '' }}" data-sir-panel="clients">
 
     <section class="sir-kpis">
         <article class="sir-kpi">
@@ -536,6 +558,7 @@
             method="GET"
             action="{{ route('signup-incentives') }}"
         >
+            <input type="hidden" name="tab" value="clients">
             <div class="row align-items-end">
                 <div class="col-lg-2 col-md-4 mb-2">
                     <label for="year">Year</label>
@@ -779,6 +802,76 @@
     </section>
 </div>
 
+    <div class="sir-tab-panel {{ $activeTab === 'ad' ? 'is-active' : '' }}" data-sir-panel="ad">
+        <section class="sir-kpis">
+            <article class="sir-kpi">
+                <span class="sir-kpi-icon"><i class="ti ti-users"></i></span>
+                <div><small>Assigned ADs</small><strong>{{ number_format($adCount) }}</strong></div>
+            </article>
+            <article class="sir-kpi">
+                <span class="sir-kpi-icon"><i class="ti ti-map-pin"></i></span>
+                <div><small>Signed Clients</small><strong>{{ number_format($adSigningCount) }}</strong></div>
+            </article>
+            <article class="sir-kpi">
+                <span class="sir-kpi-icon"><i class="ti ti-cash"></i></span>
+                <div><small>Total Incentives</small><strong>₱{{ number_format($adReport['total'], 2) }}</strong></div>
+            </article>
+        </section>
+
+        <section class="sir-card sir-filter-card">
+            <form method="GET" action="{{ route('signup-incentives') }}">
+                <input type="hidden" name="tab" value="ad">
+                <div class="row align-items-end">
+                    <div class="col-lg-2 col-md-4 mb-2">
+                        <label for="ad-year">Year</label>
+                        <input type="number" id="ad-year" name="year" class="form-control" value="{{ $year }}" min="2000" max="2100" required>
+                    </div>
+                    <div class="col-lg-3 col-md-5 mb-2">
+                        <label for="ad-month">Signing month</label>
+                        <select id="ad-month" name="ad_month" class="form-control">
+                            <option value="0">All months</option>
+                            @foreach($months as $monthNumber => $monthName)
+                                <option value="{{ $monthNumber }}" {{ $selectedAdMonth === $monthNumber ? 'selected' : '' }}>{{ $monthName }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-lg-3 col-md-3 mb-2">
+                        <div class="sir-filter-actions">
+                            <button type="submit" class="btn btn-primary"><i class="ti ti-filter"></i> Apply</button>
+                            <a href="{{ route('signup-incentives', ['tab' => 'ad']) }}" class="btn btn-outline-secondary"><i class="ti ti-refresh"></i> Reset</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <section class="sir-card sir-active-clients-card">
+            <div class="sir-ad-summary">
+                <div>
+                    <h4>AD Report · Signed Clients</h4>
+                    <p>Client contracts with a saved signature. Assigned AD names are matched through geographic coverage. Incentive rate: ₱{{ number_format($adReport['rate'], 2) }} per signed client.</p>
+                </div>
+                <strong>{{ number_format($adCenterCount) }} centers · ₱{{ number_format($adReport['total'], 2) }}</strong>
+            </div>
+            <div class="sir-table-wrap">
+                <table class="sir-table" style="min-width: 820px">
+                    <thead><tr><th>Assigned AD Name</th><th>Center</th><th>Client Reference</th><th>Name</th><th>Date of Signing</th><th>Amount</th></tr></thead>
+                    <tbody>
+                        @forelse($adReport['rows'] as $adRow)
+                            <tr><td>{{ $adRow['ad'] }}</td><td>{{ $adRow['center'] }}</td><td>{{ $adRow['reference'] }}</td><td>{{ $adRow['name'] }}</td><td>{{ $adRow['signing_date'] }}</td><td class="sir-number">₱{{ number_format($adRow['amount'], 2) }}</td></tr>
+                        @empty
+                            <tr><td colspan="6" class="sir-empty-state">No signed client contracts were found for the selected period.</td></tr>
+                        @endforelse
+                    </tbody>
+                    @if($adReport['rows']->isNotEmpty())
+                        <tfoot><tr class="sir-designation-total-row"><td colspan="5" class="sir-designation-total-label">Total</td><td class="sir-number">₱{{ number_format($adReport['total'], 2) }}</td></tr></tfoot>
+                    @endif
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
 <div id="activeClientModal" class="sir-client-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="activeClientModalTitle">
     <div class="sir-client-modal">
         <div class="sir-client-modal-header">
@@ -801,6 +894,28 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalSubtitle = document.getElementById('activeClientModalSubtitle');
     const clientUrl = @json(route('signup-incentives.clients'));
     const reportYear = @json($year);
+    const clientExportUrl = @json($clientExportUrl);
+    const adExportUrl = @json($adExportUrl);
+    const exportLink = document.getElementById('signupIncentivesExport');
+    const exportLabel = document.getElementById('signupIncentivesExportLabel');
+
+    document.querySelectorAll('[data-sir-tab]').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            const tabName = tab.dataset.sirTab;
+            document.querySelectorAll('[data-sir-tab]').forEach(function (item) {
+                item.classList.toggle('is-active', item === tab);
+            });
+            document.querySelectorAll('[data-sir-panel]').forEach(function (panel) {
+                panel.classList.toggle('is-active', panel.dataset.sirPanel === tabName);
+            });
+            exportLink.href = tabName === 'ad' ? adExportUrl : clientExportUrl;
+            exportLabel.textContent = 'Export ' + (tabName === 'ad' ? 'AD' : 'Client') + ' CSV';
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tabName);
+            window.history.replaceState({}, '', url.toString());
+        });
+    });
 
     function closeModal() { modal.classList.remove('is-open'); }
 

@@ -5,10 +5,14 @@ namespace App\Http\Controllers;
 use App\InventoryTransfer;
 use App\AdPurchaseOrderItem;
 use App\Product;
+use App\User;
+use App\Mail\InventoryReturnRefundNotification;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class InventoryTransferController extends Controller
 {
@@ -60,6 +64,10 @@ class InventoryTransferController extends Controller
                     ->orWhere(function ($query) {
                         $query->whereIn('out_type', ['Pull Out', 'Replacement'])
                             ->where('approval_status', 'Replacing');
+                    })
+                    ->orWhere(function ($query) {
+                        $query->where('out_type', 'Return and Refund')
+                            ->where('approval_status', 'Warehouse Confirmed');
                     });
             })
             ->orderBy('transfer_date', 'desc')
@@ -286,9 +294,38 @@ class InventoryTransferController extends Controller
         }
         $adItems = $this->completedAdPurchaseOrderItems($user->id);
         $adItem = $adItems->firstWhere('id', (int) $request->product_id);
+        // OUT and transfer selectors are populated from the completed ADPO
+        // stock balance. Those products may be system products (without this
+        // AD's `ad_user_id`), so do not reject a valid balance product merely
+        // because it is not an AD-owned product record.
         $stockProduct = Product::where('ad_user_id', $user->id)
             ->where('id', $request->product_id)
             ->first();
+        $selectedProduct = $stockProduct ?: Product::find($request->product_id);
+
+        // A completed ADPO can remain in stock after its product master row
+        // has been removed or moved to another account. Keep that stock
+        // usable by resolving the ADPO product details as an in-memory model.
+        if (!$selectedProduct && $adItem) {
+            $selectedProduct = new Product();
+            $selectedProduct->id = $adItem->id;
+            $selectedProduct->sku = $adItem->sku;
+            $selectedProduct->product_name = $adItem->product_name;
+        }
+
+        if (!$selectedProduct) {
+            $stockMovement = InventoryTransfer::where('ad_user_id', $user->id)
+                ->where('product_id', $request->product_id)
+                ->latest('id')
+                ->first();
+
+            if ($stockMovement) {
+                $selectedProduct = new Product();
+                $selectedProduct->id = $stockMovement->product_id;
+                $selectedProduct->sku = $stockMovement->sku;
+                $selectedProduct->product_name = $stockMovement->item_name;
+            }
+        }
 
         if ($type === 'in' && !$request->to_area) {
             return back()->withInput()->with('error', 'Please select the receiving area for inventory IN.');
@@ -318,11 +355,11 @@ class InventoryTransferController extends Controller
             return back()->withInput()->with('error', 'Please select a product from your AD stock product list.');
         }
 
-        if (in_array($type, ['out', 'transfer']) && !$stockProduct) {
-            return back()->withInput()->with('error', 'Please select a product from Current Stock by Area.');
+        if (in_array($type, ['out', 'transfer']) && !$selectedProduct) {
+            return back()->withInput()->with('error', 'Please select a valid product.');
         }
 
-        $product = $stockProduct;
+        $product = $selectedProduct;
 
         if ($adItem) {
             $product->product_name = $adItem->product_name;
@@ -330,6 +367,7 @@ class InventoryTransferController extends Controller
         }
 
         $replacementProduct = $type === 'out' && $request->out_type === 'Pull Out' ? $product : null;
+        $isReturnRefund = $type === 'out' && $request->out_type === 'Return and Refund';
 
         if (in_array($type, ['out', 'transfer'])) {
             $availableQty = $this->availableQty($user->id, $ad ? $ad->id : null, $request->from_area, $product);
@@ -357,8 +395,8 @@ class InventoryTransferController extends Controller
             }
         }
 
-        $assignedWarehouse = $replacementProduct ? $this->warehouseForAuthenticatedAd() : null;
-        $movementReferences = DB::transaction(function () use ($request, $user, $ad, $product, $replacementProduct, $type, $pullOutAttachments, $assignedWarehouse) {
+        $assignedWarehouse = ($replacementProduct || $isReturnRefund) ? $this->warehouseForAuthenticatedAd() : null;
+        $movementReferences = DB::transaction(function () use ($request, $user, $ad, $product, $replacementProduct, $isReturnRefund, $type, $pullOutAttachments, $assignedWarehouse) {
             $movement = InventoryTransfer::create([
                 'ad_id' => $ad ? $ad->id : null,
                 'ad_user_id' => $user->id,
@@ -377,8 +415,8 @@ class InventoryTransferController extends Controller
                 'replacement_item_name' => $replacementProduct ? $replacementProduct->product_name : null,
                 'replacement_qty' => $replacementProduct ? $request->replacement_qty : null,
                 'replacement_unit_cost' => $replacementProduct ? $request->replacement_unit_cost : null,
-                'approval_status' => $replacementProduct ? 'Pending' : 'Approved',
-                'warehouse' => $replacementProduct ? $assignedWarehouse : null,
+                'approval_status' => ($replacementProduct || $isReturnRefund) ? 'Pending' : 'Approved',
+                'warehouse' => ($replacementProduct || $isReturnRefund) ? $assignedWarehouse : null,
                 'transfer_date' => $request->transfer_date ?: Carbon::today()->toDateString(),
                 'remarks' => $request->remarks,
                 'out_type' => $request->out_type,
@@ -390,7 +428,7 @@ class InventoryTransferController extends Controller
 
             if ($replacementProduct) {
                 DB::table('inventory_transfers')->where('id', $movement->id)->update(['reference_no' => $referenceNo]);
-                return [$referenceNo, null, true];
+                return [$referenceNo, null, true, $movement->id];
             }
 
             if ($replacementProduct) {
@@ -420,8 +458,13 @@ class InventoryTransferController extends Controller
                 ->where('id', $movement->id)
                 ->update(['reference_no' => $referenceNo]);
 
-            return [$referenceNo, $replacementReferenceNo, false];
+            return [$referenceNo, $replacementReferenceNo, false, $movement->id];
         });
+
+        if ($isReturnRefund) {
+            $this->notifyDennisReturnRefund(InventoryTransfer::find($movementReferences[3]));
+            return redirect()->route('inventory-transfers.index')->with('success', 'Return and Refund request ' . $movementReferences[0] . ' was sent to Dennis Villareal for approval.');
+        }
 
         if ($movementReferences[2]) {
             return redirect()->route('inventory-transfers.index')->with('success', 'Pull Out request ' . $movementReferences[0] . ' was sent to ' . ucfirst($assignedWarehouse) . ' warehouse for approval.');
@@ -433,6 +476,158 @@ class InventoryTransferController extends Controller
         }
 
         return redirect()->route('inventory-transfers.index')->with('success', $message);
+    }
+
+    public function returnRefundRequests()
+    {
+        $this->ensureReturnRefundReviewer();
+
+        $requests = InventoryTransfer::where('out_type', 'Return and Refund')
+            ->when(!$this->isDennisApprover(), function ($query) {
+                $query->where('warehouse', strtolower((string) auth()->user()->warehouse));
+            })
+            ->with(['product', 'creator'])
+            ->latest()
+            ->get();
+
+        return view('inventory_transfers.return_refunds', compact('requests'));
+    }
+
+    public function approveReturnRefund(Request $request, $id)
+    {
+        abort_unless($this->isDennisApprover(), 403);
+        $request->validate(['decision' => 'required|in:Approved,Rejected', 'warehouse_remarks' => 'nullable|string|max:1000']);
+        $movement = InventoryTransfer::where('out_type', 'Return and Refund')->findOrFail($id);
+        abort_unless($movement->approval_status === 'Pending', 422);
+
+        $movement->update([
+            'approval_status' => $request->decision,
+            'warehouse_remarks' => $request->warehouse_remarks,
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => Carbon::now(),
+        ]);
+
+        return back()->with('success', 'Return and Refund request ' . strtolower($request->decision) . '.');
+    }
+
+    public function uploadReturnDocuments(Request $request, $id)
+    {
+        $movement = InventoryTransfer::where('ad_user_id', auth()->id())->where('out_type', 'Return and Refund')->findOrFail($id);
+        abort_unless($movement->approval_status === 'Approved', 422);
+        $request->validate([
+            'ris_number' => 'required|string|max:255',
+            'return_date' => 'required|date',
+            'return_attachments' => 'required|array|max:5',
+            'return_attachments.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        $attachments = $this->storeReturnAttachments($request->file('return_attachments'), $movement->id);
+        $movement->update([
+            'ris_number' => strtoupper(trim($request->ris_number)),
+            'return_date' => $request->return_date,
+            'return_attachments' => $attachments,
+            'approval_status' => 'Documents Submitted',
+        ]);
+
+        return back()->with('success', 'Return documents submitted to the warehouse.');
+    }
+
+    public function receiveReturnRefund(Request $request, $id)
+    {
+        $this->ensureWarehouseUser();
+        $request->validate([
+            'warehouse_received_qty' => 'required|integer|min:1',
+            'warehouse_reference_no' => 'required|string|max:255',
+            'warehouse_remarks' => 'nullable|string|max:1000',
+        ]);
+        $movement = InventoryTransfer::where('out_type', 'Return and Refund')
+            ->where('warehouse', strtolower((string) auth()->user()->warehouse))
+            ->findOrFail($id);
+        abort_unless($movement->approval_status === 'Documents Submitted', 422);
+        if ($request->warehouse_received_qty > $movement->qty) return back()->with('error', 'Received quantity cannot exceed the requested quantity.');
+
+        $product = $this->productForInventoryTransfer($movement);
+        if (!$product) {
+            return back()->with('error', 'The product for this return request could not be resolved.');
+        }
+
+        $availableQty = $this->availableQty($movement->ad_user_id, $movement->ad_id, $movement->from_area, $product);
+        if ($request->warehouse_received_qty > $availableQty) {
+            return back()->with('error', 'Received quantity exceeds the distributor’s current available stock: ' . number_format($availableQty) . '.');
+        }
+
+        $movement->update([
+            'qty' => $request->warehouse_received_qty,
+            'warehouse_received_qty' => $request->warehouse_received_qty,
+            'warehouse_reference_no' => strtoupper(trim($request->warehouse_reference_no)),
+            'warehouse_received_at' => Carbon::now(),
+            'warehouse_remarks' => $request->warehouse_remarks,
+            'approval_status' => 'Warehouse Confirmed',
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => Carbon::now(),
+        ]);
+        $this->notifyAdReturnReceived($movement->fresh());
+
+        return back()->with('success', 'Return received and confirmed. The Area/Provincial Distributor was emailed.');
+    }
+
+    private function isDennisApprover(): bool
+    {
+        return strtolower(trim((string) auth()->user()->name)) === 'dennis villareal';
+    }
+
+    private function ensureReturnRefundReviewer(): void
+    {
+        if ($this->isDennisApprover()) return;
+        $this->ensureWarehouseUser();
+    }
+
+    private function storeReturnAttachments(array $files, int $movementId): array
+    {
+        $directory = public_path('uploads/inventory-movements/return-refunds');
+        if (!is_dir($directory)) mkdir($directory, 0755, true);
+        return collect($files)->map(function ($file) use ($directory, $movementId) {
+            $filename = 'return-' . $movementId . '-' . str_replace('.', '', uniqid('', true)) . '.' . $file->getClientOriginalExtension();
+            $file->move($directory, $filename);
+            return ['path' => 'uploads/inventory-movements/return-refunds/' . $filename, 'name' => $file->getClientOriginalName()];
+        })->all();
+    }
+
+    private function productForInventoryTransfer(InventoryTransfer $movement): ?Product
+    {
+        if ($movement->product) {
+            return $movement->product;
+        }
+
+        if (!$movement->product_id) {
+            return null;
+        }
+
+        $product = Product::find($movement->product_id);
+        if ($product) {
+            return $product;
+        }
+
+        $product = new Product();
+        $product->id = $movement->product_id;
+        $product->sku = $movement->sku;
+        $product->product_name = $movement->item_name;
+
+        return $product;
+    }
+
+    private function notifyDennisReturnRefund(InventoryTransfer $movement): void
+    {
+        $email = User::whereRaw('LOWER(TRIM(name)) = ?', ['dennis villareal'])->value('email');
+        if (!$email) { Log::warning('Return/refund notification skipped: Dennis Villareal has no user email.', ['movement_id' => $movement->id]); return; }
+        try { Mail::to($email)->send(new InventoryReturnRefundNotification($movement, 'approver')); } catch (\Exception $e) { Log::error('Return/refund approval email failed.', ['movement_id' => $movement->id, 'error' => $e->getMessage()]); }
+    }
+
+    private function notifyAdReturnReceived(InventoryTransfer $movement): void
+    {
+        $email = optional(User::find($movement->ad_user_id))->email;
+        if (!$email) return;
+        try { Mail::to($email)->send(new InventoryReturnRefundNotification($movement, 'ad')); $movement->update(['ad_notified_at' => Carbon::now()]); } catch (\Exception $e) { Log::error('Return/refund AD email failed.', ['movement_id' => $movement->id, 'error' => $e->getMessage()]); }
     }
 
     public function warehousePullOuts()
@@ -595,6 +790,10 @@ class InventoryTransferController extends Controller
                     ->orWhere(function ($query) {
                         $query->whereIn('out_type', ['Pull Out', 'Replacement'])
                             ->where('approval_status', 'Replacing');
+                    })
+                    ->orWhere(function ($query) {
+                        $query->where('out_type', 'Return and Refund')
+                            ->where('approval_status', 'Warehouse Confirmed');
                     });
             })
             ->get();

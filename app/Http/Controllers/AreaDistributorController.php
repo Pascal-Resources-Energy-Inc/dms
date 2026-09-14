@@ -27,16 +27,48 @@ class AreaDistributorController extends Controller
         $centers = Center::orderBy('name')->get();
         $areas = Area::orderBy('name')->get();
 
+        $user = $request->user();
+        $isProvincialDistributor = $user && $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR;
+        $provincialDistributorAreas = collect();
+
+        if ($isProvincialDistributor && $user->ad) {
+            $provincialDistributorAreas = $user->ad->areas()
+                ->whereNotNull('area_name')
+                ->where('area_name', '<>', '')
+                ->pluck('area_name')
+                ->unique()
+                ->values();
+        }
+
+        $limitToProvincialDistributorAreas = function ($query) use ($isProvincialDistributor, $provincialDistributorAreas) {
+            if (!$isProvincialDistributor) {
+                return;
+            }
+
+            if ($provincialDistributorAreas->isEmpty()) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
+
+            $query->whereHas('areas', function ($areaQuery) use ($provincialDistributorAreas) {
+                $areaQuery->whereIn('area_name', $provincialDistributorAreas);
+            });
+        };
+
         $baseQuery = AreaDistributor::whereHas('userAds', function ($query) {
             $query->where('role', 'Area Distributor');
         });
+        $limitToProvincialDistributorAreas($baseQuery);
 
         $totalAds = (clone $baseQuery)->count();
         $activeAds = (clone $baseQuery)->where('status', 'Active')->count();
         $inactiveAds = (clone $baseQuery)->where('status', 'Inactive')->count();
-        $totalAwardedAreas = AreaAd::whereHas('distributor.userAds', function ($query) {
-            $query->where('role', 'Area Distributor');
-        })->count();
+        $totalAwardedAreas = AreaAd::whereIn('ad_id', (clone $baseQuery)->select('id'))
+            ->when($isProvincialDistributor, function ($query) use ($provincialDistributorAreas) {
+                $query->whereIn('area_name', $provincialDistributorAreas);
+            })
+            ->count();
 
         $regions = (clone $baseQuery)
             ->whereNotNull('location_region')
@@ -45,8 +77,9 @@ class AreaDistributorController extends Controller
             ->orderBy('location_region')
             ->pluck('location_region');
 
-        $projectTypes = AreaAd::whereHas('distributor.userAds', function ($query) {
-                $query->where('role', 'Area Distributor');
+        $projectTypes = AreaAd::whereIn('ad_id', (clone $baseQuery)->select('id'))
+            ->when($isProvincialDistributor, function ($query) use ($provincialDistributorAreas) {
+                $query->whereIn('area_name', $provincialDistributorAreas);
             })
             ->whereNotNull('project_type')
             ->where('project_type', '<>', '')
@@ -54,25 +87,37 @@ class AreaDistributorController extends Controller
             ->orderBy('project_type')
             ->pluck('project_type');
 
-        $ads = AreaDistributor::with(['areas' => function ($query) {
-                $query->orderBy('project_type')->orderBy('area_name');
-            }, 'trashedAreas' => function ($query) {
-                $query->orderByDesc('deleted_at');
+        $adsQuery = AreaDistributor::with(['areas' => function ($query) use ($isProvincialDistributor, $provincialDistributorAreas) {
+                $query->when($isProvincialDistributor, function ($areaQuery) use ($provincialDistributorAreas) {
+                    $areaQuery->whereIn('area_name', $provincialDistributorAreas);
+                })->orderBy('project_type')->orderBy('area_name');
+            }, 'trashedAreas' => function ($query) use ($isProvincialDistributor, $provincialDistributorAreas) {
+                $query->when($isProvincialDistributor, function ($areaQuery) use ($provincialDistributorAreas) {
+                    $areaQuery->whereIn('area_name', $provincialDistributorAreas);
+                })->orderByDesc('deleted_at');
             }, 'userAds'])
             ->whereHas('userAds', function ($q) {
                 $q->where('role', 'Area Distributor');
-            })
-            ->when($request->filled('search'), function ($query) use ($request) {
+            });
+
+        $limitToProvincialDistributorAreas($adsQuery);
+
+        $ads = $adsQuery
+            ->when($request->filled('search'), function ($query) use ($request, $isProvincialDistributor, $provincialDistributorAreas) {
                 $search = trim($request->search);
-                $query->where(function ($inner) use ($search) {
+                $query->where(function ($inner) use ($search, $isProvincialDistributor, $provincialDistributorAreas) {
                     $inner->where('store_code', 'like', '%' . $search . '%')
                         ->orWhere('name', 'like', '%' . $search . '%')
                         ->orWhere('business_name', 'like', '%' . $search . '%')
                         ->orWhere('contact_number', 'like', '%' . $search . '%')
                         ->orWhere('location_region', 'like', '%' . $search . '%')
-                        ->orWhereHas('areas', function ($areaQuery) use ($search) {
-                            $areaQuery->where('area_name', 'like', '%' . $search . '%')
-                                ->orWhere('project_type', 'like', '%' . $search . '%');
+                        ->orWhereHas('areas', function ($areaQuery) use ($search, $isProvincialDistributor, $provincialDistributorAreas) {
+                            $areaQuery->when($isProvincialDistributor, function ($visibleAreaQuery) use ($provincialDistributorAreas) {
+                                $visibleAreaQuery->whereIn('area_name', $provincialDistributorAreas);
+                            })->where(function ($matchingAreaQuery) use ($search) {
+                                $matchingAreaQuery->where('area_name', 'like', '%' . $search . '%')
+                                    ->orWhere('project_type', 'like', '%' . $search . '%');
+                            });
                         });
                 });
             })
@@ -82,15 +127,19 @@ class AreaDistributorController extends Controller
             ->when($request->filled('region'), function ($query) use ($request) {
                 $query->where('location_region', $request->region);
             })
-            ->when($request->filled('project_type'), function ($query) use ($request) {
-                $query->whereHas('areas', function ($areaQuery) use ($request) {
-                    $areaQuery->where('project_type', $request->project_type);
+            ->when($request->filled('project_type'), function ($query) use ($request, $isProvincialDistributor, $provincialDistributorAreas) {
+                $query->whereHas('areas', function ($areaQuery) use ($request, $isProvincialDistributor, $provincialDistributorAreas) {
+                    $areaQuery->when($isProvincialDistributor, function ($visibleAreaQuery) use ($provincialDistributorAreas) {
+                        $visibleAreaQuery->whereIn('area_name', $provincialDistributorAreas);
+                    })->where('project_type', $request->project_type);
                 });
             })
-            ->when($request->filled('area'), function ($query) use ($request) {
+            ->when($request->filled('area'), function ($query) use ($request, $isProvincialDistributor, $provincialDistributorAreas) {
                 $area = trim($request->area);
-                $query->whereHas('areas', function ($areaQuery) use ($area) {
-                    $areaQuery->where('area_name', 'like', '%' . $area . '%');
+                $query->whereHas('areas', function ($areaQuery) use ($area, $isProvincialDistributor, $provincialDistributorAreas) {
+                    $areaQuery->when($isProvincialDistributor, function ($visibleAreaQuery) use ($provincialDistributorAreas) {
+                        $visibleAreaQuery->whereIn('area_name', $provincialDistributorAreas);
+                    })->where('area_name', 'like', '%' . $area . '%');
                 });
             })
             ->orderBy('name')

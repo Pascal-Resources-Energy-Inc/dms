@@ -88,11 +88,15 @@ class ReportController extends Controller
         $center = trim((string) $request->center);
         $rates = $this->signupIncentiveRatesFromRequest($request);
         $report = $this->buildSignupIncentivesReport($year, $center, $rates);
+        $adMonth = (int) $request->input('ad_month', 0);
+        $adReport = $this->buildAdSignupIncentivesReport($year, $adMonth);
 
         return view('reports.signup_incentives', array_merge($report, [
             'year' => $year,
             'selectedCenter' => $center,
             'rates' => $rates,
+            'selectedAdMonth' => $adMonth,
+            'adReport' => $adReport,
         ]));
     }
 
@@ -1280,6 +1284,196 @@ class ReportController extends Controller
         ];
     }
 
+    /**
+     * AD incentive report based on clients who have signed their contract.
+     *
+     * The client record's signature is the eligibility requirement. The
+     * signature date is used when available; otherwise the signature save time
+     * (updated_at) provides the signing date.
+     */
+    private function buildAdSignupIncentivesReport($year, $month = 0)
+    {
+        $rate = 50.00;
+        $month = $month >= 1 && $month <= 12 ? $month : 0;
+
+        try {
+            $connection = 'admin_crms';
+            $schema = DB::connection($connection)->getSchemaBuilder();
+            $table = $this->crmClientTable($connection);
+            $signatureColumn = $table ? $this->firstExistingCrmColumn($schema, $table, ['signature', 'contract_signature']) : null;
+            $signingDateColumn = $table ? $this->firstExistingCrmColumn($schema, $table, ['signed_at', 'signature_date', 'contract_signed_at', 'updated_at', 'created_at']) : null;
+
+            if (!$table || !$signatureColumn || !$signingDateColumn) {
+                return ['rows' => collect(), 'total' => 0, 'rate' => $rate];
+            }
+
+            $referenceColumn = $this->firstExistingCrmColumn($schema, $table, ['client_reference', 'customer_reference', 'reference']);
+            $select = [
+                'id',
+                $signingDateColumn . ' as signing_date_value',
+                $schema->hasColumn($table, 'center') ? 'center' : DB::raw("'' as center"),
+                $referenceColumn ? $referenceColumn . ' as client_reference' : DB::raw("'' as client_reference"),
+            ];
+
+            foreach (['location_region', 'location_province', 'location_city', 'location_barangay'] as $column) {
+                $select[] = $schema->hasColumn($table, $column)
+                    ? $column
+                    : DB::raw("'' as " . $column);
+            }
+
+            foreach (['name', 'first_name', 'middle_name', 'last_name'] as $column) {
+                if ($schema->hasColumn($table, $column)) {
+                    $select[] = $column;
+                }
+            }
+
+            $clients = DB::connection($connection)->table($table)
+                ->select($select)
+                ->whereNotNull($signatureColumn)
+                ->whereRaw('TRIM(' . $signatureColumn . ') <> ?', [''])
+                ->whereNotNull($signingDateColumn)
+                ->whereYear($signingDateColumn, $year)
+                ->when($month, function ($query) use ($month, $signingDateColumn) {
+                    $query->whereMonth($signingDateColumn, $month);
+                })
+                ->when($schema->hasColumn($table, 'deleted_at'), function ($query) {
+                    $query->whereNull('deleted_at');
+                })
+                ->orderBy($signingDateColumn)
+                ->orderBy('id')
+                ->get();
+
+            $assignedAdNames = $this->assignedAdNamesByGeographicCoverage($clients);
+
+            $rows = $clients->map(function ($client) use ($rate, $assignedAdNames) {
+                    $name = trim((string) ($client->name ?? ''));
+
+                    if ($name === '') {
+                        $name = trim(collect([
+                            $client->first_name ?? '',
+                            $client->middle_name ?? '',
+                            $client->last_name ?? '',
+                        ])->filter()->implode(' '));
+                    }
+
+                    return [
+                        'ad' => $assignedAdNames[$this->geographicCoverageKey([
+                            $client->location_region ?? '',
+                            $client->location_province ?? '',
+                            $client->location_city ?? '',
+                            $client->location_barangay ?? '',
+                        ])] ?? 'Unassigned',
+                        'center' => trim((string) ($client->center ?? '')) ?: 'Unassigned',
+                        'reference' => trim((string) ($client->client_reference ?? '')) ?: '—',
+                        'name' => $name ?: 'Unnamed Client',
+                        'signing_date' => Carbon::parse($client->signing_date_value)->format('M d, Y'),
+                        'amount' => $rate,
+                    ];
+                })->values();
+        } catch (\Exception $exception) {
+            $rows = collect();
+        }
+
+        return [
+            'rows' => $rows,
+            'total' => $rows->sum('amount'),
+            'rate' => $rate,
+        ];
+    }
+
+    /** Return assigned Area Distributor name(s), keyed by geographic coverage. */
+    private function assignedAdNamesByGeographicCoverage($clients)
+    {
+        $coverageKeys = collect($clients)
+            ->map(function ($client) {
+                return $this->geographicCoverageKey([
+                    $client->location_region ?? '',
+                    $client->location_province ?? '',
+                    $client->location_city ?? '',
+                    $client->location_barangay ?? '',
+                ]);
+            })
+            ->filter()
+            ->unique()
+            ->flip();
+
+        if ($coverageKeys->isEmpty()) {
+            return [];
+        }
+
+        try {
+            $schema = Schema::getConnection()->getSchemaBuilder();
+
+            if (!$schema->hasTable('area_geographic_coverages')
+                || !$schema->hasTable('areas')
+                || !$schema->hasTable('ad_areas')
+                || !$schema->hasTable('area_distributors')
+                || !$schema->hasColumn('area_geographic_coverages', 'area_id')
+                || !$schema->hasColumn('area_geographic_coverages', 'region')
+                || !$schema->hasColumn('area_geographic_coverages', 'province')
+                || !$schema->hasColumn('area_geographic_coverages', 'city_municipality')
+                || !$schema->hasColumn('area_geographic_coverages', 'barangay')
+                || !$schema->hasColumn('areas', 'name')
+                || !$schema->hasColumn('ad_areas', 'ad_id')
+                || !$schema->hasColumn('ad_areas', 'area_name')
+                || !$schema->hasColumn('area_distributors', 'name')) {
+                return [];
+            }
+
+            $assignments = DB::table('area_geographic_coverages')
+                ->join('areas', 'areas.id', '=', 'area_geographic_coverages.area_id')
+                ->join('ad_areas', 'ad_areas.area_name', '=', 'areas.name')
+                ->join('area_distributors', 'area_distributors.id', '=', 'ad_areas.ad_id')
+                ->whereNotNull('area_distributors.name')
+                ->when($schema->hasColumn('ad_areas', 'deleted_at'), function ($query) {
+                    $query->whereNull('ad_areas.deleted_at');
+                })
+                ->get([
+                    'area_geographic_coverages.region',
+                    'area_geographic_coverages.province',
+                    'area_geographic_coverages.city_municipality',
+                    'area_geographic_coverages.barangay',
+                    'area_distributors.name',
+                ]);
+
+            return $assignments
+                ->groupBy(function ($assignment) {
+                    return $this->geographicCoverageKey([
+                        $assignment->region,
+                        $assignment->province,
+                        $assignment->city_municipality,
+                        $assignment->barangay,
+                    ]);
+                })
+                ->filter(function ($assignments, $coverageKey) use ($coverageKeys) {
+                    return $coverageKeys->has($coverageKey);
+                })
+                ->map(function ($assignments) {
+                    return $assignments->pluck('name')
+                        ->map(function ($name) {
+                            return trim((string) $name);
+                        })
+                        ->filter()
+                        ->unique()
+                        ->sort()
+                        ->implode(', ');
+                })
+                ->filter()
+                ->all();
+        } catch (\Exception $exception) {
+            return [];
+        }
+    }
+
+    private function geographicCoverageKey(array $location)
+    {
+        $parts = collect($location)->map(function ($value) {
+            return strtolower(preg_replace('/\s+/', ' ', trim((string) $value)));
+        });
+
+        return $parts->contains('') ? '' : $parts->implode('|');
+    }
+
     public function dpoReport(Request $request)
     {
         $from = $request->from ?? Carbon::now()->startOfMonth()->format('Y-m-d');
@@ -1889,14 +2083,41 @@ class ReportController extends Controller
         });
     }
 
+    /** Export the signed-client incentive lines shown in the AD tab. */
+    public function exportAdSignupIncentives(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $year = (int) ($request->year ?: Carbon::now()->year);
+        $month = (int) $request->input('ad_month', 0);
+        $report = $this->buildAdSignupIncentivesReport($year, $month);
+        $filename = 'ad-signed-client-incentives-' . $year . ($month ? '-' . str_pad($month, 2, '0', STR_PAD_LEFT) : '') . '.csv';
+
+        return response()->streamDownload(function () use ($report) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Assigned AD Name', 'Center', 'Client Reference', 'Name', 'Date of Signing', 'Amount']);
+
+            foreach ($report['rows'] as $row) {
+                fputcsv($handle, [
+                    $row['ad'], $row['center'], $row['reference'], $row['name'],
+                    $row['signing_date'], number_format($row['amount'], 2, '.', ''),
+                ]);
+            }
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Total', '', '', '', '', number_format($report['total'], 2, '.', '')]);
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
     public function inventoryStockLevelReport(Request $request)
     {
         $user = auth()->user();
-        abort_unless(in_array($user->role, ['Admin', 'Area Distributor'], true), 403);
+        abort_unless($user->role === 'Admin' || $user->hasAreaDistributorAccess(), 403);
 
         $report = $this->buildInventoryStockLevelReport(
             $request,
-            $user->role === 'Area Distributor' ? $user->id : null
+            $user->hasAreaDistributorAccess() ? $user->id : null
         );
 
         return view('reports.inventory_stock_level', $report);
@@ -1905,11 +2126,11 @@ class ReportController extends Controller
     public function exportInventoryStockLevel(Request $request)
     {
         $user = auth()->user();
-        abort_unless(in_array($user->role, ['Admin', 'Area Distributor'], true), 403);
+        abort_unless($user->role === 'Admin' || $user->hasAreaDistributorAccess(), 403);
 
         $report = $this->buildInventoryStockLevelReport(
             $request,
-            $user->role === 'Area Distributor' ? $user->id : null
+            $user->hasAreaDistributorAccess() ? $user->id : null
         );
         $fileName = 'stock-inventory-' . $report['asOf']->format('Y-m-d') . '.xlsx';
 

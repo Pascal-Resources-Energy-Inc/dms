@@ -28,7 +28,7 @@ Route::get('password/reset/form', 'Auth\ForgotPasswordController@showResetForm')
 Route::post('password/update', 'Auth\ForgotPasswordController@reset')->name('password.update');
 
 
-Route::group(['middleware' => 'auth'], function () {
+Route::group(['middleware' => ['auth', 'module.access']], function () {
 
 Route::get('/home', 'HomeController@index')->name('home');
 Route::get('/transactions','TransactionController@index')->name('transactions');
@@ -63,6 +63,10 @@ Route::post('/inventory-transfers', 'InventoryTransferController@store')->name('
 Route::delete('/inventory-transfers/{id}', 'InventoryTransferController@destroy')->name('inventory-transfers.destroy');
 Route::get('/warehouse/pull-out-requests', 'InventoryTransferController@warehousePullOuts')->name('warehouse-pull-outs.index');
 Route::post('/warehouse/pull-out-requests/{id}/review', 'InventoryTransferController@reviewPullOut')->name('warehouse-pull-outs.review');
+Route::get('/return-refund-requests', 'InventoryTransferController@returnRefundRequests')->middleware('auth')->name('return-refunds.index');
+Route::post('/return-refund-requests/{id}/approve', 'InventoryTransferController@approveReturnRefund')->middleware('auth')->name('return-refunds.approve');
+Route::post('/inventory-transfers/{id}/return-documents', 'InventoryTransferController@uploadReturnDocuments')->middleware('auth')->name('inventory-transfers.return-documents');
+Route::post('/return-refund-requests/{id}/receive', 'InventoryTransferController@receiveReturnRefund')->middleware('auth')->name('return-refunds.receive');
 
 Route::get('/storelocation', 'HomeController@storelocation')->name('storelocation');
 Route::get('/api/locations-map', 'HomeController@getLocationsForMap')->name('locations.map');
@@ -193,7 +197,7 @@ Route::delete('/raffles/{raffle}/entries/{entry}', 'RaffleController@destroyEntr
 Route::post('/raffles/{raffle}/draw', 'RaffleController@draw')->name('raffles.draw');
 
 // Users
-Route::get('/users/{id}/show', 'UserController@show');
+Route::get('/users/{id}/show', 'UserController@show')->name('users.show');
 
 Route::post('/users/update', 'UserController@update')->name('users.update');
 Route::post('/users/access-update', 'UserController@updateAccess')->name('users.access.update');
@@ -233,6 +237,7 @@ Route::get('/reports/voucher-history/export', 'ReportController@exportVoucherHis
 Route::get('/reports/signup-incentives', 'ReportController@signupIncentivesReport')->name('signup-incentives');
 Route::get('/reports/signup-incentives/clients', 'ReportController@signupIncentiveClients')->name('signup-incentives.clients');
 Route::get('/reports/signup-incentives/export', 'ReportController@exportSignupIncentives')->name('signup-incentives.export');
+Route::get('/reports/signup-incentives/ad-export', 'ReportController@exportAdSignupIncentives')->name('signup-incentives.ad-export');
 Route::get('/reports/repeat-purchase-incentives', 'ReportController@repeatPurchaseIncentivesReport')->name('repeat-purchase-incentives');
 Route::get('/reports/repeat-purchase-incentives/transactions', 'ReportController@repeatPurchaseTransactions')->name('repeat-purchase-incentives.transactions');
 Route::get('/reports/repeat-purchase-incentives/export', 'ReportController@exportRepeatPurchaseIncentives')->name('repeat-purchase-incentives.export');

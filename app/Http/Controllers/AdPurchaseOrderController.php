@@ -606,12 +606,12 @@ class AdPurchaseOrderController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        if (auth()->user()->role !== 'Admin' && auth()->user()->role !== 'Area Distributor') {
+        if (auth()->user()->role !== 'Admin' && !auth()->user()->hasAreaDistributorAccess()) {
             abort(403);
         }
 
         $order = AdPurchaseOrder::with(['items', 'verificationItems', 'ad.userAds', 'paymentProofs'])
-            ->when(auth()->user()->role === 'Area Distributor', function ($query) {
+            ->when(auth()->user()->hasAreaDistributorAccess(), function ($query) {
                 $query->where('ad_user_id', auth()->id());
             })
             ->findOrFail($id);
@@ -655,7 +655,7 @@ class AdPurchaseOrderController extends Controller
         $proofOfPaymentRules = ($request->input('status') === 'Cancelled'
             // Area Distributors submit verification files instead of a second,
             // hidden proof-of-payment field when sending an ADPO for review.
-            || auth()->user()->role === 'Area Distributor'
+            || auth()->user()->hasAreaDistributorAccess()
             || $hasPaymentProof)
             ? 'nullable'
             : 'required';
@@ -688,13 +688,13 @@ class AdPurchaseOrderController extends Controller
             'verification_attachments.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
-        if (auth()->user()->role === 'Area Distributor' && !in_array($request->status, ['Pending', 'For Verification', 'Partial Received', 'Completed', 'Cancelled'])) {
+        if (auth()->user()->hasAreaDistributorAccess() && !in_array($request->status, ['Pending', 'For Verification', 'Partial Received', 'Completed', 'Cancelled'])) {
             throw ValidationException::withMessages([
                 'status' => 'Area Distributors may only select Pending, For Verification, Partial Received, Completed, or Cancelled.',
             ]);
         }
 
-        if (auth()->user()->role === 'Area Distributor' && $order->status === 'For Verification' && $request->status !== 'For Verification') {
+        if (auth()->user()->hasAreaDistributorAccess() && $order->status === 'For Verification' && $request->status !== 'For Verification') {
             throw ValidationException::withMessages([
                 'status' => 'This crate or refill order is under warehouse verification. You may update its submitted quantities and attachments, but only warehouse can change the status.',
             ]);
@@ -836,7 +836,7 @@ class AdPurchaseOrderController extends Controller
             ]);
         }
 
-        if ($request->status === 'Completed' && $order->status === 'Partial Received' && auth()->user()->role === 'Area Distributor' && $postedPartialItems->isEmpty() && $postedPartialReceipts->isEmpty()) {
+        if ($request->status === 'Completed' && $order->status === 'Partial Received' && auth()->user()->hasAreaDistributorAccess() && $postedPartialItems->isEmpty() && $postedPartialReceipts->isEmpty()) {
             if (!$allReceivingConfirmed) {
                 throw ValidationException::withMessages([
                     'partial_items' => 'Please confirm all received products before completing this DPO.',
@@ -881,7 +881,7 @@ class AdPurchaseOrderController extends Controller
                     $isIncrementReceive = data_get($item, 'receive_mode') === 'increment';
                     $receivedQty = $isIncrementReceive ? $currentReceivedQty + $postedReceivedQty : $postedReceivedQty;
                     $remainingQty = max($orderedQty - $currentReceivedQty, 0);
-                    $isAdConfirmation = auth()->user()->role === 'Area Distributor';
+                    $isAdConfirmation = auth()->user()->hasAreaDistributorAccess();
 
                     if ($isAdConfirmation && !$isIncrementReceive && $postedReceivedQty > $currentReceivedQty) {
                         throw ValidationException::withMessages([
@@ -948,7 +948,7 @@ class AdPurchaseOrderController extends Controller
                 }
             }
 
-            if (in_array($request->status, ['Partial Received', 'Completed']) && auth()->user()->role === 'Area Distributor' && $postedPartialReceipts->isNotEmpty()) {
+            if (in_array($request->status, ['Partial Received', 'Completed']) && auth()->user()->hasAreaDistributorAccess() && $postedPartialReceipts->isNotEmpty()) {
                 if ($postedPartialReceipts->sum(function ($receipt) {
                     return (int) data_get($receipt, 'confirmed_qty', 0);
                 }) <= 0) {
@@ -982,7 +982,7 @@ class AdPurchaseOrderController extends Controller
                 }
             }
 
-            if ($request->status === 'Completed' && auth()->user()->role === 'Area Distributor' && ($postedPartialItems->isNotEmpty() || $postedPartialReceipts->isNotEmpty())) {
+            if ($request->status === 'Completed' && auth()->user()->hasAreaDistributorAccess() && ($postedPartialItems->isNotEmpty() || $postedPartialReceipts->isNotEmpty())) {
                 $orderItems = $order->items()->get()->keyBy('id');
                 $receiptModels = $postedPartialReceipts->isNotEmpty()
                     ? AdPurchaseOrderPartialReceipt::where('ad_purchase_order_id', $order->id)
@@ -1234,7 +1234,7 @@ class AdPurchaseOrderController extends Controller
                 $order->total_amount = max(0, $taxableTotal - $withholdingTax);
             }
 
-            if (in_array($request->status, ['Partial Received', 'Completed']) && auth()->user()->role === 'Area Distributor' && $postedPartialReceipts->isNotEmpty()) {
+            if (in_array($request->status, ['Partial Received', 'Completed']) && auth()->user()->hasAreaDistributorAccess() && $postedPartialReceipts->isNotEmpty()) {
                 $receipts = AdPurchaseOrderPartialReceipt::where('ad_purchase_order_id', $order->id)
                     ->whereIn('id', $postedPartialReceipts->keys()->all())
                     ->get();
@@ -1257,7 +1257,7 @@ class AdPurchaseOrderController extends Controller
             }
 
             if (
-                auth()->user()->role === 'Area Distributor'
+                auth()->user()->hasAreaDistributorAccess()
                 && $oldStatus === 'Partial Received'
                 && in_array($request->status, ['Partial Received', 'Completed'])
             ) {

@@ -393,7 +393,7 @@ class DealerController extends Controller
             return true;
         }
 
-        if (strtolower((string) $user->role) !== 'area distributor') {
+        if (!$user->hasAreaDistributorAccess()) {
             return false;
         }
 
@@ -455,7 +455,7 @@ class DealerController extends Controller
             'center' => 'nullable',
         ]);
 
-        if (auth()->user()->role === 'Area Distributor') {
+        if (auth()->user()->hasAreaDistributorAccess()) {
             $assignedAreas = collect(optional(auth()->user()->ad)->areas)
                 ->pluck('area_name')
                 ->map(function ($area) {
@@ -576,7 +576,7 @@ class DealerController extends Controller
         $dealer = Dealer::with('user')->findOrfail($id);
         $user = auth()->user();
 
-        if ($user && strtolower((string) $user->role) === 'area distributor' && !$this->canManageDealerForAuthUser($dealer, $user)) {
+        if ($user && $user->hasAreaDistributorAccess() && !$this->canManageDealerForAuthUser($dealer, $user)) {
             abort(403, 'You are not authorized to view this dealer.');
         }
 

@@ -194,7 +194,7 @@
     $clearRoute = $clearRoute ?? route('ad-purchase-orders.index');
     $exportRoute = $exportRoute ?? route('ad-purchase-orders.export', request()->query());
     $viewRouteName = $viewRouteName ?? 'ad-purchase-orders.show';
-    $statusOptions = auth()->user()->role === 'Area Distributor'
+    $statusOptions = auth()->user()->hasAreaDistributorAccess()
         ? ['Pending', 'SO Created', 'For Verification', 'Completed', 'Partial Received', 'Cancelled']
         : ['Pending', 'For Delivery', 'For Verification', 'SO Created', 'Partial Received', 'Completed', 'Cancelled'];
     $shippingOptions = [
@@ -231,7 +231,7 @@
         'Cancelled' => 'Cancelled',
     ];
     $editableAdpoStatuses = ['Pending', 'For Delivery', 'SO Created', 'For Verification', 'Partial Received'];
-    $canUpdateAdpoStatus = auth()->user()->role === 'Area Distributor';
+    $canUpdateAdpoStatus = auth()->user()->hasAreaDistributorAccess();
     $isWarehouseTaskView = auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse);
     $taskColumns = [
         'Pending' => ['label' => 'Pending', 'dot' => 'pending'],
@@ -258,7 +258,7 @@
             })->values()];
         }
 
-        if (auth()->user()->role === 'Area Distributor' && $order->status === 'Partial Received' && $order->partialReceipts->isNotEmpty()) {
+        if (auth()->user()->hasAreaDistributorAccess() && $order->status === 'Partial Received' && $order->partialReceipts->isNotEmpty()) {
             return [
                 strval($order->id) => $order->partialReceipts->filter(function ($receipt) {
                     return (int) $receipt->received_qty > (int) $receipt->confirmed_qty;
@@ -602,9 +602,9 @@
                                                 data-si-number="{{ $order->si_number }}"
                                                 data-remarks="{{ $order->remarks }}"
                                                 data-total="PHP {{ number_format($order->total_amount, 2) }}">
-                                                <i class="ti ti-shield-check"></i> {{ auth()->user()->role === 'Area Distributor' && $order->status === 'Partial Received' ? 'Confirm Partial' : 'Status' }}
+                                                <i class="ti ti-shield-check"></i> {{ auth()->user()->hasAreaDistributorAccess() && $order->status === 'Partial Received' ? 'Confirm Partial' : 'Status' }}
                                             </button>
-                                            @if(auth()->user()->role === 'Area Distributor' && $order->status === 'Partial Received' && $canVerifyFullyReceivedCrateRefill)
+                                            @if(auth()->user()->hasAreaDistributorAccess() && $order->status === 'Partial Received' && $canVerifyFullyReceivedCrateRefill)
                                                 @php
                                                     $partialVerificationItems = $crateRefillItems
                                                         ->map(function ($item) use ($order) {
@@ -716,7 +716,7 @@
                             <select name="status" id="statusModalSelect" class="form-select" required>
                                 @foreach($statusOptions as $status)
                                     <option value="{{ $status }}">
-                                        {{ auth()->user()->role === 'Area Distributor' && $status === 'Partial Received' ? 'Incomplete' : $status }}
+                                        {{ auth()->user()->hasAreaDistributorAccess() && $status === 'Partial Received' ? 'Incomplete' : $status }}
                                     </option>
                                 @endforeach
                             </select>
@@ -770,9 +770,9 @@
                                     <span class="badge bg-warning text-dark">Partial</span>
                                 </div>
                                 <p class="partial-received-copy">
-                                    {{ auth()->user()->role === 'Area Distributor' ? 'Verify the warehouse partial delivery and confirm only the quantity actually received.' : 'Enter only the actual received quantity. Ordered quantities and order totals will not be changed.' }}
+                                    {{ auth()->user()->hasAreaDistributorAccess() ? 'Verify the warehouse partial delivery and confirm only the quantity actually received.' : 'Enter only the actual received quantity. Ordered quantities and order totals will not be changed.' }}
                                 </p>
-                                @if(auth()->user()->role === 'Area Distributor')
+                                @if(auth()->user()->hasAreaDistributorAccess())
                                     <div class="partial-confirm-callout">
                                         <i class="ti ti-clipboard-check"></i>
                                         <div>
@@ -797,7 +797,7 @@
                                 </div>
                                 <div class="partial-items-list" id="partialReceivedItems"></div>
                                 <div class="form-text">
-                                    {{ auth()->user()->role === 'Area Distributor' ? 'Confirmed quantity cannot exceed the For Receiving quantity from warehouse.' : 'Use 0 for products not received yet. Received quantity cannot exceed ordered quantity.' }}
+                                    {{ auth()->user()->hasAreaDistributorAccess() ? 'Confirmed quantity cannot exceed the For Receiving quantity from warehouse.' : 'Use 0 for products not received yet. Received quantity cannot exceed ordered quantity.' }}
                                 </div>
                             </div>
                         </div>
