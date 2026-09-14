@@ -237,6 +237,7 @@ Route::get('/reports/voucher-history/export', 'ReportController@exportVoucherHis
 Route::get('/reports/signup-incentives', 'ReportController@signupIncentivesReport')->name('signup-incentives');
 Route::get('/reports/signup-incentives/clients', 'ReportController@signupIncentiveClients')->name('signup-incentives.clients');
 Route::get('/reports/signup-incentives/export', 'ReportController@exportSignupIncentives')->name('signup-incentives.export');
+Route::get('/reports/signup-incentives/ad-export', 'ReportController@exportAdSignupIncentives')->name('signup-incentives.ad-export');
 Route::get('/reports/repeat-purchase-incentives', 'ReportController@repeatPurchaseIncentivesReport')->name('repeat-purchase-incentives');
 Route::get('/reports/repeat-purchase-incentives/transactions', 'ReportController@repeatPurchaseTransactions')->name('repeat-purchase-incentives.transactions');
 Route::get('/reports/repeat-purchase-incentives/export', 'ReportController@exportRepeatPurchaseIncentives')->name('repeat-purchase-incentives.export');
