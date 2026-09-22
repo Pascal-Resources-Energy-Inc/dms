@@ -13,6 +13,7 @@ use App\AdPurchaseOrder;
 use App\AdPurchaseOrderItem;
 use App\AdPurchaseOrderPartialReceipt;
 use App\AreaDistributor;
+use App\AreaAd;
 use App\Center;
 use App\User;
 use App\Exports\DailySalesExport;
@@ -89,13 +90,26 @@ class ReportController extends Controller
         $rates = $this->signupIncentiveRatesFromRequest($request);
         $report = $this->buildSignupIncentivesReport($year, $center, $rates);
         $adMonth = (int) $request->input('ad_month', 0);
-        $adReport = $this->buildAdSignupIncentivesReport($year, $adMonth);
+        $authUser = auth()->user();
+        $isAdmin = strtolower(trim((string) ($authUser->role ?? ''))) === 'admin';
+        $userMfiType = strtoupper(trim((string) ($authUser->mfi_type ?? '')));
+        $adMfiType = $isAdmin
+            ? strtoupper(trim((string) $request->input('ad_mfi_type', '')))
+            : $userMfiType;
+        $adReport = $this->buildAdSignupIncentivesReport(
+            $year,
+            $adMonth,
+            $adMfiType,
+            $isAdmin ? [] : [$userMfiType ?: '__NO_MFI_TYPE__']
+        );
 
         return view('reports.signup_incentives', array_merge($report, [
             'year' => $year,
             'selectedCenter' => $center,
             'rates' => $rates,
             'selectedAdMonth' => $adMonth,
+            'selectedAdMfiType' => $adMfiType,
+            'canFilterAllAdMfiTypes' => $isAdmin,
             'adReport' => $adReport,
         ]));
     }
@@ -1291,10 +1305,20 @@ class ReportController extends Controller
      * signature date is used when available; otherwise the signature save time
      * (updated_at) provides the signing date.
      */
-    private function buildAdSignupIncentivesReport($year, $month = 0)
+    private function buildAdSignupIncentivesReport($year, $month = 0, $mfiType = '', array $allowedMfiTypes = [])
     {
         $rate = 50.00;
         $month = $month >= 1 && $month <= 12 ? $month : 0;
+        $mfiType = strtoupper(trim((string) $mfiType));
+        $mfiTypesByCenter = $this->mfiTypesByCenter();
+        $availableMfiTypes = collect($mfiTypesByCenter)->filter()->unique()->sort()->values();
+        $allowedMfiTypes = collect($allowedMfiTypes)->map(function ($type) {
+            return strtoupper(trim((string) $type));
+        })->filter()->unique()->values();
+
+        if ($allowedMfiTypes->isNotEmpty()) {
+            $availableMfiTypes = $availableMfiTypes->intersect($allowedMfiTypes)->values();
+        }
 
         try {
             $connection = 'admin_crms';
@@ -1304,7 +1328,7 @@ class ReportController extends Controller
             $signingDateColumn = $table ? $this->firstExistingCrmColumn($schema, $table, ['signed_at', 'signature_date', 'contract_signed_at', 'updated_at', 'created_at']) : null;
 
             if (!$table || !$signatureColumn || !$signingDateColumn) {
-                return ['rows' => collect(), 'total' => 0, 'rate' => $rate];
+                return ['rows' => collect(), 'total' => 0, 'rate' => $rate, 'mfiTypes' => $availableMfiTypes];
             }
 
             $referenceColumn = $this->firstExistingCrmColumn($schema, $table, ['client_reference', 'customer_reference', 'reference']);
@@ -1345,7 +1369,7 @@ class ReportController extends Controller
 
             $assignedAdNames = $this->assignedAdNamesByGeographicCoverage($clients);
 
-            $rows = $clients->map(function ($client) use ($rate, $assignedAdNames) {
+            $rows = $clients->map(function ($client) use ($rate, $assignedAdNames, $mfiTypesByCenter) {
                     $name = trim((string) ($client->name ?? ''));
 
                     if ($name === '') {
@@ -1364,11 +1388,15 @@ class ReportController extends Controller
                             $client->location_barangay ?? '',
                         ])] ?? 'Unassigned',
                         'center' => trim((string) ($client->center ?? '')) ?: 'Unassigned',
+                        'mfi_type' => $mfiTypesByCenter[$this->normalizeSignupCenter($client->center ?? '')] ?? 'Unassigned',
                         'reference' => trim((string) ($client->client_reference ?? '')) ?: '—',
                         'name' => $name ?: 'Unnamed Client',
                         'signing_date' => Carbon::parse($client->signing_date_value)->format('M d, Y'),
                         'amount' => $rate,
                     ];
+                })->filter(function ($row) use ($mfiType, $allowedMfiTypes) {
+                    return ($allowedMfiTypes->isEmpty() || $allowedMfiTypes->contains($row['mfi_type']))
+                        && ($mfiType === '' || $row['mfi_type'] === $mfiType);
                 })->values();
         } catch (\Exception $exception) {
             $rows = collect();
@@ -1378,7 +1406,34 @@ class ReportController extends Controller
             'rows' => $rows,
             'total' => $rows->sum('amount'),
             'rate' => $rate,
+            'mfiTypes' => $availableMfiTypes,
         ];
+    }
+
+    /** Return the configured MFI type, keyed by normalized center name. */
+    private function mfiTypesByCenter()
+    {
+        try {
+            $schema = Schema::getConnection()->getSchemaBuilder();
+
+            if (!$schema->hasTable('centers')
+                || !$schema->hasColumn('centers', 'name')
+                || !$schema->hasColumn('centers', 'mfi')) {
+                return [];
+            }
+
+            return Center::query()
+                ->whereNotNull('mfi')
+                ->where('mfi', '<>', '')
+                ->get(['name', 'mfi'])
+                ->mapWithKeys(function ($center) {
+                    return [$this->normalizeSignupCenter($center->name) => strtoupper(trim((string) $center->mfi))];
+                })
+                ->filter()
+                ->all();
+        } catch (\Exception $exception) {
+            return [];
+        }
     }
 
     /** Return assigned Area Distributor name(s), keyed by geographic coverage. */
@@ -2090,24 +2145,184 @@ class ReportController extends Controller
 
         $year = (int) ($request->year ?: Carbon::now()->year);
         $month = (int) $request->input('ad_month', 0);
-        $report = $this->buildAdSignupIncentivesReport($year, $month);
+        $authUser = auth()->user();
+        $isAdmin = strtolower(trim((string) ($authUser->role ?? ''))) === 'admin';
+        $userMfiType = strtoupper(trim((string) ($authUser->mfi_type ?? '')));
+        $mfiType = $isAdmin
+            ? strtoupper(trim((string) $request->input('ad_mfi_type', '')))
+            : $userMfiType;
+        $report = $this->buildAdSignupIncentivesReport(
+            $year,
+            $month,
+            $mfiType,
+            $isAdmin ? [] : [$userMfiType ?: '__NO_MFI_TYPE__']
+        );
         $filename = 'ad-signed-client-incentives-' . $year . ($month ? '-' . str_pad($month, 2, '0', STR_PAD_LEFT) : '') . '.csv';
 
         return response()->streamDownload(function () use ($report) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Assigned AD Name', 'Center', 'Client Reference', 'Name', 'Date of Signing', 'Amount']);
+            fputcsv($handle, ['Assigned AD Name', 'MFI Type', 'Center', 'Client Reference', 'Name', 'Date of Signing', 'Amount']);
 
             foreach ($report['rows'] as $row) {
                 fputcsv($handle, [
-                    $row['ad'], $row['center'], $row['reference'], $row['name'],
+                    $row['ad'], $row['mfi_type'], $row['center'], $row['reference'], $row['name'],
                     $row['signing_date'], number_format($row['amount'], 2, '.', ''),
                 ]);
             }
 
             fputcsv($handle, []);
-            fputcsv($handle, ['Total', '', '', '', '', number_format($report['total'], 2, '.', '')]);
+            fputcsv($handle, ['Total', '', '', '', '', '', number_format($report['total'], 2, '.', '')]);
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /** Paginated directory of every Area Distributor awarded-area assignment. */
+    public function adAwardedAreasReport(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $search = trim((string) $request->input('search', ''));
+        $projectType = trim((string) $request->input('project_type', ''));
+        $assignmentStatus = trim((string) $request->input('assignment_status', 'all'));
+        $perPage = in_array((int) $request->input('per_page', 25), [10, 25, 50, 100], true)
+            ? (int) $request->input('per_page', 25)
+            : 25;
+        $schema = Schema::getConnection()->getSchemaBuilder();
+
+        $coverageSummary = $schema->hasTable('area_geographic_coverages')
+            ? DB::table('area_geographic_coverages')
+                ->select(
+                    'area_id',
+                    DB::raw('MIN(province) as province'),
+                    DB::raw('MIN(region) as region')
+                )
+                ->groupBy('area_id')
+            : null;
+
+        $query = AreaAd::withTrashed()
+            ->join('area_distributors as awarded_ad', 'awarded_ad.id', '=', 'ad_areas.ad_id')
+            ->leftJoin('users as awarded_user', 'awarded_user.id', '=', 'awarded_ad.user_id')
+            ->leftJoin('areas as awarded_area', 'awarded_area.name', '=', 'ad_areas.area_name')
+            ->when($coverageSummary, function ($builder) use ($coverageSummary) {
+                $builder->leftJoinSub($coverageSummary, 'area_coverage', function ($join) {
+                    $join->on('area_coverage.area_id', '=', 'awarded_area.id');
+                });
+            })
+            ->select([
+                'ad_areas.id',
+                'ad_areas.area_name',
+                'ad_areas.project_type',
+                'ad_areas.joining_date as awarded_date',
+                'ad_areas.deleted_at as disengagement_date',
+                'awarded_ad.store_code',
+                'awarded_ad.ad_reference',
+                'awarded_ad.name as partner_name',
+                'awarded_ad.business_name',
+                'awarded_ad.delivery_address',
+                'awarded_ad.contact_number',
+                'awarded_user.created_at as partner_started_at',
+                DB::raw("COALESCE(area_coverage.province, '') as province"),
+                DB::raw("COALESCE(area_coverage.region, '') as region"),
+                DB::raw('(SELECT COUNT(*) FROM ad_areas AS awarded_area_sequence WHERE awarded_area_sequence.ad_id = ad_areas.ad_id AND awarded_area_sequence.id <= ad_areas.id) as award_sequence'),
+            ])
+            ->when($assignmentStatus === 'active', function ($builder) {
+                $builder->whereNull('ad_areas.deleted_at');
+            })
+            ->when($assignmentStatus === 'disengaged', function ($builder) {
+                $builder->whereNotNull('ad_areas.deleted_at');
+            })
+            ->when($projectType !== '', function ($builder) use ($projectType) {
+                $builder->where('ad_areas.project_type', $projectType);
+            })
+            ->when($search !== '', function ($builder) use ($search) {
+                $builder->where(function ($searchQuery) use ($search) {
+                    $like = '%' . $search . '%';
+                    $searchQuery->where('awarded_ad.store_code', 'like', $like)
+                        ->orWhere('awarded_ad.ad_reference', 'like', $like)
+                        ->orWhere('awarded_ad.name', 'like', $like)
+                        ->orWhere('awarded_ad.business_name', 'like', $like)
+                        ->orWhere('ad_areas.area_name', 'like', $like)
+                        ->orWhere('ad_areas.project_type', 'like', $like)
+                        ->orWhere('area_coverage.province', 'like', $like)
+                        ->orWhere('area_coverage.region', 'like', $like);
+                });
+            })
+            ->orderBy('awarded_ad.store_code')
+            ->orderBy('awarded_ad.ad_reference')
+            ->orderBy('ad_areas.id');
+
+        $summaryQuery = clone $query;
+        $summary = [
+            'assignments' => $summaryQuery->count(),
+            'partners' => (clone $query)->distinct('awarded_ad.id')->count('awarded_ad.id'),
+            'disengaged' => (clone $query)->whereNotNull('ad_areas.deleted_at')->count(),
+        ];
+
+        $awards = $query->paginate($perPage)->appends($request->query());
+        $awards->getCollection()->transform(function ($award) {
+            $partnerCode = trim((string) ($award->store_code ?: $award->ad_reference ?: 'AD-' . $award->id));
+            $award->partner_code = $partnerCode;
+            $award->award_reference = $partnerCode . '-' . (int) $award->award_sequence;
+            $award->province = trim((string) $award->province) ?: '—';
+            $award->region = trim((string) $award->region) ?: '—';
+            $award->ph_area = $this->philippineAreaForRegion($award->region);
+            $award->project_type = trim((string) $award->project_type) ?: '—';
+            $award->partner_name = trim((string) $award->partner_name) ?: 'Unnamed Partner';
+            $award->business_name = trim((string) $award->business_name) ?: '—';
+            $award->delivery_address = trim((string) $award->delivery_address) ?: '—';
+            $award->contact_number = trim((string) $award->contact_number) ?: '—';
+            $award->awarded_date_display = $award->awarded_date
+                ? Carbon::parse($award->awarded_date)->format('M d, Y')
+                : '—';
+            $award->partner_started_display = $award->partner_started_at
+                ? Carbon::parse($award->partner_started_at)->format('M d, Y')
+                : '—';
+            $award->disengagement_date_display = $award->disengagement_date
+                ? Carbon::parse($award->disengagement_date)->format('M d, Y')
+                : null;
+
+            return $award;
+        });
+
+        $projectTypes = AreaAd::withTrashed()
+            ->whereNotNull('project_type')
+            ->where('project_type', '<>', '')
+            ->distinct()
+            ->orderBy('project_type')
+            ->pluck('project_type');
+
+        return view('reports.ad_awarded_areas', compact(
+            'awards',
+            'summary',
+            'search',
+            'projectType',
+            'projectTypes',
+            'assignmentStatus',
+            'perPage'
+        ));
+    }
+
+    private function philippineAreaForRegion($region)
+    {
+        $region = strtolower(trim((string) $region));
+
+        if ($region === '') {
+            return '—';
+        }
+
+        if (preg_match('/(^|[^a-z])(ncr|car|i\b|ii\b|iii\b|iv|v\b|1\b|2\b|3\b|4\b|5\b)/', $region)) {
+            return 'Luzon';
+        }
+
+        if (preg_match('/(^|[^a-z])(vi\b|vii\b|viii\b|6\b|7\b|8\b)/', $region)) {
+            return 'Visayas';
+        }
+
+        if (preg_match('/(^|[^a-z])(ix\b|x\b|xi\b|xii\b|xiii\b|barmm|9\b|10\b|11\b|12\b|13\b)/', $region)) {
+            return 'Mindanao';
+        }
+
+        return '—';
     }
 
     public function inventoryStockLevelReport(Request $request)

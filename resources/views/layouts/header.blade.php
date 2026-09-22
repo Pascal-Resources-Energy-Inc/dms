@@ -1712,7 +1712,6 @@
                 $canAccessTransfers = $canAccessModule('inventory_transfers', 'transfers');
                 $canAccessReturnRefunds = $canAccessModule('return_refunds', 'requests');
                 $canAccessCharges = $canAccessModule('charges', 'records');
-                $canAccessLocations = $canAccessModule('locations', 'directory');
                 $canAccessProducts = $canAccessModule('products', 'catalog');
                 $canAccessStandardReports = $sidebarIsAdmin || (
                     $sidebarIsSedp && (
@@ -1729,7 +1728,7 @@
                 );
                 $canAccessAnyReports = $canAccessStandardReports || $canAccessSedpReports;
                 $standardReportRoutes = ['dsr', 'aging', 'dpo', 'isl', 'monthly-sales', 'voucher-history'];
-                $sedpReportRoutes = ['signup-incentives', 'repeat-purchase-incentives', 'aging-report-dealer', 'aging-report-customer'];
+                $sedpReportRoutes = ['signup-incentives', 'ad-awarded-areas', 'repeat-purchase-incentives', 'aging-report-dealer', 'aging-report-customer'];
                 $visibleReportRoutes = array_merge(
                     $canAccessStandardReports ? $standardReportRoutes : [],
                     $canAccessSedpReports ? $sedpReportRoutes : []
@@ -2132,14 +2131,6 @@
                         </a>
                     </div>
                 @endif
-                @if($sidebarIsSedp && $canAccessLocations)
-                    <div class="nav-item">
-                        <a href="{{ route('storelocation') }}" class="nav-link @if(Route::currentRouteName() == 'storelocation') active @endif">
-                            <div class="nav-icon"><i class="ti ti-map-pin"></i></div>
-                            <span class="nav-text">Store Locations</span>
-                        </a>
-                    </div>
-                @endif
                 @if($sidebarIsAdmin && strtolower(trim((string) auth()->user()->name)) === 'dennis villareal')
                     <div class="nav-item">
                         <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index')active @endif">
@@ -2344,6 +2335,9 @@
                                 @if($canAccessSedpReports)
                                     <li class="nav-item">
                                         <a href="{{ url('/reports/signup-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'signup-incentives') active @endif" style="font-size: 14px">Sign Up Incentives Report</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="{{ route('ad-awarded-areas') }}" class="nav-link @if(Route::currentRouteName() == 'ad-awarded-areas') active @endif" style="font-size: 14px">AD Awarded Areas Report</a>
                                     </li>
                                     <li class="nav-item">
                                         <a href="{{ url('/reports/repeat-purchase-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'repeat-purchase-incentives') active @endif" style="font-size: 14px">Repeat Purchase Incentives Report</a>
@@ -2750,7 +2744,6 @@
                                 <ul class="nav-links">
                                     <li><a href="{{ url('/') }}">Home</a></li>
                                     <li><a href="{{ route('products') }}">Product</a></li>
-                                    <li><a href="{{ route('storelocation') }}">Store Location</a></li>
                                     <li><a href="{{ route('about') }}">About</a></li>
                                 </ul>
                             </nav>

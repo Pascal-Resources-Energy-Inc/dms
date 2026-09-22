@@ -104,6 +104,7 @@ class EnsureModuleAccess
             'signup-incentives' => ['reports', 'sedp', $view, 'can_access_reports'],
             'signup-incentives.export' => ['reports', 'sedp', $view, 'can_access_reports'],
             'signup-incentives.ad-export' => ['reports', 'sedp', $view, 'can_access_reports'],
+            'ad-awarded-areas' => ['reports', 'sedp', $view, 'can_access_reports'],
             'repeat-purchase-incentives' => ['reports', 'sedp', $view, 'can_access_reports'],
         ];
 
