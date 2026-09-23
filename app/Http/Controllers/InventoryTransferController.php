@@ -662,9 +662,14 @@ class InventoryTransferController extends Controller
             'completed' => (clone $query)->whereIn('approval_status', ['Approved', 'Warehouse Confirmed'])->count(),
             'rejected' => (clone $query)->where('approval_status', 'Rejected')->count(),
         ];
+        $agingBreakdown = [
+            'pending' => $this->pullOutAgingBreakdown((clone $query)->where('approval_status', 'Pending'), false),
+            'processing' => $this->pullOutAgingBreakdown((clone $query)->where('approval_status', 'For Processing'), true),
+            'replacing' => $this->pullOutAgingBreakdown((clone $query)->where('approval_status', 'Replacing'), true),
+        ];
         $warehouses = (clone $query)->whereNotNull('warehouse')->distinct()->orderBy('warehouse')->pluck('warehouse');
 
-        return view('reports.pull_out_requests', compact('summary', 'warehouses'));
+        return view('reports.pull_out_requests', compact('summary', 'agingBreakdown', 'warehouses'));
     }
 
     public function pullOutReportData(Request $request)
@@ -702,6 +707,12 @@ class InventoryTransferController extends Controller
                 ][$status] ?? 'warning text-dark';
                 return '<span class="badge bg-' . $class . '">' . e($status) . '</span>';
             })
+            ->addColumn('aging', function ($row) {
+                if (!in_array($row->approval_status, ['Pending', 'For Processing', 'Replacing'], true)) return '—';
+                $startedAt = $row->approval_status === 'Pending' ? $row->created_at : ($row->reviewed_at ?: $row->created_at);
+                $days = $startedAt ? Carbon::parse($startedAt)->startOfDay()->diffInDays(Carbon::today()) : 0;
+                return '<span class="aging-day">Day ' . $days . '</span>';
+            })
             ->addColumn('attachments', function ($row) {
                 $files = is_array($row->pull_out_attachments) ? $row->pull_out_attachments : (json_decode($row->pull_out_attachments ?: '[]', true) ?: []);
                 if (!count($files)) return '<span class="text-muted">—</span>';
@@ -714,8 +725,23 @@ class InventoryTransferController extends Controller
             })
             ->addColumn('remarks', function ($row) { return e($row->warehouse_remarks ?: $row->remarks ?: '—'); })
             ->filterColumn('distributor', function ($builder, $keyword) { $builder->where('distributors.name', 'like', "%{$keyword}%"); })
-            ->rawColumns(['pull_out_product', 'replacement_product', 'status_badge', 'attachments'])
+            ->rawColumns(['pull_out_product', 'replacement_product', 'status_badge', 'aging', 'attachments'])
             ->make(true);
+    }
+
+    private function pullOutAgingBreakdown($query, bool $useReviewedAt): array
+    {
+        $dateColumn = $useReviewedAt ? 'COALESCE(reviewed_at, created_at)' : 'created_at';
+        $ageExpression = "DATEDIFF(CURDATE(), {$dateColumn})";
+
+        return $query->selectRaw("{$ageExpression} as age_days, COUNT(*) as request_count")
+            ->groupBy(DB::raw($ageExpression))
+            ->orderBy('age_days')
+            ->get()
+            ->mapWithKeys(function ($row) {
+                return [(int) $row->age_days => (int) $row->request_count];
+            })
+            ->all();
     }
 
     private function pullOutReportQuery()
