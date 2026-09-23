@@ -249,9 +249,12 @@
                             <select name="out_type" id="outTypeSelect" class="form-control select2" data-selected-value="{{ old('out_type') }}"></select>
                             <div class="form-text" id="movementReasonHelp"></div>
                         </div>
+                        <div class="alert alert-warning py-2 small js-out-adjustment-note" style="display: none;">
+                            <i class="bi bi-dash-circle me-1"></i> This adjustment deducts stock from the selected source area.
+                        </div>
                         <div class="row js-movement-qty-cost">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Qty</label>
+                                <label class="form-label" id="qtyLabel">Qty</label>
                                 <input type="number" min="1" name="qty" id="qtyInput" class="form-control" value="{{ old('qty') }}" required>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -275,14 +278,24 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="row js-pull-out-ris" style="display: none;">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="pullOutRisNumber">RIS Number <span class="text-danger">*</span></label>
+                                <input type="text" name="ris_number" id="pullOutRisNumber" class="form-control" value="{{ old('ris_number') }}" placeholder="Enter RIS number" disabled>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="pullOutRisDate">RIS Date <span class="text-danger">*</span></label>
+                                <input type="date" name="ris_date" id="pullOutRisDate" class="form-control" value="{{ old('ris_date', date('Y-m-d')) }}" disabled>
+                            </div>
+                        </div>
                         <div class="mb-3 js-pull-out-attachments" style="display: none;">
                             <label class="form-label" for="pullOutAttachments">Pull-out attachments <span class="text-danger">*</span></label>
                             <input type="file" name="pull_out_attachments[]" id="pullOutAttachments" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple disabled>
-                            <div class="form-text">Attach pull-out proof files. JPG, PNG, or PDF; maximum 5 files, 5 MB each.</div>
+                            <div class="form-text"><strong>Attach a clear picture of the signed RIS.</strong> You may include other pull-out proof files. JPG, PNG, or PDF; maximum 5 files, 5 MB each.</div>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3 js-transfer-date">
                             <label class="form-label">Date</label>
-                            <input type="date" name="transfer_date" class="form-control" value="{{ old('transfer_date', date('Y-m-d')) }}">
+                            <input type="date" name="transfer_date" id="transferDateInput" class="form-control" value="{{ old('transfer_date', date('Y-m-d')) }}">
                         </div>
 
                         <div class="mb-3">
@@ -1053,6 +1066,8 @@
         const fromAreaSelect = document.getElementById('fromAreaSelect');
         const toAreaSelect = document.getElementById('toAreaSelect');
         const qtyInput = document.getElementById('qtyInput');
+        const qtyLabel = document.getElementById('qtyLabel');
+        const outAdjustmentNote = document.querySelector('.js-out-adjustment-note');
         const unitCostInput = document.getElementById('unitCostInput');
         const movementQtyCost = document.querySelector('.js-movement-qty-cost');
         const fromArea = document.querySelector('.js-from-area');
@@ -1061,6 +1076,11 @@
         const outTypeSelect = document.getElementById('outTypeSelect');
         const pullOutAttachments = document.querySelector('.js-pull-out-attachments');
         const pullOutAttachmentsInput = document.getElementById('pullOutAttachments');
+        const pullOutRis = document.querySelector('.js-pull-out-ris');
+        const pullOutRisNumber = document.getElementById('pullOutRisNumber');
+        const pullOutRisDate = document.getElementById('pullOutRisDate');
+        const transferDateGroup = document.querySelector('.js-transfer-date');
+        const transferDateInput = document.getElementById('transferDateInput');
         const pullOutReplacement = document.querySelector('.js-pull-out-replacement');
         const replacementQtyInput = document.getElementById('replacementQtyInput');
         const replacementUnitCostInput = document.getElementById('replacementUnitCostInput');
@@ -1078,7 +1098,7 @@
         let renderedProductKey = null;
         const movementReasons = {
             in: ['Beginning Balance', 'Inventory Adjustment'],
-            out: ['Return and Refund', 'Pull Out', 'Replace']
+            out: ['Return and Refund', 'Pull Out', 'Replace', 'Inventory Adjustment']
         };
 
         if (window.jQuery && window.jQuery.fn.DataTable) {
@@ -1243,6 +1263,27 @@
             }
         }
 
+        function syncPullOutRis() {
+            const isPullOut = selectedType() === 'out' && outTypeSelect.value === 'Pull Out';
+            pullOutRis.style.display = isPullOut ? '' : 'none';
+            pullOutRisNumber.disabled = !isPullOut;
+            pullOutRisDate.disabled = !isPullOut;
+            pullOutRisNumber.required = isPullOut;
+            pullOutRisDate.required = isPullOut;
+            transferDateGroup.style.display = isPullOut ? 'none' : '';
+            transferDateInput.disabled = isPullOut;
+
+            if (!isPullOut) {
+                pullOutRisNumber.value = '';
+            }
+        }
+
+        function syncOutAdjustmentState() {
+            const isOutAdjustment = selectedType() === 'out' && outTypeSelect.value === 'Inventory Adjustment';
+            outAdjustmentNote.style.display = isOutAdjustment ? '' : 'none';
+            qtyLabel.textContent = isOutAdjustment ? 'Adjustment Qty (Deduct)' : 'Qty';
+        }
+
         function syncPullOutReplacement() {
             const isPullOut = selectedType() === 'out' && outTypeSelect.value === 'Pull Out';
             pullOutReplacement.style.display = isPullOut ? '' : 'none';
@@ -1361,7 +1402,9 @@
             }
 
             renderMovementReasons(needsMovementReason ? type : '');
+            syncOutAdjustmentState();
             syncPullOutAttachments();
+            syncPullOutRis();
             syncPullOutReplacement();
 
             if (type === 'transfer' && fromAreaSelect.value && fromAreaSelect.value === toAreaSelect.value) {
@@ -1438,6 +1481,7 @@
         });
 
         outTypeSelect.addEventListener('change', syncPullOutAttachments);
+        outTypeSelect.addEventListener('change', syncOutAdjustmentState);
         outTypeSelect.addEventListener('change', syncPullOutReplacement);
 
         [replacementQtyInput, replacementUnitCostInput].forEach(function (element) {
@@ -1518,6 +1562,7 @@
             window.jQuery(fromAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
             window.jQuery(toAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
             window.jQuery(outTypeSelect).on('change select2:select select2:clear', syncPullOutAttachments);
+            window.jQuery(outTypeSelect).on('change select2:select select2:clear', syncOutAdjustmentState);
             window.jQuery(outTypeSelect).on('change select2:select select2:clear', syncPullOutReplacement);
         }
 

@@ -259,6 +259,8 @@ class InventoryTransferController extends Controller
             $request->merge([
                 'qty' => $request->input('replacement_qty'),
                 'unit_cost' => $request->input('replacement_unit_cost'),
+                // The RIS date is the official movement date for pull-outs.
+                'transfer_date' => $request->input('ris_date'),
             ]);
         }
 
@@ -270,6 +272,8 @@ class InventoryTransferController extends Controller
             'qty' => 'required|integer|min:1',
             'unit_cost' => 'nullable|numeric|min:0',
             'out_type' => 'nullable|string|max:255',
+            'ris_number' => 'required_if:out_type,Pull Out|string|max:255',
+            'ris_date' => 'required_if:out_type,Pull Out|date',
             'pull_out_attachments' => 'required_if:out_type,Pull Out|array|max:5',
             'pull_out_attachments.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
             'replacement_qty' => 'required_if:out_type,Pull Out|integer|min:1',
@@ -286,7 +290,7 @@ class InventoryTransferController extends Controller
 
         $allowedReasons = [
             'in' => ['Beginning Balance', 'Inventory Adjustment', 'Replacement'],
-            'out' => ['Return and Refund', 'Pull Out', 'Replace'],
+            'out' => ['Return and Refund', 'Pull Out', 'Replace', 'Inventory Adjustment'],
         ];
 
         if (in_array($type, ['in', 'out'], true) && !in_array($request->out_type, $allowedReasons[$type], true)) {
@@ -409,6 +413,8 @@ class InventoryTransferController extends Controller
                 'qty' => $request->qty,
                 'unit_cost' => $request->unit_cost,
                 'reference_no' => null,
+                'ris_number' => $replacementProduct ? strtoupper(trim($request->ris_number)) : null,
+                'ris_date' => $replacementProduct ? $request->ris_date : null,
                 'pull_out_attachments' => $pullOutAttachments ?: null,
                 'replacement_product_id' => $replacementProduct ? $replacementProduct->id : null,
                 'replacement_sku' => $replacementProduct ? $replacementProduct->sku : null,
@@ -634,13 +640,102 @@ class InventoryTransferController extends Controller
     {
         $this->ensureWarehouseUser();
         $warehouse = strtolower((string) auth()->user()->warehouse);
-        $requests = InventoryTransfer::where('out_type', 'Pull Out')
-            ->where('warehouse', $warehouse)
+        $requests = InventoryTransfer::where('inventory_transfers.out_type', 'Pull Out')
+            ->where('inventory_transfers.warehouse', $warehouse)
+            ->leftJoin('users as area_distributors', 'area_distributors.id', '=', 'inventory_transfers.ad_user_id')
+            ->select('inventory_transfers.*', 'area_distributors.name as ad_name')
             ->with('product')
             ->orderByRaw("CASE approval_status WHEN 'Pending' THEN 0 WHEN 'For Processing' THEN 1 WHEN 'Replacing' THEN 2 ELSE 3 END")
             ->latest()
             ->get();
         return view('inventory_transfers.warehouse_pull_outs', compact('requests', 'warehouse'));
+    }
+
+    public function pullOutReport()
+    {
+        $query = $this->pullOutReportQuery();
+        $summary = [
+            'total' => (clone $query)->count(),
+            'pending' => (clone $query)->where('approval_status', 'Pending')->count(),
+            'processing' => (clone $query)->where('approval_status', 'For Processing')->count(),
+            'replacing' => (clone $query)->where('approval_status', 'Replacing')->count(),
+            'completed' => (clone $query)->whereIn('approval_status', ['Approved', 'Warehouse Confirmed'])->count(),
+            'rejected' => (clone $query)->where('approval_status', 'Rejected')->count(),
+        ];
+        $warehouses = (clone $query)->whereNotNull('warehouse')->distinct()->orderBy('warehouse')->pluck('warehouse');
+
+        return view('reports.pull_out_requests', compact('summary', 'warehouses'));
+    }
+
+    public function pullOutReportData(Request $request)
+    {
+        $query = $this->pullOutReportQuery()->leftJoin('users as distributors', 'distributors.id', '=', 'inventory_transfers.ad_user_id')
+            ->select('inventory_transfers.*', 'distributors.name as distributor_name');
+
+        if ($request->filled('status')) $query->where('inventory_transfers.approval_status', $request->status);
+        if ($request->filled('warehouse')) $query->where('inventory_transfers.warehouse', $request->warehouse);
+        if ($request->filled('date_from')) $query->whereDate('inventory_transfers.transfer_date', '>=', $request->date_from);
+        if ($request->filled('date_to')) $query->whereDate('inventory_transfers.transfer_date', '<=', $request->date_to);
+
+        return \Yajra\DataTables\Facades\DataTables::of($query)
+            ->editColumn('transfer_date', function ($row) { return $row->transfer_date ? Carbon::parse($row->transfer_date)->format('M d, Y') : '—'; })
+            ->addColumn('distributor', function ($row) { return e($row->distributor_name ?: 'Area Distributor'); })
+            ->addColumn('pull_out_product', function ($row) { return '<strong>' . e($row->item_name) . '</strong><small class="d-block text-muted">' . e($row->sku ?: 'No SKU') . '</small>'; })
+            ->addColumn('replacement_product', function ($row) {
+                $item = $row->replacement_item_name ?: $row->item_name;
+                $sku = $row->replacement_sku ?: $row->sku;
+                return '<strong>' . e($item) . '</strong><small class="d-block text-muted">' . e($sku ?: 'No SKU') . '</small>';
+            })
+            ->addColumn('request_qty', function ($row) { return number_format($row->replacement_qty ?: $row->qty) . ' pcs'; })
+            ->addColumn('approved_qty', function ($row) {
+                return in_array($row->approval_status, ['For Processing', 'Replacing', 'Warehouse Confirmed'], true)
+                    ? number_format($row->qty) . ' pcs'
+                    : '—';
+            })
+            ->addColumn('ris_number_display', function ($row) { return e($row->ris_number ?: '—'); })
+            ->addColumn('ris_date_display', function ($row) { return $row->ris_date ? Carbon::parse($row->ris_date)->format('M d, Y') : '—'; })
+            ->addColumn('status_badge', function ($row) {
+                $status = $row->approval_status ?: 'Approved';
+                $class = [
+                    'Approved' => 'success', 'Rejected' => 'danger', 'For Processing' => 'info text-dark',
+                    'Replacing' => 'primary', 'Warehouse Confirmed' => 'success', 'Documents Submitted' => 'secondary',
+                ][$status] ?? 'warning text-dark';
+                return '<span class="badge bg-' . $class . '">' . e($status) . '</span>';
+            })
+            ->addColumn('attachments', function ($row) {
+                $files = is_array($row->pull_out_attachments) ? $row->pull_out_attachments : (json_decode($row->pull_out_attachments ?: '[]', true) ?: []);
+                if (!count($files)) return '<span class="text-muted">—</span>';
+
+                return collect($files)->map(function ($file) {
+                    $path = is_array($file) ? ($file['path'] ?? '') : $file;
+                    $name = is_array($file) ? ($file['name'] ?? basename($path)) : basename($path);
+                    return $path ? '<a class="d-block text-primary text-nowrap" href="' . e(asset($path)) . '" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip"></i> ' . e($name) . '</a>' : '';
+                })->filter()->implode('');
+            })
+            ->addColumn('remarks', function ($row) { return e($row->warehouse_remarks ?: $row->remarks ?: '—'); })
+            ->filterColumn('distributor', function ($builder, $keyword) { $builder->where('distributors.name', 'like', "%{$keyword}%"); })
+            ->rawColumns(['pull_out_product', 'replacement_product', 'status_badge', 'attachments'])
+            ->make(true);
+    }
+
+    private function pullOutReportQuery()
+    {
+        // Qualify the columns because the report joins users for distributor names.
+        // Without this, warehouse-admin reports fail with an ambiguous `warehouse`
+        // column during DataTables' count query.
+        $query = InventoryTransfer::query()->where('inventory_transfers.out_type', 'Pull Out');
+        $user = auth()->user();
+        $warehouse = strtolower((string) ($user->warehouse ?? ''));
+
+        if ($user->role === 'Area Distributor') {
+            // An AD may only see the pull-out requests that they submitted.
+            $query->where('inventory_transfers.ad_user_id', $user->id);
+        } elseif ($user->role === 'Admin' && in_array($warehouse, ['lubao', 'guinobatan'], true)) {
+            // Warehouse admins only see requests routed to their warehouse.
+            $query->where('inventory_transfers.warehouse', $warehouse);
+        }
+
+        return $query;
     }
 
     public function reviewPullOut(Request $request, $id)

@@ -79,7 +79,8 @@ class EnsureModuleAccess
             'ad-purchase-orders.store' => ['purchase_orders', 'adpo', 'add', 'can_access_purchase_orders'],
             'inventory-transfers.index' => ['inventory_transfers', 'transfers', $view, null],
             'inventory-transfers.store' => ['inventory_transfers', 'transfers', 'add', null],
-            'warehouse-pull-outs.index' => ['inventory_transfers', 'transfers', $view, null],
+            'warehouse-pull-outs.index' => ['pull_out_requests', 'approvals', $view, null],
+            'warehouse-pull-outs.review' => ['pull_out_requests', 'approvals', 'edit', null],
             'return-refunds.index' => ['return_refunds', 'requests', $view, null],
             'charges' => ['charges', 'records', $view, null],
             'charges.store' => ['charges', 'records', 'add', null],
@@ -96,6 +97,11 @@ class EnsureModuleAccess
             'vouchers' => ['settings', 'campaigns', $view, 'can_access_settings'],
             'raffles' => ['settings', 'campaigns', $view, 'can_access_settings'],
             'dsr' => ['reports', 'sales', $view, 'can_access_reports'],
+            // The report is part of the Pull Out Requests module.  Keeping it on
+            // this permission also allows a warehouse user with Pull Out Request
+            // view access to load the DataTables AJAX endpoint.
+            'pull-out-report' => ['pull_out_requests', 'approvals', $view, null],
+            'pull-out-report.data' => ['pull_out_requests', 'approvals', $view, null],
             'aging' => ['reports', 'operations', $view, 'can_access_reports'],
             'dpo' => ['reports', 'sales', $view, 'can_access_reports'],
             'isl' => ['reports', 'operations', $view, 'can_access_reports'],

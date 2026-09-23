@@ -1710,6 +1710,7 @@
                 $canAccessStockRequests = $canAccessModule('stock_requests', 'approvals', 'can_access_stock_requests');
                 $canAccessOrders = $canAccessModule('orders', 'sales_orders');
                 $canAccessTransfers = $canAccessModule('inventory_transfers', 'transfers');
+                $canAccessPullOutRequests = $canAccessModule('pull_out_requests', 'approvals');
                 $canAccessReturnRefunds = $canAccessModule('return_refunds', 'requests');
                 $canAccessCharges = $canAccessModule('charges', 'records');
                 $canAccessProducts = $canAccessModule('products', 'catalog');
@@ -1739,6 +1740,25 @@
                         ($sidebarUser->can_edit ?? null) === 'on' ||
                         ($sidebarUser->can_delete ?? null) === 'on'
                     ));
+
+                $pendingPullOutRequestsCount = 0;
+                $pendingReturnRefundRequestsCount = 0;
+                if (in_array($sidebarWarehouse, ['lubao', 'guinobatan'], true)) {
+                    $pendingPullOutRequestsCount = \App\InventoryTransfer::where('out_type', 'Pull Out')
+                        ->where('approval_status', 'Pending')
+                        ->where('warehouse', $sidebarWarehouse)
+                        ->count();
+                    $pendingReturnRefundRequestsCount = \App\InventoryTransfer::where('out_type', 'Return and Refund')
+                        ->where('approval_status', 'Pending')
+                        ->where('warehouse', $sidebarWarehouse)
+                        ->count();
+                }
+
+                if ($sidebarIsAdmin && strtolower(trim((string) $sidebarUser->name)) === 'dennis villareal') {
+                    $pendingReturnRefundRequestsCount = \App\InventoryTransfer::where('out_type', 'Return and Refund')
+                        ->where('approval_status', 'Pending')
+                        ->count();
+                }
             @endphp
 
             <div class="nav-section">
@@ -1924,6 +1944,9 @@
                                 <li class="nav-item">
                                     <a href="{{ url('/reports/stock-inventory') }}" class="nav-link @if(Route::currentRouteName() == 'stock-inventory') active @endif" style="font-size: 14px">Stock Inventory Sheet</a>
                                 </li>
+                                <li class="nav-item">
+                                    <a href="{{ route('pull-out-report') }}" class="nav-link @if(Route::currentRouteName() == 'pull-out-report') active @endif" style="font-size: 14px">Pull Out Request Report</a>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -1972,15 +1995,18 @@
                     </div>
                     <div class="nav-item">
                         <a href="{{url('warehouse/pull-out-requests')}}" class="nav-link @if(Route::currentRouteName() == 'warehouse-pull-outs.index')active @endif">
-                            <div class="nav-icon">
+                            <div class="nav-icon position-relative">
                                <i class="bi bi-arrow-left-right fs-2"></i>
+                                @if($pendingPullOutRequestsCount > 0)
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingPullOutRequestsCount > 99 ? '99+' : $pendingPullOutRequestsCount }}</span>
+                                @endif
                             </div>
                             <span class="nav-text">Pull Out Request</span>
                         </a>
                     </div>
                     <div class="nav-item">
                         <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index')active @endif">
-                            <div class="nav-icon"><i class="bi bi-arrow-return-left fs-2"></i></div>
+                            <div class="nav-icon position-relative"><i class="bi bi-arrow-return-left fs-2"></i>@if($pendingReturnRefundRequestsCount > 0)<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingReturnRefundRequestsCount > 99 ? '99+' : $pendingReturnRefundRequestsCount }}</span>@endif</div>
                             <span class="nav-text">Return &amp; Refund</span>
                         </a>
                     </div>
@@ -2025,15 +2051,18 @@
                     </div>
                     <div class="nav-item">
                         <a href="{{url('warehouse/pull-out-requests')}}" class="nav-link @if(Route::currentRouteName() == 'warehouse-pull-outs.index')active @endif">
-                            <div class="nav-icon">
+                            <div class="nav-icon position-relative">
                                 <i class="bi bi-arrow-left-right fs-2"></i>
+                                @if($pendingPullOutRequestsCount > 0)
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingPullOutRequestsCount > 99 ? '99+' : $pendingPullOutRequestsCount }}</span>
+                                @endif
                             </div>
                             <span class="nav-text">Pull Out Request</span>
                         </a>
                     </div>
                     <div class="nav-item">
                         <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index')active @endif">
-                            <div class="nav-icon"><i class="bi bi-arrow-return-left fs-2"></i></div>
+                            <div class="nav-icon position-relative"><i class="bi bi-arrow-return-left fs-2"></i>@if($pendingReturnRefundRequestsCount > 0)<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingReturnRefundRequestsCount > 99 ? '99+' : $pendingReturnRefundRequestsCount }}</span>@endif</div>
                             <span class="nav-text">Return &amp; Refund</span>
                         </a>
                     </div>
@@ -2107,6 +2136,14 @@
                         </a>
                     </div>
                 @endif
+                @if(($sidebarIsAdmin || $sidebarIsSedp) && in_array($sidebarWarehouse, ['lubao', 'guinobatan'], true) && $canAccessPullOutRequests)
+                    <div class="nav-item">
+                        <a href="{{ route('warehouse-pull-outs.index') }}" class="nav-link @if(in_array(Route::currentRouteName(), ['warehouse-pull-outs.index', 'warehouse-pull-outs.review'])) active @endif">
+                            <div class="nav-icon position-relative"><i class="ti ti-clipboard-check"></i>@if($pendingPullOutRequestsCount > 0)<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingPullOutRequestsCount > 99 ? '99+' : $pendingPullOutRequestsCount }}</span>@endif</div>
+                            <span class="nav-text">Pull Out Requests</span>
+                        </a>
+                    </div>
+                @endif
                 @if($sidebarIsSedp && $canAccessTransfers)
                     <div class="nav-item">
                         <a href="{{ route('inventory-transfers.index') }}" class="nav-link @if(Route::currentRouteName() == 'inventory-transfers.index') active @endif">
@@ -2118,7 +2155,7 @@
                 @if($sidebarIsSedp && $canAccessReturnRefunds)
                     <div class="nav-item">
                         <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index') active @endif">
-                            <div class="nav-icon"><i class="ti ti-arrow-back-up"></i></div>
+                            <div class="nav-icon position-relative"><i class="ti ti-arrow-back-up"></i>@if($pendingReturnRefundRequestsCount > 0)<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingReturnRefundRequestsCount > 99 ? '99+' : $pendingReturnRefundRequestsCount }}</span>@endif</div>
                             <span class="nav-text">Return &amp; Refund</span>
                         </a>
                     </div>
@@ -2134,7 +2171,7 @@
                 @if($sidebarIsAdmin && strtolower(trim((string) auth()->user()->name)) === 'dennis villareal')
                     <div class="nav-item">
                         <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index')active @endif">
-                            <div class="nav-icon"><i class="bi bi-arrow-return-left fs-2"></i></div>
+                            <div class="nav-icon position-relative"><i class="bi bi-arrow-return-left fs-2"></i>@if($pendingReturnRefundRequestsCount > 0)<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingReturnRefundRequestsCount > 99 ? '99+' : $pendingReturnRefundRequestsCount }}</span>@endif</div>
                             <span class="nav-text">Return &amp; Refund</span>
                         </a>
                     </div>

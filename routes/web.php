@@ -220,6 +220,8 @@ Route::post('/stock-requests/{id}/reject', 'DealerStockRequestController@reject'
 
 // Reports
 Route::get('/reports/daily-sales', 'ReportController@dailySalesReport')->name('dsr');
+Route::get('/reports/pull-out-requests', 'InventoryTransferController@pullOutReport')->name('pull-out-report');
+Route::get('/reports/pull-out-requests/data', 'InventoryTransferController@pullOutReportData')->name('pull-out-report.data');
 Route::get('/reports/daily-sales/export', 'ReportController@exportDailySales')->name('reports.daily.export');
 Route::get('/reports/distributor-other-charges', 'ReportController@distributorOtherChargesReport')->name('reports.distributor-other-charges');
 Route::get('/reports/aging', 'ReportController@agingReport')->name('aging');

@@ -47,9 +47,12 @@
                         <thead>
                             <tr>
                                 <th>Request</th>
+                                <th>Area Distributor</th>
                                 <th>Product</th>
                                 <th>Source Area</th>
                                 <th>Requested</th>
+                                <th>RIS Details</th>
+                                <th>Attachments</th>
                                 <th>Status</th>
                                 <th class="queue-action-column">Action</th>
                             </tr>
@@ -69,6 +72,10 @@
                                         <div class="fw-bold text-dark">{{ $request->reference_no ?: 'Draft request' }}</div>
                                         <small class="text-muted">{{ $request->transfer_date ? $request->transfer_date->format('M d, Y') : '-' }}</small>
                                     </td>
+                                    <td data-label="Area Distributor">
+                                        <div class="fw-semibold">{{ $request->ad_name ?: 'Area Distributor' }}</div>
+                                        <small class="text-muted">{{ $request->from_area ?: 'No assigned area' }}</small>
+                                    </td>
                                     <td data-label="Product">
                                         <div class="fw-semibold">{{ $request->item_name }}</div>
                                         <small class="text-muted">{{ $request->sku ?: 'No SKU' }}</small>
@@ -77,6 +84,23 @@
                                     <td data-label="Requested">
                                         <div class="fw-bold">{{ number_format($request->replacement_qty) }}</div>
                                         <small class="text-muted">PHP {{ number_format($request->replacement_unit_cost ?? 0, 2) }}</small>
+                                    </td>
+                                    <td data-label="RIS Details">
+                                        <div class="fw-semibold">{{ $request->ris_number ?: '—' }}</div>
+                                        <small class="text-muted">{{ $request->ris_date ? $request->ris_date->format('M d, Y') : 'RIS date not set' }}</small>
+                                    </td>
+                                    <td data-label="Attachments">
+                                        @forelse ($request->pull_out_attachments ?: [] as $file)
+                                            @php
+                                                $attachmentPath = is_array($file) ? ($file['path'] ?? null) : $file;
+                                                $attachmentName = is_array($file) ? ($file['name'] ?? basename($attachmentPath)) : basename($attachmentPath);
+                                            @endphp
+                                            @if ($attachmentPath)
+                                                <a class="d-block text-primary small text-truncate" style="max-width: 160px;" href="{{ asset($attachmentPath) }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip"></i> {{ $attachmentName }}</a>
+                                            @endif
+                                        @empty
+                                            <span class="text-muted">—</span>
+                                        @endforelse
                                     </td>
                                     <td data-label="Status" data-order="{{ $request->approval_status }}">
                                         <span class="workflow-badge {{ $statusMeta['class'] }}"><i class="bi {{ $statusMeta['icon'] }}"></i>{{ $request->approval_status }}</span>
@@ -111,14 +135,6 @@
                                                 @endif
                                             </div>
                                         @endif
-
-                                        @if ($request->pull_out_attachments)
-                                            <div class="proof-files">
-                                                @foreach ($request->pull_out_attachments as $file)
-                                                    <a href="{{ asset($file['path']) }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip"></i>{{ $file['name'] }}</a>
-                                                @endforeach
-                                            </div>
-                                        @endif
                                     </td>
                                 </tr>
                             @empty
@@ -140,7 +156,7 @@
         .workflow-badge { display:inline-flex; align-items:center; gap:5px; padding:5px 8px; font-size:11px; font-weight:800; border-radius:999px; white-space:nowrap; }.workflow-badge.is-pending { color:#92400e; background:#fef3c7; }.workflow-badge.is-processing { color:#075985; background:#e0f2fe; }.workflow-badge.is-replacing { color:#1d4ed8; background:#dbeafe; }.workflow-badge.is-rejected { color:#b91c1c; background:#fee2e2; }
         .queue-action-form { min-width:280px; }.queue-action-form label { display:block; margin-bottom:3px; color:#64748b; font-size:10px; font-weight:800; text-transform:uppercase; }.approved-summary { display:flex; justify-content:space-between; padding:7px 9px; color:#075985; font-size:12px; background:#f0f9ff; border-radius:7px; }.queue-complete { color:#64748b; font-size:12px; }.proof-files { display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }.proof-files a { max-width:155px; overflow:hidden; color:#2563eb; font-size:11px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
         .pull-out-queue .dataTables_wrapper { padding-top:16px; }.pull-out-queue .dataTables_filter input, .pull-out-queue .dataTables_length select { min-height:34px; border:1px solid #dbe2ea; border-radius:7px; }.pull-out-queue .dataTables_filter { text-align:right; }.pull-out-queue .dataTables_info { color:#64748b; font-size:12px; }.pull-out-queue .dataTables_paginate .paginate_button { padding:0!important; margin-left:4px; }
-        @media (max-width: 991.98px) { .queue-table { min-width:960px; }.queue-action-column { min-width:300px; }.pull-out-queue .dataTables_wrapper .row { align-items:center; } }
+        @media (max-width: 991.98px) { .queue-table { min-width:1260px; }.queue-action-column { min-width:300px; }.pull-out-queue .dataTables_wrapper .row { align-items:center; } }
         @media (max-width: 767.98px) { .queue-hero { padding:20px; }.queue-hero-icon { width:46px; height:46px; font-size:22px; }.pull-out-queue .dataTables_filter { margin-top:10px; text-align:left; }.pull-out-queue .dataTables_filter input { width:190px; }.queue-card .card-header { padding:17px; } }
         @media (max-width: 575.98px) { .pull-out-queue { padding-right:12px; padding-left:12px; }.queue-hero { align-items:flex-start; gap:15px; padding:18px; }.queue-hero h4 { font-size:19px; }.queue-kpi { padding:13px; }.queue-kpi strong { font-size:22px; }.queue-card { overflow:visible; }.queue-table { min-width:0; }.queue-table thead { display:none; }.queue-table, .queue-table tbody, .queue-table tr, .queue-table td { display:block; width:100%; }.queue-table tbody tr { margin-bottom:12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; overflow:hidden; }.queue-table tbody td { align-items:flex-start; gap:14px; padding:11px 13px; border:0; border-bottom:1px solid #f1f5f9; text-align:center; }.queue-table tbody td::before { content:attr(data-label); flex:0 0 82px; color:#64748b; font-size:10px; font-weight:800; text-align:left; text-transform:uppercase; letter-spacing:.04em; }.queue-table .queue-action-cell { display:block; text-align:left; }.queue-table .queue-action-cell::before { display:block; margin-bottom:8px; }.queue-action-form { min-width:0; }.queue-action-form .form-row { margin-right:-3px; margin-left:-3px; }.queue-action-form .form-row > .col-4 { padding-right:3px; padding-left:3px; }.approved-summary { width:100%; }.proof-files { margin-top:10px; }.pull-out-queue .dataTables_wrapper .row > div { width:100%; max-width:100%; }.pull-out-queue .dataTables_length, .pull-out-queue .dataTables_filter { margin-bottom:10px; text-align:left; }.pull-out-queue .dataTables_filter input { width:calc(100% - 115px); }.pull-out-queue .dataTables_paginate { margin-top:10px; text-align:left; }.pull-out-queue .dataTables_info { margin-bottom:8px; } }
     </style>
@@ -179,7 +195,7 @@
                 lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
                 order: [[0, 'desc']],
                 autoWidth: false,
-                columnDefs: [{ targets: 5, orderable: false, searchable: false }],
+                columnDefs: [{ targets: 8, orderable: false, searchable: false }],
                 language: { search: 'Search requests:', lengthMenu: 'Show _MENU_ requests', emptyTable: 'No Pull Out replacement requests for this warehouse.', zeroRecords: 'No matching replacement requests found.' }
             });
         });

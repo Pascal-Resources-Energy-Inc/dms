@@ -973,6 +973,7 @@ class UserController extends Controller
             'purchase_orders' => ['adpo'],
             'inventory' => ['stock'],
             'inventory_transfers' => ['transfers'],
+            'pull_out_requests' => ['approvals'],
             'return_refunds' => ['requests'],
             'settings' => ['items', 'rewards', 'campaigns'],
             'products' => ['catalog'],

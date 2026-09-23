@@ -26,6 +26,7 @@ class InventoryTransfer extends Model implements Auditable
         'reference_no',
         'pull_out_attachments',
         'ris_number',
+        'ris_date',
         'return_date',
         'return_attachments',
         'warehouse_received_qty',
@@ -54,6 +55,7 @@ class InventoryTransfer extends Model implements Auditable
 
     protected $dates = [
         'transfer_date',
+        'ris_date',
         'deleted_at',
     ];
 
