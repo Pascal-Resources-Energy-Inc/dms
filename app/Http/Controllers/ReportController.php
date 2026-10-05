@@ -308,6 +308,171 @@ class ReportController extends Controller
         ]));
     }
 
+    public function centerChiefIncentivesReport(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $year = (int) ($request->input('year') ?: Carbon::now()->year);
+        $center = trim((string) $request->input('center'));
+        $rate = 2.00;
+        $report = $this->buildCenterChiefIncentivesReport($year, $center, $rate);
+
+        return view('reports.center_chief_incentives', array_merge($report, [
+            'year' => $year,
+            'selectedCenter' => $center,
+            'rate' => $rate,
+        ]));
+    }
+
+    public function centerChiefIncentiveTransactions(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $year = (int) $request->input('year');
+        $month = (int) $request->input('month');
+        $center = trim((string) $request->input('center'));
+        $centerChiefId = (int) $request->input('center_chief_id');
+
+        if ($year < 2000 || $year > 2100 || $month < 1 || $month > 12 || $center === '' || $centerChiefId < 1) {
+            return response()->json(['message' => 'Invalid transaction list request.'], 422);
+        }
+
+        if (!$this->canAccessCenterChiefIncentiveCenter($center)) {
+            return response()->json(['message' => 'You are not allowed to view these transactions.'], 403);
+        }
+
+        try {
+            $connection = 'admin_crms';
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (!$schema->hasTable('clients') || !$schema->hasTable('transaction_details') || !$schema->hasColumn('clients', 'center')) {
+                return response()->json(['transactions' => []]);
+            }
+
+            $dateColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['date', 'created_at', 'updated_at']);
+            $clientColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['client_id', 'customer_id', 'user_id']);
+            $qtyColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['qty', 'quantity']);
+            $itemColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['item', 'product_name', 'item_name', 'description', 'product', 'name']);
+            $referenceColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['reference_no', 'transaction_no', 'transaction_id', 'invoice_no', 'receipt_no']);
+            $dealerColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['dealer_id', 'user_id']);
+
+            if (!$dateColumn || !$clientColumn || !$itemColumn || !$dealerColumn) {
+                return response()->json(['transactions' => []]);
+            }
+
+            $centerKey = $this->normalizeSignupCenter($center);
+            $clientNameColumn = $this->firstExistingCrmColumn($schema, 'clients', ['name', 'full_name']);
+            $clientColumns = ['id', 'center'];
+            if ($clientNameColumn) {
+                $clientColumns[] = $clientNameColumn;
+            }
+
+            $clients = DB::connection($connection)->table('clients')
+                ->select($clientColumns)
+                ->whereNotNull('center')
+                ->when($schema->hasColumn('clients', 'deleted_at'), function ($query) {
+                    $query->whereNull('deleted_at');
+                })
+                ->get()
+                ->filter(function ($client) use ($centerKey) {
+                    return $this->normalizeSignupCenter($client->center) === $centerKey;
+                })
+                ->values();
+
+            if ($clients->isEmpty()) {
+                return response()->json(['transactions' => []]);
+            }
+
+            $clientNames = $clients->mapWithKeys(function ($client) use ($clientNameColumn) {
+                $name = $clientNameColumn ? trim((string) ($client->{$clientNameColumn} ?? '')) : '';
+
+                return [$client->id => $name ?: 'Unnamed Client'];
+            });
+
+            $columns = [
+                $clientColumn . ' as transaction_client_id',
+                DB::raw($dateColumn . ' as transaction_date'),
+                DB::raw($qtyColumn ? 'COALESCE(' . $qtyColumn . ', 1) as transaction_quantity' : '1 as transaction_quantity'),
+                $itemColumn . ' as transaction_item',
+            ];
+
+            if ($referenceColumn) {
+                $columns[] = $referenceColumn . ' as transaction_reference';
+            }
+
+            $transactions = DB::connection($connection)->table('transaction_details')
+                ->select($columns)
+                ->whereIn($clientColumn, $clients->pluck('id')->all())
+                ->where($dealerColumn, $centerChiefId)
+                ->whereNotNull($dateColumn)
+                ->whereYear($dateColumn, $year)
+                ->whereMonth($dateColumn, $month)
+                ->where(function ($query) use ($itemColumn) {
+                    $query->where(function ($itemQuery) use ($itemColumn) {
+                        $itemQuery->where($itemColumn, 'like', '%330g%')
+                            ->orWhere($itemColumn, 'like', '%330 g%');
+                    })->where($itemColumn, 'like', '%refill%');
+                })
+                ->when($schema->hasColumn('transaction_details', 'deleted_at'), function ($query) {
+                    $query->whereNull('deleted_at');
+                })
+                ->when($schema->hasColumn('transaction_details', 'status'), function ($query) {
+                    $query->whereRaw("LOWER(TRIM(status)) NOT IN ('cancelled', 'canceled', 'void')");
+                })
+                ->orderBy($dateColumn)
+                ->get()
+                ->map(function ($transaction) use ($clientNames) {
+                    return [
+                        'date' => Carbon::parse($transaction->transaction_date)->format('M d, Y h:i A'),
+                        'client' => $clientNames->get($transaction->transaction_client_id, 'Unnamed Client'),
+                        'item' => trim((string) $transaction->transaction_item) ?: '330g Refill',
+                        'reference' => trim((string) ($transaction->transaction_reference ?? '—')) ?: '—',
+                        'quantity' => (float) $transaction->transaction_quantity,
+                    ];
+                })->values();
+
+            return response()->json(['transactions' => $transactions]);
+        } catch (\Exception $exception) {
+            return response()->json(['message' => 'Unable to load transactions.'], 500);
+        }
+    }
+
+    public function exportCenterChiefIncentives(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $year = (int) ($request->input('year') ?: Carbon::now()->year);
+        $center = trim((string) $request->input('center'));
+        $rate = 2.00;
+        $report = $this->buildCenterChiefIncentivesReport($year, $center, $rate);
+        $months = $this->signupIncentiveMonths;
+        $filename = 'center-chief-incentives-' . $year . '.csv';
+
+        return response()->streamDownload(function () use ($report, $months, $rate) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, array_merge(['Center', 'Center Chief'], array_values($months), ['Total 330g Refills', 'Rate Per Refill', 'Incentive']));
+
+            foreach ($report['rows'] as $row) {
+                fputcsv($handle, array_merge([$row['center'], $row['center_chief']], array_map(function ($month) use ($row) {
+                    return $row['monthly_refills'][$month] ?: 0;
+                }, array_keys($months)), [
+                    $row['total_refills'],
+                    number_format($rate, 2, '.', ''),
+                    number_format($row['incentive'], 2, '.', ''),
+                ]));
+            }
+
+            fputcsv($handle, array_merge(['Grand Total', ''], array_map(function ($month) use ($report) {
+                return $report['grandMonthlyRefills'][$month] ?: 0;
+            }, array_keys($months)), [
+                $report['grandTotalRefills'],
+                number_format($rate, 2, '.', ''),
+                number_format($report['grandIncentive'], 2, '.', ''),
+            ]));
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
     public function distributorOtherChargesReport(Request $request)
     {
         $user = auth()->user();
@@ -1053,6 +1218,190 @@ class ReportController extends Controller
             'grandTotalRefills' => array_sum($grandMonthlyRefills),
             'grandComputedIncentive' => array_sum($grandMonthlyIncentives),
             'lowRepeatMonths' => $lowRepeatMonths,
+        ];
+    }
+
+    private function canAccessCenterChiefIncentiveCenter($center)
+    {
+        $user = auth()->user();
+
+        if (strtolower(trim((string) ($user->role ?? ''))) !== 'mfi') {
+            return true;
+        }
+
+        return $this->splitSignupTerritories($user->territory ?? '')
+            ->map(function ($territory) {
+                return $this->normalizeSignupCenter($territory);
+            })->filter()->contains($this->normalizeSignupCenter($center));
+    }
+
+    private function buildCenterChiefIncentivesReport($year, $centerFilter, $rate)
+    {
+        $months = $this->signupIncentiveMonths;
+        $monthKeys = array_keys($months);
+        $emptyMonths = array_fill_keys($monthKeys, 0.0);
+        $centerFilterKey = $this->normalizeSignupCenter($centerFilter);
+        $authUser = auth()->user();
+        $isMfi = strtolower(trim((string) ($authUser->role ?? ''))) === 'mfi';
+        $allowedCenters = $isMfi
+            ? $this->splitSignupTerritories($authUser->territory ?? '')->map(function ($territory) {
+                return $this->normalizeSignupCenter($territory);
+            })->filter()->flip()
+            : null;
+
+        $centerKeyToName = Center::orderBy('name')->get()->pluck('name')->filter()->mapWithKeys(function ($name) {
+            return [$this->normalizeSignupCenter($name) => trim((string) $name)];
+        })->all();
+
+        $rowsByCenterChief = collect();
+
+        try {
+            $connection = 'admin_crms';
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if (!$schema->hasTable('clients') || !$schema->hasTable('transaction_details') || !$schema->hasColumn('clients', 'center')) {
+                return $this->emptyCenterChiefIncentivesReport($months, $emptyMonths, $centerKeyToName, $allowedCenters, $rate);
+            }
+
+            $dateColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['date', 'created_at', 'updated_at']);
+            $clientColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['client_id', 'customer_id', 'user_id']);
+            $qtyColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['qty', 'quantity']);
+            $itemColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['item', 'product_name', 'item_name', 'description', 'product', 'name']);
+            $dealerColumn = $this->firstExistingCrmColumn($schema, 'transaction_details', ['dealer_id', 'user_id']);
+
+            if (!$dateColumn || !$clientColumn || !$itemColumn || !$dealerColumn
+                || !$schema->hasTable('center_chiefs')
+                || !$schema->hasColumn('center_chiefs', 'user_id')
+                || !$schema->hasColumn('center_chiefs', 'name')) {
+                return $this->emptyCenterChiefIncentivesReport($months, $emptyMonths, $centerKeyToName, $allowedCenters, $rate);
+            }
+
+            $clients = DB::connection($connection)->table('clients')
+                ->select('id', 'center')
+                ->whereNotNull('center')
+                ->where('center', '<>', '')
+                ->when($schema->hasColumn('clients', 'deleted_at'), function ($query) {
+                    $query->whereNull('deleted_at');
+                })
+                ->get()
+                ->map(function ($client) use (&$centerKeyToName) {
+                    $key = $this->normalizeSignupCenter($client->center);
+                    $centerKeyToName[$key] = $centerKeyToName[$key] ?? trim((string) $client->center);
+                    $client->center_key = $key;
+                    return $client;
+                })
+                ->filter(function ($client) use ($centerFilterKey, $allowedCenters) {
+                    return $client->center_key !== ''
+                        && ($centerFilterKey === '' || $client->center_key === $centerFilterKey)
+                        && ($allowedCenters === null || $allowedCenters->has($client->center_key));
+                })->values();
+
+            $clientCenterKeys = $clients->pluck('center_key', 'id');
+            if ($clientCenterKeys->isEmpty()) {
+                return $this->emptyCenterChiefIncentivesReport($months, $emptyMonths, $centerKeyToName, $allowedCenters, $rate);
+            }
+
+            $transactions = DB::connection($connection)->table('transaction_details as td')
+                ->select(
+                    'td.' . $clientColumn . ' as incentive_client_id',
+                    'cc.user_id as incentive_center_chief_id',
+                    'cc.name as incentive_center_chief_name',
+                    DB::raw('MONTH(td.' . $dateColumn . ') as incentive_month'),
+                    DB::raw($qtyColumn ? 'SUM(COALESCE(td.' . $qtyColumn . ', 1)) as incentive_refills' : 'COUNT(*) as incentive_refills')
+                )
+                ->join('center_chiefs as cc', 'td.' . $dealerColumn, '=', 'cc.user_id')
+                ->whereIn('td.' . $clientColumn, $clientCenterKeys->keys()->all())
+                ->whereNotNull('td.' . $dateColumn)
+                ->whereYear('td.' . $dateColumn, $year)
+                ->where(function ($query) use ($itemColumn) {
+                    $query->where(function ($itemQuery) use ($itemColumn) {
+                        $itemQuery->where('td.' . $itemColumn, 'like', '%330g%')
+                            ->orWhere('td.' . $itemColumn, 'like', '%330 g%');
+                    })->where('td.' . $itemColumn, 'like', '%refill%');
+                })
+                ->when($schema->hasColumn('transaction_details', 'deleted_at'), function ($query) {
+                    $query->whereNull('td.deleted_at');
+                })
+                ->when($schema->hasColumn('transaction_details', 'status'), function ($query) {
+                    $query->whereRaw("LOWER(TRIM(td.status)) NOT IN ('cancelled', 'canceled', 'void')");
+                })
+                ->groupBy('td.' . $clientColumn, 'cc.user_id', 'cc.name', DB::raw('MONTH(td.' . $dateColumn . ')'))
+                ->get();
+
+            foreach ($transactions as $transaction) {
+                $centerKey = $clientCenterKeys->get($transaction->incentive_client_id);
+                $month = (int) $transaction->incentive_month;
+                $centerChiefId = (int) $transaction->incentive_center_chief_id;
+                $rowKey = $centerKey . '|' . $centerChiefId;
+
+                if (!$centerKey || !$centerChiefId || !array_key_exists($month, $emptyMonths)) {
+                    continue;
+                }
+
+                if (!$rowsByCenterChief->has($rowKey)) {
+                    $rowsByCenterChief->put($rowKey, [
+                        'center_key' => $centerKey,
+                        'center_chief_id' => $centerChiefId,
+                        'center_chief' => trim((string) $transaction->incentive_center_chief_name) ?: 'Unnamed Center Chief',
+                        'monthly_refills' => $emptyMonths,
+                    ]);
+                }
+
+                $row = $rowsByCenterChief->get($rowKey);
+                $monthlyRefills = $row['monthly_refills'];
+                $monthlyRefills[$month] += (float) $transaction->incentive_refills;
+                $row['monthly_refills'] = $monthlyRefills;
+                $rowsByCenterChief->put($rowKey, $row);
+            }
+        } catch (\Exception $exception) {
+            // The report intentionally renders an empty state when the CRM is unavailable.
+        }
+
+        $rows = $rowsByCenterChief->map(function ($row) use ($centerKeyToName, $rate) {
+            $totalRefills = array_sum($row['monthly_refills']);
+
+            return [
+                'center' => $centerKeyToName[$row['center_key']] ?? $row['center_key'],
+                'center_chief_id' => $row['center_chief_id'],
+                'center_chief' => $row['center_chief'],
+                'monthly_refills' => $row['monthly_refills'],
+                'total_refills' => $totalRefills,
+                'incentive' => $totalRefills * $rate,
+            ];
+        })->sortBy(function ($row) {
+            return $row['center'] . '|' . $row['center_chief'];
+        })->values();
+
+        $grandMonthlyRefills = $emptyMonths;
+        foreach ($rows as $row) {
+            foreach ($monthKeys as $month) {
+                $grandMonthlyRefills[$month] += $row['monthly_refills'][$month];
+            }
+        }
+
+        return [
+            'months' => $months,
+            'rows' => $rows,
+            'centers' => collect($centerKeyToName)->filter(function ($name, $key) use ($allowedCenters) {
+                return $allowedCenters === null || $allowedCenters->has($key);
+            })->values()->unique()->sort()->values(),
+            'grandMonthlyRefills' => $grandMonthlyRefills,
+            'grandTotalRefills' => array_sum($grandMonthlyRefills),
+            'grandIncentive' => array_sum($grandMonthlyRefills) * $rate,
+        ];
+    }
+
+    private function emptyCenterChiefIncentivesReport($months, $emptyMonths, array $centerKeyToName, $allowedCenters, $rate)
+    {
+        return [
+            'months' => $months,
+            'rows' => collect(),
+            'centers' => collect($centerKeyToName)->filter(function ($name, $key) use ($allowedCenters) {
+                return $allowedCenters === null || $allowedCenters->has($key);
+            })->values()->unique()->sort()->values(),
+            'grandMonthlyRefills' => $emptyMonths,
+            'grandTotalRefills' => 0,
+            'grandIncentive' => 0 * $rate,
         ];
     }
 

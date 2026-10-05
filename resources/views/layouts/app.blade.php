@@ -8,11 +8,9 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Laravel') }}</title>
-    <link rel="shortcut icon"  href="{{url('images/aaa.png')}}">
-    <link rel="icon"  href="{{url('images/aaa.png')}}">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'Laravel') }}</title>
+    <title>@yield('title', config('app.name', 'Gaz Lite DMS'))</title>
+    <link rel="shortcut icon" href="{{ asset('images/aaa.png') }}">
+    <link rel="icon" href="{{ asset('images/aaa.png') }}">
 
     <!-- Layout config Js -->
     <script src="{{asset('inside_css/assets/js/layout.js')}}"></script>
@@ -51,11 +49,9 @@
     {{-- <link href="{{ asset('css/app.css') }}" rel="stylesheet"> --}}
 </head>
 <body>
-    <div id = "loader" style="display:none;" class="loader">
-    </div>
-  
-                @yield('content')
-    </div>
+    <div id="loader" class="loader" hidden aria-hidden="true"></div>
+
+    @yield('content')
 
     {{-- <script src="{{asset('login_css/js/jquery-3.3.1.min.js')}}"></script>
     <script src="{{asset('login_css/js/popper.min.jss')}}"></script>

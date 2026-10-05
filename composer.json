@@ -16,6 +16,7 @@
         "maatwebsite/excel": "3.1",
         "owen-it/laravel-auditing": "~8.0",
         "realrashid/sweet-alert": "^7.3",
+        "setasign/fpdi-fpdf": "2.3",
         "simplesoftwareio/simple-qrcode": "^4.2",
         "yajra/laravel-datatables-oracle": "8.*"
     },

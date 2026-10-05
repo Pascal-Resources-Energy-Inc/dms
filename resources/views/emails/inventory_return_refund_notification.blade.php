@@ -8,7 +8,7 @@
 <strong>Product:</strong> {{ $movement->item_name }}<br>
 <strong>Quantity:</strong> {{ number_format($movement->warehouse_received_qty ?: $movement->qty) }}<br>
 @if($movement->ris_number)<strong>RIS #:</strong> {{ $movement->ris_number }}<br>@endif
-@if($movement->warehouse_reference_no)<strong>Warehouse reference #:</strong> {{ $movement->warehouse_reference_no }}<br>@endif
+@if($movement->warehouse_reference_no)<strong>SIRR #:</strong> {{ $movement->warehouse_reference_no }}<br>@endif
 <strong>Status:</strong> {{ $movement->approval_status }}</p>
 @if($recipientType === 'approver')
 <p><a href="{{ route('return-refunds.index') }}">Open Return and Refund requests</a></p>

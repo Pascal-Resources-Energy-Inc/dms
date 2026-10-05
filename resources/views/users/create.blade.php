@@ -352,6 +352,38 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="col-md-12 admin-only-fields" style="display:none;">
+                            <div class="warehouse-panel approval-type-panel {{ $errors->has('approval_types') ? 'is-invalid' : '' }}">
+                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                                    <div>
+                                        <div class="fs-6 fw-bold"><i class="bi bi-check2-square me-1"></i> Approval Type</div>
+                                        <small class="text-muted">Optional: select one approval responsibility for this admin account.</small>
+                                    </div>
+                                </div>
+                                <div class="approval-type-hint"><i class="bi bi-info-circle"></i> Optional — select one: Accounting or PQD/IAD.</div>
+                                <div class="row g-2">
+                                    <div class="col-sm-6">
+                                        <label class="warehouse-card approval-type-card" for="approval_type_accounting">
+                                            <input type="checkbox" name="approval_types[]" id="approval_type_accounting" value="Accounting" {{ in_array('Accounting', old('approval_types', []), true) ? 'checked' : '' }}>
+                                            <span class="warehouse-content">
+                                                <span class="warehouse-icon"><i class="bi bi-calculator"></i></span>
+                                                <span><strong>Accounting</strong><small>Accounting approval responsibility</small></span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label class="warehouse-card approval-type-card" for="approval_type_pqd_iad">
+                                            <input type="checkbox" name="approval_types[]" id="approval_type_pqd_iad" value="PQD/IAD" {{ in_array('PQD/IAD', old('approval_types', []), true) ? 'checked' : '' }}>
+                                            <span class="warehouse-content">
+                                                <span class="warehouse-icon"><i class="bi bi-shield-check"></i></span>
+                                                <span><strong>PQD/IAD</strong><small>Quality and internal audit approval</small></span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div id="approvalTypeFeedback" class="invalid-feedback approval-type-feedback {{ $errors->has('approval_types') ? 'd-block' : '' }}">{{ $errors->first('approval_types', 'Please select one approval type.') }}</div>
+                            </div>
+                        </div>
                         <div class="col-md-12 sedp-fields" style="display:none;">
                             <div class="sedp-panel">
                                 <div class="row mb-3">
@@ -703,6 +735,18 @@
         background: #eef6ff;
         box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.12);
     }
+
+    .approval-type-panel { border-color: #d9e6f7; background: linear-gradient(135deg, #f7fbff 0%, #fff 78%); }
+    .approval-type-hint { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; margin: -4px 0 12px; color: #475467; font-size: 12px; font-weight: 600; background: #fff; border: 1px solid #e4e7ec; border-radius: 6px; }
+    .approval-type-hint i { color: #0d6efd; }
+    .approval-type-panel.is-invalid { border-color: #dc3545; box-shadow: 0 0 0 3px rgba(220, 53, 69, .10); }
+    .approval-type-feedback { margin-top: 10px; font-weight: 700; }
+    .approval-type-card { display: block; height: 100%; }
+    .approval-type-card .warehouse-content { min-height: 88px; height: 100%; padding: 14px; }
+    .approval-type-card .warehouse-content::after { content: 'Select'; margin-left: auto; padding: 3px 7px; color: #667085; font-size: 10px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; background: #f2f4f7; border-radius: 999px; }
+    .approval-type-card input:checked + .warehouse-content::after { content: 'Selected'; color: #075985; background: #dff4ff; }
+    .approval-type-card input:checked + .warehouse-content .warehouse-icon { color: #fff; background: #0d6efd; }
+    .approval-type-card input:focus-visible + .warehouse-content { outline: 3px solid rgba(13, 110, 253, .22); outline-offset: 2px; }
 
     .warehouse-icon {
         width: 36px;
@@ -1097,6 +1141,8 @@
         .warehouse-options {
             grid-template-columns: 1fr;
         }
+
+        .approval-type-card .warehouse-content { min-height: 76px; }
 
         .mobile-verify-shell .input-group {
             display: grid;

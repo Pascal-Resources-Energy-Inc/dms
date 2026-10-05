@@ -49,6 +49,10 @@ Route::get('/areas', 'AreaController@index')->name('areas');
 Route::post('/areas', 'AreaController@store')->name('areas.store');
 Route::put('/areas/{area}', 'AreaController@update')->name('areas.update');
 Route::delete('/areas/{area}', 'AreaController@destroy')->name('areas.destroy');
+Route::get('/mfis', 'MfiController@index')->name('mfis.index');
+Route::post('/mfis', 'MfiController@store')->name('mfis.store');
+Route::put('/mfis/{mfi}', 'MfiController@update')->name('mfis.update');
+Route::delete('/mfis/{mfi}', 'MfiController@destroy')->name('mfis.destroy');
 Route::get('/products', 'ProductController@index')->name('products');
 Route::get('/products/create', 'ProductController@create')->name('products.create');
 Route::post('/products', 'ProductController@store')->name('products.store');
@@ -59,14 +63,21 @@ Route::post('/products/bulk-update', 'ProductController@storeBulk')
 
 // Inventory Transfer
 Route::get('/inventory-transfers', 'InventoryTransferController@index')->name('inventory-transfers.index');
+Route::get('/inventory-transfers/data', 'InventoryTransferController@movementHistoryData')->name('inventory-transfers.data');
 Route::post('/inventory-transfers', 'InventoryTransferController@store')->name('inventory-transfers.store');
 Route::delete('/inventory-transfers/{id}', 'InventoryTransferController@destroy')->name('inventory-transfers.destroy');
 Route::get('/warehouse/pull-out-requests', 'InventoryTransferController@warehousePullOuts')->name('warehouse-pull-outs.index');
+Route::get('/warehouse/pull-out-requests/data', 'InventoryTransferController@warehousePullOutsData')->name('warehouse-pull-outs.data');
 Route::post('/warehouse/pull-out-requests/{id}/review', 'InventoryTransferController@reviewPullOut')->name('warehouse-pull-outs.review');
 Route::get('/return-refund-requests', 'InventoryTransferController@returnRefundRequests')->middleware('auth')->name('return-refunds.index');
 Route::post('/return-refund-requests/{id}/approve', 'InventoryTransferController@approveReturnRefund')->middleware('auth')->name('return-refunds.approve');
-Route::post('/inventory-transfers/{id}/return-documents', 'InventoryTransferController@uploadReturnDocuments')->middleware('auth')->name('inventory-transfers.return-documents');
+Route::post('/return-refund-requests/{id}/documents', 'InventoryTransferController@uploadReturnDocuments')->middleware('auth')->name('return-refunds.documents');
 Route::post('/return-refund-requests/{id}/receive', 'InventoryTransferController@receiveReturnRefund')->middleware('auth')->name('return-refunds.receive');
+Route::post('/return-refund-requests/{id}/credit-memo', 'InventoryTransferController@submitReturnRefundCreditMemo')->middleware('auth')->name('return-refunds.credit-memo');
+Route::post('/return-refund-requests/{id}/revert', 'InventoryTransferController@revertReturnRefund')->middleware('auth')->name('return-refunds.revert');
+Route::post('/return-refund-requests/{id}/reviewed', 'InventoryTransferController@markReturnRefundReviewed')->middleware('auth')->name('return-refunds.reviewed');
+Route::post('/return-refund-requests/{id}/president-approve', 'InventoryTransferController@approveReturnRefundByPresident')->middleware('auth')->name('return-refunds.president-approve');
+Route::post('/return-refund-requests/{id}/president-revert', 'InventoryTransferController@revertReturnRefundByPresident')->middleware('auth')->name('return-refunds.president-revert');
 
 Route::get('/storelocation', 'HomeController@storelocation')->name('storelocation');
 Route::get('/api/locations-map', 'HomeController@getLocationsForMap')->name('locations.map');
@@ -222,6 +233,9 @@ Route::post('/stock-requests/{id}/reject', 'DealerStockRequestController@reject'
 Route::get('/reports/daily-sales', 'ReportController@dailySalesReport')->name('dsr');
 Route::get('/reports/pull-out-requests', 'InventoryTransferController@pullOutReport')->name('pull-out-report');
 Route::get('/reports/pull-out-requests/data', 'InventoryTransferController@pullOutReportData')->name('pull-out-report.data');
+Route::get('/reports/return-refund-requests', 'InventoryTransferController@returnRefundReport')->middleware('auth')->name('return-refund-report');
+Route::get('/reports/return-refund-requests/data', 'InventoryTransferController@returnRefundReportData')->middleware('auth')->name('return-refund-report.data');
+Route::post('/reports/pull-out-requests/{id}/confirm-replacement', 'InventoryTransferController@confirmPullOutReplacement')->middleware('auth')->name('pull-out-report.confirm-replacement');
 Route::get('/reports/daily-sales/export', 'ReportController@exportDailySales')->name('reports.daily.export');
 Route::get('/reports/distributor-other-charges', 'ReportController@distributorOtherChargesReport')->name('reports.distributor-other-charges');
 Route::get('/reports/aging', 'ReportController@agingReport')->name('aging');
@@ -244,6 +258,9 @@ Route::get('/reports/ad-awarded-areas', 'ReportController@adAwardedAreasReport')
 Route::get('/reports/repeat-purchase-incentives', 'ReportController@repeatPurchaseIncentivesReport')->name('repeat-purchase-incentives');
 Route::get('/reports/repeat-purchase-incentives/transactions', 'ReportController@repeatPurchaseTransactions')->name('repeat-purchase-incentives.transactions');
 Route::get('/reports/repeat-purchase-incentives/export', 'ReportController@exportRepeatPurchaseIncentives')->name('repeat-purchase-incentives.export');
+Route::get('/reports/center-chief-incentives', 'ReportController@centerChiefIncentivesReport')->name('center-chief-incentives');
+Route::get('/reports/center-chief-incentives/transactions', 'ReportController@centerChiefIncentiveTransactions')->name('center-chief-incentives.transactions');
+Route::get('/reports/center-chief-incentives/export', 'ReportController@exportCenterChiefIncentives')->name('center-chief-incentives.export');
 
 
 });

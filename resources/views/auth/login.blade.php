@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Sign in | Gaz Lite DMS')
 @section('content')
 <?php
 $hasErrors = $errors->any();
@@ -155,7 +156,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
                     </strong>
                 </div>
 
-                <form id="loginForm" aria-label="{{ __('Login') }}">
+                <form id="loginForm" method="POST" action="{{ route('login') }}" aria-label="{{ __('Login') }}" novalidate>
                     @csrf
                     <input type="hidden" name="selected_role" id="selectedRoleInput" value="{{ old('selected_role') }}">
 
@@ -188,6 +189,8 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
                     <button class="primary-button signin-button" type="submit" id="signinButton">
                         Sign in
                     </button>
+
+                    <p id="loginFeedback" class="login-feedback" role="alert" aria-live="polite"></p>
 
                     <div class="forgot-section">
                         <a href="{{ route('password.request') }}" class="forgot-link">Forgot password?</a>
@@ -656,6 +659,14 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
         margin-top: 6px;
     }
 
+    .login-feedback {
+        min-height: 20px;
+        margin: 12px 0 0;
+        color: #c2410c;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
     .forgot-section {
         margin: 18px 0 24px;
         text-align: center;
@@ -708,7 +719,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
             max-width: 620px;
         }
 
-        .brand-heading h1 {
+        .brand-heading h3 {
             max-width: 18ch;
             font-size: clamp(34px, 8vw, 48px);
             line-height: 1.04;
@@ -775,7 +786,7 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
             width: 168px;
         }
 
-        .brand-heading h1 {
+        .brand-heading h3 {
             font-size: 31px;
         }
 
@@ -905,13 +916,16 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
         e.preventDefault();
 
         const btn = document.getElementById('signinButton');
+        const feedback = document.getElementById('loginFeedback');
         const formData = new FormData(this);
+
+        feedback.textContent = '';
 
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Signing in...</span>';
 
         try {
-            const res = await fetch("{{ route('login') }}", {
+            const res = await fetch(this.action, {
                 method: "POST",
                 body: formData,
                 headers: {
@@ -920,19 +934,24 @@ $showRoleSelection = $isDirect && !$showLoginDirectly;
                 }
             });
 
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
 
-            if (data.success) {
+            if (res.ok && data.success) {
                 window.location.href = data.redirect;
-            } else {
-                Swal.fire("Error", data.message, "error");
+                return;
             }
-        } catch (err) {
-            Swal.fire("Error", "Server error", "error");
-        }
 
-        btn.disabled = false;
-        btn.innerHTML = "Sign in";
+            const message = (data.errors && data.errors.email && data.errors.email[0]) || data.message || 'Unable to sign in. Please check your details and try again.';
+            feedback.textContent = message;
+            Swal.fire('Sign in failed', message, 'error');
+        } catch (err) {
+            const message = 'We could not reach the server. Please try again.';
+            feedback.textContent = message;
+            Swal.fire('Sign in failed', message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Sign in';
+        }
     });
 </script>
 

@@ -23,6 +23,7 @@ class EnsureModuleAccess
         }
 
         $routeName = optional($request->route())->getName();
+
         $access = $this->routeAccess($routeName);
 
         if (! $access) {
@@ -64,6 +65,10 @@ class EnsureModuleAccess
             'items.store' => ['settings', 'items', 'add', 'can_access_settings'],
             'areas' => ['settings', 'campaigns', $view, 'can_access_settings'],
             'areas.store' => ['settings', 'campaigns', 'add', 'can_access_settings'],
+            'mfis.index' => ['settings', 'campaigns', $view, 'can_access_settings'],
+            'mfis.store' => ['settings', 'campaigns', 'add', 'can_access_settings'],
+            'mfis.update' => ['settings', 'campaigns', 'edit', 'can_access_settings'],
+            'mfis.destroy' => ['settings', 'campaigns', 'delete', 'can_access_settings'],
             'transactions' => ['transactions', 'sales', $view, 'can_access_transactions'],
             'new-transaction' => ['transactions', 'sales', 'add', 'can_access_transactions'],
             'transactions.destroy' => ['transactions', 'sales', 'delete', 'can_access_transactions'],
@@ -82,6 +87,14 @@ class EnsureModuleAccess
             'warehouse-pull-outs.index' => ['pull_out_requests', 'approvals', $view, null],
             'warehouse-pull-outs.review' => ['pull_out_requests', 'approvals', 'edit', null],
             'return-refunds.index' => ['return_refunds', 'requests', $view, null],
+            'return-refunds.approve' => ['return_refunds', 'requests', 'edit', null],
+            'return-refunds.documents' => ['return_refunds', 'requests', 'edit', null],
+            'return-refunds.receive' => ['return_refunds', 'requests', 'edit', null],
+            'return-refunds.credit-memo' => ['return_refunds', 'requests', 'edit', null],
+            'return-refunds.revert' => ['return_refunds', 'requests', 'edit', null],
+            'return-refunds.reviewed' => ['return_refunds', 'requests', 'edit', null],
+            'return-refunds.president-approve' => ['return_refunds', 'requests', 'edit', null],
+            'return-refunds.president-revert' => ['return_refunds', 'requests', 'edit', null],
             'charges' => ['charges', 'records', $view, null],
             'charges.store' => ['charges', 'records', 'add', null],
             'storelocation' => ['locations', 'directory', $view, null],
