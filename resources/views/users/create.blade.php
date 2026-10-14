@@ -140,13 +140,14 @@
                         <div class="col-md-6 mb-2">
                             <label class="form-label" for="contact_number">Mobile Number&nbsp;<span class="text-danger" id="contactRequiredMark">*</span></label>
                             <div class="mobile-verify-shell" id="mobileVerifyShell">
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                                <div class="mobile-verify-input">
+                                    <span class="mobile-phone-icon" aria-hidden="true"><i class="bi bi-phone"></i></span>
                                     <input type="text" class="form-control" id="contact_number" name="contact_number" placeholder="09xxxxxxxxx" maxlength="11" pattern="09[0-9]{9}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, ''); toggleContactRequired();">
-                                    <button type="button" class="btn btn-outline-primary" id="sendMobileOtpBtn">
-                                        Send OTP
+                                    <button type="button" class="btn btn-primary" id="sendMobileOtpBtn">
+                                        <i class="bi bi-send"></i><span>Send OTP</span>
                                     </button>
                                 </div>
+                                <div class="mobile-verify-hint"><i class="bi bi-shield-check"></i> We’ll send a 6-digit verification code to this number.</div>
                                 <div class="mobile-otp-panel" id="mobileOtpPanel" hidden>
                                     <div class="d-flex align-items-center gap-2">
                                         <input type="text" class="form-control otp-code-input" id="mobile_otp" placeholder="6-digit OTP" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
@@ -1086,15 +1087,81 @@
     }
 
     .mobile-verify-shell {
-        border: 1px solid #d9e2ec;
-        border-radius: 8px;
-        background: #fbfcfe;
-        padding: 8px;
+        border: 1px solid #dce6f1;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #fbfdff, #f5f9fe);
+        padding: 10px;
+        box-shadow: 0 8px 20px rgba(39, 82, 128, .05);
     }
 
-    .mobile-verify-shell .input-group-text {
-        background: #f1f6fb;
+    .mobile-verify-input {
+        display: grid;
+        grid-template-columns: 46px minmax(0, 1fr) auto;
+        align-items: stretch;
+        min-height: 46px;
+        overflow: hidden;
+        border: 1px solid #bfd1e4;
+        border-radius: 9px;
+        background: #fff;
+        transition: border-color .2s ease, box-shadow .2s ease;
+    }
+
+    .mobile-verify-input:focus-within {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, .12);
+    }
+
+    .mobile-phone-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-right: 1px solid #d8e3ef;
+        background: #eff6ff;
         color: #0d6efd;
+        font-size: 17px;
+    }
+
+    .mobile-verify-input .form-control {
+        min-width: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        font-weight: 700;
+        letter-spacing: .02em;
+        padding-inline: 14px;
+    }
+
+    .mobile-verify-input .form-control:focus {
+        box-shadow: none;
+    }
+
+    .mobile-verify-input .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-width: 118px;
+        border: 0;
+        border-left: 1px solid rgba(255, 255, 255, .24);
+        border-radius: 0;
+        font-size: 13px;
+        font-weight: 800;
+        white-space: nowrap;
+        padding: 0 16px;
+    }
+
+    .mobile-verify-hint {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 8px 2px 0;
+        color: #6b7c93;
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
+    .mobile-verify-hint i {
+        color: #168854;
     }
 
     .mobile-otp-panel {
@@ -1144,14 +1211,21 @@
 
         .approval-type-card .warehouse-content { min-height: 76px; }
 
-        .mobile-verify-shell .input-group {
+        .mobile-verify-input {
             display: grid;
             grid-template-columns: 42px 1fr;
+            overflow: visible;
         }
 
-        .mobile-verify-shell .input-group .btn {
+        .mobile-phone-icon {
+            border-radius: 8px 0 0 8px;
+        }
+
+        .mobile-verify-input .btn {
             grid-column: 1 / -1;
-            border-radius: 6px;
+            min-height: 42px;
+            border: 0;
+            border-radius: 8px;
             margin-top: 8px;
         }
 

@@ -1257,7 +1257,6 @@
                 formData.append('client_price', $('#edit_client_price').val() || $('#edit_price').val());
                 formData.append('dealer_price', $('#edit_dealer_price').val() || $('#edit_price').val());
                 formData.append('mega_dealer_price', $('#edit_mega_dealer_price').val() || $('#edit_price').val());
-                formData.append('deposit', $('#edit_deposit').val());
                 formData.append('status', $('#edit_status').val());
 
                 if (editSelectedItemType() === 'bundle') {

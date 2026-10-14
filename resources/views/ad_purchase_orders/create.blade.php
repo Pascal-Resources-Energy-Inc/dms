@@ -228,14 +228,14 @@
 
 @section('content')
 @php
-    $territoryOptions = $ad && $ad->areas
-        ? $ad->areas->map(function ($area) {
-            return [
-                'value' => $area->area_name,
-                'label' => trim(($area->project_type ? $area->project_type . ': ' : '') . $area->area_name),
-            ];
-        })->filter(fn($area) => $area['value'])->unique('value')->values()
-        : collect();
+    $profile = $ad ?: auth()->user();
+    $territoryOptions = collect($territoryOptions ?? [])->map(function ($territory) {
+        if (is_array($territory)) {
+            return $territory;
+        }
+
+        return ['value' => (string) $territory, 'label' => (string) $territory];
+    })->filter(fn($territory) => filled($territory['value']))->unique('value')->values();
     $selectedTerritory = old(
         'authorized_territory',
         $territoryOptions->count() === 1 ? $territoryOptions->first()['value'] : ''
@@ -315,9 +315,32 @@
                     </div>
                     <div class="adpo-info-panel">
                         <div class="adpo-info-grid">
+                            <div class="adpo-field-span">
+                                <label class="form-label" for="orderSource">Order From <span class="text-danger">*</span></label>
+                                @if($isProvincialDistributor ?? false)
+                                    <input type="hidden" name="order_source" value="prei_warehouse">
+                                    <div class="form-control bg-light d-flex align-items-center gap-2"><i class="bi bi-building"></i><strong>PREI Warehouse</strong></div>
+                                    <small class="text-muted d-block mt-1">Provincial Distributor replenishment orders are supplied by PREI Warehouse.</small>
+                                @else
+                                    <select id="orderSource" name="order_source" class="form-select">
+                                        <option value="prei_warehouse" {{ old('order_source', $selectedOrderSource) === 'prei_warehouse' ? 'selected' : '' }}>PREI Warehouse</option>
+                                        <option value="provincial_distributor" {{ old('order_source', $selectedOrderSource) === 'provincial_distributor' ? 'selected' : '' }}>Provincial Distributor</option>
+                                    </select>
+                                    <small class="text-muted d-block mt-1">Choose the source that will supply this order.</small>
+                                @endif
+                            </div>
+                            <div class="adpo-field-span {{ old('order_source', $selectedOrderSource) === 'provincial_distributor' ? '' : 'd-none' }}" id="provincialDistributorWrap">
+                                <label class="form-label" for="provincialDistributorId">Supplying Provincial Distributor <span class="text-danger">*</span></label>
+                                <select id="provincialDistributorId" name="provincial_distributor_id" class="form-select">
+                                    <option value="">Select Provincial Distributor</option>
+                                    @foreach($provincialDistributors as $provincialDistributor)
+                                        <option value="{{ $provincialDistributor->id }}" {{ (int) old('provincial_distributor_id', $selectedProvincialDistributorId) === (int) $provincialDistributor->id ? 'selected' : '' }}>{{ $provincialDistributor->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                             <div>
                                 <label class="form-label">Business Name</label>
-                                <input class="form-control" value="{{ old('business_name', optional($ad)->business_name ?: optional($ad)->name ?: auth()->user()->name) }}" readonly>
+                                <input class="form-control" value="{{ old('business_name', optional($ad)->business_name ?: $profile->business_name ?: optional($ad)->name ?: auth()->user()->name) }}" readonly>
                             </div>
                             <div>
                                 <label class="form-label">Email Address</label>
@@ -326,11 +349,11 @@
                             <div>
                                 <label class="form-label">Phone Number</label>
                                 {{-- <input type="text" name="phone_number" class="form-control" value="{{ old('phone_number', optional($ad)->contact_number) }}" placeholder="09XX XXX XXXX"> --}}
-                                <input type="text" class="form-control" id="phone_number" name="phone_number" placeholder="09XX XXX XXXX" maxlength="11" pattern="09[0-9]{9}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '');" value="{{ old('phone_number', optional($ad)->contact_number) }}">
+                                <input type="text" class="form-control" id="phone_number" name="phone_number" placeholder="09XX XXX XXXX" maxlength="11" pattern="09[0-9]{9}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '');" value="{{ old('phone_number', optional($ad)->contact_number ?: $profile->mobile_number) }}">
                             </div>
                             <div>
                                 <label class="form-label">Business Type</label>
-                                <input type="text" name="business_type" class="form-control" value="{{ old('business_type', optional($ad)->business_type) }}" placeholder="Example: Retailer" readonly>
+                                <input type="text" name="business_type" class="form-control" value="{{ old('business_type', optional($ad)->business_type ?: $profile->business_type) }}" placeholder="Example: Retailer" readonly>
                             </div>
                             {{-- <div class="col-md-6">
                                 <label class="form-label">Uniform Shirt Size</label>
@@ -338,7 +361,7 @@
                             </div> --}}
                             <div class="adpo-field-span">
                                 <label class="form-label">Delivery Address</label>
-                                <input class="form-control" name="delivery_address" value="{{ old('delivery_address', optional($ad)->delivery_address) }}" data-uppercase readonly>
+                                <input class="form-control" name="delivery_address" value="{{ old('delivery_address', optional($ad)->delivery_address ?: $profile->delivery_address) }}" data-uppercase readonly>
                             </div>
                             <div class="adpo-field-span">
                                 <label class="form-label">Authorized Territory <span class="text-danger">*</span></label>
@@ -864,6 +887,19 @@
 @section('javascript')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const orderSource = document.getElementById('orderSource');
+    const provincialDistributorWrap = document.getElementById('provincialDistributorWrap');
+    const provincialDistributorId = document.getElementById('provincialDistributorId');
+    if (orderSource && provincialDistributorWrap && provincialDistributorId) {
+        const syncOrderSource = function () {
+            const provincial = orderSource.value === 'provincial_distributor';
+            provincialDistributorWrap.classList.toggle('d-none', !provincial);
+            provincialDistributorId.required = provincial;
+            provincialDistributorId.disabled = !provincial;
+        };
+        orderSource.addEventListener('change', syncOrderSource);
+        syncOrderSource();
+    }
     const form = document.getElementById('adpoForm');
     const loading = document.getElementById('adpoLoading');
     const grid = document.getElementById('productGrid');

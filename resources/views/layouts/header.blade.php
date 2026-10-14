@@ -1812,6 +1812,14 @@
                             <span class="nav-text">Dashboard</span>
                         </a>
                     </div>
+                     <div class="nav-item">
+                        <a href="{{ route('customer-ads') }}" class="nav-link @if(Route::currentRouteName() == 'customer-ads') active @endif">
+                            <div class="nav-icon">
+                                <i class="ti ti-chart-bar"></i>
+                            </div>
+                            <span class="nav-text">Customer Transaction</span>
+                        </a>
+                    </div>
                     {{-- <div class="nav-item">
                         <a href="{{url('/ad-transactions')}}" class="nav-link @if(Route::currentRouteName() == 'ad-transactions') active @endif">
                             <div class="nav-icon">
@@ -1845,7 +1853,7 @@
                         </div>
                     </div>
                     <div class="nav-item">
-                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#partnersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['md-ads','dealer-ads','customer-ads','my-customers','charges']) ? 'true' : 'false' }}">
+                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#partnersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['md-ads','dealer-ads','my-customers','charges']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
                                 <i class="ti ti-id-badge-2"></i>
                             </div>
@@ -1853,7 +1861,7 @@
                             <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
-                        <div class="collapse @if(in_array(Route::currentRouteName(), ['ads','md-ads','dealer-ads','customer-ads','my-customers','charges'])) show @endif"
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['ads','md-ads','dealer-ads','my-customers','charges'])) show @endif"
                             id="partnersMenu">
                             <ul class="nav flex-column ms-3">
                                 @if(auth()->user()->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR)
@@ -1866,9 +1874,6 @@
                                 </li>
                                 <li class="nav-item">
                                     <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif" style="font-size: 14px">Dealer</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="{{ route('customer-ads') }}" class="nav-link @if(Route::currentRouteName() == 'customer-ads') active @endif" style="font-size: 14px">Customers</a>
                                 </li>
                                 {{-- <li class="nav-item">
                                     <a href="{{url('/my-customers')}}" class="nav-link @if(Route::currentRouteName() == 'my-customers')active @endif" style="font-size: 14px">My Customers</a>
@@ -1915,6 +1920,28 @@
                             <span class="nav-text">Purchase Orders</span>
                         </a>
                     </div>
+                    @if(auth()->user()->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR)
+                    @php
+                        $pendingPdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')
+                            ->where('order_source', 'provincial_distributor')
+                            ->where('provincial_distributor_id', auth()->id())
+                            ->count();
+                    @endphp
+                    <div class="nav-item">
+                        <a href="{{ route('provincial-distributor.purchase-orders') }}"
+                            class="nav-link @if(in_array(Route::currentRouteName(), ['provincial-distributor.purchase-orders','ad-purchase-orders.show'])) active @endif">
+                            <div class="nav-icon position-relative">
+                                <i class="ti ti-building-warehouse"></i>
+                                @if($pendingPdPurchaseOrdersCount > 0)
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        {{ $pendingPdPurchaseOrdersCount > 99 ? '99+' : $pendingPdPurchaseOrdersCount }}
+                                    </span>
+                                @endif
+                            </div>
+                            <span class="nav-text">PD Purchase Orders</span>
+                        </a>
+                    </div>
+                    @endif
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#formsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['md-ads','dealer-ads','customer-ads','my-customers','charges']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
@@ -1988,6 +2015,7 @@
                 @if($sidebarIsAdmin && $sidebarWarehouse === 'guinobatan')
                     @php
                         $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')
+                            ->where('order_source', 'prei_warehouse')
                             ->where(function ($query) {
                                 $regionVNeedles = [
                                     'region v',
@@ -2067,7 +2095,9 @@
                     </div>
                 @elseif($sidebarIsAdmin && $sidebarWarehouse === 'lubao')
                     @php
-                        $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')->count();
+                        $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')
+                            ->where('order_source', 'prei_warehouse')
+                            ->count();
                     @endphp
                     <div class="nav-item">
                         <a href="{{ route('ad-purchase-orders.index') }}"

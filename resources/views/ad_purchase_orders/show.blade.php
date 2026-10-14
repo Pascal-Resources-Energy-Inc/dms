@@ -2,11 +2,11 @@
 
 @section('css')
 <style>
-    .receipt { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
-    .receipt-head { display: flex; justify-content: space-between; gap: 18px; padding: 24px; border-bottom: 1px solid #edf0f5; }
+    .receipt { background: #fff; border: 1px solid #dfe7f1; border-radius: 14px; overflow: hidden; box-shadow: 0 18px 42px rgba(22, 53, 92, .08); }
+    .receipt-head { display: flex; justify-content: space-between; gap: 18px; padding: 26px 28px; border-bottom: 1px solid #e7edf4; background: linear-gradient(110deg, #ffffff 0%, #fbfdff 66%, #f0f7ff 100%); }
     .receipt-logo { height: 48px; width: auto; object-fit: contain; }
     .receipt-title { margin: 10px 0 0; color: #111827; font-size: 22px; font-weight: 800; }
-    .meta-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; padding: 18px 24px; border-bottom: 1px solid #edf0f5; }
+    .meta-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; padding: 20px 28px; border-bottom: 1px solid #e7edf4; }
     .meta-item span { display: block; color: #667085; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
     .meta-item strong { display: block; margin-top: 4px; color: #111827; word-wrap: break-word; }
     .payment-proof-view { display: inline-flex; align-items: center; gap: 7px; margin-top: 1px; padding: 7px 10px; border: 1px solid #bfdbfe; border-radius: 7px; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 800; line-height: 1.2; text-decoration: none; }
@@ -37,14 +37,14 @@
     .verification-review-card { min-width: 0; padding: 14px; border: 1px solid #dfe7f5; border-radius: 10px; background: rgba(255, 255, 255, .9); box-shadow: 0 8px 20px rgba(63, 40, 102, .05); }
     .verification-review-label { display: flex; align-items: center; gap: 7px; margin-bottom: 11px; color: #475467; font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
     .verification-review-label i { color: #6d28d9; font-size: 14px; }
-    .verification-product-list, .verification-file-list { display: grid; gap: 8px; }
+    .verification-product-list, .verification-file-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
     .verification-product-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 11px; border: 1px solid #ede9fe; border-radius: 8px; background: #fafaff; }
     .verification-product-name { min-width: 0; color: #1f2937; font-size: 13px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .verification-product-order { display: block; margin-top: 3px; color: #667085; font-size: 11px; font-weight: 700; }
     .verification-product-qty { flex: 0 0 auto; min-width: 74px; padding: 6px 8px; border-radius: 7px; background: #ede9fe; color: #5b21b6; font-size: 12px; font-weight: 900; text-align: center; }
-    .verification-file { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid #dbe7f4; border-radius: 8px; background: #fff; }
+    .verification-file { min-width: 0; width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid #dbe7f4; border-radius: 8px; background: #fff; }
     .verification-file-icon { flex: 0 0 34px; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: #f3e8ff; color: #7e22ce; font-size: 16px; }
-    .verification-file-name { min-width: 0; flex: 1; color: #344054; font-size: 12px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .verification-file-name { display: block; min-width: 0; flex: 1 1 0; color: #344054; font-size: 12px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .verification-file .btn { flex: 0 0 auto; font-size: 11px; font-weight: 800; }
     .ad-verification-submit { margin-bottom: 18px; padding: 22px 24px; border: 1px solid #bfdbfe; border-radius: 10px; background: linear-gradient(135deg, #eff6ff, #f8fbff 58%, #f5f3ff); box-shadow: 0 10px 28px rgba(30, 64, 175, .08); }
     .ad-verification-item { display: grid; grid-template-columns: minmax(0, 1fr) 118px; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #dbe7f4; border-radius: 8px; background: #fff; }
@@ -119,10 +119,30 @@
     .partial-doc-wrap:not(.is-locked) .partial-locked-field { display: none; }
     .status-remarks { display: none; }
     .status-remarks.is-visible { display: block; }
-    .receipt-body { padding: 24px; }
-    .item-thumb { width: 58px; height: 58px; object-fit: contain; border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; }
+    .receipt-body { padding: 24px 28px 28px; }
+    .receipt-body .table { margin-bottom: 0; }
+    .receipt-body .table > :not(caption) > * > * { padding: 14px 10px; border-bottom-color: #e8eef5; }
+    .receipt-body .table thead th { padding-top: 0; color: #52657a; font-size: 11px; font-weight: 900; letter-spacing: .045em; text-transform: uppercase; }
+    .item-thumb { width: 58px; height: 58px; object-fit: contain; border: 1px solid #dbe5ef; border-radius: 10px; background: #f8fafc; }
     .qty-input { width: 92px; margin: 0 auto; }
-    .total-card { max-width: 360px; margin-left: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+    .total-card { max-width: 380px; margin-left: auto; border: 1px solid #d9e5f1; border-radius: 12px; padding: 18px; background: linear-gradient(145deg, #fff, #f6faff); box-shadow: 0 10px 22px rgba(25, 76, 130, .06); }
+    .total-card .d-flex { gap: 18px; color: #536579; font-size: 13px; }
+    .total-card .d-flex strong { color: #132a45; white-space: nowrap; }
+    .total-card hr { margin: 14px 0; border-color: #dbe5ef; opacity: 1; }
+    .total-card .fs-5 { align-items: center; color: #0b5aa8; font-weight: 900; }
+    .total-card .fs-5 strong { color: #087443; font-size: 20px; }
+    .pd-fulfillment-card { display: grid; grid-template-columns: minmax(250px, .8fr) minmax(0, 1.5fr); gap: 24px; align-items: center; margin: 16px 0; padding: 20px 22px; border: 1px solid #b9d7fa; border-radius: 14px; background: radial-gradient(circle at right top, rgba(64, 176, 255, .16), transparent 35%), linear-gradient(115deg, #eff8ff, #f9fcff); box-shadow: 0 12px 28px rgba(24, 98, 164, .08); }
+    .pd-fulfillment-intro { display: flex; align-items: flex-start; gap: 13px; }
+    .pd-fulfillment-icon { flex: 0 0 42px; display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 11px; background: #0b74cc; color: #fff; font-size: 19px; box-shadow: 0 8px 16px rgba(11, 116, 204, .2); }
+    .pd-fulfillment-kicker { color: #0b66b5; font-size: 11px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+    .pd-fulfillment-title { margin: 3px 0 4px; color: #12365b; font-size: 17px; font-weight: 900; }
+    .pd-fulfillment-copy { margin: 0; color: #58708a; font-size: 12px; line-height: 1.5; }
+    .pd-fulfillment-form { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(125px, .95fr) minmax(110px, .85fr) minmax(110px, .85fr) minmax(125px, .9fr); gap: 10px; align-items: end; }
+    .pd-fulfillment-form .form-label { margin-bottom: 5px; color: #3e5874; font-size: 10px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+    .pd-fulfillment-form .form-control, .pd-fulfillment-form .form-select { min-height: 38px; border-color: #b8d2e9; border-radius: 8px; font-size: 12px; font-weight: 700; }
+    .pd-fulfillment-form .btn { min-height: 38px; border-radius: 8px; font-size: 12px; font-weight: 800; }
+    .pd-fulfillment-form .pd-remarks { grid-column: 1 / -1; }
+    .pd-stock-badge { display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; padding: 4px 8px; border: 1px solid #bcebd5; border-radius: 999px; background: #f0fdf6; color: #087443; font-size: 11px; font-weight: 900; }
     .adpo-loading { position: fixed; inset: 0; z-index: 2000; display: none; align-items: center; justify-content: center; padding: 24px; background: rgba(255, 255, 255, .82); backdrop-filter: blur(2px); }
     .adpo-loading.is-visible { display: flex; }
     .adpo-loading-box { width: min(100%, 340px); padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; box-shadow: 0 18px 48px rgba(15, 23, 42, .14); text-align: center; }
@@ -141,8 +161,15 @@
         .partial-summary, .partial-item-row { grid-template-columns: 1fr; }
         .table-wrap { overflow-x: auto; }
         .table { min-width: 760px; }
+        .pd-fulfillment-card { grid-template-columns: 1fr; gap: 16px; }
     }
     @media (max-width: 575.98px) {
+        .receipt-head, .meta-grid, .receipt-body { padding-left: 16px; padding-right: 16px; }
+        .meta-grid { grid-template-columns: 1fr; gap: 14px; }
+        .pd-fulfillment-card { margin: 12px 0; padding: 16px; }
+        .pd-fulfillment-form { grid-template-columns: 1fr 1fr; }
+        .pd-fulfillment-form .pd-status, .pd-fulfillment-form .pd-save, .pd-fulfillment-form .pd-remarks { grid-column: 1 / -1; }
+        .total-card { max-width: none; }
         .payment-proof-view { width: 100%; justify-content: center; padding: 9px 10px; }
         .verification-review { padding: 18px 16px; }
         .verification-review-head { flex-direction: column; }
@@ -176,9 +203,18 @@
 @section('content')
     @php
         $isFinalStatus = in_array($order->status, ['Completed', 'Cancelled']);
+        $isSupplyingProvincialDistributor = auth()->user()->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR
+            && $order->order_source === 'provincial_distributor'
+            && (int) $order->provincial_distributor_id === (int) auth()->id();
         $availableStatuses = $order->status === 'Pending'
             ? ['Pending', 'SO Created', 'Cancelled']
             : ['Pending', 'SO Created', 'For Verification', 'For Delivery', 'Partial Received', 'Completed'];
+
+        if ($isSupplyingProvincialDistributor) {
+            $availableStatuses = $order->status === 'Pending'
+                ? ['Pending', 'For Delivery', 'Partial Received', 'Cancelled']
+                : ['Pending', 'For Delivery', 'For Verification', 'Partial Received', 'Completed'];
+        }
 
         if ($order->status === 'SO Created') {
             $availableStatuses[] = 'Cancelled';
@@ -242,7 +278,7 @@
     @endphp
 
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <a href="{{ route('ad-purchase-orders.index') }}" class="btn btn-sm btn-outline-secondary">
+        <a href="{{ $isSupplyingProvincialDistributor ? route('provincial-distributor.purchase-orders') : route('ad-purchase-orders.index') }}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Back to ADPO
         </a>
     </div>
@@ -393,7 +429,7 @@
         </div>
     @endif
 
-    @if(auth()->user()->role === 'Admin')
+    @if(auth()->user()->role === 'Admin' || $isSupplyingProvincialDistributor)
         <form action="{{ route('ad-purchase-orders.updateStatus', $order->id) }}" method="POST" enctype="multipart/form-data" id="adpoUpdateForm">
             @csrf
             @method('PATCH')
@@ -488,16 +524,16 @@
             </section>
         @endif
 
-        @if(auth()->user()->role === 'Admin')
+        @if(auth()->user()->role === 'Admin' || $isSupplyingProvincialDistributor)
             <div class="update-panel">
                 <div class="admin-update-head">
                     <div>
                         <div class="admin-update-kicker">
                             <i class="bi bi-shield-check"></i>
-                            Admin Update
+                            {{ $isSupplyingProvincialDistributor ? 'Provincial Distributor Update' : 'Admin Update' }}
                         </div>
                         <h5 class="admin-update-title">Manage Order Status</h5>
-                        <p class="admin-update-copy">Update payment, documents, and receiving details from one review panel.</p>
+                        <p class="admin-update-copy">Update payment, delivery documents, and receiving details from one review panel.</p>
                     </div>
                     <div class="admin-update-state">
                         <i class="bi {{ $isFinalStatus ? 'bi-lock-fill' : 'bi-pencil-square' }}"></i>
@@ -927,6 +963,12 @@
                                         <div>
                                             <div class="fw-bold">{{ $item->product_name }}</div>
                                             <small class="text-muted">{{ \Illuminate\Support\Str::limit($item->description, 80) }}</small>
+                                            @if($isSupplyingProvincialDistributor)
+                                                <div class="pd-stock-badge">
+                                                    <i class="bi bi-box-seam me-1"></i>
+                                                    Available stock: {{ number_format($provincialDistributorStock->get((int) $item->product_id, 0)) }}
+                                                </div>
+                                            @endif
                                             @if(!empty($colorBreakdown))
                                                 <div class="small text-muted mt-1">
                                                     Colors:
@@ -1008,11 +1050,11 @@
         </div>
     </div>
 
-    @if(auth()->user()->role === 'Admin')
+    @if(auth()->user()->role === 'Admin' || $isSupplyingProvincialDistributor)
         </form>
     @endif
 
-    @if(auth()->user()->role === 'Admin')
+    @if(auth()->user()->role === 'Admin' || $isSupplyingProvincialDistributor)
         <div class="adpo-loading" id="adpoLoading" aria-live="polite" aria-hidden="true">
             <div class="adpo-loading-box">
                 <div class="adpo-loading-spinner"></div>
@@ -1025,7 +1067,7 @@
 @endsection
 
 @section('javascript')
-    @if(auth()->user()->role === 'Admin')
+    @if(auth()->user()->role === 'Admin' || $isSupplyingProvincialDistributor)
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 const form = document.getElementById('adpoUpdateForm');
@@ -1137,7 +1179,7 @@
                 }
 
                 function applyMainDrNumberToPartialItems() {
-                    if (status.value !== 'Partial Received' || !@json(filled(auth()->user()->warehouse))) {
+                    if (status.value !== 'Partial Received' || !@json((auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse)) || $isSupplyingProvincialDistributor)) {
                         drNumber.readOnly = @json($isFinalStatus);
                         return;
                     }
@@ -1298,7 +1340,7 @@
                     const showsDeliveryDetails = ['For Delivery', 'Partial Received'].includes(status.value);
                     const needsDeliveryDetails = status.value === 'For Delivery';
                     const needsPartialDetails = status.value === 'Partial Received';
-                    const needsWarehousePartialDr = needsPartialDetails && @json(filled(auth()->user()->warehouse));
+                    const needsWarehousePartialDr = needsPartialDetails && @json((auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse)) || $isSupplyingProvincialDistributor);
                     const proofIsRequired = proofOfPayment
                         && proofOfPayment.dataset.hasCurrentProof !== '1'
                         && status.value !== 'Cancelled';

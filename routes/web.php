@@ -143,6 +143,7 @@ Route::post('/ad-purchase-orders', 'AdPurchaseOrderController@store')->name('ad-
 Route::post('/ad-purchase-orders/products/{item}/favorite', 'AdPurchaseOrderController@toggleFavoriteProduct')->name('ad-purchase-orders.products.favorite');
 Route::get('/warehouse/ad-purchase-orders/region-v', 'AdPurchaseOrderController@regionVWarehouseIndex')->name('warehouse-ad-purchase-orders.region-v');
 Route::get('/warehouse/ad-purchase-orders/region-v/export', 'AdPurchaseOrderController@exportRegionVWarehouse')->name('warehouse-ad-purchase-orders.region-v.export');
+Route::get('/provincial-distributor/purchase-orders', 'AdPurchaseOrderController@provincialDistributorOrders')->name('provincial-distributor.purchase-orders');
 Route::get('/ad-purchase-orders/{id}', 'AdPurchaseOrderController@show')->name('ad-purchase-orders.show');
 Route::patch('/ad-purchase-orders/{id}/status', 'AdPurchaseOrderController@updateStatus')->name('ad-purchase-orders.updateStatus');
 Route::post('/ad-purchase-orders/{id}/verification-incomplete', 'AdPurchaseOrderController@notifyIncompleteVerification')->name('ad-purchase-orders.verification-incomplete');

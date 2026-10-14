@@ -15,6 +15,8 @@ class AdPurchaseOrder extends Model implements Auditable
         'po_number',
         'ad_id',
         'ad_user_id',
+        'order_source',
+        'provincial_distributor_id',
         'business_name',
         'authorized_territory',
         'phone_number',
@@ -91,6 +93,11 @@ class AdPurchaseOrder extends Model implements Auditable
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function provincialDistributor()
+    {
+        return $this->belongsTo(User::class, 'provincial_distributor_id');
     }
 
     public function voucher()

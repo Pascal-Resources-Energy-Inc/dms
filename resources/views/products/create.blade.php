@@ -2,7 +2,7 @@
 
 @section('css')
 <style>
-    .pricing-page { width: min(100%, 1480px); margin: 0 auto; }
+    /* .pricing-page { width: min(100%, 1480px); margin: 0 auto; } */
     .pricing-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
     .pricing-title-row { display: flex; align-items: center; gap: 10px; }
     .pricing-back { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px solid #dbe3ee; border-radius: 8px; color: #475569; background: #fff; text-decoration: none; transition: color .2s ease, border-color .2s ease, background-color .2s ease; }
