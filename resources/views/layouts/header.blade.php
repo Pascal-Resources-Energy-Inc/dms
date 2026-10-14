@@ -1649,6 +1649,7 @@
                 $sidebarUser = auth()->user();
                 $sidebarRole = $sidebarUser->role ?? '';
                 $sidebarWarehouse = strtolower((string) ($sidebarUser->warehouse ?? ''));
+                $sidebarIsPrimaryAdmin = (int) ($sidebarUser->id ?? 0) === 1;
                 // An Admin with saved detailed permissions is intentionally
                 // restricted to those modules; an Admin with none remains full access.
                 $sidebarIsAdmin = $sidebarRole === 'Admin';
@@ -1710,9 +1711,9 @@
                 $canAccessStockRequests = $canAccessModule('stock_requests', 'approvals', 'can_access_stock_requests');
                 $canAccessOrders = $canAccessModule('orders', 'sales_orders');
                 $canAccessTransfers = $canAccessModule('inventory_transfers', 'transfers');
+                $canAccessPullOutRequests = $canAccessModule('pull_out_requests', 'approvals');
                 $canAccessReturnRefunds = $canAccessModule('return_refunds', 'requests');
                 $canAccessCharges = $canAccessModule('charges', 'records');
-                $canAccessLocations = $canAccessModule('locations', 'directory');
                 $canAccessProducts = $canAccessModule('products', 'catalog');
                 $canAccessStandardReports = $sidebarIsAdmin || (
                     $sidebarIsSedp && (
@@ -1729,7 +1730,7 @@
                 );
                 $canAccessAnyReports = $canAccessStandardReports || $canAccessSedpReports;
                 $standardReportRoutes = ['dsr', 'aging', 'dpo', 'isl', 'monthly-sales', 'voucher-history'];
-                $sedpReportRoutes = ['signup-incentives', 'repeat-purchase-incentives', 'aging-report-dealer', 'aging-report-customer'];
+                $sedpReportRoutes = ['signup-incentives', 'ad-awarded-areas', 'repeat-purchase-incentives', 'center-chief-incentives', 'aging-report-dealer', 'aging-report-customer'];
                 $visibleReportRoutes = array_merge(
                     $canAccessStandardReports ? $standardReportRoutes : [],
                     $canAccessSedpReports ? $sedpReportRoutes : []
@@ -1740,6 +1741,55 @@
                         ($sidebarUser->can_edit ?? null) === 'on' ||
                         ($sidebarUser->can_delete ?? null) === 'on'
                     ));
+
+                $pendingPullOutRequestsCount = 0;
+                $pendingReturnRefundRequestsCount = 0;
+                $sidebarReturnRefundProcessor = null;
+                $sidebarUserName = strtolower(trim((string) $sidebarUser->name));
+                if (preg_match('/\bprincess\b/', $sidebarUserName)) {
+                    $sidebarReturnRefundProcessor = 'princess';
+                } elseif (preg_match('/\bdenver\b/', $sidebarUserName)) {
+                    $sidebarReturnRefundProcessor = 'denver';
+                }
+                if (in_array($sidebarWarehouse, ['lubao', 'guinobatan'], true)) {
+                    $pendingPullOutRequestsCount = \App\InventoryTransfer::where('out_type', 'Pull Out')
+                        ->where('approval_status', 'Pending')
+                        ->where('warehouse', $sidebarWarehouse)
+                        ->count();
+                    $pendingReturnRefundRequestsCount = \App\InventoryTransfer::where('out_type', 'Return and Refund')
+                        ->where('approval_status', 'Pending')
+                        ->where('warehouse', $sidebarWarehouse)
+                        ->count();
+                }
+
+                if ($sidebarIsAdmin && strtolower(trim((string) $sidebarUser->name)) === 'dennis villareal') {
+                    $pendingReturnRefundRequestsCount = \App\InventoryTransfer::where('out_type', 'Return and Refund')
+                        ->where('approval_status', 'Pending')
+                        ->count();
+                }
+
+                if ($sidebarReturnRefundProcessor) {
+                    $creditMemoRequests = \App\InventoryTransfer::where('inventory_transfers.out_type', 'Return and Refund')
+                        ->where('inventory_transfers.approval_status', 'Processing')
+                        ->leftJoin('area_distributors as return_refund_ads', 'return_refund_ads.id', '=', 'inventory_transfers.ad_id');
+
+                    if ($sidebarReturnRefundProcessor === 'princess') {
+                        $creditMemoRequests->whereRaw(
+                            'LOWER(TRIM(return_refund_ads.location_region)) REGEXP ?',
+                            ['(^|[^[:alnum:]])region[[:space:]-]*(v|5)([^[:alnum:]]|$)']
+                        );
+                    } else {
+                        $creditMemoRequests->where(function ($regionQuery) {
+                            $regionQuery->whereNull('return_refund_ads.location_region')
+                                ->orWhereRaw(
+                                    'LOWER(TRIM(return_refund_ads.location_region)) NOT REGEXP ?',
+                                    ['(^|[^[:alnum:]])region[[:space:]-]*(v|5)([^[:alnum:]]|$)']
+                                );
+                        });
+                    }
+
+                    $pendingReturnRefundRequestsCount = $creditMemoRequests->count();
+                }
             @endphp
 
             <div class="nav-section">
@@ -1760,6 +1810,14 @@
                                 <i class="ti ti-layout-dashboard"></i>
                             </div>
                             <span class="nav-text">Dashboard</span>
+                        </a>
+                    </div>
+                     <div class="nav-item">
+                        <a href="{{ route('customer-ads') }}" class="nav-link @if(Route::currentRouteName() == 'customer-ads') active @endif">
+                            <div class="nav-icon">
+                                <i class="ti ti-chart-bar"></i>
+                            </div>
+                            <span class="nav-text">Customer Transaction</span>
                         </a>
                     </div>
                     {{-- <div class="nav-item">
@@ -1795,7 +1853,7 @@
                         </div>
                     </div>
                     <div class="nav-item">
-                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#partnersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['md-ads','dealer-ads','customer-ads','my-customers','charges']) ? 'true' : 'false' }}">
+                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#partnersMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['md-ads','dealer-ads','my-customers','charges']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
                                 <i class="ti ti-id-badge-2"></i>
                             </div>
@@ -1803,7 +1861,7 @@
                             <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
-                        <div class="collapse @if(in_array(Route::currentRouteName(), ['ads','md-ads','dealer-ads','customer-ads','my-customers','charges'])) show @endif"
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['ads','md-ads','dealer-ads','my-customers','charges'])) show @endif"
                             id="partnersMenu">
                             <ul class="nav flex-column ms-3">
                                 @if(auth()->user()->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR)
@@ -1816,9 +1874,6 @@
                                 </li>
                                 <li class="nav-item">
                                     <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif" style="font-size: 14px">Dealer</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="{{ route('customer-ads') }}" class="nav-link @if(Route::currentRouteName() == 'customer-ads') active @endif" style="font-size: 14px">Customers</a>
                                 </li>
                                 {{-- <li class="nav-item">
                                     <a href="{{url('/my-customers')}}" class="nav-link @if(Route::currentRouteName() == 'my-customers')active @endif" style="font-size: 14px">My Customers</a>
@@ -1865,6 +1920,28 @@
                             <span class="nav-text">Purchase Orders</span>
                         </a>
                     </div>
+                    @if(auth()->user()->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR)
+                    @php
+                        $pendingPdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')
+                            ->where('order_source', 'provincial_distributor')
+                            ->where('provincial_distributor_id', auth()->id())
+                            ->count();
+                    @endphp
+                    <div class="nav-item">
+                        <a href="{{ route('provincial-distributor.purchase-orders') }}"
+                            class="nav-link @if(in_array(Route::currentRouteName(), ['provincial-distributor.purchase-orders','ad-purchase-orders.show'])) active @endif">
+                            <div class="nav-icon position-relative">
+                                <i class="ti ti-building-warehouse"></i>
+                                @if($pendingPdPurchaseOrdersCount > 0)
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        {{ $pendingPdPurchaseOrdersCount > 99 ? '99+' : $pendingPdPurchaseOrdersCount }}
+                                    </span>
+                                @endif
+                            </div>
+                            <span class="nav-text">PD Purchase Orders</span>
+                        </a>
+                    </div>
+                    @endif
                     <div class="nav-item">
                         <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#formsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['md-ads','dealer-ads','customer-ads','my-customers','charges']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
@@ -1902,7 +1979,7 @@
                         </div>
                     </div>
                     <div class="nav-item">
-                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['dsr','aging','reports.distributor-other-charges']) ? 'true' : 'false' }}">
+                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['dsr', 'aging', 'distributor-other-charges', 'stock-inventory', 'pull-out-report', 'return-refund-report']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
                                 <i class="ti ti-clipboard-data"></i>
                             </div>
@@ -1910,7 +1987,7 @@
                             <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
-                        <div class="collapse @if(in_array(Route::currentRouteName(), ['dsr','aging','distributor-other-charges', 'stock-inventory'])) show @endif"
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['dsr', 'aging', 'distributor-other-charges', 'stock-inventory', 'pull-out-report', 'return-refund-report'])) show @endif"
                             id="reportsMenu">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
@@ -1925,6 +2002,12 @@
                                 <li class="nav-item">
                                     <a href="{{ url('/reports/stock-inventory') }}" class="nav-link @if(Route::currentRouteName() == 'stock-inventory') active @endif" style="font-size: 14px">Stock Inventory Sheet</a>
                                 </li>
+                                <li class="nav-item">
+                                    <a href="{{ route('pull-out-report') }}" class="nav-link @if(Route::currentRouteName() == 'pull-out-report') active @endif" style="font-size: 14px">Pull Out Request Report</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ route('return-refund-report') }}" class="nav-link @if(Route::currentRouteName() == 'return-refund-report') active @endif" style="font-size: 14px">Return &amp; Refund Report</a>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -1932,6 +2015,7 @@
                 @if($sidebarIsAdmin && $sidebarWarehouse === 'guinobatan')
                     @php
                         $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')
+                            ->where('order_source', 'prei_warehouse')
                             ->where(function ($query) {
                                 $regionVNeedles = [
                                     'region v',
@@ -1973,15 +2057,18 @@
                     </div>
                     <div class="nav-item">
                         <a href="{{url('warehouse/pull-out-requests')}}" class="nav-link @if(Route::currentRouteName() == 'warehouse-pull-outs.index')active @endif">
-                            <div class="nav-icon">
+                            <div class="nav-icon position-relative">
                                <i class="bi bi-arrow-left-right fs-2"></i>
+                                @if($pendingPullOutRequestsCount > 0)
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingPullOutRequestsCount > 99 ? '99+' : $pendingPullOutRequestsCount }}</span>
+                                @endif
                             </div>
                             <span class="nav-text">Pull Out Request</span>
                         </a>
                     </div>
                     <div class="nav-item">
                         <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index')active @endif">
-                            <div class="nav-icon"><i class="bi bi-arrow-return-left fs-2"></i></div>
+                            <div class="nav-icon position-relative"><i class="bi bi-arrow-return-left fs-2"></i>@if($pendingReturnRefundRequestsCount > 0)<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingReturnRefundRequestsCount > 99 ? '99+' : $pendingReturnRefundRequestsCount }}</span>@endif</div>
                             <span class="nav-text">Return &amp; Refund</span>
                         </a>
                     </div>
@@ -2008,7 +2095,9 @@
                     </div>
                 @elseif($sidebarIsAdmin && $sidebarWarehouse === 'lubao')
                     @php
-                        $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')->count();
+                        $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')
+                            ->where('order_source', 'prei_warehouse')
+                            ->count();
                     @endphp
                     <div class="nav-item">
                         <a href="{{ route('ad-purchase-orders.index') }}"
@@ -2026,15 +2115,18 @@
                     </div>
                     <div class="nav-item">
                         <a href="{{url('warehouse/pull-out-requests')}}" class="nav-link @if(Route::currentRouteName() == 'warehouse-pull-outs.index')active @endif">
-                            <div class="nav-icon">
+                            <div class="nav-icon position-relative">
                                 <i class="bi bi-arrow-left-right fs-2"></i>
+                                @if($pendingPullOutRequestsCount > 0)
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingPullOutRequestsCount > 99 ? '99+' : $pendingPullOutRequestsCount }}</span>
+                                @endif
                             </div>
                             <span class="nav-text">Pull Out Request</span>
                         </a>
                     </div>
                     <div class="nav-item">
                         <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index')active @endif">
-                            <div class="nav-icon"><i class="bi bi-arrow-return-left fs-2"></i></div>
+                            <div class="nav-icon position-relative"><i class="bi bi-arrow-return-left fs-2"></i>@if($pendingReturnRefundRequestsCount > 0)<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingReturnRefundRequestsCount > 99 ? '99+' : $pendingReturnRefundRequestsCount }}</span>@endif</div>
                             <span class="nav-text">Return &amp; Refund</span>
                         </a>
                     </div>
@@ -2108,6 +2200,14 @@
                         </a>
                     </div>
                 @endif
+                @if(($sidebarIsAdmin || $sidebarIsSedp) && in_array($sidebarWarehouse, ['lubao', 'guinobatan'], true) && $canAccessPullOutRequests)
+                    <div class="nav-item">
+                        <a href="{{ route('warehouse-pull-outs.index') }}" class="nav-link @if(in_array(Route::currentRouteName(), ['warehouse-pull-outs.index', 'warehouse-pull-outs.review'])) active @endif">
+                            <div class="nav-icon position-relative"><i class="ti ti-clipboard-check"></i>@if($pendingPullOutRequestsCount > 0)<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingPullOutRequestsCount > 99 ? '99+' : $pendingPullOutRequestsCount }}</span>@endif</div>
+                            <span class="nav-text">Pull Out Requests</span>
+                        </a>
+                    </div>
+                @endif
                 @if($sidebarIsSedp && $canAccessTransfers)
                     <div class="nav-item">
                         <a href="{{ route('inventory-transfers.index') }}" class="nav-link @if(Route::currentRouteName() == 'inventory-transfers.index') active @endif">
@@ -2116,10 +2216,10 @@
                         </a>
                     </div>
                 @endif
-                @if($sidebarIsSedp && $canAccessReturnRefunds)
+                @if(($sidebarIsSedp && $canAccessReturnRefunds) || $sidebarReturnRefundProcessor)
                     <div class="nav-item">
                         <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index') active @endif">
-                            <div class="nav-icon"><i class="ti ti-arrow-back-up"></i></div>
+                            <div class="nav-icon position-relative"><i class="ti ti-arrow-back-up"></i>@if($pendingReturnRefundRequestsCount > 0)<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingReturnRefundRequestsCount > 99 ? '99+' : $pendingReturnRefundRequestsCount }}</span>@endif</div>
                             <span class="nav-text">Return &amp; Refund</span>
                         </a>
                     </div>
@@ -2132,18 +2232,10 @@
                         </a>
                     </div>
                 @endif
-                @if($sidebarIsSedp && $canAccessLocations)
-                    <div class="nav-item">
-                        <a href="{{ route('storelocation') }}" class="nav-link @if(Route::currentRouteName() == 'storelocation') active @endif">
-                            <div class="nav-icon"><i class="ti ti-map-pin"></i></div>
-                            <span class="nav-text">Store Locations</span>
-                        </a>
-                    </div>
-                @endif
-                @if($sidebarIsAdmin && strtolower(trim((string) auth()->user()->name)) === 'dennis villareal')
+                @if($sidebarIsAdmin && (strtolower(trim((string) auth()->user()->name)) === 'dennis villareal' || $sidebarReturnRefundProcessor))
                     <div class="nav-item">
                         <a href="{{ route('return-refunds.index') }}" class="nav-link @if(Route::currentRouteName() == 'return-refunds.index')active @endif">
-                            <div class="nav-icon"><i class="bi bi-arrow-return-left fs-2"></i></div>
+                            <div class="nav-icon position-relative"><i class="bi bi-arrow-return-left fs-2"></i>@if($pendingReturnRefundRequestsCount > 0)<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $pendingReturnRefundRequestsCount > 99 ? '99+' : $pendingReturnRefundRequestsCount }}</span>@endif</div>
                             <span class="nav-text">Return &amp; Refund</span>
                         </a>
                     </div>
@@ -2247,7 +2339,7 @@
                     </div> --}}
                     @if($sidebarIsAdmin || $canAccessSettings || $canAccessProducts)
                     <div class="nav-item">
-                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#settingsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['vouchers', 'rewards', 'items', 'raffles']) ? 'true' : 'false' }}">
+                        <a href="javascript:void(0)" class="nav-link" data-bs-toggle="collapse" data-bs-target="#settingsMenu" aria-expanded="{{ in_array(Route::currentRouteName(), ['vouchers', 'rewards', 'items', 'raffles', 'areas', 'mfis.index']) ? 'true' : 'false' }}">
                             <div class="nav-icon">
                                 <i class="ti ti-settings"></i>
                             </div>
@@ -2255,7 +2347,7 @@
                             <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
-                        <div class="collapse @if(in_array(Route::currentRouteName(), ['vouchers','rewards', 'items', 'raffles', 'areas'])) show @endif"
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['vouchers','rewards', 'items', 'raffles', 'areas', 'mfis.index'])) show @endif"
                             id="settingsMenu">
                             <ul class="nav flex-column ms-3">
                                 @if($sidebarIsAdmin || $canAccessProducts)
@@ -2284,6 +2376,11 @@
                                 </li>
                                 <li class="nav-item">
                                     <a href="{{url('/areas')}}" class="nav-link @if(Route::currentRouteName() == 'areas') active @endif" style="font-size: 14px">Areas</a>
+                                </li>
+                                @endif
+                                @if($sidebarIsPrimaryAdmin || $sidebarIsAdmin)
+                                <li class="nav-item">
+                                    <a href="{{ route('mfis.index') }}" class="nav-link @if(Route::currentRouteName() == 'mfis.index') active @endif" style="font-size: 14px">MFIs</a>
                                 </li>
                                 @endif
                             </ul>
@@ -2346,7 +2443,13 @@
                                         <a href="{{ url('/reports/signup-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'signup-incentives') active @endif" style="font-size: 14px">Sign Up Incentives Report</a>
                                     </li>
                                     <li class="nav-item">
+                                        <a href="{{ route('ad-awarded-areas') }}" class="nav-link @if(Route::currentRouteName() == 'ad-awarded-areas') active @endif" style="font-size: 14px">AD Awarded Areas Report</a>
+                                    </li>
+                                    <li class="nav-item">
                                         <a href="{{ url('/reports/repeat-purchase-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'repeat-purchase-incentives') active @endif" style="font-size: 14px">Repeat Purchase Incentives Report</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="{{ route('center-chief-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'center-chief-incentives') active @endif" style="font-size: 14px">Center Chief Incentive Report</a>
                                     </li>
                                     <li class="nav-item">
                                         <a href="{{ url('/reports/aging-report-dealer') }}" class="nav-link @if(Route::currentRouteName() == 'aging-report-dealer') active @endif" style="font-size: 14px">Aging Report - Dealer</a>
@@ -2750,7 +2853,6 @@
                                 <ul class="nav-links">
                                     <li><a href="{{ url('/') }}">Home</a></li>
                                     <li><a href="{{ route('products') }}">Product</a></li>
-                                    <li><a href="{{ route('storelocation') }}">Store Location</a></li>
                                     <li><a href="{{ route('about') }}">About</a></li>
                                 </ul>
                             </nav>

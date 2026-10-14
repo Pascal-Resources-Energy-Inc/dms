@@ -475,7 +475,12 @@
     })->unique()->count();
     $adCenterCount = $adReport['rows']->pluck('center')->filter()->unique()->count();
     $clientExportUrl = route('signup-incentives.export', array_merge(request()->query(), ['tab' => 'clients']));
-    $adExportUrl = route('signup-incentives.ad-export', ['year' => $year, 'ad_month' => $selectedAdMonth, 'tab' => 'ad']);
+    $adExportUrl = route('signup-incentives.ad-export', [
+        'year' => $year,
+        'ad_month' => $selectedAdMonth,
+        'ad_mfi_type' => $selectedAdMfiType,
+        'tab' => 'ad',
+    ]);
 @endphp
 
 <div class="container-fluid sir-page">
@@ -835,6 +840,17 @@
                             @endforeach
                         </select>
                     </div>
+                    <div class="col-lg-3 col-md-5 mb-2">
+                        <label for="ad-mfi-type">MFI type</label>
+                        <select id="ad-mfi-type" name="ad_mfi_type" class="form-control">
+                            @if($canFilterAllAdMfiTypes)
+                                <option value="">All MFI types</option>
+                            @endif
+                            @foreach($adReport['mfiTypes'] as $mfiType)
+                                <option value="{{ $mfiType }}" {{ $selectedAdMfiType === $mfiType ? 'selected' : '' }}>{{ $mfiType }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div class="col-lg-3 col-md-3 mb-2">
                         <div class="sir-filter-actions">
                             <button type="submit" class="btn btn-primary"><i class="ti ti-filter"></i> Apply</button>
@@ -855,16 +871,16 @@
             </div>
             <div class="sir-table-wrap">
                 <table class="sir-table" style="min-width: 820px">
-                    <thead><tr><th>Assigned AD Name</th><th>Center</th><th>Client Reference</th><th>Name</th><th>Date of Signing</th><th>Amount</th></tr></thead>
+                    <thead><tr><th>Assigned AD Name</th><th>MFI Type</th><th>Center</th><th>Client Reference</th><th>Name</th><th>Date of Signing</th><th>Amount</th></tr></thead>
                     <tbody>
                         @forelse($adReport['rows'] as $adRow)
-                            <tr><td>{{ $adRow['ad'] }}</td><td>{{ $adRow['center'] }}</td><td>{{ $adRow['reference'] }}</td><td>{{ $adRow['name'] }}</td><td>{{ $adRow['signing_date'] }}</td><td class="sir-number">₱{{ number_format($adRow['amount'], 2) }}</td></tr>
+                            <tr><td>{{ $adRow['ad'] }}</td><td>{{ $adRow['mfi_type'] }}</td><td>{{ $adRow['center'] }}</td><td>{{ $adRow['reference'] }}</td><td>{{ $adRow['name'] }}</td><td>{{ $adRow['signing_date'] }}</td><td class="sir-number">₱{{ number_format($adRow['amount'], 2) }}</td></tr>
                         @empty
-                            <tr><td colspan="6" class="sir-empty-state">No signed client contracts were found for the selected period.</td></tr>
+                            <tr><td colspan="7" class="sir-empty-state">No signed client contracts were found for the selected period.</td></tr>
                         @endforelse
                     </tbody>
                     @if($adReport['rows']->isNotEmpty())
-                        <tfoot><tr class="sir-designation-total-row"><td colspan="5" class="sir-designation-total-label">Total</td><td class="sir-number">₱{{ number_format($adReport['total'], 2) }}</td></tr></tfoot>
+                        <tfoot><tr class="sir-designation-total-row"><td colspan="6" class="sir-designation-total-label">Total</td><td class="sir-number">₱{{ number_format($adReport['total'], 2) }}</td></tr></tfoot>
                     @endif
                 </table>
             </div>

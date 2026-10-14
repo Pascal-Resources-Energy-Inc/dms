@@ -109,10 +109,10 @@
                             </div>
                         </div>
 
-                        <div class="access-module-group" data-module-group="transactions orders purchase_orders inventory inventory_transfers return_refunds stock_requests charges locations">
+                        <div class="access-module-group" data-module-group="transactions orders purchase_orders inventory inventory_transfers pull_out_requests return_refunds stock_requests charges locations">
                             <div class="access-module-heading">
                                 <span><i class="fas fa-cash-register"></i> Operations</span>
-                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-modules="transactions orders purchase_orders inventory inventory_transfers return_refunds stock_requests charges locations"><span>All</span></label>
+                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-modules="transactions orders purchase_orders inventory inventory_transfers pull_out_requests return_refunds stock_requests charges locations"><span>All</span></label>
                             </div>
                             <div class="access-row">
                                 <div><strong>Transactions</strong><small>Sales and payment activity</small></div>
@@ -155,6 +155,13 @@
                                 <label><input type="checkbox" class="access-permission-check" data-module="inventory_transfers" data-submodule="transfers" data-action="add"><span></span></label>
                                 <label><input type="checkbox" class="access-permission-check" data-module="inventory_transfers" data-submodule="transfers" data-action="edit"><span></span></label>
                                 <label><input type="checkbox" class="access-permission-check" data-module="inventory_transfers" data-submodule="transfers" data-action="delete"><span></span></label>
+                            </div>
+                            <div class="access-row">
+                                <div><strong>Pull Out Requests</strong><small>Warehouse review, approval, and rejection of pull-out replacements</small></div>
+                                <label><input type="checkbox" class="access-permission-check" data-module="pull_out_requests" data-submodule="approvals" data-action="view"><span></span></label>
+                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
+                                <label><input type="checkbox" class="access-permission-check" data-module="pull_out_requests" data-submodule="approvals" data-action="edit"><span></span></label>
+                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
                             </div>
                             <div class="access-row">
                                 <div><strong>Return and Refund</strong><small>Return, replacement, and refund workflow</small></div>

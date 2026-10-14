@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\InventoryTransfer;
 use App\AdPurchaseOrderItem;
+use App\AreaDistributor;
 use App\Product;
 use App\User;
 use App\Mail\InventoryReturnRefundNotification;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use setasign\Fpdi\Fpdi;
 
 class InventoryTransferController extends Controller
 {
@@ -65,9 +67,9 @@ class InventoryTransferController extends Controller
                         $query->whereIn('out_type', ['Pull Out', 'Replacement'])
                             ->where('approval_status', 'Replacing');
                     })
-                    ->orWhere(function ($query) {
-                        $query->where('out_type', 'Return and Refund')
-                            ->where('approval_status', 'Warehouse Confirmed');
+                        ->orWhere(function ($query) {
+                            $query->where('out_type', 'Return and Refund')
+                            ->whereIn('approval_status', ['Processing', 'For Review', 'Warehouse Confirmed']);
                     });
             })
             ->orderBy('transfer_date', 'desc')
@@ -180,11 +182,23 @@ class InventoryTransferController extends Controller
             $movementQuery->whereDate('transfer_date', '<=', $request->date_to);
         }
 
+        if (!$request->filled('product_id')) {
+            $movementQuery->where(function ($query) use ($user) {
+                $query->whereNull('batch_number')->orWhereIn('id', function ($batchQuery) use ($user) {
+                    $batchQuery->from('inventory_transfers as batch_rows')->selectRaw('MIN(id)')
+                        ->where('ad_user_id', $user->id)->whereNotNull('batch_number')->groupBy('batch_number');
+                });
+            });
+        }
+
         $movements = $movementQuery
             ->orderBy('transfer_date', 'desc')
             ->orderBy('id', 'desc')
             ->paginate(25)
             ->appends($request->query());
+        $batchNumbers = $movements->getCollection()->pluck('batch_number')->filter();
+        $batchItems = $batchNumbers->isEmpty() ? collect() : InventoryTransfer::whereIn('batch_number', $batchNumbers)
+            ->select('batch_number', 'sku', 'item_name', 'qty')->orderBy('id')->get()->groupBy('batch_number');
 
         $balanceLookup = collect();
         $availableBalanceProductOptions = $balances
@@ -222,6 +236,7 @@ class InventoryTransferController extends Controller
             'singleArea',
             'products',
             'movements',
+            'batchItems',
             'balances',
             'summary',
             'balanceLookup',
@@ -233,6 +248,86 @@ class InventoryTransferController extends Controller
             'stockProducts',
             'adItems'
         ));
+    }
+
+    public function movementHistoryData(Request $request)
+    {
+        $query = InventoryTransfer::where('ad_user_id', auth()->id());
+
+        if ($request->filled('movement_type')) $query->where('movement_type', $request->movement_type);
+        if ($request->filled('product_id')) $query->where('product_id', $request->product_id);
+        if ($request->filled('area')) {
+            $query->where(function ($areaQuery) use ($request) {
+                $areaQuery->where('from_area', $request->area)->orWhere('to_area', $request->area);
+            });
+        }
+        if ($request->filled('date_from')) $query->whereDate('transfer_date', '>=', $request->date_from);
+        if ($request->filled('date_to')) $query->whereDate('transfer_date', '<=', $request->date_to);
+
+        if (!$request->filled('product_id')) {
+            $query->where(function ($batchQuery) {
+                $batchQuery->whereNull('batch_number')->orWhereIn('id', function ($ids) {
+                    $ids->from('inventory_transfers as batch_rows')->selectRaw('MIN(id)')
+                        ->where('ad_user_id', auth()->id())->whereNotNull('batch_number')->whereNull('deleted_at')
+                        ->groupBy('batch_number');
+                });
+            });
+        }
+
+        return \Yajra\DataTables\Facades\DataTables::of($query)
+            ->editColumn('transfer_date', function ($movement) {
+                return $movement->transfer_date ? Carbon::parse($movement->transfer_date)->format('M d, Y') : '—';
+            })
+            ->addColumn('movement_type_display', function ($movement) {
+                $color = $movement->movement_type === 'in' ? 'success' : ($movement->movement_type === 'out' ? 'danger' : 'primary');
+                $detail = $movement->movement_type === 'transfer'
+                    ? ($movement->from_area ?: 'Source area') . ' to ' . ($movement->to_area ?: 'Receiving area')
+                    : ($movement->out_type ?: 'Stock movement');
+                return '<span class="badge bg-' . $color . ' movement-badge">' . e(strtoupper($movement->movement_type)) . '</span><span class="movement-type-detail">' . e($detail) . '</span>';
+            })
+            ->addColumn('products', function ($movement) {
+                $items = $movement->batch_number
+                    ? InventoryTransfer::where('batch_number', $movement->batch_number)->select('sku', 'item_name', 'qty')->orderBy('id')->get()
+                    : collect([$movement]);
+                return $items->map(function ($item) {
+                    return '<div class="d-flex justify-content-between align-items-center px-2 py-1 border-bottom"><span class="small fw-semibold">' . e($item->item_name) . '<small class="text-muted ms-1">' . e($item->sku ?: 'No SKU') . '</small></span><span class="badge bg-light text-dark border">' . number_format($item->qty) . '</span></div>';
+                })->implode('');
+            })
+            ->addColumn('action', function ($movement) {
+                $items = $movement->batch_number
+                    ? InventoryTransfer::where('batch_number', $movement->batch_number)
+                        ->select('item_name', 'sku', 'qty')
+                        ->orderBy('id')
+                        ->get()
+                    : collect([$movement]);
+                $itemsJson = $items->map(function ($item) {
+                    return ['name' => $item->item_name, 'sku' => $item->sku, 'qty' => $item->qty];
+                })->values()->toJson();
+
+                return '<button type="button" class="btn btn-sm btn-outline-primary js-view-movement" data-toggle="modal" data-target="#movementDetailsModal"'
+                    . ' data-date="' . e($movement->transfer_date ? Carbon::parse($movement->transfer_date)->format('M d, Y') : '—') . '"'
+                    . ' data-type="' . e(strtoupper($movement->movement_type)) . '"'
+                    . ' data-reason="' . e($movement->out_type ?: '—') . '"'
+                    . ' data-product="' . e($movement->item_name) . '"'
+                    . ' data-sku="' . e($movement->sku ?: '—') . '"'
+                    . ' data-products="' . e($itemsJson) . '"'
+                    . ' data-from-area="' . e($movement->from_area ?: '—') . '"'
+                    . ' data-to-area="' . e($movement->to_area ?: '—') . '"'
+                    . ' data-quantity="' . number_format($movement->qty) . '"'
+                    . ' data-unit-cost="' . e($movement->unit_cost !== null ? 'PHP ' . number_format($movement->unit_cost, 2) : 'Not set') . '"'
+                    . ' data-reference="' . e($movement->reference_no ?: '—') . '"'
+                    . ' data-remarks="' . e($movement->remarks ?: '—') . '"'
+                    . ' data-is-replacement-workflow="' . (in_array($movement->out_type, ['Pull Out', 'Replacement'], true) ? '1' : '0') . '"'
+                    . ' data-workflow-status="' . e($movement->approval_status ?: '—') . '"'
+                    . ' data-requested-quantity="' . ($movement->replacement_qty !== null ? number_format($movement->replacement_qty) : '—') . '"'
+                    . ' data-approved-quantity="' . ($movement->approval_status !== 'Pending' ? number_format($movement->qty) : '—') . '"'
+                    . ' data-dr-number="' . e($movement->replacement_dr_number ?: '—') . '"'
+                    . ' data-warehouse-remarks="' . e($movement->warehouse_remarks ?: '—') . '"'
+                    . ' data-attachments="' . e(json_encode($movement->pull_out_attachments ?: [])) . '">'
+                    . '<i class="bi bi-eye"></i> View</button>';
+            })
+            ->rawColumns(['movement_type_display', 'products', 'action'])
+            ->make(true);
     }
 
     public function store(Request $request)
@@ -259,20 +354,27 @@ class InventoryTransferController extends Controller
             $request->merge([
                 'qty' => $request->input('replacement_qty'),
                 'unit_cost' => $request->input('replacement_unit_cost'),
+                // The RIS date is the official movement date for pull-outs.
+                'transfer_date' => $request->input('ris_date'),
             ]);
         }
 
         $request->validate([
             'movement_type' => 'required|in:in,out,transfer',
-            'product_id' => 'required|integer',
+            'product_id' => 'nullable|integer',
             'from_area' => 'nullable|string|max:255',
             'to_area' => 'nullable|string|max:255',
-            'qty' => 'required|integer|min:1',
+            'qty' => 'nullable|integer|min:1',
+            'items' => 'nullable|array|max:20',
+            'items.*.product_id' => 'required_with:items|integer',
+            'items.*.qty' => 'required_with:items|integer|min:1',
             'unit_cost' => 'nullable|numeric|min:0',
             'out_type' => 'nullable|string|max:255',
+            'ris_number' => 'required_if:out_type,Pull Out|string|max:255',
+            'ris_date' => 'required_if:out_type,Pull Out|date',
             'pull_out_attachments' => 'required_if:out_type,Pull Out|array|max:5',
             'pull_out_attachments.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'replacement_qty' => 'required_if:out_type,Pull Out|integer|min:1',
+            'replacement_qty' => 'nullable|integer|min:1',
             'replacement_unit_cost' => 'nullable|numeric|min:0',
             'transfer_date' => 'nullable|date',
             'remarks' => 'nullable|string',
@@ -286,11 +388,17 @@ class InventoryTransferController extends Controller
 
         $allowedReasons = [
             'in' => ['Beginning Balance', 'Inventory Adjustment', 'Replacement'],
-            'out' => ['Return and Refund', 'Pull Out', 'Replace'],
+            'out' => ['Return and Refund', 'Pull Out', 'Replace', 'Inventory Adjustment'],
         ];
 
         if (in_array($type, ['in', 'out'], true) && !in_array($request->out_type, $allowedReasons[$type], true)) {
             return back()->withInput()->with('error', 'Please select a valid movement type.');
+        }
+        if ($request->filled('items')) {
+            return $this->storeMultipleMovements($request, $user, $ad, $areas, $type);
+        }
+        if (!$request->filled('product_id') || !$request->filled('qty')) {
+            return back()->withInput()->with('error', 'Please add a product and quantity.');
         }
         $adItems = $this->completedAdPurchaseOrderItems($user->id);
         $adItem = $adItems->firstWhere('id', (int) $request->product_id);
@@ -409,6 +517,8 @@ class InventoryTransferController extends Controller
                 'qty' => $request->qty,
                 'unit_cost' => $request->unit_cost,
                 'reference_no' => null,
+                'ris_number' => $replacementProduct ? strtoupper(trim($request->ris_number)) : null,
+                'ris_date' => $replacementProduct ? $request->ris_date : null,
                 'pull_out_attachments' => $pullOutAttachments ?: null,
                 'replacement_product_id' => $replacementProduct ? $replacementProduct->id : null,
                 'replacement_sku' => $replacementProduct ? $replacementProduct->sku : null,
@@ -423,7 +533,7 @@ class InventoryTransferController extends Controller
                 'created_by' => $user->id,
             ]);
 
-            $referenceNo = 'MOV-' . Carbon::now()->format('Ymd') . '-' . str_pad($movement->id, 6, '0', STR_PAD_LEFT);
+            $referenceNo = $this->nextMovementReferenceNo();
             $replacementReferenceNo = null;
 
             if ($replacementProduct) {
@@ -449,7 +559,7 @@ class InventoryTransferController extends Controller
                     'created_by' => $user->id,
                 ]);
 
-                $replacementReferenceNo = 'MOV-' . Carbon::now()->format('Ymd') . '-' . str_pad($replacementMovement->id, 6, '0', STR_PAD_LEFT);
+                $replacementReferenceNo = $this->nextMovementReferenceNo();
                 DB::table('inventory_transfers')->where('id', $movement->id)->update(['related_movement_id' => $replacementMovement->id]);
                 DB::table('inventory_transfers')->where('id', $replacementMovement->id)->update(['reference_no' => $replacementReferenceNo]);
             }
@@ -478,46 +588,212 @@ class InventoryTransferController extends Controller
         return redirect()->route('inventory-transfers.index')->with('success', $message);
     }
 
+    private function nextMovementReferenceNo()
+    {
+        // One sequence is maintained per calendar month, producing references
+        // such as MOV-202609-000001.
+        $month = Carbon::today();
+        $sequenceKey = $month->copy()->startOfMonth()->toDateString();
+        $prefix = 'MOV-' . $month->format('Ym') . '-';
+        $sequence = DB::table('inventory_movement_reference_sequences')
+            ->where('reference_date', $sequenceKey)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$sequence) {
+            $lastNumber = InventoryTransfer::where('reference_no', 'like', $prefix . '%')
+                ->pluck('reference_no')
+                ->map(function ($reference) {
+                    preg_match('/-(\d+)$/', (string) $reference, $matches);
+                    return isset($matches[1]) ? (int) $matches[1] : 0;
+                })
+                ->max() ?: 0;
+
+            DB::table('inventory_movement_reference_sequences')->insert([
+                'reference_date' => $sequenceKey,
+                'last_number' => $lastNumber,
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+            $sequence = (object) ['last_number' => $lastNumber];
+        }
+
+        $nextNumber = (int) $sequence->last_number + 1;
+        DB::table('inventory_movement_reference_sequences')
+            ->where('reference_date', $sequenceKey)
+            ->update(['last_number' => $nextNumber, 'updated_at' => Carbon::now()]);
+
+        return $prefix . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+    }
+
+    private function storePullOutAttachments(Request $request, $userId)
+    {
+        if (!$request->hasFile('pull_out_attachments')) {
+            return [];
+        }
+
+        $directory = public_path('uploads/inventory-movements/pull-outs');
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        return collect($request->file('pull_out_attachments'))->map(function ($file) use ($directory, $userId) {
+            $filename = 'pull-out-' . $userId . '-' . str_replace('.', '', uniqid('', true)) . '.' . $file->getClientOriginalExtension();
+            $file->move($directory, $filename);
+
+            return [
+                'path' => 'uploads/inventory-movements/pull-outs/' . $filename,
+                'name' => $file->getClientOriginalName(),
+            ];
+        })->all();
+    }
+
+    private function storeMultipleMovements(Request $request, $user, $ad, array $areas, $type)
+    {
+        if (($type === 'in' && !$request->to_area) || ($type === 'out' && !$request->from_area) || ($type === 'transfer' && (!$request->from_area || !$request->to_area || $request->from_area === $request->to_area))) {
+            return back()->withInput()->with('error', 'Please complete the required area fields.');
+        }
+        foreach ([$request->from_area, $request->to_area] as $area) {
+            if ($area && !in_array($area, $areas, true)) return back()->withInput()->with('error', 'Selected area is not assigned to your account.');
+        }
+        $items = collect($request->items);
+        $hasDuplicateProducts = $items->pluck('product_id')->count() !== $items->pluck('product_id')->unique()->count();
+        if ($hasDuplicateProducts) return back()->withInput()->with('error', 'A product can be added only once.');
+        $isPullOut = $type === 'out' && $request->out_type === 'Pull Out';
+        $isReturnRefund = $type === 'out' && $request->out_type === 'Return and Refund';
+        $attachments = $isPullOut ? $this->storePullOutAttachments($request, $user->id) : [];
+        $warehouse = ($isPullOut || $isReturnRefund) ? $this->warehouseForAuthenticatedAd() : null;
+        $batch = 'BATCH-' . Carbon::now()->format('YmdHis') . '-' . strtoupper(substr(uniqid(), -5));
+        $referenceNo = null;
+        $movementIds = [];
+        try {
+            DB::transaction(function () use ($items, $request, $user, $ad, $type, $batch, &$referenceNo, &$movementIds, $isPullOut, $isReturnRefund, $attachments, $warehouse) {
+                $referenceNo = $this->nextMovementReferenceNo();
+                foreach ($items as $item) {
+                    $product = Product::findOrFail($item['product_id']);
+                    if ($type === 'in' && (int) $product->ad_user_id !== (int) $user->id) abort(422, 'Invalid product.');
+                    if (in_array($type, ['out', 'transfer'], true) && (int) $item['qty'] > $this->availableQty($user->id, $ad ? $ad->id : null, $request->from_area, $product)) abort(422, 'Insufficient stock for ' . $product->product_name . '.');
+                    $movement = InventoryTransfer::create([
+                        'ad_id' => $ad ? $ad->id : null, 'ad_user_id' => $user->id, 'product_id' => $product->id,
+                        'sku' => $product->sku, 'item_name' => $product->product_name, 'movement_type' => $type, 'out_type' => $request->out_type,
+                        'from_area' => in_array($type, ['out', 'transfer'], true) ? $request->from_area : null,
+                        'to_area' => in_array($type, ['in', 'transfer'], true) ? $request->to_area : null,
+                        'qty' => $item['qty'], 'batch_number' => $batch, 'approval_status' => ($isPullOut || $isReturnRefund) ? 'Pending' : 'Approved',
+                        'ris_number' => $isPullOut ? strtoupper(trim($request->ris_number)) : null,
+                        'ris_date' => $isPullOut ? $request->ris_date : null,
+                        'pull_out_attachments' => $attachments ?: null,
+                        'replacement_product_id' => $isPullOut ? $product->id : null,
+                        'replacement_sku' => $isPullOut ? $product->sku : null,
+                        'replacement_item_name' => $isPullOut ? $product->product_name : null,
+                        'replacement_qty' => $isPullOut ? $item['qty'] : null,
+                        'warehouse' => $warehouse,
+                        'transfer_date' => $request->transfer_date ?: Carbon::today(), 'remarks' => $request->remarks, 'created_by' => $user->id,
+                    ]);
+                    $movement->update(['reference_no' => $referenceNo]);
+                    $movementIds[] = $movement->id;
+                }
+            });
+        } catch (\Throwable $exception) {
+            return back()->withInput()->with('error', $exception->getMessage());
+        }
+        if ($isReturnRefund) {
+            $firstMovement = InventoryTransfer::find($movementIds[0] ?? null);
+            if ($firstMovement) {
+                $this->notifyDennisReturnRefund($firstMovement);
+            }
+
+            return redirect()->route('inventory-transfers.index')->with('success', $items->count() . ' Return and Refund items were submitted for approval. Reference No.: ' . $referenceNo);
+        }
+
+        return redirect()->route('inventory-transfers.index')->with('success', $items->count() . ' movement items saved successfully. Reference No.: ' . $referenceNo);
+    }
+
     public function returnRefundRequests()
     {
         $this->ensureReturnRefundReviewer();
 
         $requests = InventoryTransfer::where('out_type', 'Return and Refund')
-            ->when(!$this->isDennisApprover(), function ($query) {
+            ->when($this->returnRefundCreditProcessor(), function ($query, $processor) {
+                $query->leftJoin('area_distributors as return_refund_ads', 'return_refund_ads.id', '=', 'inventory_transfers.ad_id')
+                    ->select('inventory_transfers.*')
+                    ->whereIn('inventory_transfers.approval_status', ['Processing', 'For Review']);
+
+                if ($processor === 'princess') {
+                    $this->applyRegionVFilter($query, 'return_refund_ads.location_region');
+                    return;
+                }
+
+                $query->where(function ($regionQuery) {
+                    $regionQuery->whereNull('return_refund_ads.location_region')
+                        ->orWhereRaw("LOWER(TRIM(return_refund_ads.location_region)) NOT REGEXP ?", [$this->regionVPattern()]);
+                });
+            }, function ($query) {
+                if ($this->isPresident()) {
+                    return;
+                }
+
+                if ($this->isDennisApprover()) {
+                    return;
+                }
+
+                if ($this->hasReturnRefundViewAccess()) {
+                    return;
+                }
+
                 $query->where('warehouse', strtolower((string) auth()->user()->warehouse));
             })
             ->with(['product', 'creator'])
-            ->latest()
+            ->latest('inventory_transfers.created_at')
             ->get();
 
-        return view('inventory_transfers.return_refunds', compact('requests'));
+        $creditMemoProcessor = $this->returnRefundCreditProcessor();
+
+        return view('inventory_transfers.return_refunds', compact('requests', 'creditMemoProcessor'));
     }
 
     public function approveReturnRefund(Request $request, $id)
     {
         abort_unless($this->isDennisApprover(), 403);
-        $request->validate(['decision' => 'required|in:Approved,Rejected', 'warehouse_remarks' => 'nullable|string|max:1000']);
+        $request->validate([
+            'decision' => 'required|in:Approved,Rejected',
+            'warehouse_remarks' => 'nullable|string|max:1000',
+        ]);
+
         $movement = InventoryTransfer::where('out_type', 'Return and Refund')->findOrFail($id);
         abort_unless($movement->approval_status === 'Pending', 422);
 
+        if ($request->decision === 'Rejected') {
+            $movement->update([
+                'approval_status' => 'Rejected',
+                'warehouse_remarks' => $request->warehouse_remarks,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => Carbon::now(),
+            ]);
+
+            return back()->with('success', 'Return and Refund request rejected.');
+        }
+
         $movement->update([
-            'approval_status' => $request->decision,
+            'approval_status' => 'Approved',
             'warehouse_remarks' => $request->warehouse_remarks,
             'reviewed_by' => auth()->id(),
             'reviewed_at' => Carbon::now(),
         ]);
 
-        return back()->with('success', 'Return and Refund request ' . strtolower($request->decision) . '.');
+        return back()->with('success', 'Return and Refund request approved. Please submit the RIS documents.');
     }
 
     public function uploadReturnDocuments(Request $request, $id)
     {
-        $movement = InventoryTransfer::where('ad_user_id', auth()->id())->where('out_type', 'Return and Refund')->findOrFail($id);
+        abort_unless($this->isDennisApprover(), 403);
+
+        $movement = InventoryTransfer::where('out_type', 'Return and Refund')->findOrFail($id);
         abort_unless($movement->approval_status === 'Approved', 422);
+
         $request->validate([
             'ris_number' => 'required|string|max:255',
             'return_date' => 'required|date',
-            'return_attachments' => 'required|array|max:5',
+            'return_attachments' => 'required|array|min:1|max:5',
             'return_attachments.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
@@ -529,7 +805,7 @@ class InventoryTransferController extends Controller
             'approval_status' => 'Documents Submitted',
         ]);
 
-        return back()->with('success', 'Return documents submitted to the warehouse.');
+        return back()->with('success', 'RIS documents submitted to the warehouse.');
     }
 
     public function receiveReturnRefund(Request $request, $id)
@@ -537,7 +813,7 @@ class InventoryTransferController extends Controller
         $this->ensureWarehouseUser();
         $request->validate([
             'warehouse_received_qty' => 'required|integer|min:1',
-            'warehouse_reference_no' => 'required|string|max:255',
+            'sirr_number' => 'required|string|max:255',
             'warehouse_remarks' => 'nullable|string|max:1000',
         ]);
         $movement = InventoryTransfer::where('out_type', 'Return and Refund')
@@ -545,6 +821,9 @@ class InventoryTransferController extends Controller
             ->findOrFail($id);
         abort_unless($movement->approval_status === 'Documents Submitted', 422);
         if ($request->warehouse_received_qty > $movement->qty) return back()->with('error', 'Received quantity cannot exceed the requested quantity.');
+        if ((int) $request->warehouse_received_qty !== (int) $movement->qty && !$request->filled('warehouse_remarks')) {
+            return back()->withInput()->with('error', 'Remarks are required when the received quantity differs from the requested quantity.');
+        }
 
         $product = $this->productForInventoryTransfer($movement);
         if (!$product) {
@@ -559,16 +838,247 @@ class InventoryTransferController extends Controller
         $movement->update([
             'qty' => $request->warehouse_received_qty,
             'warehouse_received_qty' => $request->warehouse_received_qty,
-            'warehouse_reference_no' => strtoupper(trim($request->warehouse_reference_no)),
+            // Reuse the existing warehouse reference column for SIRR numbers
+            // so historical Return and Refund records remain compatible.
+            'warehouse_reference_no' => strtoupper(trim($request->sirr_number)),
             'warehouse_received_at' => Carbon::now(),
             'warehouse_remarks' => $request->warehouse_remarks,
-            'approval_status' => 'Warehouse Confirmed',
+            'approval_status' => 'Processing',
             'reviewed_by' => auth()->id(),
             'reviewed_at' => Carbon::now(),
         ]);
         $this->notifyAdReturnReceived($movement->fresh());
 
-        return back()->with('success', 'Return received and confirmed. The Area/Provincial Distributor was emailed.');
+        return back()->with('success', 'Return receiving is now processing. The Area/Provincial Distributor was emailed.');
+    }
+
+    public function submitReturnRefundCreditMemo(Request $request, $id)
+    {
+        $processor = $this->returnRefundCreditProcessor();
+        abort_unless($processor, 403);
+
+        $request->validate([
+            'credit_memo_reference_no' => 'required|string|max:255',
+            'credit_memo_attachments' => 'required|array|min:1|max:5',
+            'credit_memo_attachments.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        $movement = InventoryTransfer::where('out_type', 'Return and Refund')
+            ->where('approval_status', 'Processing')
+            ->findOrFail($id);
+
+        abort_unless($this->maySubmitReturnRefundCreditMemo($movement, $processor), 403);
+
+        $attachments = $this->storeCreditMemoAttachments($request->file('credit_memo_attachments'), $movement->id);
+        $movement->update([
+            'credit_memo_reference_no' => strtoupper(trim($request->credit_memo_reference_no)),
+            'credit_memo_attachments' => $attachments,
+            'credit_memo_submitted_by' => auth()->id(),
+            'credit_memo_submitted_at' => Carbon::now(),
+            'approval_status' => 'For Review',
+        ]);
+
+        return back()->with('success', 'Credit memo submitted. The Return and Refund request is now For Review.');
+    }
+
+    public function revertReturnRefund(Request $request, $id)
+    {
+        abort_unless($this->mayRevertReturnRefund(), 403);
+        $request->validate([
+            'revert_to' => 'required|in:Warehouse,Accounting',
+            'revert_remarks' => 'required|string|max:1000',
+        ]);
+        $movement = InventoryTransfer::where('out_type', 'Return and Refund')
+            ->where('approval_status', 'For Review')
+            ->findOrFail($id);
+
+        $this->revertReturnRefundToDestination(
+            $movement,
+            $request->revert_to,
+            $request->revert_remarks
+        );
+
+        return back()->with('success', 'Return and Refund request reverted to ' . $request->revert_to . '.');
+    }
+
+    public function markReturnRefundReviewed($id)
+    {
+        abort_unless($this->mayRevertReturnRefund(), 403);
+
+        $movement = InventoryTransfer::where('out_type', 'Return and Refund')
+            ->where('approval_status', 'For Review')
+            ->findOrFail($id);
+
+        try {
+            $this->sendReturnRefundEvidenceToSpp(
+                $movement,
+                'Return & Refund Reviewed - ' . $movement->reference_no
+            );
+        } catch (\Exception $exception) {
+            Log::error('SPP return/refund email failed.', [
+                'movement_id' => $movement->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return back()->with('error', 'Unable to send the consolidated PDF to SPP. The request was not marked as Reviewed.');
+        }
+
+        $movement->update([
+            'approval_status' => 'Reviewed',
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => Carbon::now(),
+        ]);
+
+        return back()->with('success', 'Return and Refund request marked as Reviewed.');
+    }
+
+    public function approveReturnRefundByPresident($id)
+    {
+        abort_unless($this->isPresident(), 403);
+
+        $movement = InventoryTransfer::where('out_type', 'Return and Refund')
+            ->where('approval_status', 'Reviewed')
+            ->findOrFail($id);
+
+        $movement->update([
+            'approval_status' => 'President Approved',
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => Carbon::now(),
+        ]);
+
+        return back()->with('success', 'Return and Refund request approved by the President.');
+    }
+
+    public function revertReturnRefundByPresident(Request $request, $id)
+    {
+        abort_unless($this->isPresident(), 403);
+
+        $request->validate([
+            'revert_to' => 'required|in:Warehouse,Accounting',
+            'revert_remarks' => 'required|string|max:1000',
+        ]);
+
+        $movement = InventoryTransfer::where('out_type', 'Return and Refund')
+            ->where('approval_status', 'Reviewed')
+            ->findOrFail($id);
+
+        $this->revertReturnRefundToDestination(
+            $movement,
+            $request->revert_to,
+            $request->revert_remarks
+        );
+
+        return back()->with('success', 'Return and Refund request reverted to ' . $request->revert_to . '.');
+    }
+
+    private function mayRevertReturnRefund(): bool
+    {
+        return (bool) array_intersect(['PQD/IAD', 'Accounting'], (array) auth()->user()->approval_types);
+    }
+
+    private function isPresident(): bool
+    {
+        return strtolower(trim((string) auth()->user()->designation)) === 'president';
+    }
+
+    private function revertReturnRefundToDestination(
+        InventoryTransfer $movement,
+        string $destination,
+        string $revertRemarks
+    ): void {
+        $destinationStatus = [
+            'Warehouse' => 'Documents Submitted',
+            'Accounting' => 'Processing',
+        ][$destination];
+
+        $revertNote = 'Reverted to ' . $destination . ': ' . trim($revertRemarks);
+        $remarks = collect([$movement->warehouse_remarks, $revertNote])
+            ->filter()
+            ->implode(PHP_EOL);
+
+        $movement->update([
+            'approval_status' => $destinationStatus,
+            'warehouse_remarks' => $remarks,
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => Carbon::now(),
+        ]);
+    }
+
+    private function consolidateReturnRefundAttachments(InventoryTransfer $movement): string
+    {
+        $attachments = array_merge(
+            (array) $movement->return_attachments,
+            (array) $movement->credit_memo_attachments
+        );
+
+        $files = collect($attachments)
+            ->map(function ($attachment) {
+                $path = is_array($attachment) ? ($attachment['path'] ?? '') : $attachment;
+
+                return public_path($path);
+            })
+            ->filter(function ($path) {
+                return is_file($path);
+            })
+            ->values();
+
+        abort_if($files->isEmpty(), 422, 'No attachments are available to consolidate.');
+
+        $pdf = new Fpdi();
+
+        foreach ($files as $file) {
+            if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'pdf') {
+                $pages = $pdf->setSourceFile($file);
+
+                for ($page = 1; $page <= $pages; $page++) {
+                    $template = $pdf->importPage($page);
+                    $size = $pdf->getTemplateSize($template);
+
+                    $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                    $pdf->useTemplate($template);
+                }
+
+                continue;
+            }
+
+            $imageSize = getimagesize($file);
+            if (!$imageSize) {
+                continue;
+            }
+
+            $orientation = $imageSize[0] > $imageSize[1] ? 'L' : 'P';
+            $pdf->AddPage($orientation, 'A4');
+
+            $availableWidth = $orientation === 'L' ? 277 : 190;
+            $width = min($availableWidth, 190);
+            $height = min(277, $width * ($imageSize[1] / $imageSize[0]));
+
+            $pdf->Image($file, 10, 10, $width, $height);
+        }
+
+        $directory = public_path('uploads/inventory-movements/return-refunds/consolidated');
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $path = $directory . DIRECTORY_SEPARATOR . 'return-refund-' . $movement->id . '-' . time() . '.pdf';
+        $pdf->Output('F', $path);
+
+        return $path;
+    }
+
+    private function sendReturnRefundEvidenceToSpp(InventoryTransfer $movement, string $subject): void
+    {
+        $pdf = $this->consolidateReturnRefundAttachments($movement);
+
+        Mail::send('emails.return_refund_spp', compact('movement'), function ($mail) use ($pdf, $movement, $subject) {
+            $mail->to('ian.bautista@pascalresources.com.ph')
+                ->subject($subject)
+                ->attach($pdf, [
+                    'as' => 'return-refund-' . $movement->reference_no . '.pdf',
+                    'mime' => 'application/pdf',
+                ]);
+        });
     }
 
     private function isDennisApprover(): bool
@@ -578,8 +1088,59 @@ class InventoryTransferController extends Controller
 
     private function ensureReturnRefundReviewer(): void
     {
-        if ($this->isDennisApprover()) return;
+        if ($this->isDennisApprover() || $this->isPresident() || $this->returnRefundCreditProcessor() || $this->hasReturnRefundViewAccess()) return;
         $this->ensureWarehouseUser();
+    }
+
+    private function ensureReturnRefundReportViewer(): void
+    {
+        if (auth()->user()->role === 'Area Distributor') {
+            return;
+        }
+
+        $this->ensureReturnRefundReviewer();
+    }
+
+    private function hasReturnRefundViewAccess(): bool
+    {
+        $permissions = json_decode(auth()->user()->access_permissions ?: '{}', true);
+        $actions = is_array($permissions) ? ($permissions['return_refunds']['requests'] ?? []) : [];
+
+        return is_array($actions) && in_array('view', $actions, true);
+    }
+
+    private function returnRefundCreditProcessor(): ?string
+    {
+        $name = strtolower(trim((string) auth()->user()->name));
+
+        if (preg_match('/\bprincess\b/', $name)) return 'princess';
+        if (preg_match('/\bdenver\b/', $name)) return 'denver';
+
+        return null;
+    }
+
+    private function maySubmitReturnRefundCreditMemo(InventoryTransfer $movement, string $processor): bool
+    {
+        $region = strtolower(trim((string) AreaDistributor::where('id', $movement->ad_id)->value('location_region')));
+        $isRegionV = $this->isRegionVLocation($region);
+
+        return $processor === 'princess' ? $isRegionV : !$isRegionV;
+    }
+
+    private function applyRegionVFilter($query, string $column): void
+    {
+        $query->whereRaw("LOWER(TRIM({$column})) REGEXP ?", [$this->regionVPattern()]);
+    }
+
+    private function isRegionVLocation(string $region): bool
+    {
+        return (bool) preg_match('/(^|[^a-z0-9])region[[:space:]\\-]*(v|5)([^a-z0-9]|$)/i', $region);
+    }
+
+    private function regionVPattern(): string
+    {
+        // Matches Region V / Region 5, but not Region VI.
+        return '(^|[^[:alnum:]])region[[:space:]-]*(v|5)([^[:alnum:]]|$)';
     }
 
     private function storeReturnAttachments(array $files, int $movementId): array
@@ -634,13 +1195,555 @@ class InventoryTransferController extends Controller
     {
         $this->ensureWarehouseUser();
         $warehouse = strtolower((string) auth()->user()->warehouse);
-        $requests = InventoryTransfer::where('out_type', 'Pull Out')
-            ->where('warehouse', $warehouse)
+        $requests = $this->warehousePullOutRequestGroups($warehouse);
+        $summary = [
+            'pending' => $requests->filter(fn ($request) => $request->groupedItems->contains('approval_status', 'Pending'))->count(),
+            'processing' => $requests->filter(fn ($request) => $request->groupedItems->contains('approval_status', 'For Processing'))->count(),
+            'replacing' => $requests->filter(fn ($request) => $request->groupedItems->contains('approval_status', 'Replacing'))->count(),
+            'ad_confirmed' => $requests->filter(fn ($request) => $request->groupedItems->contains('approval_status', 'AD Confirmed'))->count(),
+            'total' => $requests->count(),
+        ];
+
+        return view('inventory_transfers.warehouse_pull_outs', compact('requests', 'summary', 'warehouse'));
+    }
+
+    public function warehousePullOutsData()
+    {
+        $this->ensureWarehouseUser();
+        $warehouse = strtolower((string) auth()->user()->warehouse);
+        $requests = $this->warehousePullOutRequestGroups($warehouse);
+        $itemIds = $requests->flatMap(function ($request) {
+            return $request->groupedItems->pluck('id');
+        })->unique()->values();
+        $auditsByMovement = Schema::hasTable('audits') && $itemIds->isNotEmpty()
+            ? DB::table('audits')
+                ->select('auditable_id', 'new_values', 'created_at')
+                ->where('auditable_type', InventoryTransfer::class)
+                ->whereIn('auditable_id', $itemIds)
+                ->orderBy('created_at')
+                ->get()
+                ->groupBy('auditable_id')
+            : collect();
+
+        $rows = $requests->map(function ($request) use ($auditsByMovement) {
+            $items = $request->groupedItems->map(function ($item) use ($auditsByMovement) {
+                $statusStartedAt = $item->approval_status === 'Pending'
+                    ? $item->created_at
+                    : ($item->reviewed_at ?: $item->created_at);
+
+                return [
+                    'id' => $item->id,
+                    'name' => $item->item_name ?: 'Product',
+                    'sku' => $item->sku ?: 'No SKU',
+                    'requested_qty' => (int) ($item->replacement_qty ?: $item->qty),
+                    'approved_qty' => (int) $item->qty,
+                    'ad_confirmed_qty' => $item->approval_status === 'AD Confirmed' ? (int) $item->qty : null,
+                    'unit_cost' => $item->unit_cost,
+                    'replacement_unit_cost' => $item->replacement_unit_cost,
+                    'status' => $item->approval_status ?: 'Pending',
+                    'dr_number' => $item->replacement_dr_number,
+                    'remarks' => $item->warehouse_remarks,
+                    'status_started_at' => $statusStartedAt ? Carbon::parse($statusStartedAt)->toDateString() : null,
+                    'aging' => $this->pullOutWorkflowAging($item, $auditsByMovement->get($item->id, collect())),
+                    'review_url' => route('warehouse-pull-outs.review', $item->id),
+                ];
+            })->values()->all();
+
+            return [
+                'date' => $request->transfer_date ? Carbon::parse($request->transfer_date)->format('M d, Y') : '—',
+                'sort_date' => $request->created_at ? Carbon::parse($request->created_at)->timestamp : 0,
+                'reference' => $request->reference_no ?: 'Draft request',
+                'ad_name' => $request->ad_name ?: 'Area Distributor',
+                'source_areas' => $request->groupedItems->pluck('from_area')->filter()->unique()->values()->all(),
+                'ris_number' => $request->ris_number ?: '—',
+                'ris_date' => $request->ris_date ? Carbon::parse($request->ris_date)->format('M d, Y') : '—',
+                'warehouse' => ucfirst($request->warehouse ?: auth()->user()->warehouse),
+                'attachments' => $request->pull_out_attachments ?: [],
+                'remarks' => $request->warehouse_remarks ?: ($request->remarks ?: '—'),
+                'items' => $items,
+                'requested_qty_total' => (int) $request->requestedQtyTotal,
+                'search_text' => collect([$request->reference_no, $request->ad_name, $request->ris_number, $request->warehouse])
+                    ->merge($request->groupedItems->pluck('item_name'))
+                    ->merge($request->groupedItems->pluck('sku'))
+                    ->filter()
+                    ->implode(' '),
+            ];
+        })->values();
+
+        return \Yajra\DataTables\Facades\DataTables::of($rows)->make(true);
+    }
+
+    private function pullOutWorkflowAging(InventoryTransfer $movement, $audits): array
+    {
+        $stages = ['Pending', 'For Processing', 'Replacing'];
+        $movementCreatedAt = $movement->created_at ? Carbon::parse($movement->created_at) : Carbon::now();
+        $stageStarts = ['Pending' => $movementCreatedAt];
+        $currentStatus = $movement->approval_status ?: 'Pending';
+        $currentRank = array_search($currentStatus, array_merge($stages, ['AD Confirmed']), true);
+        $currentRank = $currentRank === false ? 0 : $currentRank;
+
+        foreach ($audits as $audit) {
+            // Some historic audit records can share an ID after restored or
+            // reseeded data. Only use events belonging to this request run.
+            if (!$audit->created_at || Carbon::parse($audit->created_at)->lt($movementCreatedAt)) {
+                continue;
+            }
+
+            $newValues = json_decode($audit->new_values ?: '{}', true) ?: [];
+            $status = $newValues['approval_status'] ?? null;
+            if (in_array($status, $stages, true) && !isset($stageStarts[$status])) {
+                $stageStarts[$status] = Carbon::parse($audit->created_at);
+            }
+        }
+
+        $reviewedAt = $movement->reviewed_at ? Carbon::parse($movement->reviewed_at) : null;
+        if ($currentRank >= 1 && !isset($stageStarts['For Processing'])) {
+            $stageStarts['For Processing'] = $reviewedAt ?: $stageStarts['Pending'];
+        }
+        if ($currentRank >= 2 && !isset($stageStarts['Replacing'])) {
+            $stageStarts['Replacing'] = $reviewedAt ?: $stageStarts['For Processing'];
+        }
+
+        $aging = ['Pending' => null, 'For Processing' => null, 'Replacing' => null];
+        foreach ($stages as $index => $stage) {
+            if (!isset($stageStarts[$stage])) {
+                continue;
+            }
+
+            $nextStage = $stages[$index + 1] ?? null;
+            $endedAt = $nextStage && isset($stageStarts[$nextStage])
+                ? $stageStarts[$nextStage]
+                : ($currentRank > $index ? Carbon::parse($movement->updated_at ?: Carbon::now()) : Carbon::now());
+            $aging[$stage] = $stageStarts[$stage]->copy()->startOfDay()->diffInDays($endedAt->copy()->startOfDay());
+        }
+
+        return $aging;
+    }
+
+    private function warehousePullOutRequestGroups(string $warehouse)
+    {
+        $requestRows = InventoryTransfer::where('inventory_transfers.out_type', 'Pull Out')
+            ->where('inventory_transfers.warehouse', $warehouse)
+            ->leftJoin('users as area_distributors', 'area_distributors.id', '=', 'inventory_transfers.ad_user_id')
+            ->select('inventory_transfers.*', 'area_distributors.name as ad_name')
             ->with('product')
             ->orderByRaw("CASE approval_status WHEN 'Pending' THEN 0 WHEN 'For Processing' THEN 1 WHEN 'Replacing' THEN 2 ELSE 3 END")
             ->latest()
             ->get();
-        return view('inventory_transfers.warehouse_pull_outs', compact('requests', 'warehouse'));
+
+        $requests = $requestRows
+            ->groupBy(function ($request) {
+                $risNumber = trim((string) $request->ris_number);
+
+                return $risNumber !== ''
+                    ? implode('|', [$risNumber, $request->ad_user_id, $request->warehouse])
+                    : 'individual|' . $request->id;
+            })
+            ->map(function ($items) {
+                $request = $items->first();
+                $statuses = $items->pluck('approval_status')->filter()->unique()->values();
+
+                $request->groupedItems = $items->values();
+                $request->requestedQtyTotal = $items->sum(function ($item) {
+                    return $item->replacement_qty ?: $item->qty;
+                });
+                $request->approvedQtyTotal = $items->sum('qty');
+                $request->workflowStatus = $statuses->count() === 1 ? $statuses->first() : 'Mixed';
+
+                return $request;
+            })
+            ->values();
+
+        return $requests;
+    }
+
+    public function pullOutReport()
+    {
+        $query = $this->pullOutReportQuery();
+        $summary = [
+            'total' => $this->pullOutTransactionCount(clone $query),
+            'pending' => $this->pullOutTransactionCount((clone $query)->where('approval_status', 'Pending')),
+            'processing' => $this->pullOutTransactionCount((clone $query)->whereIn('approval_status', ['For Processing', 'Processing'])),
+            'replacing' => $this->pullOutTransactionCount((clone $query)->where('approval_status', 'Replacing')),
+            'completed' => $this->pullOutTransactionCount((clone $query)->whereIn('approval_status', ['Approved', 'Warehouse Confirmed', 'AD Confirmed'])),
+            'rejected' => $this->pullOutTransactionCount((clone $query)->where('approval_status', 'Rejected')),
+        ];
+        $warehouses = (clone $query)->whereNotNull('warehouse')->distinct()->orderBy('warehouse')->pluck('warehouse');
+
+        return view('reports.pull_out_requests', compact('summary', 'warehouses'));
+    }
+
+    public function returnRefundReport()
+    {
+        $this->ensureReturnRefundReportViewer();
+
+        $query = $this->returnRefundReportQuery();
+        $summary = [
+            'total' => $this->returnRefundTransactionCount(clone $query),
+            'pending' => $this->returnRefundTransactionCount((clone $query)->where('approval_status', 'Pending')),
+            'receiving' => $this->returnRefundTransactionCount((clone $query)->where('approval_status', 'Documents Submitted')),
+            'processing' => $this->returnRefundTransactionCount((clone $query)->where('approval_status', 'Processing')),
+            'review' => $this->returnRefundTransactionCount((clone $query)->whereIn('approval_status', ['For Review', 'Reviewed'])),
+        ];
+        $warehouses = (clone $query)->whereNotNull('warehouse')->distinct()->orderBy('warehouse')->pluck('warehouse');
+
+        return view('reports.return_refund_requests', compact('summary', 'warehouses'));
+    }
+
+    public function returnRefundReportData(Request $request)
+    {
+        $this->ensureReturnRefundReportViewer();
+
+        $movements = $this->returnRefundReportQuery();
+
+        if ($request->filled('status')) {
+            $movements->where('inventory_transfers.approval_status', $request->status);
+        }
+
+        if ($request->filled('warehouse')) {
+            $movements->where('inventory_transfers.warehouse', $request->warehouse);
+        }
+
+        if ($request->filled('date_from')) {
+            $movements->whereDate('inventory_transfers.transfer_date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $movements->whereDate('inventory_transfers.transfer_date', '<=', $request->date_to);
+        }
+
+        $groupedMovements = $movements
+            ->select([])
+            ->selectRaw('MIN(inventory_transfers.id) as id')
+            ->selectRaw('MAX(inventory_transfers.transfer_date) as transfer_date')
+            ->selectRaw('MAX(inventory_transfers.reference_no) as reference_no')
+            ->selectRaw('MAX(inventory_transfers.ad_user_id) as ad_user_id')
+            ->selectRaw('MAX(inventory_transfers.warehouse) as warehouse')
+            ->selectRaw('MAX(inventory_transfers.approval_status) as approval_status')
+            ->selectRaw('MAX(inventory_transfers.ris_number) as ris_number')
+            ->selectRaw('MAX(inventory_transfers.return_date) as return_date')
+            ->selectRaw('MAX(inventory_transfers.return_attachments) as return_attachments')
+            ->selectRaw('MAX(inventory_transfers.warehouse_reference_no) as warehouse_reference_no')
+            ->selectRaw('SUM(COALESCE(inventory_transfers.warehouse_received_qty, 0)) as warehouse_received_qty')
+            ->selectRaw('MAX(inventory_transfers.credit_memo_reference_no) as credit_memo_reference_no')
+            ->selectRaw('MAX(inventory_transfers.credit_memo_attachments) as credit_memo_attachments')
+            ->selectRaw('MAX(inventory_transfers.warehouse_remarks) as warehouse_remarks')
+            ->selectRaw('MAX(inventory_transfers.remarks) as remarks')
+            ->selectRaw("GROUP_CONCAT(CONCAT_WS('||', inventory_transfers.item_name, inventory_transfers.sku, inventory_transfers.qty, inventory_transfers.from_area) ORDER BY inventory_transfers.id SEPARATOR '~~') as item_rows")
+            ->groupBy('inventory_transfers.reference_no', 'inventory_transfers.ad_user_id', 'inventory_transfers.warehouse');
+
+        $query = DB::query()
+            ->fromSub($groupedMovements, 'return_refund_rows')
+            ->leftJoin('users as distributors', 'distributors.id', '=', 'return_refund_rows.ad_user_id')
+            ->select('return_refund_rows.*', 'distributors.name as distributor_name');
+
+        return \Yajra\DataTables\Facades\DataTables::of($query)
+            ->editColumn('transfer_date', function ($row) {
+                return $row->transfer_date ? Carbon::parse($row->transfer_date)->format('M d, Y') : '—';
+            })
+            ->addColumn('distributor', function ($row) {
+                return e($row->distributor_name ?: 'Area Distributor');
+            })
+            ->addColumn('products', function ($row) {
+                return $this->returnRefundReportProducts($row->item_rows);
+            })
+            ->addColumn('ris_details', function ($row) {
+                $details = $row->ris_number
+                    ? '<strong>RIS # ' . e($row->ris_number) . '</strong><small>' . e($row->return_date ? Carbon::parse($row->return_date)->format('M d, Y') : 'No return date') . '</small>'
+                    : '<span class="text-muted">—</span>';
+
+                return $details . $this->returnRefundReportFiles($row->return_attachments);
+            })
+            ->addColumn('receiving_details', function ($row) {
+                if (!$row->warehouse_reference_no) {
+                    return '<span class="text-muted">—</span>';
+                }
+
+                return '<strong>SIRR # ' . e($row->warehouse_reference_no) . '</strong><small>Received: ' . number_format((int) $row->warehouse_received_qty) . ' pcs</small>';
+            })
+            ->addColumn('credit_memo_details', function ($row) {
+                $details = $row->credit_memo_reference_no
+                    ? '<strong>Ref. # ' . e($row->credit_memo_reference_no) . '</strong>'
+                    : '<span class="text-muted">—</span>';
+
+                return $details . $this->returnRefundReportFiles($row->credit_memo_attachments);
+            })
+            ->addColumn('status_badge', function ($row) {
+                $status = $row->approval_status ?: 'Pending';
+                $class = [
+                    'Pending' => 'warning text-dark',
+                    'Approved' => 'primary',
+                    'Documents Submitted' => 'info text-dark',
+                    'Processing' => 'primary',
+                    'For Review' => 'secondary',
+                    'Reviewed' => 'info text-dark',
+                    'President Approved' => 'success',
+                    'Rejected' => 'danger',
+                ][$status] ?? 'secondary';
+
+                return '<span class="badge bg-' . $class . '">' . e($status) . '</span>';
+            })
+            ->addColumn('remarks_display', function ($row) {
+                return e($row->warehouse_remarks ?: $row->remarks ?: '—');
+            })
+            ->filterColumn('distributor', function ($builder, $keyword) {
+                $builder->where('distributors.name', 'like', "%{$keyword}%");
+            })
+            ->rawColumns(['products', 'ris_details', 'receiving_details', 'credit_memo_details', 'status_badge'])
+            ->make(true);
+    }
+
+    public function pullOutReportData(Request $request)
+    {
+        $movements = $this->pullOutReportQuery();
+
+        if ($request->filled('warehouse')) $movements->where('inventory_transfers.warehouse', $request->warehouse);
+
+        $groupedMovements = $movements
+            ->selectRaw('MIN(inventory_transfers.id) as id')
+            ->selectRaw('MAX(inventory_transfers.transfer_date) as transfer_date')
+            ->selectRaw('MAX(inventory_transfers.reference_no) as reference_no')
+            ->selectRaw('MAX(inventory_transfers.ad_user_id) as ad_user_id')
+            ->selectRaw('MAX(inventory_transfers.from_area) as from_area')
+            ->selectRaw('MAX(inventory_transfers.warehouse) as warehouse')
+            ->selectRaw('MAX(inventory_transfers.approval_status) as approval_status')
+            ->selectRaw('MAX(inventory_transfers.ris_number) as ris_number')
+            ->selectRaw('MAX(inventory_transfers.ris_date) as ris_date')
+            ->selectRaw('MAX(inventory_transfers.reviewed_at) as reviewed_at')
+            ->selectRaw('MAX(inventory_transfers.created_at) as created_at')
+            ->selectRaw('MAX(inventory_transfers.pull_out_attachments) as pull_out_attachments')
+            ->selectRaw('MAX(inventory_transfers.warehouse_remarks) as warehouse_remarks')
+            ->selectRaw('MAX(inventory_transfers.remarks) as remarks')
+            ->selectRaw("GROUP_CONCAT(CONCAT_WS('||', inventory_transfers.item_name, inventory_transfers.sku, inventory_transfers.qty, inventory_transfers.replacement_item_name, inventory_transfers.replacement_sku, inventory_transfers.replacement_qty) ORDER BY inventory_transfers.id SEPARATOR '~~') as item_rows")
+            ->selectRaw('SUM(COALESCE(inventory_transfers.replacement_qty, inventory_transfers.qty)) as requested_qty_total')
+            ->selectRaw('SUM(inventory_transfers.qty) as approved_qty_total')
+            ->groupBy(
+                'inventory_transfers.reference_no',
+                'inventory_transfers.ad_user_id',
+                'inventory_transfers.warehouse',
+                'inventory_transfers.pull_out_attachments'
+            );
+
+        $query = DB::query()
+            ->fromSub($groupedMovements, 'pull_out_rows')
+            ->leftJoin('users as distributors', 'distributors.id', '=', 'pull_out_rows.ad_user_id')
+            ->select('pull_out_rows.*', 'distributors.name as distributor_name');
+
+        if ($request->filled('status')) $query->where('pull_out_rows.approval_status', $request->status);
+        if ($request->filled('date_from')) $query->whereDate('pull_out_rows.transfer_date', '>=', $request->date_from);
+        if ($request->filled('date_to')) $query->whereDate('pull_out_rows.transfer_date', '<=', $request->date_to);
+
+        return \Yajra\DataTables\Facades\DataTables::of($query)
+            ->editColumn('transfer_date', function ($row) { return $row->transfer_date ? Carbon::parse($row->transfer_date)->format('M d, Y') : '—'; })
+            ->addColumn('distributor', function ($row) { return e($row->distributor_name ?: 'Area Distributor'); })
+            ->addColumn('pull_out_product', function ($row) { return $this->pullOutReportItems($row->item_rows, 0, 1, 2); })
+            ->addColumn('replacement_product', function ($row) { return $this->pullOutReportItems($row->item_rows, 3, 4, 5); })
+            ->addColumn('request_qty', function ($row) { return number_format($row->requested_qty_total) . ' pcs'; })
+            ->addColumn('approved_qty', function ($row) {
+                return in_array($row->approval_status, ['For Processing', 'Replacing', 'Warehouse Confirmed'], true)
+                    ? number_format($row->approved_qty_total) . ' pcs'
+                    : '—';
+            })
+            ->addColumn('ris_number_display', function ($row) { return e($row->ris_number ?: '—'); })
+            ->addColumn('ris_date_display', function ($row) { return $row->ris_date ? Carbon::parse($row->ris_date)->format('M d, Y') : '—'; })
+            ->addColumn('status_badge', function ($row) {
+                $status = $row->approval_status ?: 'Approved';
+                $class = [
+                    'Approved' => 'success', 'Rejected' => 'danger', 'For Processing' => 'info text-dark',
+                    'Replacing' => 'primary', 'Warehouse Confirmed' => 'success', 'AD Confirmed' => 'success', 'Documents Submitted' => 'secondary',
+                ][$status] ?? 'warning text-dark';
+                return '<span class="badge bg-' . $class . '">' . e($status) . '</span>';
+            })
+            ->addColumn('pending_aging', function ($row) { return $this->pullOutStatusAging($row, 'Pending'); })
+            ->addColumn('processing_aging', function ($row) { return $this->pullOutStatusAging($row, 'For Processing'); })
+            ->addColumn('replacing_aging', function ($row) { return $this->pullOutStatusAging($row, 'Replacing'); })
+            ->addColumn('attachments', function ($row) {
+                $files = is_array($row->pull_out_attachments) ? $row->pull_out_attachments : (json_decode($row->pull_out_attachments ?: '[]', true) ?: []);
+                if (!count($files)) return '<span class="text-muted">—</span>';
+
+                return collect($files)->map(function ($file) {
+                    $path = is_array($file) ? ($file['path'] ?? '') : $file;
+                    $name = is_array($file) ? ($file['name'] ?? basename($path)) : basename($path);
+                    return $path ? '<a class="d-block text-primary text-nowrap" href="' . e(asset($path)) . '" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip"></i> ' . e($name) . '</a>' : '';
+                })->filter()->implode('');
+            })
+            ->addColumn('remarks', function ($row) { return e($row->warehouse_remarks ?: $row->remarks ?: '—'); })
+            ->addColumn('ad_confirmation', function ($row) {
+                if (auth()->user()->role !== 'Area Distributor' || $row->approval_status !== 'Replacing') {
+                    return '—';
+                }
+
+                return '<form method="POST" class="js-confirm-replacement-form" action="' . e(route('pull-out-report.confirm-replacement', $row->id)) . '">'
+                    . csrf_field()
+                    . '<button type="submit" class="btn btn-sm btn-success text-nowrap" data-qty="' . number_format($row->approved_qty_total) . '">'
+                    . '<i class="bi bi-check2-circle me-1"></i>Confirm ' . number_format($row->approved_qty_total) . ' pcs</button></form>';
+            })
+            ->filterColumn('distributor', function ($builder, $keyword) { $builder->where('distributors.name', 'like', "%{$keyword}%"); })
+            ->rawColumns(['pull_out_product', 'replacement_product', 'status_badge', 'pending_aging', 'processing_aging', 'replacing_aging', 'attachments', 'ad_confirmation'])
+            ->make(true);
+    }
+
+    private function storeCreditMemoAttachments(array $files, int $movementId): array
+    {
+        $directory = public_path('uploads/inventory-movements/credit-memos');
+        if (!is_dir($directory)) mkdir($directory, 0755, true);
+
+        return collect($files)->map(function ($file) use ($directory, $movementId) {
+            $filename = 'credit-memo-' . $movementId . '-' . str_replace('.', '', uniqid('', true)) . '.' . $file->getClientOriginalExtension();
+            $file->move($directory, $filename);
+
+            return [
+                'path' => 'uploads/inventory-movements/credit-memos/' . $filename,
+                'name' => $file->getClientOriginalName(),
+            ];
+        })->all();
+    }
+
+    private function pullOutStatusAging($row, string $status): string
+    {
+        if ($row->approval_status !== $status) {
+            return '—';
+        }
+
+        $startedAt = $status === 'Pending' ? $row->created_at : ($row->reviewed_at ?: $row->created_at);
+        $days = $startedAt ? Carbon::parse($startedAt)->startOfDay()->diffInDays(Carbon::today()) : 0;
+
+        return '<span class="aging-day">' . $days . ' Day(s)</span>';
+    }
+
+    private function pullOutReportItems($items, int $nameIndex, int $skuIndex, int $qtyIndex): string
+    {
+        return collect(explode('~~', (string) $items))->filter()->map(function ($item) use ($nameIndex, $skuIndex, $qtyIndex) {
+            $parts = explode('||', $item);
+            $name = $parts[$nameIndex] ?? 'Product';
+            $sku = $parts[$skuIndex] ?? 'No SKU';
+            $qty = $parts[$qtyIndex] ?? 0;
+
+            return '<div class="mb-1"><strong>' . e($name) . '</strong><small class="d-block text-muted">' . e($sku ?: 'No SKU') . ' · ' . number_format($qty) . ' pcs</small></div>';
+        })->implode('');
+    }
+
+    private function pullOutAgingBreakdown($query, bool $useReviewedAt): array
+    {
+        $dateColumn = $useReviewedAt ? 'COALESCE(reviewed_at, created_at)' : 'created_at';
+        $ageExpression = "DATEDIFF(CURDATE(), DATE({$dateColumn}))";
+        $transactionKey = "COALESCE(NULLIF(batch_number, ''), NULLIF(reference_no, ''), id)";
+
+        return $query->selectRaw("{$ageExpression} as age_days, COUNT(DISTINCT {$transactionKey}) as request_count")
+            ->groupBy(DB::raw($ageExpression))
+            ->orderBy('age_days')
+            ->get()
+            ->mapWithKeys(function ($row) {
+                return [(int) $row->age_days => (int) $row->request_count];
+            })
+            ->all();
+    }
+
+    private function pullOutTransactionCount($query): int
+    {
+        $transactionKey = "COALESCE(NULLIF(batch_number, ''), NULLIF(reference_no, ''), id)";
+
+        return (int) $query->selectRaw("COUNT(DISTINCT {$transactionKey}) as transaction_count")
+            ->value('transaction_count');
+    }
+
+    private function pullOutReportQuery()
+    {
+        // Qualify the columns because the report joins users for distributor names.
+        // Without this, warehouse-admin reports fail with an ambiguous `warehouse`
+        // column during DataTables' count query.
+        $query = InventoryTransfer::query()
+            ->whereRaw("LOWER(TRIM(COALESCE(inventory_transfers.out_type, ''))) = ?", ['pull out']);
+        $user = auth()->user();
+        $warehouse = strtolower((string) ($user->warehouse ?? ''));
+
+        if ($user->role === 'Area Distributor') {
+            // An AD may only see the pull-out requests that they submitted.
+            $query->where('inventory_transfers.ad_user_id', $user->id);
+        } elseif ($user->role === 'Admin' && in_array($warehouse, ['lubao', 'guinobatan'], true)) {
+            // Warehouse admins only see requests routed to their warehouse.
+            $query->where('inventory_transfers.warehouse', $warehouse);
+        }
+
+        return $query;
+    }
+
+    private function returnRefundReportQuery()
+    {
+        $query = InventoryTransfer::query()
+            ->whereRaw("LOWER(TRIM(COALESCE(inventory_transfers.out_type, ''))) = ?", ['return and refund']);
+        $user = auth()->user();
+
+        if ($user->role === 'Area Distributor') {
+            return $query->where('inventory_transfers.ad_user_id', $user->id);
+        }
+
+        if ($processor = $this->returnRefundCreditProcessor()) {
+            $query->leftJoin('area_distributors as return_refund_ads', 'return_refund_ads.id', '=', 'inventory_transfers.ad_id')
+                ->select('inventory_transfers.*')
+                ->whereIn('inventory_transfers.approval_status', ['Processing', 'For Review']);
+
+            if ($processor === 'princess') {
+                $this->applyRegionVFilter($query, 'return_refund_ads.location_region');
+
+                return $query;
+            }
+
+            return $query->where(function ($regionQuery) {
+                $regionQuery->whereNull('return_refund_ads.location_region')
+                    ->orWhereRaw("LOWER(TRIM(return_refund_ads.location_region)) NOT REGEXP ?", [$this->regionVPattern()]);
+            });
+        }
+
+        if ($this->isPresident() || $this->isDennisApprover() || $this->hasReturnRefundViewAccess()) {
+            return $query;
+        }
+
+        return $query->where('inventory_transfers.warehouse', strtolower((string) $user->warehouse));
+    }
+
+    private function returnRefundTransactionCount($query): int
+    {
+        return (int) $query
+            ->select([])
+            ->selectRaw("COUNT(DISTINCT COALESCE(NULLIF(reference_no, ''), id)) as transaction_count")
+            ->value('transaction_count');
+    }
+
+    private function returnRefundReportProducts($items): string
+    {
+        return collect(explode('~~', (string) $items))
+            ->filter()
+            ->map(function ($item) {
+                [$name, $sku, $qty, $area] = array_pad(explode('||', $item), 4, null);
+
+                return '<div class="rr-report-product">'
+                    . '<strong>' . e($name ?: 'Product') . '</strong>'
+                    . '<small>' . e($sku ?: 'No SKU') . ' · ' . number_format((int) $qty) . ' pcs</small>'
+                    . '<small><i class="bi bi-geo-alt"></i> ' . e($area ?: 'No source area') . '</small>'
+                    . '</div>';
+            })
+            ->implode('');
+    }
+
+    private function returnRefundReportFiles($attachments): string
+    {
+        $files = is_array($attachments) ? $attachments : (json_decode($attachments ?: '[]', true) ?: []);
+
+        if (!$files) {
+            return '';
+        }
+
+        $links = collect($files)->map(function ($file) {
+            $path = is_array($file) ? ($file['path'] ?? '') : $file;
+            $name = is_array($file) ? ($file['name'] ?? basename($path)) : basename($path);
+
+            return $path
+                ? '<a href="' . e(asset($path)) . '" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip"></i> ' . e($name) . '</a>'
+                : '';
+        })->filter()->implode('');
+
+        return $links ? '<div class="rr-report-files">' . $links . '</div>' : '';
     }
 
     public function reviewPullOut(Request $request, $id)
@@ -683,6 +1786,13 @@ class InventoryTransferController extends Controller
                 return back()->with('error', 'Approved quantity cannot be higher than the requested quantity of ' . number_format($movement->replacement_qty) . '.');
             }
 
+            $approvedQuantityChanged = (int) $request->replacement_qty !== (int) $movement->replacement_qty;
+            if ($approvedQuantityChanged && blank($request->warehouse_remarks)) {
+                return back()
+                    ->withInput()
+                    ->with('error', 'Warehouse remarks are required when the approved quantity differs from the requested quantity.');
+            }
+
             $movement->update([
                 'qty' => $request->replacement_qty,
                 'unit_cost' => $request->replacement_unit_cost,
@@ -711,33 +1821,78 @@ class InventoryTransferController extends Controller
                 'reviewed_by' => auth()->id(),
                 'reviewed_at' => Carbon::now(),
             ]);
-
-            $replacement = InventoryTransfer::create([
-                'ad_id' => $movement->ad_id,
-                'ad_user_id' => $movement->ad_user_id,
-                'product_id' => $movement->product_id,
-                'sku' => $movement->sku,
-                'item_name' => $movement->item_name,
-                'movement_type' => 'in',
-                'to_area' => $movement->from_area,
-                'qty' => $movement->qty,
-                'unit_cost' => $movement->unit_cost,
-                'out_type' => 'Replacement',
-                'related_movement_id' => $movement->id,
-                'approval_status' => 'Replacing',
-                'replacement_dr_number' => strtoupper(trim($request->replacement_dr_number)),
-                'transfer_date' => $movement->transfer_date,
-                'remarks' => 'Warehouse replacement for ' . $movement->reference_no . ' (DR # ' . strtoupper(trim($request->replacement_dr_number)) . ')',
-                'created_by' => auth()->id(),
-            ]);
-
-            DB::table('inventory_transfers')->where('id', $replacement->id)->update([
-                'reference_no' => 'MOV-' . Carbon::now()->format('Ymd') . '-' . str_pad($replacement->id, 6, '0', STR_PAD_LEFT),
-            ]);
-            $movement->update(['related_movement_id' => $replacement->id]);
         });
 
-        return back()->with('success', 'Replacement stock posted with DR # ' . strtoupper(trim($request->replacement_dr_number)) . '.');
+        return back()->with('success', 'Replacement marked with DR # ' . strtoupper(trim($request->replacement_dr_number)) . '. Waiting for Area Distributor confirmation before stock is posted.');
+    }
+
+    public function confirmPullOutReplacement($id)
+    {
+        $movement = InventoryTransfer::where('out_type', 'Pull Out')
+            ->where('ad_user_id', auth()->id())
+            ->findOrFail($id);
+        $rawAttachments = $movement->getAttributes()['pull_out_attachments'] ?? null;
+
+        $requests = InventoryTransfer::where('out_type', 'Pull Out')
+            ->where('ad_user_id', $movement->ad_user_id)
+            ->where('reference_no', $movement->reference_no)
+            ->where('warehouse', $movement->warehouse)
+            ->when(
+                $rawAttachments,
+                function ($query, $attachments) {
+                    $query->where('pull_out_attachments', $attachments);
+                },
+                function ($query) {
+                    $query->whereNull('pull_out_attachments');
+                }
+            )
+            ->get();
+
+        if ($requests->isEmpty() || $requests->contains(function ($request) {
+            return $request->approval_status !== 'Replacing';
+        })) {
+            return back()->with('error', 'Only replacements awaiting your confirmation can be confirmed.');
+        }
+
+        DB::transaction(function () use ($requests) {
+            foreach ($requests as $movement) {
+                if ($movement->related_movement_id) {
+                    $movement->update([
+                        'approval_status' => 'AD Confirmed',
+                        'ad_notified_at' => Carbon::now(),
+                    ]);
+                    continue;
+                }
+
+                $replacement = InventoryTransfer::create([
+                    'ad_id' => $movement->ad_id,
+                    'ad_user_id' => $movement->ad_user_id,
+                    'product_id' => $movement->product_id,
+                    'sku' => $movement->sku,
+                    'item_name' => $movement->item_name,
+                    'movement_type' => 'in',
+                    'to_area' => $movement->from_area,
+                    'qty' => $movement->qty,
+                    'unit_cost' => $movement->unit_cost,
+                    'out_type' => 'Replacement',
+                    'related_movement_id' => $movement->id,
+                    'approval_status' => 'AD Confirmed',
+                    'replacement_dr_number' => $movement->replacement_dr_number,
+                    'transfer_date' => Carbon::today(),
+                    'remarks' => 'AD confirmed warehouse replacement for ' . $movement->reference_no . '.',
+                    'created_by' => auth()->id(),
+                ]);
+                $replacement->update(['reference_no' => $this->nextMovementReferenceNo()]);
+                $movement->update(['related_movement_id' => $replacement->id]);
+
+                $movement->update([
+                    'approval_status' => 'AD Confirmed',
+                    'ad_notified_at' => Carbon::now(),
+                ]);
+            }
+        });
+
+        return back()->with('success', 'Replacement quantities confirmed. Stock was added to Current Stock by Area.');
     }
 
     private function ensureWarehouseUser() { if (auth()->user()->role !== 'Admin' || !in_array(strtolower((string) auth()->user()->warehouse), ['lubao', 'guinobatan'], true)) abort(403); }
@@ -791,9 +1946,9 @@ class InventoryTransferController extends Controller
                         $query->whereIn('out_type', ['Pull Out', 'Replacement'])
                             ->where('approval_status', 'Replacing');
                     })
-                    ->orWhere(function ($query) {
-                        $query->where('out_type', 'Return and Refund')
-                            ->where('approval_status', 'Warehouse Confirmed');
+                        ->orWhere(function ($query) {
+                            $query->where('out_type', 'Return and Refund')
+                            ->whereIn('approval_status', ['Processing', 'For Review', 'Warehouse Confirmed']);
                     });
             })
             ->get();

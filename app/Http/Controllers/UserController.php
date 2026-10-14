@@ -100,6 +100,8 @@ class UserController extends Controller
             'designation' => 'required_if:role,Admin|required_if:role,MFI|nullable|string|max:255',
             'employee_number' => 'required_if:role,Admin|nullable|string|max:255',
             'department' => 'required_if:role,Admin|nullable|string|max:255',
+            'approval_types' => 'nullable|array|max:1',
+            'approval_types.*' => 'in:Accounting,PQD/IAD',
             'is_distributor_personnel' => 'nullable|boolean',
             'contact_number' => 'nullable|regex:/^09[0-9]{9}$/',
             'type' => 'nullable|array',
@@ -212,6 +214,9 @@ class UserController extends Controller
         $user->designation = $isAdminLike ? $request->designation : null;
         $user->employee_number = $isAdmin ? $request->employee_number : null;
         $user->department = $isAdmin ? $request->department : null;
+        if (Schema::hasColumn('users', 'approval_types')) {
+            $user->approval_types = $isAdmin ? array_values((array) $request->input('approval_types', [])) : null;
+        }
         $user->password = bcrypt('12345678');
 
         if ($imagePath) {
@@ -973,6 +978,7 @@ class UserController extends Controller
             'purchase_orders' => ['adpo'],
             'inventory' => ['stock'],
             'inventory_transfers' => ['transfers'],
+            'pull_out_requests' => ['approvals'],
             'return_refunds' => ['requests'],
             'settings' => ['items', 'rewards', 'campaigns'],
             'products' => ['catalog'],

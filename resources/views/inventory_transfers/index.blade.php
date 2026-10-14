@@ -201,7 +201,7 @@
                             @endif
                         </div>
 
-                        <div class="mb-3">
+                        <div class="mb-3 js-single-product">
                             <label class="form-label">LPG SKU / Product</label>
                             <select name="product_id" id="productSelect" class="form-control select2" data-selected-value="{{ old('product_id') }}" required>
                                 <option value="">Select product</option>
@@ -218,7 +218,7 @@
                         <div class="mb-3 js-from-area">
                             <div class="d-flex justify-content-between align-items-center">
                                 <label class="form-label">From Area</label>
-                                <span class="available-pill" id="availableQty">Available: 0</span>
+                                <span class="available-pill" id="availableQty" hidden>Available: 0</span>
                             </div>
                             @php
                                 $defaultFromArea = old('from_area') ?: ($areas->count() === 1 ? $areas->first() : null);
@@ -249,40 +249,38 @@
                             <select name="out_type" id="outTypeSelect" class="form-control select2" data-selected-value="{{ old('out_type') }}"></select>
                             <div class="form-text" id="movementReasonHelp"></div>
                         </div>
-                        <div class="row js-movement-qty-cost">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Qty</label>
-                                <input type="number" min="1" name="qty" id="qtyInput" class="form-control" value="{{ old('qty') }}" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Unit Cost</label>
-                                <input type="number" min="0" step="0.01" name="unit_cost" id="unitCostInput" class="form-control" value="{{ old('unit_cost') }}">
-                            </div>
+                        <div class="alert alert-warning py-2 small js-out-adjustment-note" style="display: none;">
+                            <i class="bi bi-dash-circle me-1"></i> This adjustment deducts stock from the selected source area.
                         </div>
-                        <div class="js-pull-out-replacement" style="display: none;">
-                            <div class="soft-note mb-3">
-                                <strong>Replacement stock</strong><br>
-                                The LPG selected above from <strong>Current Stock by Area</strong> is automatically added back into the same source area.
+                        <div class="alert alert-info py-2 small js-return-refund-note" style="display: none;">
+                            <i class="bi bi-arrow-return-left me-1"></i>
+                            <strong>Return and Refund workflow:</strong> submit the request to Sir Dennis. When he approves, he will record the RIS number, return date, and supporting attachments.
+                        </div>
+                        <div class="mb-3 js-movement-items">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div><label class="form-label mb-0">Products and Quantities</label><div class="form-text mt-0">Add one or more LPG products for this movement.</div></div>
+                                <button type="button" id="addMovementRow" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg me-1"></i>Add Row</button>
                             </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label" for="replacementQtyInput">Replacement Qty <span class="text-danger">*</span></label>
-                                    <input type="number" min="1" name="replacement_qty" id="replacementQtyInput" class="form-control" value="{{ old('replacement_qty') }}" disabled>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label" for="replacementUnitCostInput">Replacement Unit Cost</label>
-                                    <input type="number" min="0" step="0.01" name="replacement_unit_cost" id="replacementUnitCostInput" class="form-control" value="{{ old('replacement_unit_cost') }}" disabled>
-                                </div>
+                            <div id="movementRows"></div>
+                        </div>
+                        <div class="row js-pull-out-ris" style="display: none;">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="pullOutRisNumber">RIS Number <span class="text-danger">*</span></label>
+                                <input type="text" name="ris_number" id="pullOutRisNumber" class="form-control" value="{{ old('ris_number') }}" placeholder="Enter RIS number" disabled>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="pullOutRisDate">RIS Date <span class="text-danger">*</span></label>
+                                <input type="date" name="ris_date" id="pullOutRisDate" class="form-control" value="{{ old('ris_date', date('Y-m-d')) }}" disabled>
                             </div>
                         </div>
                         <div class="mb-3 js-pull-out-attachments" style="display: none;">
                             <label class="form-label" for="pullOutAttachments">Pull-out attachments <span class="text-danger">*</span></label>
                             <input type="file" name="pull_out_attachments[]" id="pullOutAttachments" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple disabled>
-                            <div class="form-text">Attach pull-out proof files. JPG, PNG, or PDF; maximum 5 files, 5 MB each.</div>
+                            <div class="form-text"><strong>Attach a clear picture of the signed RIS.</strong> You may include other pull-out proof files. JPG, PNG, or PDF; maximum 5 files, 5 MB each.</div>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3 js-transfer-date">
                             <label class="form-label">Date</label>
-                            <input type="date" name="transfer_date" class="form-control" value="{{ old('transfer_date', date('Y-m-d')) }}">
+                            <input type="date" name="transfer_date" id="transferDateInput" class="form-control" value="{{ old('transfer_date', date('Y-m-d')) }}">
                         </div>
 
                         <div class="mb-3">
@@ -399,7 +397,7 @@
                         </div>
                         <a href="{{ route('inventory-transfers.index') }}" class="btn btn-sm btn-outline-secondary mt-2 mt-lg-0">Reset Filters</a>
                     </div>
-                    <form method="GET" action="{{ route('inventory-transfers.index') }}" class="row g-2 mt-3">
+                    <form method="GET" action="{{ route('inventory-transfers.index') }}" class="row g-2 mt-3" id="movementHistoryFilters">
                         <div class="col-lg-2 col-md-4">
                             <select name="movement_type" class="form-control">
                                 <option value="">All Types</option>
@@ -444,10 +442,9 @@
                                 <tr>
                                     <th>Date</th>
                                     <th>Type</th>
-                                    <th>Product</th>
+                                    <th>Products / Quantity</th>
                                     <th>From</th>
                                     <th>To</th>
-                                    <th>Qty</th>
                                     {{-- <th class="text-center">Unit Cost</th> --}}
                                     <th>Reference No.</th>
                                     {{-- <th>Attachments</th>
@@ -471,13 +468,23 @@
                                                 <span class="movement-type-detail">{{ ($movement->from_area ?: 'Source area') . ' to ' . ($movement->to_area ?: 'Receiving area') }}</span>
                                             @endif
                                         </td>
-                                        <td data-label="Product">
-                                            <div class="fw-semibold">{{ optional($movement->product)->product_name ?: $movement->item_name }}</div>
-                                            <div class="small text-muted">{{ $movement->sku ?? 'No SKU' }}</div>
+                                        <td data-label="Products / Quantity">
+                                            @php
+                                                $historyItems = $movement->batch_number
+                                                    ? ($batchItems->get($movement->batch_number) ?: collect([$movement]))
+                                                    : collect([$movement]);
+                                            @endphp
+                                            <div class="border rounded overflow-hidden bg-white">
+                                                @foreach($historyItems as $historyItem)
+                                                    <div class="d-flex justify-content-between align-items-center px-2 py-1 {{ !$loop->last ? 'border-bottom' : '' }}">
+                                                        <span class="small fw-semibold">{{ $historyItem->item_name }} <small class="text-muted">{{ $historyItem->sku }}</small></span>
+                                                        <span class="badge bg-light text-dark border">{{ number_format($historyItem->qty) }}</span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
                                         </td>
                                         <td data-label="From">{{ $movement->from_area ?? '-' }}</td>
                                         <td data-label="To">{{ $movement->to_area ?? '-' }}</td>
-                                        <td data-label="Quantity"><span class="movement-qty">{{ number_format($movement->qty) }}</span></td>
                                         {{-- <td data-label="Unit cost" class="text-center">
                                             @if($movement->unit_cost !== null)
                                                 <span class="movement-unit-cost">₱{{ number_format($movement->unit_cost, 2) }}</span>
@@ -509,15 +516,6 @@
                                             @endif
                                         </td> --}}
                                         <td data-label="Action" class="text-center">
-                                            @if($movement->out_type === 'Return and Refund' && $movement->approval_status === 'Approved')
-                                                <form method="POST" action="{{ route('inventory-transfers.return-documents', $movement->id) }}" enctype="multipart/form-data" class="text-start mb-2">
-                                                    @csrf
-                                                    <input class="form-control form-control-sm mb-1" name="ris_number" placeholder="RIS #" required>
-                                                    <input class="form-control form-control-sm mb-1" type="date" name="return_date" required>
-                                                    <input class="form-control form-control-sm mb-1" type="file" name="return_attachments[]" accept=".jpg,.jpeg,.png,.pdf" multiple required>
-                                                    <button class="btn btn-sm btn-success w-100" type="submit">Submit return documents</button>
-                                                </form>
-                                            @endif
                                             <button
                                                 type="button"
                                                 class="btn btn-sm btn-outline-primary js-view-movement"
@@ -528,6 +526,7 @@
                                                 data-reason="{{ $movement->out_type ?: '-' }}"
                                                 data-product="{{ optional($movement->product)->product_name ?: $movement->item_name }}"
                                                 data-sku="{{ $movement->sku ?: '-' }}"
+                                                data-products="{{ $historyItems->map(function ($historyItem) { return ['name' => $historyItem->item_name, 'sku' => $historyItem->sku, 'qty' => $historyItem->qty]; })->values()->toJson() }}"
                                                 data-from-area="{{ $movement->from_area ?: '-' }}"
                                                 data-to-area="{{ $movement->to_area ?: '-' }}"
                                                 data-quantity="{{ number_format($movement->qty) }}"
@@ -540,7 +539,7 @@
                                                 data-approved-quantity="{{ $movement->approval_status !== 'Pending' ? number_format($movement->qty) : '-' }}"
                                                 data-dr-number="{{ $movement->replacement_dr_number ?: '-' }}"
                                                 data-warehouse-remarks="{{ $movement->warehouse_remarks ?: '-' }}"
-                                                data-attachments="{{ e(json_encode($movement->pull_out_attachments ?: [])) }}"
+                                                data-attachments="{{ json_encode($movement->pull_out_attachments ?: []) }}"
                                             >
                                                 <i class="bi bi-eye"></i> View
                                             </button>
@@ -551,49 +550,43 @@
                             </tbody>
                         </table>
                     </div>
-                    @if($movements->hasPages())
-                        <div class="inventory-pagination border-top px-3 py-3">
-                            {{ $movements->links() }}
-                        </div>
-                    @endif
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="modal fade" id="movementDetailsModal" tabindex="-1" role="dialog" aria-labelledby="movementDetailsModalTitle" aria-hidden="true">
+    <div class="modal fade movement-details-modal" id="movementDetailsModal" tabindex="-1" role="dialog" aria-labelledby="movementDetailsModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="movementDetailsModalTitle"><i class="bi bi-journal-text me-1"></i> Movement Details</h5>
+                <div class="modal-header movement-modal-header">
+                    <div><div class="movement-modal-eyebrow">Inventory Ledger</div><h5 class="modal-title" id="movementDetailsModalTitle"><i class="bi bi-journal-text me-1"></i> Movement Details</h5></div>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Date</small><strong id="movementDetailDate">-</strong></div>
-                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Movement Type</small><strong id="movementDetailType">-</strong></div>
-                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Type / Reason</small><strong id="movementDetailReason">-</strong></div>
-                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Reference No.</small><strong id="movementDetailReference">-</strong></div>
-                        <div class="col-md-8 mb-3"><small class="text-muted d-block">Product</small><strong id="movementDetailProduct">-</strong></div>
-                        <div class="col-md-4 mb-3"><small class="text-muted d-block">SKU</small><strong id="movementDetailSku">-</strong></div>
-                        <div class="col-md-6 mb-3"><small class="text-muted d-block">From Area</small><strong id="movementDetailFromArea">-</strong></div>
-                        <div class="col-md-6 mb-3"><small class="text-muted d-block">To Area</small><strong id="movementDetailToArea">-</strong></div>
-                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Quantity</small><strong id="movementDetailQuantity">-</strong></div>
-                        <div class="col-md-6 mb-3"><small class="text-muted d-block">Unit Cost</small><strong id="movementDetailUnitCost">-</strong></div>
+                <div class="modal-body movement-modal-body">
+                    <div class="movement-modal-reference"><span>Reference No.</span><strong id="movementDetailReference">—</strong></div>
+                    <div class="row movement-details-grid">
+                        <div class="col-md-4"><div class="movement-detail-field"><small>Date</small><strong id="movementDetailDate">—</strong></div></div>
+                        <div class="col-md-4"><div class="movement-detail-field"><small>Movement Type</small><strong id="movementDetailType">—</strong></div></div>
+                        <div class="col-md-4"><div class="movement-detail-field"><small>Type / Reason</small><strong id="movementDetailReason">—</strong></div></div>
+                        <div class="col-md-6"><div class="movement-detail-field"><small>From Area</small><strong id="movementDetailFromArea">—</strong></div></div>
+                        <div class="col-md-6"><div class="movement-detail-field"><small>To Area</small><strong id="movementDetailToArea">—</strong></div></div>
+                        <div class="col-md-6"><div class="movement-detail-field"><small>Total Quantity</small><strong id="movementDetailQuantity">—</strong></div></div>
+                        <div class="col-md-6"><div class="movement-detail-field"><small>Unit Cost</small><strong id="movementDetailUnitCost">—</strong></div></div>
+                        <div class="col-12"><div class="movement-detail-section"><div class="movement-detail-section-title"><i class="bi bi-box-seam"></i> Products &amp; Quantities</div><div id="movementDetailProducts" class="movement-detail-products"></div></div></div>
                         <div id="movementReplacementWorkflow" class="col-12 d-none">
-                            <div class="border rounded bg-light p-3 mb-3">
-                                <div class="fw-semibold mb-2">Pull Out Replacement</div>
+                            <div class="movement-detail-section replacement-workflow">
+                                <div class="movement-detail-section-title"><i class="bi bi-arrow-repeat"></i> Pull Out Replacement</div>
                                 <div class="row">
-                                    <div class="col-md-4 mb-2"><small class="text-muted d-block">Status</small><strong id="movementDetailWorkflowStatus">-</strong></div>
-                                    <div class="col-md-4 mb-2"><small class="text-muted d-block">Requested Qty</small><strong id="movementDetailRequestedQuantity">-</strong></div>
-                                    <div class="col-md-4 mb-2"><small class="text-muted d-block">Approved Qty</small><strong id="movementDetailApprovedQuantity">-</strong></div>
-                                    <div class="col-md-4 mb-2 mb-md-0"><small class="text-muted d-block">DR #</small><strong id="movementDetailDrNumber">-</strong></div>
-                                    <div class="col-md-8 mb-0"><small class="text-muted d-block">Warehouse Remarks</small><strong id="movementDetailWarehouseRemarks">-</strong></div>
+                                    <div class="col-md-4"><div class="movement-detail-field"><small>Status</small><strong id="movementDetailWorkflowStatus">—</strong></div></div>
+                                    <div class="col-md-4"><div class="movement-detail-field"><small>Requested Qty</small><strong id="movementDetailRequestedQuantity">—</strong></div></div>
+                                    <div class="col-md-4"><div class="movement-detail-field"><small>Approved Qty</small><strong id="movementDetailApprovedQuantity">—</strong></div></div>
+                                    <div class="col-md-4"><div class="movement-detail-field"><small>DR #</small><strong id="movementDetailDrNumber">—</strong></div></div>
+                                    <div class="col-md-8"><div class="movement-detail-field"><small>Warehouse Remarks</small><strong id="movementDetailWarehouseRemarks">—</strong></div></div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-12 mb-3"><small class="text-muted d-block">Remarks</small><div id="movementDetailRemarks" class="border rounded p-2 bg-light">-</div></div>
-                        <div class="col-12"><small class="text-muted d-block mb-1">Attachments</small><div id="movementDetailAttachments" class="border rounded p-2 bg-light text-muted">No attachments.</div></div>
+                        <div class="col-12"><div class="movement-detail-section"><div class="movement-detail-section-title"><i class="bi bi-chat-left-text"></i> Remarks</div><div id="movementDetailRemarks" class="movement-detail-copy">—</div></div></div>
+                        <div class="col-12"><div class="movement-detail-section"><div class="movement-detail-section-title"><i class="bi bi-paperclip"></i> Attachments</div><div id="movementDetailAttachments" class="movement-detail-attachments text-muted">No supporting files attached.</div></div></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1036,6 +1029,41 @@
         #stockBalanceTable tbody td { grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr); gap: 8px; padding: 10px 12px; }
         .stock-section-title { align-items: flex-start; }
     }
+
+    .movement-item-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 110px 48px;
+        gap: 12px;
+        align-items: start;
+        margin: 0 0 10px;
+        padding: 12px;
+        border: 1px solid #e1e8ef;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .movement-item-grid .form-label {
+        margin-bottom: 6px;
+        font-size: .78rem;
+        font-weight: 700;
+    }
+
+    .movement-item-grid .form-control { min-width: 0; }
+    .movement-item-action { padding-top: 25px; }
+    .movement-item-action .btn { width: 48px; height: 40px; padding: 0; border-radius: 10px; }
+    .movement-item-grid.border-danger { border-color: #dc3545 !important; }
+
+    @media (max-width: 420px) {
+        .movement-item-grid { grid-template-columns: minmax(0, 1fr) 88px 44px; gap: 8px; padding: 10px; }
+        .movement-item-action .btn { width: 44px; }
+    }
+
+    .movement-details-modal .modal-content { overflow: hidden; border: 0; border-radius: 16px; box-shadow: 0 18px 45px rgba(15, 23, 42, .22); }
+    .movement-modal-header { align-items: flex-start; padding: 20px 24px; color: #fff; border: 0; background: linear-gradient(135deg, #0f2d52, #136f7a); }
+    .movement-modal-header .close { color: #fff; opacity: .9; text-shadow: none; }.movement-modal-eyebrow { margin-bottom: 4px; color: #bfe7e9; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }.movement-modal-header .modal-title { font-weight: 800; }
+    .movement-modal-body { padding: 24px; background: #f8fafc; }.movement-modal-reference { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; padding: 11px 14px; color: #1e3a5f; border: 1px solid #dbeafe; border-radius: 10px; background: #eff6ff; }.movement-modal-reference span, .movement-detail-field small { display: block; color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }.movement-modal-reference strong { font-size: 13px; }.movement-details-grid { row-gap: 12px; }.movement-detail-field { height: 100%; min-height: 66px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }.movement-detail-field strong { display: block; margin-top: 6px; color: #1e293b; font-size: 13px; overflow-wrap: anywhere; }
+    .movement-detail-section { margin-top: 4px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 11px; background: #fff; }.movement-detail-section-title { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; color: #334155; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }.movement-detail-section-title i { color: #0f766e; font-size: 14px; }.movement-detail-products { overflow: hidden; border: 1px solid #edf0f5; border-radius: 8px; }.movement-detail-product { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #edf0f5; }.movement-detail-product:last-child { border-bottom: 0; }.movement-detail-product strong, .movement-detail-product small { display: block; }.movement-detail-product strong { color: #1e293b; font-size: 13px; }.movement-detail-product small { margin-top: 2px; color: #64748b; font-size: 11px; }.movement-detail-qty { padding: 4px 8px; color: #075985; font-size: 11px; font-weight: 800; white-space: nowrap; border-radius: 999px; background: #e0f2fe; }.movement-detail-copy { color: #475569; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }.movement-detail-attachments { display: grid; gap: 7px; }.movement-detail-attachment { display: inline-flex; align-items: center; gap: 6px; width: fit-content; color: #2563eb; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }.replacement-workflow { border-color: #bfdbfe; background: #f8fbff; }
+    @media (max-width: 575.98px) { .movement-modal-header, .movement-modal-body { padding: 17px; }.movement-modal-reference { align-items: flex-start; flex-direction: column; gap: 4px; }.movement-detail-product { align-items: flex-start; flex-direction: column; gap: 7px; } }
 </style>
 
 @section('javascript')
@@ -1052,23 +1080,27 @@
         const productSelect = document.getElementById('productSelect');
         const fromAreaSelect = document.getElementById('fromAreaSelect');
         const toAreaSelect = document.getElementById('toAreaSelect');
-        const qtyInput = document.getElementById('qtyInput');
-        const unitCostInput = document.getElementById('unitCostInput');
-        const movementQtyCost = document.querySelector('.js-movement-qty-cost');
+        const outAdjustmentNote = document.querySelector('.js-out-adjustment-note');
+        const returnRefundNote = document.querySelector('.js-return-refund-note');
         const fromArea = document.querySelector('.js-from-area');
         const toArea = document.querySelector('.js-to-area');
         const movementReason = document.querySelector('.js-movement-reason');
         const outTypeSelect = document.getElementById('outTypeSelect');
         const pullOutAttachments = document.querySelector('.js-pull-out-attachments');
         const pullOutAttachmentsInput = document.getElementById('pullOutAttachments');
-        const pullOutReplacement = document.querySelector('.js-pull-out-replacement');
-        const replacementQtyInput = document.getElementById('replacementQtyInput');
-        const replacementUnitCostInput = document.getElementById('replacementUnitCostInput');
+        const pullOutRis = document.querySelector('.js-pull-out-ris');
+        const pullOutRisNumber = document.getElementById('pullOutRisNumber');
+        const pullOutRisDate = document.getElementById('pullOutRisDate');
+        const transferDateGroup = document.querySelector('.js-transfer-date');
+        const transferDateInput = document.getElementById('transferDateInput');
         const movementReasonLabel = document.getElementById('movementReasonLabel');
         const movementReasonHelp = document.getElementById('movementReasonHelp');
         const availableQty = document.getElementById('availableQty');
         const stockWarning = document.getElementById('stockWarning');
         const movementPreview = document.getElementById('movementPreview');
+        const movementRows = document.getElementById('movementRows');
+        const addMovementRow = document.getElementById('addMovementRow');
+        const singleProductGroup = document.querySelector('.js-single-product');
         const balanceSearch = document.getElementById('balanceSearch');
         const balanceStatusFilter = document.getElementById('balanceStatusFilter');
         const appUrl = @json(url('/'));
@@ -1078,7 +1110,7 @@
         let renderedProductKey = null;
         const movementReasons = {
             in: ['Beginning Balance', 'Inventory Adjustment'],
-            out: ['Return and Refund', 'Pull Out', 'Replace']
+            out: ['Return and Refund', 'Pull Out', 'Replace', 'Inventory Adjustment']
         };
 
         if (window.jQuery && window.jQuery.fn.DataTable) {
@@ -1106,6 +1138,64 @@
                 return product.id === productId;
             });
         }
+
+        function initializeMovementHistoryTable() {
+            if (!window.jQuery || !window.jQuery.fn.DataTable) return;
+
+            const historyLabels = ['Date', 'Type', 'Products / Quantity', 'From', 'To', 'Reference No.', 'Action'];
+            const $historyTable = window.jQuery('#movementHistoryTable');
+            if (!$historyTable.length) return;
+            if (window.jQuery.fn.DataTable.isDataTable('#movementHistoryTable')) {
+                $historyTable.DataTable().destroy();
+            }
+            const historyTable = $historyTable.DataTable({
+                processing: true,
+                serverSide: true,
+                deferRender: true,
+                searchDelay: 350,
+                pageLength: 25,
+                lengthMenu: [[25, 50, 100], [25, 50, 100]],
+                order: [[0, 'desc']],
+                language: {
+                    processing: '<i class="bi bi-arrow-repeat me-1"></i> Loading movement history...',
+                    search: 'Search movements:',
+                    lengthMenu: 'Show _MENU_ movements',
+                    emptyTable: 'No movements found.',
+                    zeroRecords: 'No matching movements found.'
+                },
+                ajax: {
+                    url: '{{ route('inventory-transfers.data') }}',
+                    data: function (data) {
+                        data.movement_type = window.jQuery('#movementHistoryFilters [name="movement_type"]').val();
+                        data.product_id = window.jQuery('#movementHistoryFilters [name="product_id"]').val();
+                        data.area = window.jQuery('#movementHistoryFilters [name="area"]').val();
+                        data.date_from = window.jQuery('#movementHistoryFilters [name="date_from"]').val();
+                        data.date_to = window.jQuery('#movementHistoryFilters [name="date_to"]').val();
+                    }
+                },
+                columns: [
+                    { data: 'transfer_date', name: 'inventory_transfers.transfer_date' },
+                    { data: 'movement_type_display', name: 'inventory_transfers.movement_type', orderable: false },
+                    { data: 'products', orderable: false, searchable: false },
+                    { data: 'from_area', name: 'inventory_transfers.from_area' },
+                    { data: 'to_area', name: 'inventory_transfers.to_area' },
+                    { data: 'reference_no', name: 'inventory_transfers.reference_no' },
+                    { data: 'action', orderable: false, searchable: false }
+                ],
+                createdRow: function (row) {
+                    window.jQuery(row).find('td').each(function (index) {
+                        this.setAttribute('data-label', historyLabels[index]);
+                    });
+                }
+            });
+
+            window.jQuery('#movementHistoryFilters').on('submit', function (event) {
+                event.preventDefault();
+                historyTable.ajax.reload();
+            });
+        }
+
+        initializeMovementHistoryTable();
 
         function optionText(product) {
             return (product.sku ? product.sku + ' - ' : '') + product.name;
@@ -1243,30 +1333,34 @@
             }
         }
 
-        function syncPullOutReplacement() {
+        function syncPullOutRis() {
             const isPullOut = selectedType() === 'out' && outTypeSelect.value === 'Pull Out';
-            pullOutReplacement.style.display = isPullOut ? '' : 'none';
-            movementQtyCost.style.display = isPullOut ? 'none' : '';
-            qtyInput.disabled = isPullOut;
-            unitCostInput.disabled = isPullOut;
-            replacementQtyInput.disabled = !isPullOut;
-            replacementUnitCostInput.disabled = !isPullOut;
-            replacementQtyInput.required = isPullOut;
-
-            if (isPullOut && !replacementQtyInput.value) {
-                replacementQtyInput.value = qtyInput.value;
-            }
+            pullOutRis.style.display = isPullOut ? '' : 'none';
+            pullOutRisNumber.disabled = !isPullOut;
+            pullOutRisDate.disabled = !isPullOut;
+            pullOutRisNumber.required = isPullOut;
+            pullOutRisDate.required = isPullOut;
+            transferDateGroup.style.display = isPullOut ? 'none' : '';
+            transferDateInput.disabled = isPullOut;
 
             if (!isPullOut) {
-                replacementQtyInput.value = '';
-                replacementUnitCostInput.value = '';
+                pullOutRisNumber.value = '';
             }
+        }
+
+        function syncOutAdjustmentState() {
+            const isOutAdjustment = selectedType() === 'out' && outTypeSelect.value === 'Inventory Adjustment';
+            outAdjustmentNote.style.display = isOutAdjustment ? '' : 'none';
+        }
+
+        function syncReturnRefundState() {
+            const isReturnRefund = selectedType() === 'out' && outTypeSelect.value === 'Return and Refund';
+            returnRefundNote.style.display = isReturnRefund ? '' : 'none';
         }
 
         function updateAvailableQty() {
             const type = selectedType();
             const available = sourceAvailableQty();
-            const requestedQty = Number((type === 'out' && outTypeSelect.value === 'Pull Out' ? replacementQtyInput.value : qtyInput.value) || 0);
 
             availableQty.classList.remove('is-good', 'is-low', 'is-empty');
             availableQty.classList.add(available <= 0 ? 'is-empty' : (available <= 10 ? 'is-low' : 'is-good'));
@@ -1280,38 +1374,95 @@
 
             availableQty.textContent = 'Available: ' + available.toLocaleString() + ' pcs';
 
-            if (requestedQty > available) {
-                stockWarning.textContent = 'Requested quantity is higher than available stock. Available: ' + available.toLocaleString() + ' pcs.';
-                stockWarning.classList.add('show');
-            } else {
-                stockWarning.classList.remove('show');
-                stockWarning.textContent = '';
-            }
+            stockWarning.classList.remove('show');
+            stockWarning.textContent = '';
         }
 
         function updatePreview() {
             const type = selectedType();
             const product = selectedProduct();
             const productName = product ? ((product.sku ? product.sku + ' - ' : '') + product.name) : 'selected product';
-            const movementQty = type === 'out' && outTypeSelect.value === 'Pull Out' ? replacementQtyInput.value : qtyInput.value;
-            const qty = Number(movementQty || 0).toLocaleString();
+            movementPreview.textContent = 'Add one or more product rows with their quantities.';
+        }
 
-            if (!productSelect.value || Number(movementQty || 0) <= 0) {
-                movementPreview.textContent = 'Select product, area, and quantity.';
-                return;
-            }
+        function refreshMovementRows() {
+            singleProductGroup.style.display = 'none';
+            movementRows.parentElement.style.display = '';
+            productSelect.disabled = true;
+            productSelect.required = false;
+            updateMovementRowAvailability();
+        }
 
-            if (type === 'in') {
-                movementPreview.textContent = 'Add ' + qty + ' pcs of ' + productName + ' to ' + (toAreaSelect.value || 'receiving area') + '.';
-                return;
-            }
+        function updateMovementRowAvailability() {
+            const requiresStock = ['out', 'transfer'].includes(selectedType());
 
-            if (type === 'out') {
-                movementPreview.textContent = 'Remove ' + qty + ' pcs of ' + productName + ' from ' + (fromAreaSelect.value || 'source area') + '.';
-                return;
-            }
+            movementRows.querySelectorAll('.js-movement-row').forEach(function (row) {
+                const productField = row.querySelector('[name$="[product_id]"]');
+                const qtyField = row.querySelector('[name$="[qty]"]');
+                const availability = row.querySelector('.js-row-availability');
+                const hasProduct = Boolean(productField.value);
+                const available = Number(balanceLookup[(productField.value || '') + '|' + fromAreaSelect.value] || 0);
+                const invalid = requiresStock && Number(qtyField.value || 0) > available;
 
-            movementPreview.textContent = 'Transfer ' + qty + ' pcs of ' + productName + ' from ' + (fromAreaSelect.value || 'source area') + ' to ' + (toAreaSelect.value || 'receiving area') + '.';
+                qtyField.disabled = !hasProduct;
+                qtyField.placeholder = hasProduct ? 'Qty' : 'Select product first';
+
+                availability.innerHTML = !hasProduct
+                    ? '<i class="bi bi-info-circle me-1"></i>Select a product to view available stock.'
+                    : requiresStock
+                    ? '<i class="bi bi-box-seam me-1"></i>Available: <strong>' + available.toLocaleString() + ' pcs</strong>'
+                    : '<i class="bi bi-box-arrow-in-down me-1"></i>Stock will be added to the receiving area.';
+                availability.className = 'form-text js-row-availability ' + (!hasProduct ? 'text-muted' : (invalid ? 'text-danger fw-semibold' : 'text-success'));
+                row.classList.toggle('border-danger', invalid);
+                row.classList.toggle('bg-danger-subtle', invalid);
+                qtyField.setCustomValidity(invalid ? 'Quantity exceeds available stock.' : '');
+            });
+        }
+
+        function syncMovementRowProductOptions() {
+            const options = Array.prototype.map.call(productSelect.options, function (option) {
+                return { value: option.value, label: option.textContent, disabled: option.disabled };
+            });
+
+            movementRows.querySelectorAll('[name$="[product_id]"]').forEach(function (select) {
+                const selectedValue = select.value;
+                select.innerHTML = '';
+                options.forEach(function (option) {
+                    const element = document.createElement('option');
+                    element.value = option.value;
+                    element.textContent = option.label;
+                    element.disabled = option.disabled;
+                    select.appendChild(element);
+                });
+                select.value = Array.prototype.some.call(select.options, function (option) {
+                    return option.value === selectedValue;
+                }) ? selectedValue : '';
+            });
+        }
+
+        function addMovementProductRow() {
+            const row = document.createElement('div');
+            row.className = 'js-movement-row movement-item-grid';
+            const index = movementRows.querySelectorAll('.js-movement-row').length;
+            const options = Array.prototype.map.call(productSelect.options, function (option) {
+                return '<option value="' + option.value + '">' + option.textContent + '</option>';
+            }).join('');
+            row.innerHTML = '<div><label class="form-label">LPG SKU / Product</label><select name="items[' + index + '][product_id]" class="form-control" required>' + options + '</select><div class="form-text js-row-availability"></div></div>' +
+                '<div><label class="form-label">Quantity</label><input type="number" name="items[' + index + '][qty]" min="1" class="form-control text-center" placeholder="Qty" required></div>' +
+                '<div class="movement-item-action"><button type="button" class="btn btn-outline-danger js-delete-movement-row" aria-label="Remove product row" title="Remove row"><i class="bi bi-trash"></i></button></div>';
+            row.querySelector('.js-delete-movement-row').addEventListener('click', function () {
+                row.remove();
+                Array.prototype.forEach.call(movementRows.querySelectorAll('.js-movement-row'), function (movementRow, rowIndex) {
+                    movementRow.querySelectorAll('[name]').forEach(function (field) {
+                        field.name = field.name.replace(/items\[\d+\]/, 'items[' + rowIndex + ']');
+                    });
+                });
+                refreshMovementRows();
+            });
+            row.querySelector('[name$="[product_id]"]').addEventListener('change', updateMovementRowAvailability);
+            row.querySelector('[name$="[qty]"]').addEventListener('input', updateMovementRowAvailability);
+            movementRows.appendChild(row);
+            refreshMovementRows();
         }
 
         function preventSameArea() {
@@ -1361,14 +1512,19 @@
             }
 
             renderMovementReasons(needsMovementReason ? type : '');
+            syncOutAdjustmentState();
+            syncReturnRefundState();
             syncPullOutAttachments();
-            syncPullOutReplacement();
+            syncPullOutRis();
+            refreshMovementRows();
 
             if (type === 'transfer' && fromAreaSelect.value && fromAreaSelect.value === toAreaSelect.value) {
                 setSelectValue(toAreaSelect, '');
             }
 
             renderProductOptions();
+            syncMovementRowProductOptions();
+            updateMovementRowAvailability();
             updateActiveType();
             preventSameArea();
             updateAvailableQty();
@@ -1431,86 +1587,107 @@
             });
         });
 
-        [productSelect, fromAreaSelect, toAreaSelect, qtyInput].forEach(function (element) {
+        [productSelect, fromAreaSelect, toAreaSelect].forEach(function (element) {
             element.addEventListener('input', refreshAreaFields);
             element.addEventListener('change', refreshAreaFields);
             element.addEventListener('keyup', refreshAreaFields);
         });
 
         outTypeSelect.addEventListener('change', syncPullOutAttachments);
-        outTypeSelect.addEventListener('change', syncPullOutReplacement);
+        outTypeSelect.addEventListener('change', syncPullOutRis);
+        outTypeSelect.addEventListener('change', syncOutAdjustmentState);
+        outTypeSelect.addEventListener('change', syncReturnRefundState);
+        outTypeSelect.addEventListener('change', refreshMovementRows);
+        addMovementRow.addEventListener('click', addMovementProductRow);
 
-        [replacementQtyInput, replacementUnitCostInput].forEach(function (element) {
-            element.addEventListener('change', refreshAreaFields);
-            element.addEventListener('input', refreshAreaFields);
-        });
+        function parseMovementData(value, fallback) {
+            try {
+                return JSON.parse(value || '[]');
+            } catch (error) {
+                return fallback;
+            }
+        }
 
-        document.querySelectorAll('.js-view-movement').forEach(function (button) {
-            button.addEventListener('click', function () {
-                const details = {
-                    date: button.dataset.date,
-                    type: button.dataset.type,
-                    reason: button.dataset.reason,
-                    product: button.dataset.product,
-                    sku: button.dataset.sku,
-                    fromArea: button.dataset.fromArea,
-                    toArea: button.dataset.toArea,
-                    quantity: button.dataset.quantity,
-                    unitCost: button.dataset.unitCost,
-                    reference: button.dataset.reference,
-                    remarks: button.dataset.remarks,
-                    workflowStatus: button.dataset.workflowStatus,
-                    requestedQuantity: button.dataset.requestedQuantity,
-                    approvedQuantity: button.dataset.approvedQuantity,
-                    drNumber: button.dataset.drNumber,
-                    warehouseRemarks: button.dataset.warehouseRemarks
-                };
+        function populateMovementDetails(button) {
+            const details = {
+                date: button.dataset.date,
+                type: button.dataset.type,
+                reason: button.dataset.reason,
+                fromArea: button.dataset.fromArea,
+                toArea: button.dataset.toArea,
+                quantity: button.dataset.quantity,
+                unitCost: button.dataset.unitCost,
+                reference: button.dataset.reference,
+                remarks: button.dataset.remarks,
+                workflowStatus: button.dataset.workflowStatus,
+                requestedQuantity: button.dataset.requestedQuantity,
+                approvedQuantity: button.dataset.approvedQuantity,
+                drNumber: button.dataset.drNumber,
+                warehouseRemarks: button.dataset.warehouseRemarks
+            };
 
-                Object.keys(details).forEach(function (key) {
-                    const detailElement = document.getElementById('movementDetail' + key.charAt(0).toUpperCase() + key.slice(1));
-                    if (detailElement) {
-                        detailElement.textContent = details[key] || '-';
-                    }
-                });
-
-                document.getElementById('movementReplacementWorkflow').classList.toggle(
-                    'd-none',
-                    button.dataset.isReplacementWorkflow !== '1'
-                );
-
-                const attachmentList = document.getElementById('movementDetailAttachments');
-                let attachments = [];
-                try {
-                    attachments = JSON.parse(button.dataset.attachments || '[]');
-                } catch (error) {
-                    attachments = [];
-                }
-
-                attachmentList.innerHTML = '';
-                if (!attachments.length) {
-                    attachmentList.textContent = 'No attachments.';
-                    attachmentList.classList.add('text-muted');
-                    return;
-                }
-
-                attachmentList.classList.remove('text-muted');
-                attachments.forEach(function (attachment) {
-                    const path = typeof attachment === 'object' ? attachment.path : attachment;
-                    const name = typeof attachment === 'object' ? (attachment.name || path) : path;
-                    if (!path) {
-                        return;
-                    }
-
-                    const link = document.createElement('a');
-                    link.href = appUrl + '/' + String(path).replace(/^\/+/, '');
-                    link.target = '_blank';
-                    link.rel = 'noopener noreferrer';
-                    link.className = 'd-block mb-1';
-                    link.innerHTML = '<i class="bi bi-paperclip"></i> ';
-                    link.appendChild(document.createTextNode(name));
-                    attachmentList.appendChild(link);
-                });
+            Object.keys(details).forEach(function (key) {
+                const detailElement = document.getElementById('movementDetail' + key.charAt(0).toUpperCase() + key.slice(1));
+                if (detailElement) detailElement.textContent = details[key] || '—';
             });
+
+            const productList = document.getElementById('movementDetailProducts');
+            const fallbackProduct = { name: button.dataset.product || 'Product', sku: button.dataset.sku || '—', qty: button.dataset.quantity || '—' };
+            const products = parseMovementData(button.dataset.products, [fallbackProduct]);
+            productList.innerHTML = '';
+            (products.length ? products : [fallbackProduct]).forEach(function (product) {
+                const row = document.createElement('div');
+                row.className = 'movement-detail-product';
+                const identity = document.createElement('div');
+                const name = document.createElement('strong');
+                name.textContent = product.name || fallbackProduct.name;
+                const sku = document.createElement('small');
+                sku.textContent = product.sku || 'No SKU';
+                identity.appendChild(name);
+                identity.appendChild(sku);
+                const quantity = document.createElement('span');
+                quantity.className = 'movement-detail-qty';
+                quantity.textContent = (product.qty || '—') + ' pcs';
+                row.appendChild(identity);
+                row.appendChild(quantity);
+                productList.appendChild(row);
+            });
+
+            document.getElementById('movementReplacementWorkflow').classList.toggle(
+                'd-none',
+                button.dataset.isReplacementWorkflow !== '1'
+            );
+
+            const attachmentList = document.getElementById('movementDetailAttachments');
+            const attachments = parseMovementData(button.dataset.attachments, []);
+            attachmentList.innerHTML = '';
+            if (!attachments.length) {
+                attachmentList.textContent = 'No supporting files attached.';
+                attachmentList.classList.add('text-muted');
+                return;
+            }
+
+            attachmentList.classList.remove('text-muted');
+            attachments.forEach(function (attachment) {
+                const path = typeof attachment === 'object' ? attachment.path : attachment;
+                const name = typeof attachment === 'object' ? (attachment.name || path) : path;
+                if (!path) return;
+                const link = document.createElement('a');
+                link.href = appUrl + '/' + String(path).replace(/^\/+/, '');
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.className = 'movement-detail-attachment';
+                link.innerHTML = '<i class="bi bi-paperclip"></i> ';
+                link.appendChild(document.createTextNode(name));
+                attachmentList.appendChild(link);
+            });
+        }
+
+        // DataTables replaces rows after every server-side draw, so this
+        // delegated handler always prepares the modal from the clicked row.
+        document.addEventListener('click', function (event) {
+            const button = event.target.closest('#movementHistoryTable .js-view-movement');
+            if (button) populateMovementDetails(button);
         });
 
         if (window.jQuery) {
@@ -1518,7 +1695,9 @@
             window.jQuery(fromAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
             window.jQuery(toAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
             window.jQuery(outTypeSelect).on('change select2:select select2:clear', syncPullOutAttachments);
-            window.jQuery(outTypeSelect).on('change select2:select select2:clear', syncPullOutReplacement);
+            window.jQuery(outTypeSelect).on('change select2:select select2:clear', syncPullOutRis);
+            window.jQuery(outTypeSelect).on('change select2:select select2:clear', syncOutAdjustmentState);
+            window.jQuery(outTypeSelect).on('change select2:select select2:clear', syncReturnRefundState);
         }
 
         const movementForm = document.getElementById('newMovementForm');
@@ -1532,8 +1711,7 @@
             }
 
             const type = selectedType();
-            const requestedQty = Number((type === 'out' && outTypeSelect.value === 'Pull Out' ? replacementQtyInput.value : qtyInput.value) || 0);
-            const available = sourceAvailableQty();
+            const movementRows = document.querySelectorAll('.js-movement-row');
 
             if ((type === 'out' || type === 'transfer') && !fromAreaSelect.value) {
                 event.preventDefault();
@@ -1554,10 +1732,15 @@
                 return;
             }
 
-            if (type !== 'in' && requestedQty > available) {
+            if (!movementRows.length) { event.preventDefault(); addMovementProductRow(); return; }
+
+            updateMovementRowAvailability();
+            const invalidRow = Array.prototype.find.call(movementRows, function (row) {
+                return !row.querySelector('[name$="[qty]"]').checkValidity();
+            });
+            if (invalidRow) {
                 event.preventDefault();
-                updateAvailableQty();
-                qtyInput.focus();
+                invalidRow.querySelector('[name$="[qty]"]').reportValidity();
                 return;
             }
 
@@ -1574,6 +1757,9 @@
         balanceStatusFilter.addEventListener('change', filterBalanceRows);
 
         refreshAreaFields();
+        if (!movementRows.querySelector('.js-movement-row')) {
+            addMovementProductRow();
+        }
         filterBalanceRows();
     });
 </script>

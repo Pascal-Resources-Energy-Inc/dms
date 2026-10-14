@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\AdPurchaseOrder;
 use App\AdPurchaseOrderPartialReceipt;
+use App\InventoryTransfer;
 use App\Exports\AdPurchaseOrdersExport;
 use App\Mail\AdPurchaseOrderSoCreatedNotification;
 use App\Mail\AdPurchaseOrderVerificationIncompleteNotification;
@@ -179,13 +180,68 @@ class AdPurchaseOrderController extends Controller
         );
     }
 
-    private function adpoIndexQuery(Request $request, $applyStatus = true)
+    public function provincialDistributorOrders(Request $request)
+    {
+        $user = auth()->user();
+        if ($user->role !== 'Provincial Distributor') {
+            abort(403);
+        }
+
+        $orders = $this->adpoIndexQuery($request, true, true)
+            ->where('order_source', 'provincial_distributor')
+            ->where('provincial_distributor_id', $user->id)
+            ->get();
+        $favoriteOrders = $this->adpoIndexQuery($request, false, true)
+            ->where('order_source', 'provincial_distributor')
+            ->where('provincial_distributor_id', $user->id)
+            ->get();
+
+        $summary = [
+            'total' => $orders->count(), 'pending' => $orders->where('status', 'Pending')->count(),
+            'for_delivery' => $orders->where('status', 'For Delivery')->count(), 'for_verification' => $orders->where('status', 'For Verification')->count(),
+            'so_created' => $orders->where('status', 'SO Created')->count(), 'partial_received' => $orders->where('status', 'Partial Received')->count(),
+            'completed' => $orders->where('status', 'Completed')->count(), 'cancelled' => $orders->where('status', 'Cancelled')->count(),
+            'amount' => $orders->sum('total_amount'),
+        ];
+
+        return view('ad_purchase_orders.index', compact('orders', 'summary'))->with([
+            'favoriteSummary' => $this->purchaseOrderSummary($favoriteOrders),
+            'pageTitle' => 'Provincial Distributor Orders',
+            'pageSubtitle' => 'Incoming purchase orders submitted by Area Distributors to your Provincial Distributor inventory.',
+            'panelTitle' => 'Incoming Purchase Orders',
+            'showCreateButton' => false,
+            'isSupplierTaskView' => true,
+            'clearRoute' => route('provincial-distributor.purchase-orders'),
+            'exportRoute' => route('provincial-distributor.purchase-orders', request()->query()),
+            'viewRouteName' => 'ad-purchase-orders.show',
+        ]);
+    }
+
+    private function purchaseOrderSummary($orders)
+    {
+        return [
+            'total' => $orders->count(), 'pending' => $orders->where('status', 'Pending')->count(),
+            'for_delivery' => $orders->where('status', 'For Delivery')->count(), 'for_verification' => $orders->where('status', 'For Verification')->count(),
+            'so_created' => $orders->where('status', 'SO Created')->count(), 'partial_received' => $orders->where('status', 'Partial Received')->count(),
+            'completed' => $orders->where('status', 'Completed')->count(), 'cancelled' => $orders->where('status', 'Cancelled')->count(),
+        ];
+    }
+
+    private function adpoIndexQuery(Request $request, $applyStatus = true, $includeSuppliedOrders = false)
     {
         $user = auth()->user();
 
-        return AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad'])
-            ->when($user->role !== 'Admin', function ($query) use ($user) {
-                $query->where('ad_user_id', $user->id);
+        return AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad', 'provincialDistributor'])
+            ->when($user->role !== 'Admin', function ($query) use ($user, $includeSuppliedOrders) {
+                $query->where(function ($accessQuery) use ($user, $includeSuppliedOrders) {
+                    $accessQuery->where('ad_user_id', $user->id);
+                    if ($includeSuppliedOrders && $user->role === 'Provincial Distributor') {
+                        $accessQuery->orWhere('provincial_distributor_id', $user->id);
+                    }
+                });
+            })
+            ->when($user->role === 'Admin' && filled($user->warehouse), function ($query) {
+                $query->where('order_source', 'prei_warehouse');
             })
             ->when($applyStatus && $request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->status);
@@ -195,6 +251,9 @@ class AdPurchaseOrderController extends Controller
             })
             ->when($request->filled('payment_method'), function ($query) use ($request) {
                 $query->where('payment_method', $request->payment_method);
+            })
+            ->when($request->filled('order_source'), function ($query) use ($request) {
+                $query->where('order_source', $request->order_source);
             })
             ->when($request->filled('date_from'), function ($query) use ($request) {
                 $query->whereDate('submitted_at', '>=', $request->date_from);
@@ -221,6 +280,7 @@ class AdPurchaseOrderController extends Controller
     {
         return $this->regionVOrderQuery()
             ->with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad'])
+            ->where('order_source', 'prei_warehouse')
             ->when($applyStatus && $request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->status);
             })
@@ -256,16 +316,24 @@ class AdPurchaseOrderController extends Controller
     {
         $user = auth()->user();
         $ad = $user->ad;
+        $isProvincialDistributor = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR;
+        $isAdmin = $user->role === 'Admin';
+        $provincialDistributors = User::where('role', 'Provincial Distributor')->orderBy('name')->get(['id', 'name']);
+        $selectedOrderSource = request('order_source', 'prei_warehouse');
+        $selectedProvincialDistributorId = (int) request('provincial_distributor_id');
+        $orderForUser = $user;
 
-        if (!$ad && $user->role !== 'Admin') {
+        if (!$ad && !$isProvincialDistributor && $user->role !== 'Admin') {
             Alert::error('ADPO Error', 'Area Distributor profile not found.');
 
             return redirect()
                 ->route('ad-purchase-orders.index');
         }
 
+        $orderProfile = $ad ?: $user;
+        $territoryOptions = $this->territoryOptions($orderProfile);
         $storeCode = optional($ad)->store_code;
-        $authorizedAreas = $this->territoryOptions($ad)->pluck('value');
+        $authorizedAreas = $territoryOptions;
         $userVouchers = Voucher::where('name', $storeCode)
             ->where('is_active', 1)
             ->where(function ($query) {
@@ -290,7 +358,7 @@ class AdPurchaseOrderController extends Controller
             })
             ->values();
 
-        $products = Item::orderBy('item')->get();
+        $products = Item::where('status', 'Activate')->orderBy('item')->get();
         $favoriteProductIds = DB::table('adpo_product_favorites')
             ->where('user_id', $user->id)
             ->pluck('item_id')
@@ -301,10 +369,13 @@ class AdPurchaseOrderController extends Controller
         $showPickupLubao = !$this->isRegionVText(
             optional($ad)->address,
             optional($ad)->delivery_address,
-            optional($ad)->location_region
+            optional($ad)->location_region,
+            $user->delivery_address,
+            $user->region,
+            $user->province
         );
 
-        return view('ad_purchase_orders.create', compact('ad', 'products', 'favoriteProductIds', 'userVouchers', 'showPickupLubao'));
+        return view('ad_purchase_orders.create', compact('ad', 'products', 'favoriteProductIds', 'userVouchers', 'showPickupLubao', 'isAdmin', 'provincialDistributors', 'selectedOrderSource', 'selectedProvincialDistributorId', 'orderForUser', 'isProvincialDistributor', 'territoryOptions'));
     }
 
     public function toggleFavoriteProduct(Request $request, Item $item)
@@ -343,16 +414,29 @@ class AdPurchaseOrderController extends Controller
     {
         $user = auth()->user();
         $ad = $user->ad;
+        $isProvincialDistributor = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR;
 
-        if (!$ad && $user->role !== 'Admin') {
+        if (!$ad && !$isProvincialDistributor && $user->role !== 'Admin') {
             Alert::error('ADPO Error', 'Area Distributor profile not found.');
 
             return back()->withInput();
         }
 
-        $territoryOptions = $this->territoryOptions($ad);
+        if ($isProvincialDistributor) {
+            // Provincial Distributors replenish directly from PREI Warehouse.
+            // Incoming AD orders are handled in the separate PD Purchase Orders module.
+            $request->merge([
+                'order_source' => 'prei_warehouse',
+                'provincial_distributor_id' => null,
+            ]);
+        }
+
+        $orderProfile = $ad ?: $user;
+        $territoryOptions = $this->territoryOptions($orderProfile);
 
         $request->validate([
+            'order_source' => 'required|in:prei_warehouse,provincial_distributor',
+            'provincial_distributor_id' => 'nullable|required_if:order_source,provincial_distributor|integer',
             'phone_number' => 'nullable|string|max:50',
             'email_address' => 'nullable|email|max:255',
             'authorized_territory' => ($territoryOptions->isNotEmpty() ? 'required' : 'nullable') . '|string|max:255',
@@ -376,6 +460,15 @@ class AdPurchaseOrderController extends Controller
             'products.*.other_size' => 'nullable|string|max:100',
         ]);
 
+        $supplyingProvincialDistributor = null;
+        if ($request->order_source === 'provincial_distributor') {
+            $supplyingProvincialDistributor = User::where('id', $request->provincial_distributor_id)
+                ->where('role', 'Provincial Distributor')->first();
+            if (!$supplyingProvincialDistributor) {
+                return back()->withInput()->withErrors(['provincial_distributor_id' => 'Please select a valid Provincial Distributor.']);
+            }
+        }
+
         if ($request->filled('authorized_territory') && $territoryOptions->isNotEmpty() && !$territoryOptions->contains($request->authorized_territory)) {
             Alert::error('ADPO Error', 'Please select a valid authorized territory.');
 
@@ -388,7 +481,10 @@ class AdPurchaseOrderController extends Controller
             $request->delivery_address,
             optional($ad)->address,
             optional($ad)->delivery_address,
-            optional($ad)->location_region
+            optional($ad)->location_region,
+            $user->delivery_address,
+            $user->region,
+            $user->province
         );
 
         if ($request->shipping_type === 'pickup_lubao' && $isRegionVAd) {
@@ -422,18 +518,19 @@ class AdPurchaseOrderController extends Controller
             return (int) $id;
         })->values();
 
-        $products = Item::whereIn('id', $productIds)
+        $products = Item::where('status', 'Activate')
+            ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
 
-        if ($products->count() === 0) {
-            Alert::error('ADPO Error', 'No valid products were selected.');
+        if ($products->count() !== $productIds->count()) {
+            Alert::error('ADPO Error', 'One or more selected products are unavailable. Please refresh the page and try again.');
 
             return back()
                 ->withInput();
         }
 
-        $authorizedTerritory = $request->authorized_territory ?: $this->authorizedTerritory($ad);
+        $authorizedTerritory = $request->authorized_territory ?: $this->authorizedTerritory($orderProfile);
         $bankName = $request->payment_method === 'bank_transfer'
             ? ($request->bank_name === 'Other Bank' ? trim($request->other_bank_name) : $request->bank_name)
             : null;
@@ -442,7 +539,7 @@ class AdPurchaseOrderController extends Controller
             $shippingType = $isRegionVAd ? 'pickup_guinobatan' : 'pickup_lubao';
         }
 
-        $po = DB::transaction(function () use ($request, $user, $ad, $selectedProducts, $products, $authorizedTerritory, $shippingType, $bankName) {
+        $po = DB::transaction(function () use ($request, $user, $ad, $orderProfile, $supplyingProvincialDistributor, $selectedProducts, $products, $authorizedTerritory, $shippingType, $bankName) {
             $poNumber = $this->nextPoNumber();
             $subtotal = 0;
             $totalQty = 0;
@@ -454,11 +551,13 @@ class AdPurchaseOrderController extends Controller
                 'po_number' => $poNumber,
                 'ad_id' => optional($ad)->id,
                 'ad_user_id' => $adUserId,
-                'business_name' => optional($ad)->business_name ?: optional($ad)->name ?: $user->name,
+                'order_source' => $request->order_source,
+                'provincial_distributor_id' => optional($supplyingProvincialDistributor)->id,
+                'business_name' => optional($ad)->business_name ?: data_get($orderProfile, 'business_name') ?: optional($ad)->name ?: $user->name,
                 'authorized_territory' => $authorizedTerritory,
-                'phone_number' => $request->phone_number ?: optional($ad)->contact_number,
+                'phone_number' => $request->phone_number ?: optional($ad)->contact_number ?: $user->mobile_number,
                 'email_address' => $request->email_address ?: optional($ad)->email_address ?: $user->email,
-                'delivery_address' => $request->delivery_address ?: optional($ad)->delivery_address ?: null,
+                'delivery_address' => $request->delivery_address ?: optional($ad)->delivery_address ?: $user->delivery_address,
                 'shipping_type' => $shippingType,
                 'payment_method' => $request->payment_method,
                 'bank_name' => $bankName,
@@ -559,7 +658,7 @@ class AdPurchaseOrderController extends Controller
             $po->pickup_discount = $this->pickupLubaoDiscount($shippingType, $po->items()->get());
             $taxableTotal = max(0, $subtotal - (float) $po->rebate_amount - (float) $po->pickup_discount);
             $ewtBase = $taxableTotal / 1.12;
-            $withholdingTax = optional($ad)->withholding_tax ? ($ewtBase * 0.01) : 0;
+            $withholdingTax = (optional($ad)->withholding_tax ?: $user->withholding_tax) ? ($ewtBase * 0.01) : 0;
             $po->withholding_tax = $withholdingTax;
             $po->total_amount = max(0, $taxableTotal - $withholdingTax);
             $po->save();
@@ -590,9 +689,17 @@ class AdPurchaseOrderController extends Controller
     {
         $user = auth()->user();
 
-        $order = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad'])
+        $order = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad', 'provincialDistributor'])
             ->when($user->role !== 'Admin', function ($query) use ($user) {
-                $query->where('ad_user_id', $user->id);
+                $query->where(function ($accessQuery) use ($user) {
+                    $accessQuery->where('ad_user_id', $user->id);
+                    if ($user->role === 'Provincial Distributor') {
+                        $accessQuery->orWhere('provincial_distributor_id', $user->id);
+                    }
+                });
+            })
+            ->when($user->role === 'Admin' && filled($user->warehouse), function ($query) {
+                $query->where('order_source', 'prei_warehouse');
             })
             ->findOrFail($id);
 
@@ -601,7 +708,61 @@ class AdPurchaseOrderController extends Controller
             && filled($user->warehouse)
             && (!$assignedWarehouse || strtolower(trim((string) $user->warehouse)) === $assignedWarehouse);
 
-        return view('ad_purchase_orders.show', compact('order', 'canReviewIncompleteVerification'));
+        $provincialDistributorStock = collect();
+        if (
+            $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+            && $order->order_source === 'provincial_distributor'
+            && (int) $order->provincial_distributor_id === (int) $user->id
+        ) {
+            $provincialDistributorStock = $this->provincialDistributorAvailableStock(
+                $user->id,
+                $order->items->pluck('product_id')->filter()->unique()->values()
+            );
+        }
+
+        return view('ad_purchase_orders.show', compact('order', 'canReviewIncompleteVerification', 'provincialDistributorStock'));
+    }
+
+    /**
+     * Current stock that a Provincial Distributor can fulfill from.
+     * Completed purchase orders add stock; inventory in/out movements adjust it.
+     */
+    private function provincialDistributorAvailableStock($provincialDistributorId, $productIds)
+    {
+        $productIds = collect($productIds)->filter()->map(function ($id) {
+            return (int) $id;
+        })->unique()->values();
+
+        if ($productIds->isEmpty()) {
+            return collect();
+        }
+
+        $received = DB::table('ad_purchase_order_items')
+            ->join('ad_purchase_orders', 'ad_purchase_order_items.ad_purchase_order_id', '=', 'ad_purchase_orders.id')
+            ->where('ad_purchase_orders.ad_user_id', $provincialDistributorId)
+            ->where('ad_purchase_orders.status', 'Completed')
+            ->whereIn('ad_purchase_order_items.product_id', $productIds)
+            ->groupBy('ad_purchase_order_items.product_id')
+            ->pluck(DB::raw('SUM(ad_purchase_order_items.qty)'), 'ad_purchase_order_items.product_id');
+
+        $movementAdjustments = InventoryTransfer::query()
+            ->where('ad_user_id', $provincialDistributorId)
+            ->whereIn('product_id', $productIds)
+            ->get(['product_id', 'movement_type', 'qty'])
+            ->groupBy('product_id')
+            ->map(function ($movements) {
+                return $movements->sum(function ($movement) {
+                    if ($movement->movement_type === 'in') {
+                        return (int) $movement->qty;
+                    }
+
+                    return $movement->movement_type === 'out' ? -1 * (int) $movement->qty : 0;
+                });
+            });
+
+        return $productIds->mapWithKeys(function ($productId) use ($received, $movementAdjustments) {
+            return [$productId => max(0, (int) ($received[$productId] ?? 0) + (int) ($movementAdjustments[$productId] ?? 0))];
+        });
     }
 
     public function updateStatus(Request $request, $id)
@@ -612,7 +773,15 @@ class AdPurchaseOrderController extends Controller
 
         $order = AdPurchaseOrder::with(['items', 'verificationItems', 'ad.userAds', 'paymentProofs'])
             ->when(auth()->user()->hasAreaDistributorAccess(), function ($query) {
-                $query->where('ad_user_id', auth()->id());
+                $query->where(function ($accessQuery) {
+                    $accessQuery->where('ad_user_id', auth()->id());
+                    if (auth()->user()->role === 'Provincial Distributor') {
+                        $accessQuery->orWhere('provincial_distributor_id', auth()->id());
+                    }
+                });
+            })
+            ->when(auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse), function ($query) {
+                $query->where('order_source', 'prei_warehouse');
             })
             ->findOrFail($id);
 
@@ -621,6 +790,12 @@ class AdPurchaseOrderController extends Controller
 
             return back();
         }
+
+        $isSupplyingProvincialDistributor = auth()->user()->role === 'Provincial Distributor'
+            && $order->order_source === 'provincial_distributor'
+            && (int) $order->provincial_distributor_id === (int) auth()->id();
+        $canManageWarehouseStylePartialDelivery = (auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse))
+            || $isSupplyingProvincialDistributor;
 
         $remarksRules = in_array($request->input('status'), ['Cancelled', 'Partial Received'], true)
             ? ['required', 'string', 'max:1000']
@@ -688,13 +863,30 @@ class AdPurchaseOrderController extends Controller
             'verification_attachments.*' => 'file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
-        if (auth()->user()->hasAreaDistributorAccess() && !in_array($request->status, ['Pending', 'For Verification', 'Partial Received', 'Completed', 'Cancelled'])) {
+        if ($isSupplyingProvincialDistributor && !in_array($request->status, ['Pending', 'For Delivery', 'Partial Received', 'For Verification', 'Completed', 'Cancelled'])) {
+            throw ValidationException::withMessages([
+                'status' => 'Provincial Distributors may update a routed AD order through delivery, verification, partial receipt, completion, or cancellation.',
+            ]);
+        }
+
+        if (!$isSupplyingProvincialDistributor && auth()->user()->hasAreaDistributorAccess() && !in_array($request->status, ['Pending', 'For Verification', 'Partial Received', 'Completed', 'Cancelled'])) {
             throw ValidationException::withMessages([
                 'status' => 'Area Distributors may only select Pending, For Verification, Partial Received, Completed, or Cancelled.',
             ]);
         }
 
-        if (auth()->user()->hasAreaDistributorAccess() && $order->status === 'For Verification' && $request->status !== 'For Verification') {
+        if (
+            !$isSupplyingProvincialDistributor
+            && auth()->user()->hasAreaDistributorAccess()
+            && in_array($order->status, ['Pending', 'SO Created'], true)
+            && $request->status === 'Completed'
+        ) {
+            throw ValidationException::withMessages([
+                'status' => 'A Pending or SO Created DPO cannot be marked Completed. Continue the delivery and verification workflow first.',
+            ]);
+        }
+
+        if (!$isSupplyingProvincialDistributor && auth()->user()->hasAreaDistributorAccess() && $order->status === 'For Verification' && $request->status !== 'For Verification') {
             throw ValidationException::withMessages([
                 'status' => 'This crate or refill order is under warehouse verification. You may update its submitted quantities and attachments, but only warehouse can change the status.',
             ]);
@@ -738,8 +930,7 @@ class AdPurchaseOrderController extends Controller
 
         if (
             $request->status === 'Partial Received'
-            && auth()->user()->role === 'Admin'
-            && filled(auth()->user()->warehouse)
+            && $canManageWarehouseStylePartialDelivery
             && !$request->filled('dr_number')
             && !filled(
                 $order->partialReceipts()->latest('id')->value('dr_number')
@@ -757,9 +948,14 @@ class AdPurchaseOrderController extends Controller
             ]);
         }
 
-        if ($order->status === 'Pending' && !in_array($request->status, ['Pending', 'SO Created', 'Cancelled'])) {
+        $allowedPendingStatuses = $isSupplyingProvincialDistributor
+            ? ['Pending', 'For Delivery', 'Partial Received', 'Cancelled']
+            : ['Pending', 'SO Created', 'Cancelled'];
+        if ($order->status === 'Pending' && !in_array($request->status, $allowedPendingStatuses)) {
             throw ValidationException::withMessages([
-                'status' => 'The status must be changed to SO Created before selecting a later status.',
+                'status' => $isSupplyingProvincialDistributor
+                    ? 'Select For Delivery, Partial Delivery, or Cancelled to update this Provincial Distributor order.'
+                    : 'The status must be changed to SO Created before selecting a later status.',
             ]);
         }
 
@@ -769,8 +965,7 @@ class AdPurchaseOrderController extends Controller
 
         if (
             $request->status === 'Partial Received'
-            && auth()->user()->role === 'Admin'
-            && filled(auth()->user()->warehouse)
+            && $canManageWarehouseStylePartialDelivery
         ) {
             $latestPartialDrNumber = $order->partialReceipts()
                 ->latest('id')
@@ -817,8 +1012,7 @@ class AdPurchaseOrderController extends Controller
 
         if (
             $request->status === 'Partial Received'
-            && auth()->user()->role === 'Admin'
-            && filled(auth()->user()->warehouse)
+            && $canManageWarehouseStylePartialDelivery
             && $request->filled('dr_number')
         ) {
             $postedPartialItems = $postedPartialItems->map(function ($item) use ($request) {
@@ -903,7 +1097,7 @@ class AdPurchaseOrderController extends Controller
 
                     $isNotFullyReceived = $receivedQty < $orderedQty;
 
-                    $needsPartialDocs = auth()->user()->role === 'Admin'
+                    $needsPartialDocs = $canManageWarehouseStylePartialDelivery
                         && (
                             ($isIncrementReceive && $postedReceivedQty > 0)
                             || (!$isIncrementReceive && $isNotFullyReceived)
@@ -1622,6 +1816,14 @@ class AdPurchaseOrderController extends Controller
 
     private function territoryOptions($ad)
     {
+        if ($ad instanceof User) {
+            $territory = collect([$ad->barangay, $ad->city, $ad->province, $ad->region])
+                ->filter()
+                ->implode(', ');
+
+            return $territory !== '' ? collect([$territory]) : collect();
+        }
+
         if (!$ad || !$ad->areas) {
             return collect();
         }
@@ -1678,6 +1880,10 @@ class AdPurchaseOrderController extends Controller
     private function notifyGuinobatanWarehouseForRegionV(AdPurchaseOrder $po)
     {
         $po->loadMissing(['items', 'ad']);
+
+        if (($po->order_source ?? 'prei_warehouse') !== 'prei_warehouse') {
+            return;
+        }
 
         if (!$this->isRegionVOrder($po)) {
             return;

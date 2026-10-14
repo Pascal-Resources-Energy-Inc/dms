@@ -2,7 +2,7 @@
 
 @section('content')
     <style>
-        .dealer-page { max-width: 1600px; margin: 0 auto; padding: 4px 0 24px; }
+        /* .dealer-page { max-width: 1600px; margin: 0 auto; padding: 4px 0 24px; } */
         .dealer-head { margin-bottom: 22px; padding: 26px 28px; color: #fff; background: linear-gradient(120deg, #0b3f73 0%, #0f6ba8 58%, #48a6c6 100%); border-radius: 18px; box-shadow: 0 16px 34px rgba(14, 74, 125, .2); }
         .dealer-head h4 { color: #fff; font-size: clamp(1.35rem, 2.5vw, 1.8rem); font-weight: 800; letter-spacing: -.02em; }
         .dealer-head .text-muted { color: rgba(255,255,255,.82) !important; }

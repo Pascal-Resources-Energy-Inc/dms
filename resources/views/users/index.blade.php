@@ -855,6 +855,23 @@
         const adminOnlyEmploymentFields = $('.admin-only-employment');
         const adminLikeRequiredFields = $('.admin-like-required');
         const adminOnlyRequiredFields = $('.admin-only-required');
+        const approvalTypeInputs = $('input[name="approval_types[]"]');
+        const approvalTypePanel = $('.approval-type-panel');
+        const approvalTypeFeedback = $('#approvalTypeFeedback');
+
+        function validateApprovalType() {
+            approvalTypePanel.removeClass('is-invalid');
+            approvalTypeFeedback.removeClass('d-block');
+            return true;
+        }
+
+        approvalTypeInputs.on('change', function () {
+            if (this.checked) {
+                approvalTypeInputs.not(this).prop('checked', false);
+            }
+            validateApprovalType();
+        });
+
         const adminDesignationWrapper = $('.admin-designation-wrapper');
         const adminDesignationField = $('.admin-designation-field');
         const sedpDesignationWrapper = $('.sedp-designation-wrapper');
@@ -1075,6 +1092,9 @@
 
                 partnerCode.val('');
                 $('input[name="warehouse"]').prop('checked', false);
+                approvalTypeInputs.prop('checked', false).prop('disabled', true);
+                approvalTypePanel.removeClass('is-invalid');
+                approvalTypeFeedback.removeClass('d-block');
                 clearSedpCenters();
                 mfiTypeSelect.prop('disabled', true).prop('required', false).val('').trigger('change');
                 refreshMfiCenters();
@@ -1100,6 +1120,11 @@
             attachmentFields.toggle(isProvincialDistributor || isAreaDistributor);
             adminFields.toggle(isAdminLike);
             adminOnlyFields.toggle(isAdmin);
+            approvalTypeInputs.prop('disabled', !isAdmin);
+            if (!isAdmin) {
+                approvalTypePanel.removeClass('is-invalid');
+                approvalTypeFeedback.removeClass('d-block');
+            }
             adminOnlyEmploymentFields.toggle(isAdmin);
             sedpFields.toggle(isSedp);
             mfiTypeSelect.prop('disabled', !isSedp).prop('required', isSedp);
@@ -1147,6 +1172,7 @@
 
             if (!isAdminLike) {
                 $('input[name="warehouse"]').prop('checked', false);
+                approvalTypeInputs.prop('checked', false).prop('disabled', true);
                 $('#same_as_address').prop('checked', false);
                 adminRequiredFields.val('');
                 adminDesignationField.val('');
@@ -1157,6 +1183,7 @@
                 locationInputs.filter(':not([type="hidden"])').val('');
                 if (!isAdmin) {
                     $('input[name="warehouse"]').prop('checked', false);
+                    approvalTypeInputs.prop('checked', false).prop('disabled', true);
                     adminOnlyRequiredFields.val('');
                     adminDesignationField.val('');
                 }

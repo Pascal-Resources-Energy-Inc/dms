@@ -17,7 +17,7 @@ class User extends Authenticatable implements Auditable
 
     protected $fillable = [
         'name', 'email', 'password', 'role', 'serial', 'read_notifications',
-        'warehouse', 'delivery_address', 'designation', 'employee_number', 'department',
+        'warehouse', 'delivery_address', 'designation', 'employee_number', 'department', 'approval_types',
     ];
 
     protected $hidden = [
@@ -27,6 +27,7 @@ class User extends Authenticatable implements Auditable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'read_notifications' => 'array',
+        'approval_types' => 'array',
     ];
 
     public function dealer()

@@ -60,7 +60,7 @@
     .status-for-verification { background: #f5f3ff; color: #6d28d9; }
     .status-completed { background: #ecfdf3; color: #027a48; }
     .status-cancelled { background: #fef2f2; color: #b42318; }
-    .task-board { display: grid; overflow: auto; grid-template-columns: repeat(7, minmax(300px, 1fr)); gap: 14px; padding: 14px; background: #f8fafc; align-items: start; }
+    .task-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; padding: 14px; background: #f8fafc; align-items: start; }
     .task-column { min-width: 0; border: 1px solid #e6e9ef; border-radius: 8px; background: #fff; overflow: hidden; box-shadow: 0 10px 24px rgba(15, 23, 42, .04); }
     .task-column-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 14px; border-bottom: 1px solid #edf0f5; background: #fcfcfd; }
     .task-column-title { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0; color: #101828; font-size: 13px; font-weight: 900; }
@@ -90,6 +90,8 @@
     .task-business { margin-top: 10px; padding-left: 4px; color: #101828; font-weight: 900; font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
     .task-ad { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding-left: 4px; color: #475467; font-size: 12px; font-weight: 700; min-width: 0; }
     .task-ad span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .source-badge { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 4px 8px; border: 1px solid #bfdbfe; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 10px; font-weight: 900; letter-spacing: .02em; }
+    .source-badge.is-pd { border-color: #ddd6fe; background: #f5f3ff; color: #6d28d9; }
     .task-address { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 7px; margin-top: 10px; padding: 9px 10px; border: 1px solid #edf0f5; border-radius: 8px; background: #fcfcfd; color: #667085; font-size: 12px; line-height: 1.4; }
     .task-address i { color: #98a2b3; line-height: 1.4; }
     .task-address span { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -101,6 +103,9 @@
     .task-actions .btn { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; font-weight: 800; }
     .task-payment { color: #667085; font-size: 11px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .task-empty { min-height: 120px; display: flex; align-items: center; justify-content: center; padding: 24px 10px; border: 1px dashed #d0d5dd; border-radius: 8px; background: #fcfcfd; color: #98a2b3; font-size: 12px; text-align: center; }
+    .pd-module-banner { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: center; margin: 0 0 18px; padding: 14px 16px; border: 1px solid #c7d7fe; border-radius: 12px; background: linear-gradient(135deg, #eff6ff, #f8fbff); }
+    .pd-module-banner i { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 10px; background: #dbeafe; color: #1d4ed8; font-size: 22px; }
+    .pd-module-banner strong { display:block; color:#1e3a8a; font-size:14px; } .pd-module-banner span { display:block; margin-top:3px; color:#52657d; font-size:12px; line-height:1.4; }
     .empty-state { padding: 54px 24px; text-align: center; }
     .empty-state i { display: inline-flex; align-items: center; justify-content: center; width: 54px; height: 54px; margin-bottom: 12px; border-radius: 8px; background: #f8fafc; color: #667085; font-size: 26px; }
     .empty-state h6 { margin: 0 0 5px; color: #101828; font-weight: 800; }
@@ -157,7 +162,7 @@
         .adpo-filter-actions .btn { flex: 1; }
         .adpo-table-wrap { overflow-x: auto; }
         .adpo-table { min-width: 980px; }
-        .task-board { grid-template-columns: repeat(2, minmax(240px, 1fr)); }
+        .task-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .task-list { max-height: none; }
     }
     @media (max-width: 640px) {
@@ -167,7 +172,12 @@
         .adpo-filters .form-select, .adpo-filters .form-control { width: 100%; min-width: 0; }
         .adpo-filters > .form-select, .adpo-date-range { flex: 1 1 100%; }
         .adpo-actions .btn, .adpo-filters .btn { width: 100%; }
-        .task-board { grid-template-columns: 1fr; }
+        .task-board { grid-template-columns: 1fr; padding: 10px; gap: 10px; }
+        .task-column-head { padding: 11px 12px; }
+        .task-list { padding: 10px; gap: 10px; }
+        .task-card { padding: 12px; }
+        .pd-module-banner { grid-template-columns: 38px minmax(0, 1fr); padding: 12px; }
+        .pd-module-banner i { width: 38px; height: 38px; font-size: 19px; }
         .task-card-top, .task-meta { align-items: flex-start; grid-template-columns: 1fr; }
         .task-date { justify-self: start; }
         .task-actions { grid-template-columns: 1fr 38px; }
@@ -183,6 +193,7 @@
 @php
     $hasFilters = request()->filled('search')
         || request()->filled('status')
+        || request()->filled('order_source')
         || request()->filled('shipping_type')
         || request()->filled('payment_method')
         || request()->filled('date_from')
@@ -232,7 +243,12 @@
     ];
     $editableAdpoStatuses = ['Pending', 'For Delivery', 'SO Created', 'For Verification', 'Partial Received'];
     $canUpdateAdpoStatus = auth()->user()->hasAreaDistributorAccess();
-    $isWarehouseTaskView = auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse);
+    $isWarehouseTaskView = (auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse)) || ($isSupplierTaskView ?? false);
+    $sourceBadge = function ($order) {
+        return $order->order_source === 'provincial_distributor'
+            ? ['label' => 'Source: Provincial Distributor', 'class' => 'is-pd']
+            : ['label' => 'Source: PREI Warehouse', 'class' => ''];
+    };
     $taskColumns = [
         'Pending' => ['label' => 'Pending', 'dot' => 'pending'],
         'For Delivery' => ['label' => 'For Delivery', 'dot' => 'delivery'],
@@ -242,6 +258,10 @@
         'Completed' => ['label' => 'Completed', 'dot' => 'completed'],
         'Cancelled' => ['label' => 'Cancelled', 'dot' => 'cancelled'],
     ];
+    if ($isSupplierTaskView ?? false) {
+        $statusOptions = array_values(array_diff($statusOptions, ['SO Created']));
+        unset($statusCounts['SO Created'], $quickStatusOptions['SO Created'], $taskColumns['SO Created']);
+    }
     $adpoOrderItemsJson = $orders->mapWithKeys(function ($order) {
         if ($order->status === 'For Verification') {
             $submittedVerificationItems = $order->verificationItems->keyBy('ad_purchase_order_item_id');
@@ -337,6 +357,16 @@
         @endif
     </div>
 
+    @if($isSupplierTaskView ?? false)
+        <div class="pd-module-banner">
+            <i class="ti ti-building-warehouse"></i>
+            <div>
+                <strong>Provincial Distributor fulfillment desk</strong>
+                <span>Review incoming Area Distributor purchase orders, update their fulfillment status, and keep delivery details in one place.</span>
+            </div>
+        </div>
+    @endif
+
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
@@ -354,10 +384,17 @@
                 <div class="adpo-tile-icon pending"><i class="ti ti-truck-delivery"></i></div>
                 <div><span>For Delivery</span><strong>{{ number_format($summary['for_delivery'] ?? 0) }}</strong></div>
             </div>
-            <div class="adpo-tile is-verification">
-                <div class="adpo-tile-icon amount"><i class="ti ti-shield-check"></i></div>
-                <div><span>SO Created</span><strong>{{ number_format($summary['so_created'] ?? 0) }}</strong></div>
-            </div>
+            @if($isSupplierTaskView ?? false)
+                <div class="adpo-tile is-pending">
+                    <div class="adpo-tile-icon pending"><i class="ti ti-hourglass"></i></div>
+                    <div><span>Pending</span><strong>{{ number_format($summary['pending'] ?? 0) }}</strong></div>
+                </div>
+            @else
+                <div class="adpo-tile is-verification">
+                    <div class="adpo-tile-icon amount"><i class="ti ti-shield-check"></i></div>
+                    <div><span>SO Created</span><strong>{{ number_format($summary['so_created'] ?? 0) }}</strong></div>
+                </div>
+            @endif
             <div class="adpo-tile is-completed">
                 <div class="adpo-tile-icon completed"><i class="ti ti-circle-check"></i></div>
                 <div><span>Completed</span><strong>{{ number_format($summary['completed']) }}</strong></div>
@@ -411,6 +448,11 @@
                             <option value="{{ $status }}" @if(request('status') === $status) selected @endif>{{ $status }}</option>
                         @endforeach
                     </select>
+                    <select name="order_source" class="form-select form-select-sm">
+                        <option value="">All Sources</option>
+                        <option value="prei_warehouse" @if(request('order_source') === 'prei_warehouse') selected @endif>PREI Warehouse</option>
+                        <option value="provincial_distributor" @if(request('order_source') === 'provincial_distributor') selected @endif>Provincial Distributor</option>
+                    </select>
                     <select name="shipping_type" class="form-select form-select-sm">
                         <option value="">All Shipping</option>
                         @foreach($shippingOptions as $value => $label)
@@ -462,6 +504,7 @@
                                 @php
                                     $submittedAt = $order->submitted_at ?: $order->created_at;
                                     $taskStatusClass = 'task-' . strtolower(str_replace(' ', '-', $order->status));
+                                    $orderSourceBadge = $sourceBadge($order);
                                 @endphp
                                 <article class="task-card {{ $taskStatusClass }}">
                                     <div>
@@ -477,6 +520,7 @@
                                             <i class="ti ti-id-badge"></i>
                                             <span>{{ optional($order->ad)->name ?: optional($order->ad)->business_name ?: 'N/A' }}</span>
                                         </div>
+                                        <span class="source-badge {{ $orderSourceBadge['class'] }}"><i class="ti ti-building-warehouse"></i>{{ $orderSourceBadge['label'] }}</span>
                                         <div class="task-address" title="{{ $order->delivery_address ?: $order->authorized_territory ?: 'No delivery address' }}">
                                             <i class="ti ti-map-pin"></i>
                                             <span>{{ $order->delivery_address ?: $order->authorized_territory ?: 'No delivery address' }}</span>
@@ -550,6 +594,7 @@
                                     && $order->items->every(function ($item) {
                                         return (int) ($item->partial_received_qty ?? 0) >= (int) $item->qty;
                                     });
+                                $orderSourceBadge = $sourceBadge($order);
                             @endphp
                             <tr>
                                 <td>
@@ -562,6 +607,7 @@
                                     <span class="territory-text" title="{{ $order->authorized_territory ?: 'No territory set' }}">
                                         {{ $order->authorized_territory ?: 'No territory set' }}
                                     </span>
+                                    <span class="source-badge {{ $orderSourceBadge['class'] }}"><i class="ti ti-building-warehouse"></i>{{ $orderSourceBadge['label'] }}</span>
                                     @if(isset($showCreateButton) && !$showCreateButton)
                                         <span class="territory-text" title="{{ $order->delivery_address ?: 'No delivery address' }}">
                                             {{ $order->delivery_address ?: 'No delivery address' }}
@@ -1338,8 +1384,13 @@
                         const soCreatedOption = Array.from(statusSelect.options).find(function (option) {
                             return option.value === 'SO Created';
                         });
+                        const completedOption = Array.from(statusSelect.options).find(function (option) {
+                            return option.value === 'Completed';
+                        });
                         const shouldHidePending = ['SO Created', 'For Delivery', 'Partial Received'].includes(requestedStatus);
                         const shouldHideSoCreated = ['For Delivery', 'Partial Received'].includes(requestedStatus);
+                        const shouldHideCompleted = @json(auth()->user()->hasAreaDistributorAccess())
+                            && ['Pending', 'SO Created'].includes(requestedStatus);
 
                         if (pendingOption) {
                             pendingOption.hidden = shouldHidePending;
@@ -1349,6 +1400,11 @@
                         if (soCreatedOption) {
                             soCreatedOption.hidden = shouldHideSoCreated;
                             soCreatedOption.disabled = shouldHideSoCreated;
+                        }
+
+                        if (completedOption) {
+                            completedOption.hidden = shouldHideCompleted;
+                            completedOption.disabled = shouldHideCompleted;
                         }
 
                         const pendingNotice = document.getElementById('statusPendingUnavailableNotice');

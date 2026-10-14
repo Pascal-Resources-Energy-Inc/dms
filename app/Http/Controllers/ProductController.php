@@ -438,7 +438,6 @@ class ProductController extends Controller
             'mega_dealer_price' => 'nullable|numeric|min:0',
             'dealer_price' => 'nullable|numeric|min:0',
             'client_price' => 'nullable|numeric|min:0',
-            'deposit' => 'nullable|numeric|min:0',
             'status' => 'nullable|in:Activate,Deactivate',
             // 'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             // 'bundle_product_ids' => 'nullable|array',
@@ -487,7 +486,6 @@ class ProductController extends Controller
             'description' => $validated['description'] ?? null,
             'sku' => $validated['sku'],
             'price' => $validated['price'],
-            'deposit' => $validated['deposit'] ?? null,
             'status' => $validated['status'] ?? 'Activate',
         ];
 

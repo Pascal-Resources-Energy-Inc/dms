@@ -792,9 +792,12 @@ table.dataTable {
                                         <tbody id="transactionBody-{{ $orderTab['key'] }}">
                                             @foreach($tabOrders as $order)
                                                 @php
+                                                    $centerChief = (($order->is_guest ?? false) || $order->guest_name)
+                                                        ? ''
+                                                        : ($order->center_chief_name ?? '');
                                                     $orderName = (($order->is_guest ?? false) || $order->guest_name)
                                                         ? ($order->guest_name ?: 'GUEST CUSTOMER')
-                                                        : ($order->dealer->name ?? '');
+                                                        : ($centerChief ?: ($order->dealer->name ?? ''));
                                                     $orderArea = (($order->is_guest ?? false) || $order->guest_name)
                                                         ? ($order->guest_authorized_territory ?: 'GUEST')
                                                         : ($order->adDealer->area ?? '');
@@ -839,7 +842,7 @@ table.dataTable {
                                                                 <small class="text-muted d-block">{{ $order->guest_email }}</small>
                                                             @endif
                                                         @else
-                                                            {{ strtoupper($order->dealer->name ?? '') }}
+                                                            {{ strtoupper($orderName ?: '-') }}
                                                         @endif
                                                     </td>
                                                     <td>

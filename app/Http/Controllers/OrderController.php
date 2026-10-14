@@ -166,7 +166,7 @@ class OrderController extends Controller
 
                 $dealerSelects = [];
 
-                foreach (['name', 'area', 'dealer_type'] as $column) {
+                foreach (['name', 'area', 'dealer_type', 'spo'] as $column) {
                     if ($schema->hasColumn('dealers', $column)) {
                         $dealerSelects[] = 'd.' . $column . ' as dealer_' . $column;
                     }
@@ -175,6 +175,14 @@ class OrderController extends Controller
                 if (!empty($dealerSelects)) {
                     $query->addSelect($dealerSelects);
                 }
+            }
+
+            if ($schema->hasTable('center_chiefs')
+                && $schema->hasColumn('center_chiefs', 'user_id')
+                && $schema->hasColumn('center_chiefs', 'name')
+                && $schema->hasColumn('order_details', 'dealer_id')) {
+                $query->leftJoin('center_chiefs as cc', 'od.dealer_id', '=', 'cc.user_id')
+                    ->addSelect('cc.name as center_chief_name');
             }
 
             if ($schema->hasColumn('order_details', 'deleted_at')) {
@@ -216,6 +224,7 @@ class OrderController extends Controller
                 $order->guest_phone = $order->guest_phone ?? null;
                 $order->guest_email = $order->guest_email ?? null;
                 $order->guest_authorized_territory = $order->guest_authorized_territory ?? null;
+                $order->center_chief_name = $order->center_chief_name ?? null;
                 $order->dealer = (object) [
                     'name' => $order->dealer_name ?? ($order->dealer ?? ''),
                     'area' => $order->dealer_area ?? '',
@@ -223,6 +232,7 @@ class OrderController extends Controller
                 $order->adDealer = (object) [
                     'area' => $order->dealer_area ?? '',
                     'dealer_type' => $order->dealer_type ?? 'Project',
+                    'spo' => $order->dealer_spo ?? '',
                 ];
 
                 return $order;
