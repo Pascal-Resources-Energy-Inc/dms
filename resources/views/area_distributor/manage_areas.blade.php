@@ -1,9 +1,8 @@
 <div class="modal fade manage-area-modal" id="manageAreaModal-{{ $ad->id }}"  tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <form id="areaForm-{{ $ad->id }}" data-ad="{{ $ad->id }}" method="POST" action="{{ url('ad/'.$ad->id.'/areas/update') }}">
-            @csrf
-
-            <div class="modal-content manage-area-shell border-0 shadow-lg">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable manage-area-dialog">
+        <div class="modal-content manage-area-shell border-0 shadow-lg">
+            <form id="areaForm-{{ $ad->id }}" data-ad="{{ $ad->id }}" method="POST" action="{{ url('ad/'.$ad->id.'/areas/update') }}" class="manage-area-form">
+                @csrf
 
                 <div class="modal-header manage-area-header">
                     <div class="manage-area-title-wrap">
@@ -34,7 +33,7 @@
                             <h5 class="manage-area-section-title">Awarded Area(s)</h5>
 
                             <small class="manage-area-help">
-                                Add or update assigned areas
+                                Add or update assigned areas, package amounts, and joining dates
                             </small>
                         </div>
 
@@ -69,7 +68,7 @@
 
                                     <div class="row g-3 align-items-end">
 
-                                        <div class="col-md-7 mb-3">
+                                        <div class="col-md-5 mb-3">
                                             <label class="form-label manage-area-label">Area Name</label>
                                             <select class="form-select select2 select2-area"
                                                     data-select2-theme="bootstrap-5"
@@ -110,7 +109,26 @@
 
                                         </div>
 
-                                        <div class="col-md-4 mb-3">
+                                        <div class="col-md-3 mb-3">
+
+                                            <label class="form-label manage-area-label">Package Amount</label>
+
+                                            <div class="input-group manage-area-amount-group">
+                                                <span class="input-group-text">₱</span>
+                                                <input type="number"
+                                                       class="form-control"
+                                                       name="rows[{{ $index }}][package_amount]"
+                                                       value="{{ $area->package_amount !== null ? number_format((float) $area->package_amount, 2, '.', '') : '' }}"
+                                                       min="0"
+                                                       max="9999999999.99"
+                                                       step="0.01"
+                                                       inputmode="decimal"
+                                                       placeholder="0.00">
+                                            </div>
+
+                                        </div>
+
+                                        <div class="col-md-3 mb-3">
 
                                             <label class="form-label manage-area-label">Joining Date</label>
 
@@ -177,9 +195,8 @@
 
                 </div>
 
-            </div>
-
-        </form>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -226,6 +243,41 @@
                 document.head.appendChild(script);
             }
 
+            function syncAreaChoices(scope) {
+                var $scope = $(scope);
+                var $modal = $scope.hasClass('manage-area-modal')
+                    ? $scope
+                    : $scope.closest('.manage-area-modal');
+
+                if (!$modal.length) {
+                    return;
+                }
+
+                var selectedAreas = {};
+                $modal.find('select.select2-area').each(function () {
+                    var value = String($(this).val() || '').trim();
+                    if (value) {
+                        selectedAreas[value] = true;
+                    }
+                });
+
+                $modal.find('select.select2-area').each(function () {
+                    var $select = $(this);
+                    var ownValue = String($select.val() || '').trim();
+
+                    $select.find('option').each(function () {
+                        var optionValue = String(this.value || '').trim();
+                        this.disabled = optionValue !== ''
+                            && optionValue !== ownValue
+                            && Boolean(selectedAreas[optionValue]);
+                    });
+
+                    if ($select.hasClass('select2-hidden-accessible')) {
+                        $select.trigger('change.select2');
+                    }
+                });
+            }
+
             function initAreaSelect2(scope) {
                 ensureSelect2Ready(function () {
                     var $scope = $(scope);
@@ -248,6 +300,8 @@
                             theme: $select.data('select2-theme') || 'bootstrap-5'
                         });
                     });
+
+                    syncAreaChoices($scope);
                 });
             }
 
@@ -281,7 +335,7 @@
 
                                 <input type="hidden" name="rows[${index}][id]" value="">
 
-                                <div class="col-md-7 mb-3">
+                                <div class="col-md-5 mb-3">
                                     <label class="form-label manage-area-label">Area Name</label>
                                     <select class="form-select select2 select2-area" data-select2-theme="bootstrap-5" data-placeholder="Select Area"
                                             name="rows[${index}][area_name]" required>
@@ -290,7 +344,22 @@
                                     </select>
                                 </div>
 
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label manage-area-label">Package Amount</label>
+                                    <div class="input-group manage-area-amount-group">
+                                        <span class="input-group-text">₱</span>
+                                        <input type="number"
+                                            class="form-control"
+                                            name="rows[${index}][package_amount]"
+                                            min="0"
+                                            max="9999999999.99"
+                                            step="0.01"
+                                            inputmode="decimal"
+                                            placeholder="0.00">
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label manage-area-label">Joining Date</label>
                                     <input type="date"
                                         class="form-control"
@@ -312,6 +381,7 @@
                 container.append(row);
 
                 initAreaSelect2(row);
+                syncAreaChoices(container.closest('.manage-area-modal'));
             };
 
             /**
@@ -340,15 +410,48 @@
                         </div>
                     `);
                 }
+
+                syncAreaChoices(modal);
+            });
+
+            $(document).on('change', '.manage-area-modal select.select2-area', function () {
+                syncAreaChoices($(this).closest('.manage-area-modal'));
             });
 
             $(document).on('shown.bs.modal', '.manage-area-modal', function () {
                 initAreaSelect2(this);
+                syncAreaChoices(this);
             });
 
             $(document).ready(function () {
                 initAreaSelect2(document);
             });
+
+            function showAreaError(message) {
+                return Swal.fire({
+                    icon: 'error',
+                    title: 'Unable to save areas',
+                    text: message || 'Please review the area details and try again.',
+                    confirmButtonText: 'Try again',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+
+            function getAreaErrorMessage(xhr) {
+                let response = xhr.responseJSON || {};
+
+                if (response.errors) {
+                    let validationMessages = Object.values(response.errors).reduce(function (messages, errors) {
+                        return messages.concat(errors);
+                    }, []);
+
+                    if (validationMessages.length) {
+                        return validationMessages[0];
+                    }
+                }
+
+                return response.message || 'An unexpected error occurred while saving the awarded areas.';
+            }
 
             $(document).on('submit', 'form[id^="areaForm-"]', function (e) {
 
@@ -368,24 +471,36 @@
                     success: function (res) {
 
                         if (res.status) {
-
-                            alert(res.message);
-
                             let modalEl = document.getElementById(
                                 'manageAreaModal-' + form.data('ad')
                             );
+                            let showSuccessAlert = function () {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Awarded areas updated',
+                                    text: res.message || 'The awarded areas were saved successfully.',
+                                    confirmButtonText: 'Done',
+                                    confirmButtonColor: '#249a62',
+                                    allowOutsideClick: false
+                                }).then(function () {
+                                    window.location.reload();
+                                });
+                            };
 
-                            let modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                            if (modal) modal.hide();
-
-                            window.location.reload();
+                            if (modalEl) {
+                                let modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                                $(modalEl).one('hidden.bs.modal', showSuccessAlert);
+                                modal.hide();
+                            } else {
+                                showSuccessAlert();
+                            }
                         } else {
-                            alert(res.message || 'Unable to update areas');
+                            showAreaError(res.message || 'Unable to update areas.');
                         }
                     },
 
                     error: function (xhr) {
-                        alert(xhr.responseJSON?.message || 'Error occurred');
+                        showAreaError(getAreaErrorMessage(xhr));
                     },
 
                     complete: function () {
@@ -418,6 +533,22 @@
         border-radius: 14px;
         overflow: hidden;
         background: #fff;
+    }
+
+    .manage-area-dialog {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .manage-area-modal .manage-area-shell {
+        max-height: calc(100dvh - 2rem);
+    }
+
+    .manage-area-form {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        min-height: 0;
     }
 
     .manage-area-header {
@@ -465,6 +596,10 @@
     }
 
     .manage-area-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
         padding: 18px 22px;
         background: #f6f8fb;
     }
@@ -546,6 +681,27 @@
     .manage-area-row .form-select:focus {
         border-color: var(--manage-blue);
         box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .12);
+    }
+
+    .manage-area-amount-group .input-group-text {
+        min-width: 42px;
+        min-height: 42px;
+        justify-content: center;
+        color: #0f5f8f;
+        font-size: 14px;
+        font-weight: 900;
+        background: #eef7ff;
+        border-color: #d9e1ea;
+        border-radius: 8px 0 0 8px;
+    }
+
+    .manage-area-row .manage-area-amount-group .form-control {
+        border-left: 0;
+        border-radius: 0 8px 8px 0;
+    }
+
+    .manage-area-amount-group:focus-within .input-group-text {
+        border-color: var(--manage-blue);
     }
 
     .manage-area-remove-btn {

@@ -116,7 +116,7 @@
                     <tr>
                         <th>Date</th>
                         <th>Reference</th>
-                        <th>Area Distributor</th>
+                        <th>Distributor</th>
                         <th>Products &amp; Quantities</th>
                         <th>RIS / Attachments</th>
                         <th>Receiving</th>

@@ -194,7 +194,7 @@ class UserController extends Controller
         $user->role = $request->role;
         if (Schema::hasColumn('users', 'is_distributor_personnel')) {
             $user->is_distributor_personnel = in_array($request->role, ['Provincial Distributor', 'Area Distributor', 'Mega Dealer'], true)
-                && $request->boolean('is_distributor_personnel');
+                && filter_var($request->input('is_distributor_personnel', false), FILTER_VALIDATE_BOOLEAN);
         }
         if (Schema::hasColumn('users', 'mfi_type')) {
             $user->mfi_type = $isSedp ? $request->mfi_type : null;
@@ -898,9 +898,28 @@ class UserController extends Controller
             ], 422);
         }
 
-        $permissions = $this->sanitizeAccessPermissions(
-            json_decode($request->input('access_permissions', '{}'), true) ?: []
-        );
+        if (!Schema::hasColumn('users', 'access_permissions')) {
+            \Log::error('User access update failed because the access_permissions column is missing.', [
+                'target_user_id' => $user->id,
+                'updated_by' => auth()->id(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'User access storage is not ready. Please run the latest database migrations.'
+            ], 503);
+        }
+
+        $decodedPermissions = json_decode($request->input('access_permissions', '{}'), true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decodedPermissions)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The submitted access permissions are invalid. Please refresh and try again.'
+            ], 422);
+        }
+
+        $permissions = $this->sanitizeAccessPermissions($decodedPermissions);
 
         $hasPermission = function ($module, $submodule = null, $action = null) use ($permissions) {
             if (!isset($permissions[$module]) || !is_array($permissions[$module])) {
@@ -928,25 +947,47 @@ class UserController extends Controller
             return false;
         };
 
-        $user->can_edit = $hasPermission('users', 'accounts', 'edit') ? 'on' : null;
-        $user->can_add = $hasPermission('users', 'accounts', 'add') ? 'on' : null;
-        $user->can_delete = $hasPermission('users', 'accounts', 'delete') ? 'on' : null;
+        $legacyPermissions = [
+            'can_edit' => $hasPermission('users', 'accounts', 'edit') ? 'on' : null,
+            'can_add' => $hasPermission('users', 'accounts', 'add') ? 'on' : null,
+            'can_delete' => $hasPermission('users', 'accounts', 'delete') ? 'on' : null,
+            'can_edit_rewards' => $hasPermission('settings', 'rewards', 'edit') ? 'on' : null,
+            'can_add_rewards' => $hasPermission('settings', 'rewards', 'add') ? 'on' : null,
+            'can_delete_rewards' => $hasPermission('settings', 'rewards', 'delete') ? 'on' : null,
+            'can_access_transactions' => $hasPermission('transactions') ? 'on' : null,
+            'can_access_distributors' => $hasPermission('distributors') ? 'on' : null,
+            'can_access_dealers' => $hasPermission('dealers') ? 'on' : null,
+            'can_access_customers' => $hasPermission('customers') ? 'on' : null,
+            'can_access_purchase_orders' => $hasPermission('purchase_orders') ? 'on' : null,
+            'can_access_inventory' => $hasPermission('inventory') ? 'on' : null,
+            'can_access_reports' => $hasPermission('reports') ? 'on' : null,
+            'can_access_settings' => $hasPermission('settings') ? 'on' : null,
+            'can_access_stock_requests' => $hasPermission('stock_requests') ? 'on' : null,
+        ];
 
-        $user->can_edit_rewards = $hasPermission('settings', 'rewards', 'edit') ? 'on' : null;
-        $user->can_add_rewards = $hasPermission('settings', 'rewards', 'add') ? 'on' : null;
-        $user->can_delete_rewards = $hasPermission('settings', 'rewards', 'delete') ? 'on' : null;
-        $user->can_access_transactions = $hasPermission('transactions') ? 'on' : null;
-        $user->can_access_distributors = $hasPermission('distributors') ? 'on' : null;
-        $user->can_access_dealers = $hasPermission('dealers') ? 'on' : null;
-        $user->can_access_customers = $hasPermission('customers') ? 'on' : null;
-        $user->can_access_purchase_orders = $hasPermission('purchase_orders') ? 'on' : null;
-        $user->can_access_inventory = $hasPermission('inventory') ? 'on' : null;
-        $user->can_access_reports = $hasPermission('reports') ? 'on' : null;
-        $user->can_access_settings = $hasPermission('settings') ? 'on' : null;
-        $user->can_access_stock_requests = $hasPermission('stock_requests') ? 'on' : null;
-        $user->access_permissions = json_encode($permissions);
+        try {
+            DB::transaction(function () use ($user, $permissions, $legacyPermissions) {
+                foreach ($legacyPermissions as $column => $value) {
+                    if (Schema::hasColumn('users', $column)) {
+                        $user->{$column} = $value;
+                    }
+                }
 
-        $user->save();
+                $user->access_permissions = json_encode($permissions);
+                $user->save();
+            });
+        } catch (\Throwable $e) {
+            \Log::error('Unable to update user access.', [
+                'target_user_id' => $user->id,
+                'updated_by' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to update user access right now. Please try again.'
+            ], 500);
+        }
 
         return response()->json([
             'success' => true,

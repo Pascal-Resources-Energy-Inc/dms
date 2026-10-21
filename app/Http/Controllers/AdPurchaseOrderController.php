@@ -318,7 +318,6 @@ class AdPurchaseOrderController extends Controller
         $ad = $user->ad;
         $isProvincialDistributor = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR;
         $isAdmin = $user->role === 'Admin';
-        $provincialDistributors = User::where('role', 'Provincial Distributor')->orderBy('name')->get(['id', 'name']);
         $selectedOrderSource = request('order_source', 'prei_warehouse');
         $selectedProvincialDistributorId = (int) request('provincial_distributor_id');
         $orderForUser = $user;
@@ -332,6 +331,9 @@ class AdPurchaseOrderController extends Controller
 
         $orderProfile = $ad ?: $user;
         $territoryOptions = $this->territoryOptions($orderProfile);
+        $provincialDistributors = $this->provincialDistributorQueryFor($user, $ad)
+            ->orderBy('name')
+            ->get(['id', 'name']);
         $storeCode = optional($ad)->store_code;
         $authorizedAreas = $territoryOptions;
         $userVouchers = Voucher::where('name', $storeCode)
@@ -462,10 +464,11 @@ class AdPurchaseOrderController extends Controller
 
         $supplyingProvincialDistributor = null;
         if ($request->order_source === 'provincial_distributor') {
-            $supplyingProvincialDistributor = User::where('id', $request->provincial_distributor_id)
-                ->where('role', 'Provincial Distributor')->first();
+            $supplyingProvincialDistributor = $this->provincialDistributorQueryFor($user, $ad)
+                ->whereKey($request->provincial_distributor_id)
+                ->first();
             if (!$supplyingProvincialDistributor) {
-                return back()->withInput()->withErrors(['provincial_distributor_id' => 'Please select a valid Provincial Distributor.']);
+                return back()->withInput()->withErrors(['provincial_distributor_id' => 'Please select a Provincial Distributor assigned to your area.']);
             }
         }
 
@@ -742,8 +745,10 @@ class AdPurchaseOrderController extends Controller
             ->where('ad_purchase_orders.ad_user_id', $provincialDistributorId)
             ->where('ad_purchase_orders.status', 'Completed')
             ->whereIn('ad_purchase_order_items.product_id', $productIds)
+            ->selectRaw('ad_purchase_order_items.product_id, SUM(ad_purchase_order_items.qty) as received_qty')
             ->groupBy('ad_purchase_order_items.product_id')
-            ->pluck(DB::raw('SUM(ad_purchase_order_items.qty)'), 'ad_purchase_order_items.product_id');
+            ->get()
+            ->pluck('received_qty', 'product_id');
 
         $movementAdjustments = InventoryTransfer::query()
             ->where('ad_user_id', $provincialDistributorId)
@@ -1833,6 +1838,28 @@ class AdPurchaseOrderController extends Controller
             ->filter()
             ->unique()
             ->values();
+    }
+
+    /**
+     * Area Distributors may submit an order to a Provincial Distributor only
+     * when both accounts are assigned to at least one of the same areas.
+     */
+    private function provincialDistributorQueryFor(User $user, $ad)
+    {
+        $query = User::query()->where('role', User::ROLE_PROVINCIAL_DISTRIBUTOR);
+
+        if ($user->role !== User::ROLE_AREA_DISTRIBUTOR) {
+            return $query;
+        }
+
+        $areaNames = $this->territoryOptions($ad);
+        if ($areaNames->isEmpty()) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('ad.areas', function ($areaQuery) use ($areaNames) {
+            $areaQuery->whereIn('area_name', $areaNames->all());
+        });
     }
 
     private function regionVOrderQuery()

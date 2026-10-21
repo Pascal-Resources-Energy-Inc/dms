@@ -76,16 +76,6 @@ class InventoryTransferController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        $dealerOrderDeductions = $this->completedDealerOrderDeductions(
-            $ad ? $ad->id : null,
-            $inventoryProducts
-        );
-
-        $completedAdPurchaseOrderStock = $this->completedAdPurchaseOrderStock(
-            $user->id,
-            $inventoryProducts
-        );
-        $balances = $this->buildBalances($allMovements, $dealerOrderDeductions, $completedAdPurchaseOrderStock);
         $stockProducts = Product::where('ad_user_id', $user->id)
             ->where(function ($query) {
                 $query->where('status', 'Activate')
@@ -93,6 +83,27 @@ class InventoryTransferController extends Controller
             })
             ->orderBy('product_name')
             ->get();
+
+        $dealerOrderDeductions = $this->completedDealerOrderDeductions(
+            $ad ? $ad->id : null,
+            $inventoryProducts
+        );
+
+        if ($user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR) {
+            $dealerOrderDeductions = $dealerOrderDeductions->merge(
+                $this->completedProvincialDistributorOrderDeductions(
+                    $user->id,
+                    $stockProducts->concat($adItems)->values()
+                )
+            );
+        }
+
+        $completedAdPurchaseOrderStock = $this->completedAdPurchaseOrderStock(
+            $user->id,
+            $inventoryProducts
+        );
+        $balances = $this->buildBalances($allMovements, $dealerOrderDeductions, $completedAdPurchaseOrderStock);
+
         $productOptions = $stockProducts->map(function ($product) {
             return [
                 'id' => $product->id,
@@ -1094,7 +1105,7 @@ class InventoryTransferController extends Controller
 
     private function ensureReturnRefundReportViewer(): void
     {
-        if (auth()->user()->role === 'Area Distributor') {
+        if (auth()->user()->hasAreaDistributorAccess()) {
             return;
         }
 
@@ -1253,7 +1264,7 @@ class InventoryTransferController extends Controller
                 'date' => $request->transfer_date ? Carbon::parse($request->transfer_date)->format('M d, Y') : '—',
                 'sort_date' => $request->created_at ? Carbon::parse($request->created_at)->timestamp : 0,
                 'reference' => $request->reference_no ?: 'Draft request',
-                'ad_name' => $request->ad_name ?: 'Area Distributor',
+                'ad_name' => $request->ad_name ?: 'Distributor',
                 'source_areas' => $request->groupedItems->pluck('from_area')->filter()->unique()->values()->all(),
                 'ris_number' => $request->ris_number ?: '—',
                 'ris_date' => $request->ris_date ? Carbon::parse($request->ris_date)->format('M d, Y') : '—',
@@ -1442,7 +1453,7 @@ class InventoryTransferController extends Controller
                 return $row->transfer_date ? Carbon::parse($row->transfer_date)->format('M d, Y') : '—';
             })
             ->addColumn('distributor', function ($row) {
-                return e($row->distributor_name ?: 'Area Distributor');
+                return e($row->distributor_name ?: 'Distributor');
             })
             ->addColumn('products', function ($row) {
                 return $this->returnRefundReportProducts($row->item_rows);
@@ -1535,7 +1546,7 @@ class InventoryTransferController extends Controller
 
         return \Yajra\DataTables\Facades\DataTables::of($query)
             ->editColumn('transfer_date', function ($row) { return $row->transfer_date ? Carbon::parse($row->transfer_date)->format('M d, Y') : '—'; })
-            ->addColumn('distributor', function ($row) { return e($row->distributor_name ?: 'Area Distributor'); })
+            ->addColumn('distributor', function ($row) { return e($row->distributor_name ?: 'Distributor'); })
             ->addColumn('pull_out_product', function ($row) { return $this->pullOutReportItems($row->item_rows, 0, 1, 2); })
             ->addColumn('replacement_product', function ($row) { return $this->pullOutReportItems($row->item_rows, 3, 4, 5); })
             ->addColumn('request_qty', function ($row) { return number_format($row->requested_qty_total) . ' pcs'; })
@@ -1569,7 +1580,7 @@ class InventoryTransferController extends Controller
             })
             ->addColumn('remarks', function ($row) { return e($row->warehouse_remarks ?: $row->remarks ?: '—'); })
             ->addColumn('ad_confirmation', function ($row) {
-                if (auth()->user()->role !== 'Area Distributor' || $row->approval_status !== 'Replacing') {
+                if (!auth()->user()->hasAreaDistributorAccess() || $row->approval_status !== 'Replacing') {
                     return '—';
                 }
 
@@ -1657,8 +1668,8 @@ class InventoryTransferController extends Controller
         $user = auth()->user();
         $warehouse = strtolower((string) ($user->warehouse ?? ''));
 
-        if ($user->role === 'Area Distributor') {
-            // An AD may only see the pull-out requests that they submitted.
+        if ($user->hasAreaDistributorAccess()) {
+            // A distributor may only see the pull-out requests that they submitted.
             $query->where('inventory_transfers.ad_user_id', $user->id);
         } elseif ($user->role === 'Admin' && in_array($warehouse, ['lubao', 'guinobatan'], true)) {
             // Warehouse admins only see requests routed to their warehouse.
@@ -1674,7 +1685,7 @@ class InventoryTransferController extends Controller
             ->whereRaw("LOWER(TRIM(COALESCE(inventory_transfers.out_type, ''))) = ?", ['return and refund']);
         $user = auth()->user();
 
-        if ($user->role === 'Area Distributor') {
+        if ($user->hasAreaDistributorAccess()) {
             return $query->where('inventory_transfers.ad_user_id', $user->id);
         }
 
@@ -1823,7 +1834,7 @@ class InventoryTransferController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Replacement marked with DR # ' . strtoupper(trim($request->replacement_dr_number)) . '. Waiting for Area Distributor confirmation before stock is posted.');
+        return back()->with('success', 'Replacement marked with DR # ' . strtoupper(trim($request->replacement_dr_number)) . '. Waiting for distributor confirmation before stock is posted.');
     }
 
     public function confirmPullOutReplacement($id)
@@ -2074,6 +2085,58 @@ class InventoryTransferController extends Controller
         }
 
         return $deductions->values();
+    }
+
+    private function completedProvincialDistributorOrderDeductions($provincialDistributorId, $products)
+    {
+        $productsById = $products->filter(function ($product) {
+            return !empty($product->id);
+        })->keyBy('id');
+        $productsByName = $products->filter(function ($product) {
+            return !empty($product->product_name);
+        })->keyBy(function ($product) {
+            return $this->normalizeProductName($product->product_name);
+        });
+
+        return AdPurchaseOrderItem::join('ad_purchase_orders', 'ad_purchase_order_items.ad_purchase_order_id', '=', 'ad_purchase_orders.id')
+            ->leftJoin(DB::raw('(select ad_id, min(area_name) as area_name from ad_areas where deleted_at is null group by ad_id) as buyer_areas'), 'ad_purchase_orders.ad_id', '=', 'buyer_areas.ad_id')
+            ->where('ad_purchase_orders.order_source', 'provincial_distributor')
+            ->where('ad_purchase_orders.provincial_distributor_id', $provincialDistributorId)
+            ->where('ad_purchase_orders.status', 'Completed')
+            ->select(
+                'ad_purchase_orders.authorized_territory as territory_area',
+                'buyer_areas.area_name as buyer_area',
+                'ad_purchase_order_items.product_id',
+                'ad_purchase_order_items.sku',
+                'ad_purchase_order_items.product_name',
+                DB::raw('SUM(ad_purchase_order_items.qty) as qty')
+            )
+            ->groupBy(
+                'ad_purchase_orders.authorized_territory',
+                'buyer_areas.area_name',
+                'ad_purchase_order_items.product_id',
+                'ad_purchase_order_items.sku',
+                'ad_purchase_order_items.product_name'
+            )
+            ->get()
+            ->toBase()
+            ->map(function ($item) use ($productsById, $productsByName) {
+                $product = $productsById->get($item->product_id)
+                    ?: $productsByName->get($this->normalizeProductName($item->product_name));
+
+                return (object) [
+                    'area' => $item->territory_area ?: $item->buyer_area,
+                    'product_id' => $product ? $product->id : $item->product_id,
+                    'sku' => $product ? $product->sku : $item->sku,
+                    'product_name' => $product ? $product->product_name : $item->product_name,
+                    'item_name' => $product ? $product->product_name : $item->product_name,
+                    'qty' => (float) $item->qty,
+                ];
+            })
+            ->filter(function ($item) {
+                return $item->area && $item->product_name;
+            })
+            ->values();
     }
 
     private function dealerOrderQtyForAreaProduct($adId, $area, Product $product)

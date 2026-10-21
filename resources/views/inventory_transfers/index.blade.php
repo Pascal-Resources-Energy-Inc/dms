@@ -119,7 +119,7 @@
                                     <div class="name">{{ $areaSummary->area }}</div>
                                     <div class="meta">{{ number_format($areaSummary->sku_count) }} SKU{{ $areaSummary->sku_count == 1 ? '' : 's' }} tracked</div>
                                 </div>
-                                <span class="badge {{ $areaSummary->qty <= 10 ? 'bg-warning text-dark' : 'bg-success' }} px-3 py-2">
+                                <span class="badge {{ $areaSummary->qty <= 0 ? 'bg-danger' : ($areaSummary->qty <= 10 ? 'bg-warning text-dark' : 'bg-success') }} px-3 py-2">
                                     {{ number_format($areaSummary->qty) }} pcs
                                 </span>
                             </div>
@@ -309,7 +309,13 @@
                             <span class="stock-section-icon"><i class="bi bi-boxes"></i></span>
                             <div>
                             <h5 class="mb-0">Current Stock by Area</h5>
-                            <div class="small text-muted">Available stock deducts completed dealer orders in the same area.</div>
+                            <div class="small text-muted">
+                                @if(auth()->user()->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR)
+                                    Available stock deducts completed Area Distributor purchase orders in the same area.
+                                @else
+                                    Available stock deducts completed dealer orders in the same area.
+                                @endif
+                            </div>
                             </div>
                         </div>
                         <span class="stock-ledger-badge mt-2 mt-lg-0"><i class="bi bi-journal-check"></i> Ledger balance</span>

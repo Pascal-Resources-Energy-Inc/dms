@@ -2536,8 +2536,100 @@ class ReportController extends Controller
         $perPage = in_array((int) $request->input('per_page', 25), [10, 25, 50, 100], true)
             ? (int) $request->input('per_page', 25)
             : 25;
-        $schema = Schema::getConnection()->getSchemaBuilder();
+        $query = $this->adAwardedAreasQuery($search, $projectType, $assignmentStatus);
 
+        $summaryQuery = clone $query;
+        $summary = [
+            'assignments' => $summaryQuery->count(),
+            'partners' => (clone $query)->distinct('awarded_ad.id')->count('awarded_ad.id'),
+            'disengaged' => (clone $query)->whereNotNull('ad_areas.deleted_at')->count(),
+        ];
+
+        $awards = $query->paginate($perPage)->appends($request->query());
+        $awards->getCollection()->transform(function ($award) {
+            return $this->formatAdAwardedArea($award);
+        });
+
+        $projectTypes = AreaAd::withTrashed()
+            ->whereNotNull('project_type')
+            ->where('project_type', '<>', '')
+            ->distinct()
+            ->orderBy('project_type')
+            ->pluck('project_type');
+
+        return view('reports.ad_awarded_areas', compact(
+            'awards',
+            'summary',
+            'search',
+            'projectType',
+            'projectTypes',
+            'assignmentStatus',
+            'perPage'
+        ));
+    }
+
+    public function exportAdAwardedAreas(Request $request)
+    {
+        $this->authorizeSedpReports();
+
+        $search = trim((string) $request->input('search', ''));
+        $projectType = trim((string) $request->input('project_type', ''));
+        $assignmentStatus = trim((string) $request->input('assignment_status', 'all'));
+        $awards = $this->adAwardedAreasQuery($search, $projectType, $assignmentStatus)
+            ->get()
+            ->map(function ($award) {
+                return $this->formatAdAwardedArea($award);
+            });
+        $filename = 'ad-awarded-areas-' . Carbon::now()->format('Y-m-d-His') . '.csv';
+
+        return response()->streamDownload(function () use ($awards) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, [
+                'Partner Code',
+                'Entry Date',
+                'Partner Name',
+                'Business / Store Name',
+                'Awarded Area #',
+                'Awarded Area',
+                'Awarded Date',
+                'Province',
+                'Region',
+                'PH Area',
+                'Delivery Address',
+                'Contact #',
+                'AD Package',
+                'Assignment Status',
+                'Disengagement Date',
+            ]);
+
+            foreach ($awards as $award) {
+                fputcsv($handle, [
+                    $award->partner_code,
+                    $award->partner_started_display === '—' ? '' : $award->partner_started_display,
+                    $award->partner_name,
+                    $award->business_name === '—' ? '' : $award->business_name,
+                    $award->award_reference,
+                    $award->area_name,
+                    $award->awarded_date_display === '—' ? '' : $award->awarded_date_display,
+                    $award->province === '—' ? '' : $award->province,
+                    $award->region === '—' ? '' : $award->region,
+                    $award->ph_area === '—' ? '' : $award->ph_area,
+                    $award->delivery_address === '—' ? '' : $award->delivery_address,
+                    $award->contact_number === '—' ? '' : $award->contact_number,
+                    $award->project_type === '—' ? '' : $award->project_type,
+                    $award->disengagement_date ? 'Disengaged' : 'Active',
+                    $award->disengagement_date_display ?: '',
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    private function adAwardedAreasQuery($search, $projectType, $assignmentStatus)
+    {
+        $schema = Schema::getConnection()->getSchemaBuilder();
         $coverageSummary = $schema->hasTable('area_geographic_coverages')
             ? DB::table('area_geographic_coverages')
                 ->select(
@@ -2548,7 +2640,7 @@ class ReportController extends Controller
                 ->groupBy('area_id')
             : null;
 
-        $query = AreaAd::withTrashed()
+        return AreaAd::withTrashed()
             ->join('area_distributors as awarded_ad', 'awarded_ad.id', '=', 'ad_areas.ad_id')
             ->leftJoin('users as awarded_user', 'awarded_user.id', '=', 'awarded_ad.user_id')
             ->leftJoin('areas as awarded_area', 'awarded_area.name', '=', 'ad_areas.area_name')
@@ -2599,56 +2691,32 @@ class ReportController extends Controller
             ->orderBy('awarded_ad.store_code')
             ->orderBy('awarded_ad.ad_reference')
             ->orderBy('ad_areas.id');
+    }
 
-        $summaryQuery = clone $query;
-        $summary = [
-            'assignments' => $summaryQuery->count(),
-            'partners' => (clone $query)->distinct('awarded_ad.id')->count('awarded_ad.id'),
-            'disengaged' => (clone $query)->whereNotNull('ad_areas.deleted_at')->count(),
-        ];
+    private function formatAdAwardedArea($award)
+    {
+        $partnerCode = trim((string) ($award->store_code ?: $award->ad_reference ?: 'AD-' . $award->id));
+        $award->partner_code = $partnerCode;
+        $award->award_reference = $partnerCode . '-' . (int) $award->award_sequence;
+        $award->province = trim((string) $award->province) ?: '—';
+        $award->region = trim((string) $award->region) ?: '—';
+        $award->ph_area = $this->philippineAreaForRegion($award->region);
+        $award->project_type = trim((string) $award->project_type) ?: '—';
+        $award->partner_name = trim((string) $award->partner_name) ?: 'Unnamed Partner';
+        $award->business_name = trim((string) $award->business_name) ?: '—';
+        $award->delivery_address = trim((string) $award->delivery_address) ?: '—';
+        $award->contact_number = trim((string) $award->contact_number) ?: '—';
+        $award->awarded_date_display = $award->awarded_date
+            ? Carbon::parse($award->awarded_date)->format('M d, Y')
+            : '—';
+        $award->partner_started_display = $award->partner_started_at
+            ? Carbon::parse($award->partner_started_at)->format('M d, Y')
+            : '—';
+        $award->disengagement_date_display = $award->disengagement_date
+            ? Carbon::parse($award->disengagement_date)->format('M d, Y')
+            : null;
 
-        $awards = $query->paginate($perPage)->appends($request->query());
-        $awards->getCollection()->transform(function ($award) {
-            $partnerCode = trim((string) ($award->store_code ?: $award->ad_reference ?: 'AD-' . $award->id));
-            $award->partner_code = $partnerCode;
-            $award->award_reference = $partnerCode . '-' . (int) $award->award_sequence;
-            $award->province = trim((string) $award->province) ?: '—';
-            $award->region = trim((string) $award->region) ?: '—';
-            $award->ph_area = $this->philippineAreaForRegion($award->region);
-            $award->project_type = trim((string) $award->project_type) ?: '—';
-            $award->partner_name = trim((string) $award->partner_name) ?: 'Unnamed Partner';
-            $award->business_name = trim((string) $award->business_name) ?: '—';
-            $award->delivery_address = trim((string) $award->delivery_address) ?: '—';
-            $award->contact_number = trim((string) $award->contact_number) ?: '—';
-            $award->awarded_date_display = $award->awarded_date
-                ? Carbon::parse($award->awarded_date)->format('M d, Y')
-                : '—';
-            $award->partner_started_display = $award->partner_started_at
-                ? Carbon::parse($award->partner_started_at)->format('M d, Y')
-                : '—';
-            $award->disengagement_date_display = $award->disengagement_date
-                ? Carbon::parse($award->disengagement_date)->format('M d, Y')
-                : null;
-
-            return $award;
-        });
-
-        $projectTypes = AreaAd::withTrashed()
-            ->whereNotNull('project_type')
-            ->where('project_type', '<>', '')
-            ->distinct()
-            ->orderBy('project_type')
-            ->pluck('project_type');
-
-        return view('reports.ad_awarded_areas', compact(
-            'awards',
-            'summary',
-            'search',
-            'projectType',
-            'projectTypes',
-            'assignmentStatus',
-            'perPage'
-        ));
+        return $award;
     }
 
     private function philippineAreaForRegion($region)
