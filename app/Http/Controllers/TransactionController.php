@@ -96,7 +96,7 @@ class TransactionController extends Controller
 
         if ($selectedProject !== 'Regular') {
             $connection = $selectedProject === 'Project Rise' ? 'admin_crms' : 'admin_crms2';
-            $allowedAreas = $user->hasAreaDistributorAccess()
+            $assignedProjectAreas = $user->hasAreaDistributorAccess()
                 ? AreaAd::where('ad_id', optional($user->ad)->id)
                     ->where('project_type', $selectedProject)
                     ->pluck('area_name')
@@ -104,7 +104,19 @@ class TransactionController extends Controller
                     ->unique()
                     ->values()
                 : collect();
-            $remoteData = $this->crmCustomerTransactions($request, $connection, $allowedAreas);
+            $assignedAreas = $user->hasAreaDistributorAccess()
+                ? AreaAd::where('ad_id', optional($user->ad)->id)
+                    ->pluck('area_name')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                : collect();
+            $remoteData = $this->crmCustomerTransactions(
+                $request,
+                $connection,
+                $assignedProjectAreas,
+                $assignedAreas
+            );
 
             return view('area_distributor.customer_transactions', [
                 'transactions' => $remoteData['transactions'],
@@ -224,12 +236,17 @@ class TransactionController extends Controller
         ));
     }
 
-    private function crmCustomerTransactions(Request $request, $connection, $allowedAreas)
+    private function crmCustomerTransactions(Request $request, $connection, $allowedAreas, $centerChiefAreas = null)
     {
         try {
             $schema = DB::connection($connection)->getSchemaBuilder();
 
-            if (!$schema->hasTable('transaction_details') || !$schema->hasTable('dealers')) {
+            $hasDealers = $schema->hasTable('dealers');
+            $hasCenterChiefs = $schema->hasTable('center_chiefs')
+                && $schema->hasColumn('center_chiefs', 'user_id')
+                && $schema->hasColumn('center_chiefs', 'name');
+
+            if (!$schema->hasTable('transaction_details') || (!$hasDealers && !$hasCenterChiefs)) {
                 return ['transactions' => collect(), 'customers' => collect(), 'dealers' => collect()];
             }
 
@@ -241,39 +258,87 @@ class TransactionController extends Controller
                 return ['transactions' => collect(), 'customers' => collect(), 'dealers' => collect()];
             }
 
-            $dealerQuery = DB::connection($connection)->table('dealers');
+            $dealers = collect();
+            if ($hasDealers) {
+                $dealerQuery = DB::connection($connection)->table('dealers');
 
-            if ($schema->hasColumn('dealers', 'deleted_at')) {
-                $dealerQuery->whereNull('deleted_at');
-            }
-
-            if (auth()->user()->hasAreaDistributorAccess()) {
-                if ($allowedAreas->isEmpty() || !$schema->hasColumn('dealers', 'area')) {
-                    return ['transactions' => collect(), 'customers' => collect(), 'dealers' => collect()];
+                if ($schema->hasColumn('dealers', 'deleted_at')) {
+                    $dealerQuery->whereNull('deleted_at');
                 }
 
-                $dealerQuery->whereIn('area', $allowedAreas);
-            }
-
-            if ($request->filled('dealer')) {
-                $dealerQuery->where(function ($query) use ($request, $schema) {
-                    $query->where('id', $request->input('dealer'));
-
-                    if ($schema->hasColumn('dealers', 'user_id')) {
-                        $query->orWhere('user_id', $request->input('dealer'));
+                if (auth()->user()->hasAreaDistributorAccess()) {
+                    if ($allowedAreas->isEmpty() || !$schema->hasColumn('dealers', 'area')) {
+                        $dealerQuery->whereRaw('1 = 0');
+                    } else {
+                        $dealerQuery->whereIn('area', $allowedAreas);
                     }
-                });
+                }
+
+                if ($request->filled('dealer')) {
+                    $dealerQuery->where(function ($query) use ($request, $schema) {
+                        $query->where('id', $request->input('dealer'));
+
+                        if ($schema->hasColumn('dealers', 'user_id')) {
+                            $query->orWhere('user_id', $request->input('dealer'));
+                        }
+                    });
+                }
+
+                $dealers = $dealerQuery->get()->map(function ($dealer) {
+                    $dealer->user_id = $dealer->user_id ?? $dealer->id;
+                    $dealer->name = $dealer->name ?? '-';
+                    $dealer->seller_type = 'Dealer';
+                    $dealer->transaction_ids = collect([$dealer->id ?? null, $dealer->user_id ?? null])
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all();
+
+                    return $dealer;
+                })->values();
             }
 
-            $dealers = $dealerQuery->get()->map(function ($dealer) {
-                $dealer->user_id = $dealer->user_id ?? $dealer->id;
-                $dealer->name = $dealer->name ?? '-';
+            $centerChiefs = collect();
+            if ($hasCenterChiefs) {
+                $centerChiefQuery = DB::connection($connection)->table('center_chiefs');
+                $centerChiefAreas = $centerChiefAreas ?: $allowedAreas;
 
-                return $dealer;
-            })->values();
+                if ($schema->hasColumn('center_chiefs', 'deleted_at')) {
+                    $centerChiefQuery->whereNull('deleted_at');
+                }
+
+                if (auth()->user()->hasAreaDistributorAccess()) {
+                    if ($centerChiefAreas->isEmpty() || !$schema->hasColumn('center_chiefs', 'area')) {
+                        $centerChiefQuery->whereRaw('1 = 0');
+                    } else {
+                        $centerChiefQuery->whereIn('area', $centerChiefAreas);
+                    }
+                }
+
+                if ($request->filled('dealer')) {
+                    $centerChiefQuery->where('user_id', $request->input('dealer'));
+                }
+
+                $centerChiefs = $centerChiefQuery->get()->map(function ($centerChief) {
+                    $centerChief->user_id = $centerChief->user_id ?? $centerChief->id;
+                    $centerChief->name = $centerChief->name ?? '-';
+                    $centerChief->seller_type = 'Center Chief';
+                    $centerChief->transaction_ids = [$centerChief->user_id];
+
+                    return $centerChief;
+                })->values();
+            }
+
+            $dealers = $dealers->concat($centerChiefs)
+                ->unique(function ($seller) {
+                    return ($seller->seller_type ?? 'Dealer') . '|' . $seller->user_id;
+                })
+                ->sortBy('name')
+                ->values();
             $dealerIds = $dealers->flatMap(function ($dealer) {
-                return [$dealer->id ?? null, $dealer->user_id ?? null];
-            })->filter()->unique()->values();
+                return $dealer->transaction_ids ?? [$dealer->user_id ?? $dealer->id ?? null];
+            })->values();
+            $dealerIds = $dealerIds->filter()->unique()->values();
 
             if ($dealerIds->isEmpty()) {
                 return ['transactions' => collect(), 'customers' => collect(), 'dealers' => $dealers];
@@ -330,13 +395,14 @@ class TransactionController extends Controller
                 })->values();
             }
 
-            $dealersById = $dealers->flatMap(function ($dealer) {
-                return collect([$dealer->id ?? null, $dealer->user_id ?? null])
-                    ->filter()
-                    ->mapWithKeys(function ($id) use ($dealer) {
-                        return [$id => $dealer];
-                    });
-            });
+            $dealersById = collect();
+            foreach ($dealers as $dealer) {
+                foreach (($dealer->transaction_ids ?? [$dealer->user_id ?? $dealer->id ?? null]) as $transactionDealerId) {
+                    if ($transactionDealerId !== null) {
+                        $dealersById->put((string) $transactionDealerId, $dealer);
+                    }
+                }
+            }
             $customersById = $customers->keyBy('id');
 
             $transactions = $transactions->map(function ($transaction) use ($dealerColumn, $customerColumn, $dealersById, $customersById) {

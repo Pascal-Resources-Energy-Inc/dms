@@ -9,7 +9,7 @@
                     <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
                         <div>
                             <h4 class="fw-bold mb-1">Customer Transaction Overview</h4>
-                            <p class="text-muted mb-0">Track sales activity from AD dealers to customers in one place.</p>
+                            <p class="text-muted mb-0">Track sales activity from dealers and center chiefs to customers in one place.</p>
                         </div>
                         <div class="text-muted small">
                             <i class="ti ti-users me-1"></i>
@@ -32,12 +32,12 @@
                     <form method="GET" action="{{ route('customer-ads') }}" class="row g-3 align-items-end mb-4">
                         <input type="hidden" name="project" value="{{ $selectedProject }}">
                         <div class="col-md-3">
-                            <label class="form-label small fw-semibold">Dealer Name</label>
+                            <label class="form-label small fw-semibold">Seller Name</label>
                             <select name="dealer" class="form-select form-select-sm">
-                                <option value="">All Dealers</option>
+                                <option value="">All Sellers</option>
                                 @foreach($dealers as $dealer)
                                     <option value="{{ $dealer->user_id }}" {{ request('dealer') == $dealer->user_id ? 'selected' : '' }}>
-                                        {{ $dealer->name }}
+                                        {{ $dealer->name }}{{ ($dealer->seller_type ?? 'Dealer') === 'Center Chief' ? ' (Center Chief)' : '' }}
                                     </option>
                                 @endforeach
                             </select>
@@ -77,7 +77,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th>Date</th>
-                                    <th>Dealer Name</th>
+                                    <th>Seller Name</th>
                                     <th>Customer Name</th>
                                     <th>Item</th>
                                     <th>Qty</th>
@@ -96,7 +96,10 @@
                                     ?>
                                     <tr>
                                         <td>{{ $transaction->date ? date('M d, Y', strtotime($transaction->date)) : '-' }}</td>
-                                        <td>{{ $transaction->dealer->name ?? '-' }}</td>
+                                        <td>
+                                            <div class="fw-semibold">{{ $transaction->dealer->name ?? '-' }}</div>
+                                            <div class="small text-muted">{{ $transaction->dealer->seller_type ?? 'Dealer' }}</div>
+                                        </td>
                                         <td>{{ $transactionCustomerName }}</td>
                                         <td>{{ $transaction->item ?: '-' }}</td>
                                         <td>{{ number_format($transaction->qty ?? 0, 2) }}</td>

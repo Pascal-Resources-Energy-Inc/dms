@@ -332,11 +332,16 @@
                             <div class="adpo-field-span {{ old('order_source', $selectedOrderSource) === 'provincial_distributor' ? '' : 'd-none' }}" id="provincialDistributorWrap">
                                 <label class="form-label" for="provincialDistributorId">Supplying Provincial Distributor <span class="text-danger">*</span></label>
                                 <select id="provincialDistributorId" name="provincial_distributor_id" class="form-select">
-                                    <option value="">Select Provincial Distributor</option>
-                                    @foreach($provincialDistributors as $provincialDistributor)
-                                        <option value="{{ $provincialDistributor->id }}" {{ (int) old('provincial_distributor_id', $selectedProvincialDistributorId) === (int) $provincialDistributor->id ? 'selected' : '' }}>{{ $provincialDistributor->name }}</option>
-                                    @endforeach
+                                    @if($provincialDistributors->isEmpty())
+                                        <option value="">No Provincial Distributor is assigned to your area</option>
+                                    @else
+                                        <option value="">Select Provincial Distributor</option>
+                                        @foreach($provincialDistributors as $provincialDistributor)
+                                            <option value="{{ $provincialDistributor->id }}" {{ (int) old('provincial_distributor_id', $selectedProvincialDistributorId) === (int) $provincialDistributor->id ? 'selected' : '' }}>{{ $provincialDistributor->name }}</option>
+                                        @endforeach
+                                    @endif
                                 </select>
+                                <small class="form-text text-muted">Only Provincial Distributors assigned to your authorized area are shown.</small>
                             </div>
                             <div>
                                 <label class="form-label">Business Name</label>

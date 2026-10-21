@@ -107,7 +107,7 @@
         <table id="pullOutReportTable" class="table table-hover w-100" style="margin-bottom: 0px">
             <thead>
                 <tr>
-                    <th>Date</th><th>Reference</th><th>Area Distributor</th><th>Pull-out Product</th><th>Replacement Product</th><th>Source Area</th><th>Requested Qty</th><th>Approved Qty</th><th>RIS Number</th><th>RIS Date</th><th>Warehouse</th><th>Status</th><th>Pending Aging</th><th>Processing Aging</th><th>Replacing Aging</th><th>Attachments</th><th>Remarks</th><th>AD Confirmation</th>
+                    <th>Date</th><th>Reference</th><th>Distributor</th><th>Pull-out Product</th><th>Replacement Product</th><th>Source Area</th><th>Requested Qty</th><th>Approved Qty</th><th>RIS Number</th><th>RIS Date</th><th>Warehouse</th><th>Status</th><th>Pending Aging</th><th>Processing Aging</th><th>Replacing Aging</th><th>Attachments</th><th>Remarks</th><th>Distributor Confirmation</th>
                 </tr>
             </thead>
         </table>

@@ -1004,16 +1004,39 @@ class AreaDistributorController extends Controller
     {
         $ad = AreaDistributor::findOrFail($id);
 
+        $request->validate([
+            'rows' => 'nullable|array',
+            'rows.*.id' => 'nullable|integer',
+            'rows.*.area_name' => 'nullable|string|max:255',
+            'rows.*.joining_date' => 'nullable|date',
+            'rows.*.package_amount' => 'nullable|numeric|min:0|max:9999999999.99',
+        ]);
+
         $rows = collect($request->input('rows', []))->map(function ($row) {
             return [
                 'id' => isset($row['id']) ? trim($row['id']) : null,
                 'area_name' => isset($row['area_name']) ? trim($row['area_name']) : null,
                 'joining_date' => isset($row['joining_date']) ? trim($row['joining_date']) : null,
+                'package_amount' => isset($row['package_amount']) && $row['package_amount'] !== ''
+                    ? (float) $row['package_amount']
+                    : null,
             ];
         })->filter(function ($row) {
             return !empty($row['area_name']);
         });
-        // dd($rows);
+
+        $normalizedAreaNames = $rows->pluck('area_name')->map(function ($areaName) {
+            return strtolower(trim((string) $areaName));
+        });
+        $hasDuplicateAreas = $normalizedAreaNames->count() !== $normalizedAreaNames->unique()->count();
+
+        if ($hasDuplicateAreas) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Each awarded area can be selected only once.',
+            ], 422);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -1030,6 +1053,7 @@ class AreaDistributorController extends Controller
                             'project_type' => null,
                             'area_name' => $row['area_name'],
                             'joining_date' => $row['joining_date'] ?: null,
+                            'package_amount' => $row['package_amount'],
                         ]);
 
                         $submittedIds[] = $area->id;
@@ -1044,6 +1068,7 @@ class AreaDistributorController extends Controller
                     'project_type' => null,
                     'area_name' => $row['area_name'],
                     'joining_date' => $row['joining_date'] ?: null,
+                    'package_amount' => $row['package_amount'],
                     'user_role' => 'Area Distributor',
                 ]);
 

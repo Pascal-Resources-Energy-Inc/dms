@@ -45,7 +45,7 @@
                             <tr>
                                 <th>Date</th>
                                 <th>Reference</th>
-                                <th>Area Distributor</th>
+                                <th>Distributor</th>
                                 <th>Products &amp; Quantities</th>
                                 <th>Source Areas</th>
                                 <th>RIS Number</th>
@@ -65,8 +65,8 @@
                                 <tr>
                                     <td data-label="Date" data-order="{{ $request->created_at ? $request->created_at->timestamp : 0 }}">{{ $request->transfer_date ? $request->transfer_date->format('M d, Y') : '—' }}</td>
                                     <td data-label="Reference"><strong>{{ $request->reference_no ?: 'Draft request' }}</strong></td>
-                                    <td data-label="Area Distributor">
-                                        <div class="fw-semibold">{{ $request->ad_name ?: 'Area Distributor' }}</div>
+                                    <td data-label="Distributor">
+                                        <div class="fw-semibold">{{ $request->ad_name ?: 'Distributor' }}</div>
                                     </td>
                                     <td data-label="Products & Quantities">
                                         <div class="grouped-products">
@@ -342,7 +342,7 @@
                     { data: 'items', orderable: false, searchable: false, render: actionRows }
                 ],
                 createdRow: function (row) {
-                    ['Date', 'Reference', 'Area Distributor', 'Products & Quantities', 'Source Areas', 'RIS Number', 'RIS Date', 'Warehouse', 'Product Status', 'Pending Aging', 'Processing Aging', 'Replacing Aging', 'Attachments', 'Remarks', 'Item Actions'].forEach(function (label, index) {
+                    ['Date', 'Reference', 'Distributor', 'Products & Quantities', 'Source Areas', 'RIS Number', 'RIS Date', 'Warehouse', 'Product Status', 'Pending Aging', 'Processing Aging', 'Replacing Aging', 'Attachments', 'Remarks', 'Item Actions'].forEach(function (label, index) {
                         row.children[index].setAttribute('data-label', label);
                     });
                 },
