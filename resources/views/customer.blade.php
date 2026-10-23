@@ -67,8 +67,7 @@
 @php
     $isRemoteCustomer = $isRemoteCustomer ?? false;
     $sourceLabel = $customer->source_label ?? 'Local Database';
-    $profileName = trim(strtoupper($customer->user->first_name ?? '') . ' ' . strtoupper($customer->user->last_name ?? ''));
-    $profileName = $profileName ?: strtoupper($customer->name ?? '-');
+    $profileName = strtoupper($customer->display_name ?? ($customer->name ?? '-'));
     $serialNumber = $customer->serial_number ?? ($customer->serial->serial_number ?? '-');
     $avatar = $customer->avatar ?? null;
     $avatarUrl = $avatar
@@ -97,10 +96,12 @@
                             <i class="fas fa-camera"></i>
                             <span class="sr-only">Upload Avatar</span>
                             </button>
-                            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editCustomerModal" title="Edit Customer">
-                            <i class="fas fa-edit"></i>
-                            <span class="sr-only">Edit Customer</span>
-                            </button>
+                            @if($showCustomerFullName ?? true)
+                                <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editCustomerModal" title="Edit Customer">
+                                <i class="fas fa-edit"></i>
+                                <span class="sr-only">Edit Customer</span>
+                                </button>
+                            @endif
                         </div>
                     @endunless
                     <hr>
@@ -142,11 +143,11 @@
                             <div class="card-body">
                             <h5 class="card-title">
                                 <i class="bi bi-person-vcard-fill me-2"></i> Valid ID Information  &nbsp;
-                                @unless($isRemoteCustomer)
+                                @if(!$isRemoteCustomer && ($showCustomerFullName ?? true))
                                     <button type="button" data-bs-toggle="modal"  data-bs-target="#viewValidId" class="btn btn-primary btn-sm btn-radius">
                                         <i class="bi bi-file-earmark"></i>
                                     </button>
-                                @endunless
+                                @endif
                             </h5>
                             <hr>
                             <p class="mb-2">
@@ -178,7 +179,11 @@
                             <h6 class="card-title"><i class="mdi mdi-file-document-check-outline"></i> Signed Contract</h6>
 
                             @if($customer->signature)
-                                @if($isRemoteCustomer)
+                                @if(!($showCustomerFullName ?? true))
+                                    <span class="btn btn-outline-secondary btn-sm disabled">
+                                        <i class="bi bi-eye-slash me-1"></i> Restricted
+                                    </span>
+                                @elseif($isRemoteCustomer)
                                     <span class="btn btn-outline-secondary btn-sm disabled">Available</span>
                                 @else
                                     <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#contractView">
@@ -195,7 +200,11 @@
                             <div class="card-body text-center">
                             <h5 class="card-title"><i class="bi bi-file-earmark-text"></i> Contract Signing</h5>
                             <p class="card-text">Review and sign the contract.</p>
-                            @if($isRemoteCustomer)
+                            @if(!($showCustomerFullName ?? true))
+                                <span class="btn btn-outline-secondary btn-sm disabled">
+                                    <i class="bi bi-eye-slash me-1"></i> Restricted
+                                </span>
+                            @elseif($isRemoteCustomer)
                                 <span class="btn btn-outline-secondary btn-sm disabled">Missing</span>
                             @else
                                 <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#contractModal">
@@ -256,10 +265,12 @@
 @unless($isRemoteCustomer)
     @include('change_avatar')
     @include('upload_valid_id')
-    @include('sign_contract')
-    @include('viewValidId')
-    @include('view_contract_signed')
-    @include('edit_customer')
+    @if($showCustomerFullName ?? true)
+        @include('sign_contract')
+        @include('viewValidId')
+        @include('view_contract_signed')
+        @include('edit_customer')
+    @endif
 @endunless
 @endsection
 

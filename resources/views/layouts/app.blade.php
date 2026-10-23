@@ -65,10 +65,6 @@
     <script src="{{asset('inside_css/assets/js/pages/plugins/lord-icon-2.1.0.js')}}"></script>
     <script src="{{asset('inside_css/assets/js/plugins.js')}}"></script>
 
-    <!-- particles js -->
-    <script src="{{asset('inside_css/assets/libs/particles.js/particles.js')}}"></script>
-    <!-- particles app js -->
-    <script src="{{asset('inside_css/assets/js/pages/particles.app.js')}}"></script>
     <!-- password-addon init -->
     <script src="{{asset('inside_css/assets/js/pages/password-addon.init.js')}}"></script>
   

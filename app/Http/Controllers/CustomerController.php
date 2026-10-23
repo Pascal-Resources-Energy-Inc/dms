@@ -49,6 +49,16 @@ class CustomerController extends Controller
                     return $customer;
                 });
         }
+
+        $currentUser = auth()->user();
+        $showCustomerFullName = $currentUser ? $currentUser->canViewCustomerFullNames() : false;
+        $customers = $customers->map(function ($customer) use ($currentUser) {
+            $customer->display_name = $currentUser
+                ? $currentUser->customerNameForDisplay($customer->name ?? '-')
+                : '-';
+
+            return $customer;
+        });
         
         $activeCustomers = $customers->filter(function ($customer) {
             return strcasecmp((string) $customer->status, 'Active') === 0;
@@ -67,7 +77,8 @@ class CustomerController extends Controller
                 'regularCustomers' => $regularCustomers,
                 'centers' => $centers,
                 'activeCustomers' => $activeCustomers,
-                'inactiveCustomers' => $inactiveCustomers
+                'inactiveCustomers' => $inactiveCustomers,
+                'showCustomerFullName' => $showCustomerFullName,
             )
         );
     }
@@ -363,6 +374,7 @@ class CustomerController extends Controller
         abort_unless($customer, 404);
 
         $customer = $this->normalizeCrmClient($customer, $source, $connections[$source]);
+        $customer->display_name = auth()->user()->customerNameForDisplay($customer->name ?? '-');
         $transactions = $this->crmClientTransactions($source, $customer);
 
         return view('customer', [
@@ -371,6 +383,7 @@ class CustomerController extends Controller
             'centers' => collect(),
             'stoves' => collect(),
             'isRemoteCustomer' => true,
+            'showCustomerFullName' => auth()->user()->canViewCustomerFullNames(),
         ]);
     }
 
@@ -378,6 +391,12 @@ class CustomerController extends Controller
     {
         $transactions = TransactionDetail::where('client_id',$id)->orderBy('id','desc')->get();
         $customer = Client::with(['user', 'serial'])->findOrfail($id);
+        $rawCustomerName = trim(collect([
+            optional($customer->user)->first_name,
+            optional($customer->user)->middle_name,
+            optional($customer->user)->last_name,
+        ])->filter()->implode(' ')) ?: ($customer->name ?? '-');
+        $customer->display_name = auth()->user()->customerNameForDisplay($rawCustomerName);
         $centers = Center::get();
         $stoves = Stove::whereNull('client_id')
             ->orWhere('client_id', $customer->id)
@@ -390,6 +409,7 @@ class CustomerController extends Controller
                 'centers' => $centers,
                 'stoves' => $stoves,
                 'isRemoteCustomer' => false,
+                'showCustomerFullName' => auth()->user()->canViewCustomerFullNames(),
                 
             )
         );

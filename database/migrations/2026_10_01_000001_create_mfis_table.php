@@ -12,6 +12,7 @@ class CreateMfisTable extends Migration
         Schema::create('mfis', function (Blueprint $table) {
             $table->increments('id');
             $table->string('name', 100)->unique();
+            $table->boolean('show_customer_full_name')->default(false);
             $table->timestamps();
         });
 

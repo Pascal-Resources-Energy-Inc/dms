@@ -385,11 +385,15 @@ class TransactionController extends Controller
                     $customerQuery->whereNull('deleted_at');
                 }
 
-                $customers = $customerQuery->get()->map(function ($customer) {
+                $currentUser = auth()->user();
+                $customers = $customerQuery->get()->map(function ($customer) use ($currentUser) {
                     $customer->name = $customer->name ?? trim(collect([
                         $customer->first_name ?? null,
                         $customer->last_name ?? null,
                     ])->filter()->implode(' ')) ?: '-';
+                    $customer->name = $currentUser
+                        ? $currentUser->customerNameForDisplay($customer->name)
+                        : '-';
 
                     return $customer;
                 })->values();

@@ -41,9 +41,13 @@ class MfiController extends Controller
         $data = $this->validatedData($request, $mfi);
         $oldName = $mfi->name;
         $newName = $data['name'];
+        $showCustomerFullName = $data['show_customer_full_name'];
 
-        DB::transaction(function () use ($mfi, $oldName, $newName) {
-            $mfi->update(['name' => $newName]);
+        DB::transaction(function () use ($mfi, $oldName, $newName, $showCustomerFullName) {
+            $mfi->update([
+                'name' => $newName,
+                'show_customer_full_name' => $showCustomerFullName,
+            ]);
 
             if ($oldName !== $newName) {
                 if (Schema::hasTable('centers') && Schema::hasColumn('centers', 'mfi')) {
@@ -84,7 +88,13 @@ class MfiController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100', $unique],
+            'show_customer_full_name' => ['required', Rule::in(['0', '1', 0, 1])],
+        ], [
+            'show_customer_full_name.required' => 'Choose whether this MFI can see customers’ full names.',
+            'show_customer_full_name.in' => 'Select Yes or No for customer full-name visibility.',
         ]);
+
+        $data['show_customer_full_name'] = (bool) ((int) $data['show_customer_full_name']);
 
         return $data;
     }
