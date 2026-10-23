@@ -1,958 +1,524 @@
 @extends('layouts.app')
-@section('title', 'Sign in | Gaz Lite DMS')
-@section('content')
-<?php
-$hasErrors = $errors->any();
-$hasSelectedRole = old('selected_role');
-$showLoginDirectly = $hasErrors && $hasSelectedRole;
 
-$isDirect = request('direct') === 'true';
-$showRoleSelection = $isDirect && !$showLoginDirectly;
-?>
+@section('title', 'Sign in | Gaz Lite DMS')
+
+@section('content')
+@php
+    $selectedRole = strtolower((string) old('selected_role'));
+    $loginError = $errors->first('email') ?: $errors->first('password') ?: $errors->first('selected_role');
+@endphp
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<main class="auth-shell">
-    <section class="brand-panel">
-        <div>
-            <div class="logo-card">
-                <img src="{{ asset('images/gazlite.png') }}" alt="GazLite">
+<main class="login-page">
+    <span class="ambient ambient-one" aria-hidden="true"></span>
+    <span class="ambient ambient-two" aria-hidden="true"></span>
+
+    <div class="login-layout">
+        <aside class="login-showcase" aria-label="Gaz Lite Distributor Management System">
+            <div class="showcase-grid" aria-hidden="true"></div>
+
+            <div class="showcase-brand">
+                <span class="brand-mark">
+                    <img src="{{ asset('images/gazlite.png') }}" alt="Gaz Lite">
+                </span>
+                <span class="brand-product">Distributor Management System</span>
             </div>
-            <div class="brand-name">Distributor Management System</div>
-        </div>
 
-        <div class="brand-heading">
-            <p class="eyebrow">Gaz Lite DMS</p>
-            <h3 class="text-white">Manage your distributor network with one clean workspace.</h3>
-            <p>Track dealers, inventory, orders, purchases, pricing, sales, alerts, and reports using role-based access for each partner level.</p>
-        </div>
+            <div class="showcase-copy">
+                <span class="showcase-eyebrow">
+                    <span class="eyebrow-dot"></span>
+                    Connected distribution, simplified
+                </span>
+                <h1>One Cylinder.<br><span>One System.</span></h1>
+                <p>Manage inventory, orders, partners, and performance from one secure workspace built for the Gaz Lite distribution network.</p>
 
-        <div class="brand-roles" aria-label="Supported partner levels">
-            <div class="role-pill">MFI</div>
-            <div class="role-pill">Provincial Distributor</div>
-            <div class="role-pill">Area Distributor</div>
-            {{-- <div class="role-pill">Mega Dealer</div>
-            <div class="role-pill">Dealer</div> --}}
-        </div>
-    </section>
-
-    <section class="auth-panel">
-        <div class="panel-top">
-            <img src="{{ asset('images/logo_nya.png') }}" alt="GazLite Logo" class="compact-logo">
-        </div>
-
-        <div class="auth-step" id="landingPage" style="display: {{ $showLoginDirectly || $showRoleSelection ? 'none' : 'flex' }};">
-            <div class="step-body">
-                <div class="mobile-logo">
-                    <img src="{{ asset('images/logo_sa_labas.png') }}" alt="GazLite Logo">
-                </div>
-
-                <img src="{{ asset('images/human.png') }}" alt="Easy management illustration" class="step-image landing-image">
-
-                <div class="step-copy">
-                    <p class="step-kicker">Welcome back</p>
-                    <h2>Distributor Management System</h2>
-                    <p>Manage your distributor network with one clean workspace.</p>
-                </div>
-
-                <div class="progress-dots" aria-label="Step 1 of 3">
-                    <span class="dot active"></span>
-                    <span class="dot"></span>
-                    <span class="dot"></span>
-                </div>
-
-                <button class="primary-button" type="button" onclick="showRoleSelection()">
-                    Sign in
-                </button>
-            </div>
-        </div>
-
-        <div class="auth-step" id="roleSelectionPage" style="display: {{ $showRoleSelection ? 'flex' : 'none' }};">
-            <div class="step-body">
-                <button type="button" class="ghost-back" onclick="showLandingPage()" aria-label="Back to welcome">
-                    <span aria-hidden="true">&lsaquo;</span>
-                </button>
-
-                <img src="{{ asset('images/context.png') }}" alt="Role selection" class="step-image role-image">
-
-                <div class="step-copy">
-                    <p class="step-kicker">Choose access</p>
-                    <h2>How are you signing in?</h2>
-                    <p>Select the account type connected to your credentials.</p>
-                </div>
-
-                <div class="role-buttons">
-                    <button class="role-button" type="button" onclick="selectRole('admin', this)">
-                        <span class="role-icon" aria-hidden="true">
-                            <svg width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0m-9 8c0 1 1 1 1 1h5.256A4.5 4.5 0 0 1 8 12.5a4.5 4.5 0 0 1 1.544-3.393Q8.844 9.002 8 9c-5 0-6 3-6 4m9.886-3.54c.18-.613 1.048-.613 1.229 0l.043.148a.64.64 0 0 0 .921.382l.136-.074c.561-.306 1.175.308.87.869l-.075.136a.64.64 0 0 0 .382.92l.149.045c.612.18.612 1.048 0 1.229l-.15.043a.64.64 0 0 0-.38.921l.074.136c.305.561-.309 1.175-.87.87l-.136-.075a.64.64 0 0 0-.92.382l-.045.149c-.18.612-1.048.612-1.229 0l-.043-.15a.64.64 0 0 0-.921-.38l-.136.074c-.561.305-1.175-.309-.87-.87l.075-.136a.64.64 0 0 0-.382-.92l-.148-.045c-.613-.18-.613-1.048 0-1.229l.148-.043a.64.64 0 0 0 .382-.921l-.074-.136c-.306-.561.308-1.175.869-.87l.136.075a.64.64 0 0 0 .92-.382zM14 12.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0"/>
-                            </svg>
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <span class="feature-icon">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
                         </span>
-                        <span>
-                            <strong>Admin</strong>
-                            <small>Manage users, reports, and system settings</small>
+                        <span><strong>Live inventory</strong><small>Stay aligned across every level.</small></span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10m7 10V4m7 16v-7"/><path d="M3 20h18"/></svg>
                         </span>
-                        <span class="selected-indicator" aria-hidden="true">&#10003;</span>
-                    </button>
-
-                    <button class="role-button" type="button" onclick="selectRole('mfi', this)">
-                        <span class="role-icon" aria-hidden="true">
-                            <svg width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M8 1.5 1.75 4.25 8 7l6.25-2.75z"/>
-                                <path d="M1.75 5.75 8 8.5l6.25-2.75v4.5L8 13 1.75 10.25z"/>
-                            </svg>
+                        <span><strong>Clear reporting</strong><small>Turn activity into decisions.</small></span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
                         </span>
-                        <span>
-                            <strong>MFI</strong>
-                            <small>Access assigned centers and admin tools</small>
-                        </span>
-                        <span class="selected-indicator" aria-hidden="true">&#10003;</span>
-                    </button>
-
-                    <button class="role-button" type="button" onclick="selectRole('area distributor', this)">
-                        <span class="role-icon" aria-hidden="true">
-                            <svg width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-5.784 6A2.24 2.24 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.3 6.3 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1zM4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/>
-                            </svg>
-                        </span>
-                        <span>
-                            <strong>Partner</strong>
-                            <small>Access orders, inventory, and partner tools</small>
-                        </span>
-                        <span class="selected-indicator" aria-hidden="true">&#10003;</span>
-                    </button>
-                </div>
-
-                <div class="progress-dots" aria-label="Step 2 of 3">
-                    <span class="dot"></span>
-                    <span class="dot active"></span>
-                    <span class="dot"></span>
+                        <span><strong>Secure access</strong><small>Role-based tools for your team.</small></span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="auth-step" id="loginFormPage" style="display: {{ $showLoginDirectly ? 'flex' : 'none' }};">
-            <div class="step-body login-body">
-                <button type="button" class="ghost-back" onclick="showRoleSelection()" aria-label="Back to role selection">
-                    <span aria-hidden="true">&lsaquo;</span>
-                </button>
+            <div class="showcase-footer">
+                <span class="status-pulse" aria-hidden="true"></span>
+                Secure access for authorized Gaz Lite partners
+            </div>
+        </aside>
 
-                <div class="step-copy login-heading">
-                    <p class="step-kicker">Secure sign in</p>
-                    <h2>Enter your account details.</h2>
-                    <p>Use the email or phone number registered to your account.</p>
+        <section class="login-workspace">
+            <div class="mobile-brand">
+                <img src="{{ asset('images/gazlite.png') }}" alt="Gaz Lite">
+                <span>DMS</span>
+            </div>
+
+            <div class="login-card">
+                <div class="login-heading">
+                    <span class="heading-kicker">Welcome back</span>
+                    <h2>Sign in to your account</h2>
+                    <p>Enter your registered details to continue to your workspace.</p>
                 </div>
 
-                <div class="role-indicator" id="roleIndicator" style="display: {{ $showLoginDirectly ? 'flex' : 'none' }};">
-                    <span class="role-label">Signing in as</span>
-                    <strong class="role-name" id="selectedRoleName">
-                        @if(strtolower(old('selected_role')) === 'mfi')
-                            MFI
-                        @elseif(in_array(strtolower(old('selected_role')), ['area distributor', 'provincial distributor'], true))
-                            Partner
-                        @else
-                            {{ $hasSelectedRole ? ucwords(old('selected_role')) : 'User' }}
-                        @endif
-                    </strong>
+                @if (session('status'))
+                    <div class="notice notice-success" role="status">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                        <span>{{ session('status') }}</span>
+                    </div>
+                @endif
+
+                <div id="serverError" class="notice notice-error" role="alert" aria-live="assertive" @if(!$loginError) hidden @endif>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.6 2.4 17.2A2 2 0 0 0 4.1 20h15.8a2 2 0 0 0 1.7-2.8L13.7 3.6a2 2 0 0 0-3.4 0Z"/></svg>
+                    <span id="serverErrorText">{{ $loginError }}</span>
                 </div>
 
-                <form id="loginForm" method="POST" action="{{ route('login') }}" aria-label="{{ __('Login') }}" novalidate>
+                <form id="loginForm" method="POST" action="{{ route('login') }}" novalidate>
                     @csrf
-                    <input type="hidden" name="selected_role" id="selectedRoleInput" value="{{ old('selected_role') }}">
 
-                    <div class="input-group">
-                        <label for="email" class="input-label">Email or Phone Number</label>
-                        <input
-                            id="email"
-                            type="text"
-                            class="form-input"
-                            name="email"
-                            value="{{ old('email') }}"
-                            placeholder="name@example.com"
-                            required
-                            autofocus
-                        >
+                    <fieldset class="role-fieldset">
+                        <legend>Choose your workspace</legend>
+                        <div class="role-options">
+                            <label class="role-option">
+                                <input type="radio" name="selected_role" value="admin" {{ $selectedRole === 'admin' ? 'checked' : '' }} required>
+                                <span class="role-option-body">
+                                    <span class="role-option-icon">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                                    </span>
+                                    <span><strong>Admin</strong><small>Operations</small></span>
+                                    <svg class="role-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7"/></svg>
+                                </span>
+                            </label>
+                            <label class="role-option">
+                                <input type="radio" name="selected_role" value="area distributor" {{ in_array($selectedRole, ['area distributor', 'provincial distributor'], true) ? 'checked' : '' }} required>
+                                <span class="role-option-body">
+                                    <span class="role-option-icon">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    </span>
+                                    <span><strong>Partner</strong><small>PD / AD</small></span>
+                                    <svg class="role-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7"/></svg>
+                                </span>
+                            </label>
+                            <label class="role-option">
+                                <input type="radio" name="selected_role" value="mfi" {{ $selectedRole === 'mfi' ? 'checked' : '' }} required>
+                                <span class="role-option-body">
+                                    <span class="role-option-icon">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 8 9-5 9 5-9 5-9-5Z"/><path d="m6 10v6l6 3 6-3v-6"/></svg>
+                                    </span>
+                                    <span><strong>MFI</strong><small>Centers</small></span>
+                                    <svg class="role-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7"/></svg>
+                                </span>
+                            </label>
+                        </div>
+                        <small class="field-error" id="roleError"></small>
+                    </fieldset>
+
+                    <div class="form-field">
+                        <label for="email">Email or phone number</label>
+                        <div class="input-shell">
+                            <svg class="input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="m4 6 8 7 8-7"/></svg>
+                            <input id="email" type="text" name="email" value="{{ old('email') }}" placeholder="name@example.com" autocomplete="username" inputmode="email" required autofocus>
+                        </div>
+                        <small class="field-error" id="emailError"></small>
                     </div>
 
-                    <div class="input-group">
-                        <label class="input-label" for="password">Password</label>
-                        <input
-                            id="password"
-                            type="password"
-                            class="form-input"
-                            placeholder="Enter password"
-                            name="password"
-                            required
-                        >
+                    <div class="form-field">
+                        <div class="field-label-row">
+                            <label for="password">Password</label>
+                            <a href="{{ route('password.request') }}">Forgot password?</a>
+                        </div>
+                        <div class="input-shell">
+                            <svg class="input-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                            <input id="password" type="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
+                            <button class="password-toggle" type="button" id="passwordToggle" aria-label="Show password" aria-pressed="false">
+                                <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a16.5 16.5 0 0 1-2.1 3M6.2 6.2C3.5 8.1 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 4.1-.9"/></svg>
+                            </button>
+                        </div>
+                        <small class="field-error" id="passwordError"></small>
                     </div>
 
-                    <button class="primary-button signin-button" type="submit" id="signinButton">
-                        Sign in
+                    <button class="signin-button" type="submit" id="signinButton">
+                        <span class="button-label">Sign in securely</span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
                     </button>
 
-                    <p id="loginFeedback" class="login-feedback" role="alert" aria-live="polite"></p>
-
-                    <div class="forgot-section">
-                        <a href="{{ route('password.request') }}" class="forgot-link">Forgot password?</a>
-                    </div>
-
-                    <div class="progress-dots" aria-label="Step 3 of 3">
-                        <span class="dot"></span>
-                        <span class="dot"></span>
-                        <span class="dot active"></span>
-                    </div>
+                    <p class="secure-note">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                        Your credentials are encrypted and securely transmitted.
+                    </p>
                 </form>
             </div>
-        </div>
-    </section>
+
+            <footer class="login-footer">&copy; {{ date('Y') }} Pascal Resources Energy, Inc.</footer>
+        </section>
+    </div>
 </main>
 
 <style>
     :root {
-        --auth-primary: #2f9bd7;
-        --auth-primary-dark: #1678b4;
-        --auth-ink: #132f45;
-        --auth-muted: #6b7f8e;
-        --auth-line: #d9e7ef;
-        --auth-soft: #edf8fd;
-        --auth-bg: #f6fbfd;
+        --login-navy: #07345f;
+        --login-blue: #0877ca;
+        --login-sky: #28b8ec;
+        --login-red: #ee5058;
+        --login-ink: #102a43;
+        --login-muted: #64778a;
+        --login-line: #dbe6ee;
+        --login-soft: #f5f9fc;
     }
 
-    * {
-        box-sizing: border-box;
-    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body { margin: 0; overflow-x: hidden; color: var(--login-ink); background: #edf6fb; font-family: Inter, Nunito, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input { font: inherit; }
 
-    body {
-        margin: 0;
-        min-height: 100vh;
-        font-family: Inter, Nunito, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: var(--auth-bg);
-        color: var(--auth-ink);
-    }
-
-    .auth-shell {
-        min-height: 100vh;
-        display: grid;
-        grid-template-columns: minmax(460px, 1.08fr) minmax(380px, .92fr);
-        background:
-            radial-gradient(circle at 15% 12%, rgba(47, 155, 215, .16), transparent 28%),
-            linear-gradient(135deg, #f8fdff 0%, #e8f6fb 100%);
-    }
-
-    .brand-panel {
+    .login-page {
         position: relative;
         min-height: 100vh;
-        padding: clamp(28px, 4vw, 58px);
-        display: flex;
-        flex-direction: column;
-        /* justify-content: space-between; */
-        /* gap: 48px; */
-        gap: 7em;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        padding: clamp(18px, 3.2vw, 52px);
+        isolation: isolate;
         overflow: hidden;
-        background: linear-gradient(135deg, rgba(3, 58, 128, .94), rgba(7, 95, 195, .9)),
-                linear-gradient(135deg, #063f8b, #0a74d7);
-        color: #fff;
+        background: radial-gradient(circle at 8% 14%, rgba(40, 184, 236, .18), transparent 27%), radial-gradient(circle at 92% 88%, rgba(8, 119, 202, .14), transparent 25%), linear-gradient(145deg, #f8fcff 0%, #eaf5fb 52%, #f4fbff 100%);
     }
 
-    .brand-panel::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(90deg, rgba(8, 34, 51, .82), rgba(8, 34, 51, .32));
-        pointer-events: none;
-    }
+    .ambient { position: absolute; z-index: -1; border-radius: 999px; filter: blur(2px); pointer-events: none; }
+    .ambient-one { width: 280px; height: 280px; top: -130px; right: 10%; background: rgba(238, 80, 88, .08); }
+    .ambient-two { width: 360px; height: 360px; bottom: -210px; left: 4%; background: rgba(8, 119, 202, .1); }
 
-    .brand-panel > * {
-        position: relative;
-        z-index: 1;
-    }
-
-    .logo-card {
-        width: min(245px, 48vw);
-        padding: 14px 18px;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, .96);
-        box-shadow: 0 24px 70px rgba(0, 0, 0, .18);
-    }
-
-    .logo-card img,
-    .mobile-logo img {
-        display: block;
-        width: 100%;
-        height: auto;
-    }
-
-    .brand-name {
-        margin-top: 18px;
-        color: rgba(255, 255, 255, .86);
-        font-size: 13px;
-        font-weight: 800;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-    }
-
-    .eyebrow,
-    .step-kicker {
-        margin: 0 0 10px;
-        font-size: 12px;
-        font-weight: 800;
-        letter-spacing: .14em;
-        text-transform: uppercase;
-    }
-
-    .eyebrow {
-        color: #aee4ff;
-    }
-
-    .brand-heading {
-        max-width: 720px;
-    }
-
-    .brand-heading h3 {
-        margin: 0;
-        max-width: 21ch;
-        font-size: clamp(48px, 6vw, 52px);
-        line-height: .98;
-        font-weight: 800;
-    }
-
-    .brand-heading p:last-child {
-        max-width: 610px;
-        margin: 24px 0 0;
-        color: rgba(255, 255, 255, .82);
-        font-size: 17px;
-        line-height: 1.7;
-    }
-
-    .brand-roles {
+    .login-layout {
+        /* width: min(1240px, 100%); */
+        min-height: min(780px, calc(100svh - clamp(36px, 6.4vw, 104px)));
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 12px;
+        grid-template-columns: minmax(390px, 1.03fr) minmax(440px, .97fr);
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid rgba(179, 205, 221, .64);
+        border-radius: 30px;
+        box-shadow: 0 35px 90px rgba(26, 75, 110, .18), 0 8px 28px rgba(26, 75, 110, .08);
     }
 
-    .role-pill
-    {
-        min-height: 54px;
-        border: 1px solid rgba(255, 255, 255, .22);
-        border-radius: .75rem;
-        padding: .75rem .85rem;
-        font-weight: 700;
-        background: rgba(255, 255, 255, .14);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
-        backdrop-filter: blur(8px);
-        display: flex;
-        align-items: center;
-        gap: .6rem;
-    }
-
-    .role-pill::before {
-        content: "";
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        background: #4bd3ff;
-        box-shadow: 0 0 0 4px rgba(75, 211, 255, .16);
-    }
-
-    .auth-panel {
-        min-height: 100vh;
+    .login-showcase {
+        position: relative;
+        min-width: 0;
         display: flex;
         flex-direction: column;
-        padding: clamp(22px, 4vw, 48px);
-        background: rgba(255, 255, 255, .82);
-        backdrop-filter: blur(18px);
-    }
-
-    .panel-top {
-        display: flex;
-        justify-content: flex-end;
-        min-height: 54px;
-    }
-
-    .compact-logo {
-        width: 54px;
-        height: 54px;
-        object-fit: contain;
-    }
-
-    .auth-step {
-        flex: 1;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .step-body {
-        position: relative;
-        /* width: min(100%, 430px); */
-        width: min(100%, 500px);
-        margin: 0 auto;
-    }
-
-    .mobile-logo {
-        display: none;
-        width: 218px;
-        margin: 0 auto 24px;
-    }
-
-    .step-image {
-        display: block;
-        height: auto;
-        margin: 0 auto 28px;
-    }
-
-    .landing-image {
-        width: min(58vw, 238px);
-    }
-
-    .role-image {
-        width: min(46vw, 196px);
-    }
-
-    .step-copy {
-        text-align: center;
-        margin-bottom: 28px;
-    }
-
-    .step-kicker {
-        color: var(--auth-primary);
-    }
-
-    .step-copy h2 {
-        margin: 0;
-        color: var(--auth-ink);
-        font-size: clamp(28px, 3.6vw, 40px);
-        line-height: 1.08;
-        font-weight: 800;
-    }
-
-    .step-copy p:last-child {
-        width: min(100%, 350px);
-        margin: 14px auto 0;
-        color: var(--auth-muted);
-        font-size: 15px;
-        line-height: 1.65;
-    }
-
-    .progress-dots {
-        display: flex;
-        justify-content: center;
-        gap: 8px;
-        margin: 0 0 28px;
-    }
-
-    .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 999px;
-        background: #c9d8e0;
-        transition: width .18s ease, background-color .18s ease;
-    }
-
-    .dot.active {
-        width: 28px;
-        background: var(--auth-primary);
-    }
-
-    .primary-button {
-        width: 100%;
-        min-height: 56px;
-        border: 0;
-        border-radius: 8px;
-        background: var(--auth-primary);
-        color: #fff;
-        font-size: 16px;
-        font-weight: 800;
-        cursor: pointer;
-        box-shadow: 0 16px 34px rgba(47, 155, 215, .25);
-        transition: transform .18s ease, background-color .18s ease, box-shadow .18s ease;
-    }
-
-    .primary-button:hover {
-        background: var(--auth-primary-dark);
-        box-shadow: 0 20px 40px rgba(22, 120, 180, .28);
-        transform: translateY(-1px);
-    }
-
-    .primary-button:disabled {
-        cursor: wait;
-        opacity: .72;
-        transform: none;
-    }
-
-    .ghost-back {
-        position: absolute;
-        top: -66px;
-        left: 0;
-        width: 42px;
-        height: 42px;
-        border: 1px solid var(--auth-line);
-        border-radius: 999px;
-        background: #fff;
-        color: var(--auth-primary-dark);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 12px 28px rgba(19, 47, 69, .08);
-        transition: border-color .18s ease, transform .18s ease;
-    }
-
-    .ghost-back span {
-        font-size: 34px;
-        line-height: 1;
-        margin-top: -4px;
-    }
-
-    .ghost-back:hover {
-        border-color: var(--auth-primary);
-        transform: translateX(-2px);
-    }
-
-    .role-buttons {
-        display: grid;
-        gap: 12px;
-        margin-bottom: 26px;
-    }
-
-    .role-button {
-        width: 100%;
-        min-height: 76px;
-        padding: 14px 16px;
-        border: 1px solid var(--auth-line);
-        border-radius: 8px;
-        background: #fff;
-        color: var(--auth-ink);
-        display: grid;
-        grid-template-columns: 44px 1fr 24px;
-        gap: 14px;
-        align-items: center;
-        text-align: left;
-        cursor: pointer;
-        box-shadow: 0 16px 36px rgba(19, 47, 69, .06);
-        transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
-    }
-
-    .role-button:hover,
-    .role-button.selected {
-        border-color: var(--auth-primary);
-        box-shadow: 0 18px 42px rgba(47, 155, 215, .16);
-        transform: translateY(-1px);
-    }
-
-    .role-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 8px;
-        background: var(--auth-soft);
-        color: var(--auth-primary-dark);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .role-button strong,
-    .role-button small {
-        display: block;
-    }
-
-    .role-button strong {
-        font-size: 15px;
-        color: var(--auth-ink);
-    }
-
-    .role-button small {
-        margin-top: 3px;
-        color: var(--auth-muted);
-        font-size: 12px;
-        line-height: 1.35;
-    }
-
-    .selected-indicator {
-        opacity: 0;
-        width: 24px;
-        height: 24px;
-        border-radius: 999px;
-        background: var(--auth-primary);
-        color: #fff;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 13px;
-        font-weight: 900;
-    }
-
-    .role-button.selected .selected-indicator {
-        opacity: 1;
-    }
-
-    .login-body {
-        width: min(100%, 420px);
-    }
-
-    .login-heading {
-        text-align: left;
-    }
-
-    .login-heading p:last-child {
-        margin-left: 0;
-    }
-
-    .role-indicator {
-        display: flex;
-        align-items: center;
         justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 22px;
-        padding: 12px 14px;
-        border: 1px solid #cbe7f6;
-        border-radius: 8px;
-        background: var(--auth-soft);
+        gap: 44px;
+        padding: clamp(34px, 4.6vw, 70px);
+        overflow: hidden;
+        color: #fff;
+        background: radial-gradient(circle at 88% 8%, rgba(56, 195, 238, .35), transparent 29%), radial-gradient(circle at 8% 90%, rgba(10, 154, 218, .3), transparent 30%), linear-gradient(145deg, #052f59 0%, #075798 54%, #0780c9 100%);
     }
 
-    .role-label {
-        color: var(--auth-muted);
-        font-size: 13px;
-        font-weight: 700;
+    .login-showcase::after { content: ""; position: absolute; width: 360px; height: 360px; right: -200px; bottom: -180px; border: 46px solid rgba(255, 255, 255, .07); border-radius: 50%; }
+    .showcase-grid { position: absolute; inset: 0; opacity: .13; background-image: linear-gradient(rgba(255,255,255,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.18) 1px, transparent 1px); background-size: 44px 44px; mask-image: linear-gradient(to bottom right, #000, transparent 72%); }
+    .showcase-brand, .showcase-copy, .showcase-footer { position: relative; z-index: 1; }
+    .showcase-brand { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+    .brand-mark { width: 174px; min-height: 58px; display: grid; place-items: center; padding: 9px 14px; background: #fff; border-radius: 14px; box-shadow: 0 14px 34px rgba(0, 25, 55, .2); }
+    .brand-mark img { display: block; width: 100%; height: auto; }
+    .brand-product { max-width: 150px; color: rgba(255,255,255,.8); font-size: 11px; font-weight: 800; line-height: 1.45; letter-spacing: .08em; text-transform: uppercase; }
+    .showcase-copy { max-width: 590px; }
+    .showcase-eyebrow { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 20px; color: #c8f2ff; font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .eyebrow-dot { width: 8px; height: 8px; background: #55d7ff; border-radius: 50%; box-shadow: 0 0 0 6px rgba(85,215,255,.13); }
+    .showcase-copy h1 { margin: 0; color: #fff; font-size: clamp(42px, 4.5vw, 64px); font-weight: 850; line-height: .98; letter-spacing: -.055em; }
+    .showcase-copy h1 span { color: #75dcff; }
+    .showcase-copy > p { max-width: 560px; margin: 24px 0 30px; color: rgba(255,255,255,.78); font-size: 15px; line-height: 1.75; }
+    .feature-grid { display: grid; gap: 10px; }
+    .feature-item { display: grid; grid-template-columns: 42px 1fr; align-items: center; gap: 12px; max-width: 370px; padding: 10px 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.07); backdrop-filter: blur(10px); }
+    .feature-icon { width: 42px; height: 42px; display: grid; place-items: center; color: #9ce7ff; background: rgba(255,255,255,.1); border-radius: 12px; }
+    .feature-icon svg { width: 21px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .feature-item strong, .feature-item small { display: block; }
+    .feature-item strong { color: #fff; font-size: 13px; font-weight: 800; }
+    .feature-item small { margin-top: 2px; color: rgba(255,255,255,.65); font-size: 11px; }
+    .showcase-footer { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,.72); font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+    .status-pulse { width: 8px; height: 8px; flex: 0 0 auto; background: #63e9ae; border-radius: 50%; box-shadow: 0 0 0 6px rgba(99,233,174,.13); }
+
+    .login-workspace { min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: clamp(34px, 5vw, 70px); background: linear-gradient(180deg, #fff 0%, #fbfdff 100%); }
+    .mobile-brand { display: none; }
+    .login-card { width: min(490px, 100%); margin: auto; }
+    .heading-kicker { display: block; margin-bottom: 9px; color: var(--login-blue); font-size: 11px; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
+    .login-heading h2 { margin: 0; color: var(--login-ink); font-size: clamp(30px, 3vw, 40px); font-weight: 850; line-height: 1.12; letter-spacing: -.035em; }
+    .login-heading p { margin: 12px 0 0; color: var(--login-muted); font-size: 14px; line-height: 1.65; }
+
+    .notice { display: grid; grid-template-columns: 21px 1fr; align-items: start; gap: 10px; margin-top: 20px; padding: 12px 14px; border: 1px solid; border-radius: 12px; font-size: 12px; font-weight: 700; line-height: 1.5; }
+    .notice[hidden] { display: none; }
+    .notice svg { width: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .notice-success { color: #176b47; border-color: #bcebd6; background: #effbf5; }
+    .notice-error { color: #a52c35; border-color: #ffd0d4; background: #fff5f6; }
+
+    #loginForm { margin-top: 25px; }
+    .role-fieldset { min-width: 0; margin: 0 0 20px; padding: 0; border: 0; }
+    .role-fieldset legend, .form-field > label, .field-label-row label { margin: 0 0 9px; padding: 0; color: #314b61; font-size: 12px; font-weight: 800; }
+    .role-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .role-option { position: relative; min-width: 0; margin: 0; cursor: pointer; }
+    .role-option input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .role-option-body { position: relative; min-height: 78px; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 8px; padding: 11px; overflow: hidden; border: 1.5px solid var(--login-line); border-radius: 14px; background: #fff; transition: border-color .2s ease, background .2s ease, box-shadow .2s ease, transform .2s ease; }
+    .role-option:hover .role-option-body { border-color: #9fcfe9; background: #f8fcff; transform: translateY(-1px); }
+    .role-option input:focus-visible + .role-option-body { outline: 3px solid rgba(8,119,202,.18); outline-offset: 2px; }
+    .role-option input:checked + .role-option-body { color: var(--login-blue); border-color: var(--login-blue); background: #edf8ff; box-shadow: 0 7px 18px rgba(8,119,202,.12); }
+    .role-option-icon { width: 34px; height: 34px; display: grid; place-items: center; color: #668196; background: var(--login-soft); border-radius: 10px; }
+    .role-option input:checked + .role-option-body .role-option-icon { color: #fff; background: var(--login-blue); }
+    .role-option-icon svg { width: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .role-option strong, .role-option small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .role-option strong { color: #274157; font-size: 12px; font-weight: 850; }
+    .role-option small { margin-top: 2px; color: #8393a1; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .role-check { position: absolute; top: 5px; right: 5px; width: 18px; color: var(--login-blue); fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform: scale(.7); transition: .2s ease; }
+    .role-option input:checked + .role-option-body .role-check { opacity: 1; transform: scale(1); }
+
+    .form-field { margin-bottom: 17px; }
+    .field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+    .field-label-row a { margin-bottom: 9px; color: var(--login-blue); font-size: 11px; font-weight: 800; text-decoration: none; }
+    .field-label-row a:hover { text-decoration: underline; }
+    .input-shell { position: relative; }
+    .input-icon { position: absolute; top: 50%; left: 15px; width: 19px; transform: translateY(-50%); color: #7890a3; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+    .input-shell input { width: 100%; height: 52px; padding: 0 48px 0 45px; color: var(--login-ink); font-size: 14px; font-weight: 650; border: 1.5px solid var(--login-line); border-radius: 13px; outline: none; background: #fff; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+    .input-shell input::placeholder { color: #a1b0bc; font-weight: 500; }
+    .input-shell input:hover { border-color: #bad1df; }
+    .input-shell input:focus { border-color: var(--login-blue); box-shadow: 0 0 0 4px rgba(8,119,202,.1); }
+    .form-field.has-error .input-shell input { border-color: var(--login-red); background: #fffafa; }
+    .password-toggle { position: absolute; top: 50%; right: 8px; width: 38px; height: 38px; display: grid; place-items: center; padding: 0; transform: translateY(-50%); color: #72899c; border: 0; border-radius: 9px; background: transparent; cursor: pointer; }
+    .password-toggle:hover { color: var(--login-blue); background: #edf7fc; }
+    .password-toggle:focus-visible { outline: 3px solid rgba(8,119,202,.18); }
+    .password-toggle svg { width: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .password-toggle .eye-closed { display: none; }
+    .password-toggle.is-visible .eye-open { display: none; }
+    .password-toggle.is-visible .eye-closed { display: block; }
+    .field-error { display: block; min-height: 0; margin-top: 6px; color: #b52d37; font-size: 11px; font-weight: 700; line-height: 1.35; }
+    .field-error:empty { display: none; }
+
+    .signin-button { width: 100%; min-height: 53px; display: flex; align-items: center; justify-content: center; gap: 11px; margin-top: 7px; padding: 12px 20px; color: #fff; font-size: 13px; font-weight: 850; border: 0; border-radius: 13px; background: linear-gradient(135deg, #0877ca, #075da7); box-shadow: 0 13px 25px rgba(8,119,202,.24); cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, filter .2s ease; }
+    .signin-button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 16px 30px rgba(8,119,202,.3); filter: saturate(1.08); }
+    .signin-button:focus-visible { outline: 3px solid rgba(8,119,202,.22); outline-offset: 3px; }
+    .signin-button:disabled { cursor: wait; opacity: .72; box-shadow: none; }
+    .signin-button svg { width: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .button-spinner { width: 17px; height: 17px; border: 2px solid rgba(255,255,255,.42); border-top-color: #fff; border-radius: 50%; animation: login-spin .7s linear infinite; }
+    @keyframes login-spin { to { transform: rotate(360deg); } }
+    .secure-note { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 15px 0 0; color: #8494a1; font-size: 10px; font-weight: 650; text-align: center; }
+    .secure-note svg { width: 14px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .login-footer { width: min(490px, 100%); margin: 26px auto 0; color: #8a9ba8; font-size: 10px; font-weight: 650; text-align: center; }
+
+    @media (max-width: 1050px) {
+        .login-layout { grid-template-columns: minmax(340px, .86fr) minmax(420px, 1.14fr); }
+        .login-showcase { padding: 42px 36px; }
+        .showcase-copy h1 { font-size: clamp(38px, 5vw, 52px); }
+        .brand-product { display: none; }
     }
 
-    .role-name {
-        color: var(--auth-primary-dark);
-        font-size: 14px;
+    @media (max-width: 820px) {
+        .login-page { place-items: start center; padding: 18px; overflow: visible; }
+        .login-layout { min-height: calc(100svh - 36px); grid-template-columns: 1fr; }
+        .login-showcase { min-height: auto; display: block; padding: 24px 28px; }
+        .showcase-brand { justify-content: center; }
+        .brand-mark { width: 150px; min-height: 48px; padding: 7px 12px; }
+        .showcase-copy { margin: 18px auto 0; text-align: center; }
+        .showcase-eyebrow, .showcase-copy > p, .feature-grid, .showcase-footer { display: none; }
+        .showcase-copy h1 { font-size: 28px; line-height: 1.08; letter-spacing: -.035em; }
+        .showcase-copy h1 br { display: none; }
+        .login-workspace { padding: 36px clamp(26px, 7vw, 64px) 24px; }
+        .login-card, .login-footer { width: min(520px, 100%); }
     }
 
-    .input-group {
-        margin-bottom: 18px;
+    @media (max-width: 540px) {
+        .login-page { padding: 0; background: #fff; }
+        .ambient { display: none; }
+        .login-layout { min-height: 100svh; border: 0; border-radius: 0; box-shadow: none; }
+        .login-showcase { display: none; }
+        .login-workspace { justify-content: flex-start; padding: max(24px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); }
+        .mobile-brand { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: clamp(30px, 9vh, 62px); }
+        .mobile-brand img { width: 142px; height: auto; }
+        .mobile-brand span { padding: 6px 9px; color: var(--login-blue); font-size: 10px; font-weight: 900; letter-spacing: .12em; border: 1px solid #cbe6f5; border-radius: 8px; background: #f1faff; }
+        .login-card { margin: 0 auto; }
+        .login-heading h2 { font-size: 30px; }
+        .login-heading p { max-width: 34ch; }
+        .role-options { gap: 6px; }
+        .role-option-body { min-height: 72px; grid-template-columns: 30px minmax(0, 1fr); gap: 6px; padding: 9px 8px; border-radius: 12px; }
+        .role-option-icon { width: 30px; height: 30px; border-radius: 8px; }
+        .role-option-icon svg { width: 15px; }
+        .role-option strong { font-size: 11px; }
+        .role-option small { font-size: 8px; }
+        .input-shell input { height: 50px; font-size: 16px; }
+        .login-footer { margin-top: auto; padding-top: 26px; }
     }
 
-    .input-label {
-        display: block;
-        margin-bottom: 8px;
-        color: var(--auth-ink);
-        font-size: 13px;
-        font-weight: 800;
+    @media (max-width: 370px) {
+        .login-workspace { padding-left: 15px; padding-right: 15px; }
+        .mobile-brand { margin-bottom: 28px; }
+        .role-option-body { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+        .role-option-icon, .role-option small { display: none; }
     }
 
-    .form-input {
-        width: 100%;
-        height: 54px;
-        padding: 0 16px;
-        border: 1px solid var(--auth-line);
-        border-radius: 8px !important;
-        background: #fff;
-        color: var(--auth-ink);
-        font-size: 15px;
-        outline: none;
-        box-shadow: 0 14px 30px rgba(19, 47, 69, .05);
-        transition: border-color .18s ease, box-shadow .18s ease;
+    @media (min-width: 821px) and (max-height: 720px) {
+        .login-page { padding: 14px; }
+        .login-layout { min-height: calc(100svh - 28px); }
+        .login-showcase { gap: 20px; padding: 30px 38px; }
+        .showcase-copy h1 { font-size: 40px; }
+        .showcase-copy > p { margin: 16px 0 20px; line-height: 1.55; }
+        .feature-grid { grid-template-columns: repeat(3, 1fr); max-width: 520px; }
+        .feature-item { grid-template-columns: 34px 1fr; padding: 8px; }
+        .feature-icon { width: 34px; height: 34px; }
+        .feature-item small { display: none; }
+        .login-workspace { padding-top: 25px; padding-bottom: 20px; overflow-y: auto; }
+        #loginForm { margin-top: 18px; }
+        .form-field { margin-bottom: 12px; }
+        .login-footer { margin-top: 16px; }
     }
 
-    .form-input::placeholder {
-        color: #9cafba;
-    }
-
-    .form-input:focus {
-        border-color: var(--auth-primary);
-        box-shadow: 0 0 0 4px rgba(47, 155, 215, .14);
-    }
-
-    .signin-button {
-        margin-top: 6px;
-    }
-
-    .login-feedback {
-        min-height: 20px;
-        margin: 12px 0 0;
-        color: #c2410c;
-        font-size: 13px;
-        font-weight: 700;
-    }
-
-    .forgot-section {
-        margin: 18px 0 24px;
-        text-align: center;
-    }
-
-    .forgot-link {
-        color: var(--auth-primary-dark);
-        font-size: 14px;
-        font-weight: 800;
-        text-decoration: none;
-    }
-
-    .forgot-link:hover {
-        text-decoration: underline;
-    }
-
-    @media (max-width: 900px) {
-        .auth-shell {
-            display: grid;
-            grid-template-columns: 1fr;
-            min-height: 100vh;
-            background:
-                linear-gradient(rgba(246, 251, 253, .88), rgba(246, 251, 253, .94)),
-                url("{{ asset('images/gazlite.png') }}") center / cover no-repeat;
-        }
-
-        .brand-panel {
-            min-height: auto;
-            padding: 28px 20px 24px;
-            gap: 24px;
-            background:
-                linear-gradient(135deg, rgba(10, 50, 74, .9), rgba(21, 111, 158, .78)),
-                url("{{ asset('images/gazlite.png') }}") center / cover no-repeat;
-        }
-
-        .brand-panel::after {
-            background: linear-gradient(180deg, rgba(8, 34, 51, .58), rgba(8, 34, 51, .32));
-        }
-
-        .logo-card {
-            width: 190px;
-        }
-
-        .brand-name {
-            margin-top: 12px;
-            font-size: 11px;
-        }
-
-        .brand-heading {
-            max-width: 620px;
-        }
-
-        .brand-heading h3 {
-            max-width: 18ch;
-            font-size: clamp(34px, 8vw, 48px);
-            line-height: 1.04;
-        }
-
-        .brand-heading p:last-child {
-            max-width: 560px;
-            margin-top: 16px;
-            font-size: 14px;
-        }
-
-        .brand-roles {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            max-width: 560px;
-        }
-
-        .auth-panel {
-            min-height: auto;
-            padding: 24px 18px;
-            background: rgba(255, 255, 255, .9);
-        }
-
-        .panel-top {
-            display: none;
-        }
-
-        .auth-step {
-            min-height: calc(100vh - 48px);
-        }
-
-        .step-body {
-            padding: 24px;
-            border: 1px solid rgba(217, 231, 239, .9);
-            border-radius: 8px;
-            background: rgba(255, 255, 255, .94);
-            box-shadow: 0 22px 70px rgba(19, 47, 69, .12);
-        }
-
-        .mobile-logo {
-            display: block;
-        }
-
-        .ghost-back {
-            top: 18px;
-            left: 18px;
-            z-index: 1;
-        }
-
-        .step-copy h2 {
-            font-size: 30px;
-        }
-
-        .login-heading {
-            padding-top: 48px;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .brand-panel {
-            padding: 22px 16px;
-        }
-
-        .logo-card {
-            width: 168px;
-        }
-
-        .brand-heading h3 {
-            font-size: 31px;
-        }
-
-        .brand-roles {
-            grid-template-columns: 1fr;
-            gap: 8px;
-        }
-
-        .role-pill {
-            min-height: 40px;
-        }
-
-        .auth-panel {
-            padding: 14px;
-        }
-
-        .auth-step {
-            min-height: calc(100vh - 28px);
-        }
-
-        .step-body {
-            padding: 22px 18px;
-        }
-
-        .landing-image {
-            width: 172px;
-        }
-
-        .role-image {
-            width: 168px;
-        }
-
-        .step-copy h2 {
-            font-size: 27px;
-        }
-
-        .role-button {
-            grid-template-columns: 40px 1fr 22px;
-            min-height: 74px;
-            padding: 12px;
-        }
-
-        .role-icon {
-            width: 40px;
-            height: 40px;
-        }
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
 </style>
 
 <script>
-    @if (session('status'))
-        document.addEventListener('DOMContentLoaded', function () {
-            Swal.fire({
-                icon: 'success',
-                title: 'Password reset successful',
-                text: @json(session('status')),
-                confirmButtonText: 'Continue to login',
-                confirmButtonColor: '#2f9bd7'
-            });
-        });
-    @endif
+    (function () {
+        const form = document.getElementById('loginForm');
+        const submitButton = document.getElementById('signinButton');
+        const passwordInput = document.getElementById('password');
+        const passwordToggle = document.getElementById('passwordToggle');
+        const serverError = document.getElementById('serverError');
+        const serverErrorText = document.getElementById('serverErrorText');
 
-    let currentRole = "{{ old('selected_role') }}";
+        function setError(field, message) {
+            const error = document.getElementById(field + 'Error');
+            const input = field === 'role' ? form.querySelector('input[name="selected_role"]') : document.getElementById(field);
 
-    window.showLandingPage = function () {
-        document.getElementById('landingPage').style.display = 'flex';
-        document.getElementById('roleSelectionPage').style.display = 'none';
-        document.getElementById('loginFormPage').style.display = 'none';
-    };
+            if (error) error.textContent = message || '';
 
-    window.showRoleSelection = function () {
-        document.getElementById('landingPage').style.display = 'none';
-        document.getElementById('roleSelectionPage').style.display = 'flex';
-        document.getElementById('loginFormPage').style.display = 'none';
-    };
-
-    window.showLoginForm = function () {
-        document.getElementById('landingPage').style.display = 'none';
-        document.getElementById('roleSelectionPage').style.display = 'none';
-        document.getElementById('loginFormPage').style.display = 'flex';
-
-        updateLoginFormRole();
-    };
-
-    window.selectRole = function (role, button) {
-        currentRole = role;
-
-        document.querySelectorAll('.role-button').forEach(btn => {
-            btn.classList.remove('selected');
-        });
-
-        if (button) {
-            button.classList.add('selected');
+            if (input) {
+                const wrapper = field === 'role' ? input.closest('.role-fieldset') : input.closest('.form-field');
+                if (wrapper) wrapper.classList.toggle('has-error', Boolean(message));
+                input.setAttribute('aria-invalid', message ? 'true' : 'false');
+            }
         }
 
-        document.getElementById('selectedRoleInput').value = role;
-
-        setTimeout(() => {
-            showLoginForm();
-        }, 220);
-    };
-
-    function updateLoginFormRole() {
-        if (!currentRole) {
-            return;
+        function showServerError(message) {
+            serverErrorText.textContent = message;
+            serverError.hidden = false;
         }
 
-        document.getElementById('roleIndicator').style.display = 'flex';
-        document.getElementById('selectedRoleName').innerText = formatRoleName(currentRole);
-    }
-
-    function formatRoleName(role) {
-        const normalizedRole = (role || '').toLowerCase();
-
-        if (normalizedRole === 'mfi') {
-            return 'MFI';
+        function clearErrors() {
+            ['role', 'email', 'password'].forEach(function (field) { setError(field, ''); });
+            serverError.hidden = true;
         }
 
-        if (['area distributor', 'provincial distributor'].includes(normalizedRole)) {
-            return 'Partner';
-        }
+        function validateForm() {
+            let firstInvalid = null;
+            const role = form.querySelector('input[name="selected_role"]:checked');
+            const email = document.getElementById('email');
 
-        return role.replace(/\b\w/g, letter => letter.toUpperCase());
-    }
-
-    document.getElementById('loginForm').addEventListener('submit', async function (e) {
-        e.preventDefault();
-
-        const btn = document.getElementById('signinButton');
-        const feedback = document.getElementById('loginFeedback');
-        const formData = new FormData(this);
-
-        feedback.textContent = '';
-
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Signing in...</span>';
-
-        try {
-            const res = await fetch(this.action, {
-                method: "POST",
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            });
-
-            const data = await res.json().catch(() => ({}));
-
-            if (res.ok && data.success) {
-                window.location.href = data.redirect;
-                return;
+            if (!role) {
+                setError('role', 'Choose the workspace connected to your account.');
+                firstInvalid = form.querySelector('input[name="selected_role"]');
             }
 
-            const message = (data.errors && data.errors.email && data.errors.email[0]) || data.message || 'Unable to sign in. Please check your details and try again.';
-            feedback.textContent = message;
-            Swal.fire('Sign in failed', message, 'error');
-        } catch (err) {
-            const message = 'We could not reach the server. Please try again.';
-            feedback.textContent = message;
-            Swal.fire('Sign in failed', message, 'error');
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = 'Sign in';
-        }
-    });
-</script>
+            if (!email.value.trim()) {
+                setError('email', 'Enter your registered email or phone number.');
+                firstInvalid = firstInvalid || email;
+            }
 
+            if (!passwordInput.value) {
+                setError('password', 'Enter your password.');
+                firstInvalid = firstInvalid || passwordInput;
+            }
+
+            if (firstInvalid) {
+                firstInvalid.focus();
+                return false;
+            }
+
+            return true;
+        }
+
+        function setLoading(isLoading) {
+            submitButton.disabled = isLoading;
+            submitButton.innerHTML = isLoading
+                ? '<span class="button-spinner" aria-hidden="true"></span><span class="button-label">Signing in...</span>'
+                : '<span class="button-label">Sign in securely</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
+        }
+
+        passwordToggle.addEventListener('click', function () {
+            const isVisible = passwordInput.type === 'text';
+            passwordInput.type = isVisible ? 'password' : 'text';
+            this.classList.toggle('is-visible', !isVisible);
+            this.setAttribute('aria-pressed', String(!isVisible));
+            this.setAttribute('aria-label', isVisible ? 'Show password' : 'Hide password');
+            passwordInput.focus();
+        });
+
+        form.querySelectorAll('input').forEach(function (input) {
+            input.addEventListener('input', function () {
+                const field = input.name === 'selected_role' ? 'role' : input.id;
+                setError(field, '');
+                serverError.hidden = true;
+            });
+            input.addEventListener('change', function () {
+                if (input.name === 'selected_role') setError('role', '');
+            });
+        });
+
+        form.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            clearErrors();
+
+            if (!validateForm()) return;
+
+            setLoading(true);
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                });
+                const data = await response.json().catch(function () { return {}; });
+
+                if (response.ok && data.success) {
+                    window.location.assign(data.redirect);
+                    return;
+                }
+
+                const errors = data.errors || {};
+                const message = (errors.email && errors.email[0]) || (errors.password && errors.password[0]) || (errors.selected_role && errors.selected_role[0]) || data.message || 'Unable to sign in. Please check your details and try again.';
+
+                showServerError(message);
+
+                if (window.Swal) {
+                    Swal.fire({ icon: 'error', title: 'Sign in failed', text: message, confirmButtonText: 'Try again', confirmButtonColor: '#0877ca' });
+                }
+            } catch (error) {
+                const message = 'We could not reach the server. Check your connection and try again.';
+                showServerError(message);
+
+                if (window.Swal) {
+                    Swal.fire({ icon: 'error', title: 'Connection problem', text: message, confirmButtonText: 'Try again', confirmButtonColor: '#0877ca' });
+                }
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        @if (session('status'))
+            document.addEventListener('DOMContentLoaded', function () {
+                if (window.Swal) {
+                    Swal.fire({ icon: 'success', title: 'Password reset successful', text: @json(session('status')), confirmButtonText: 'Continue to sign in', confirmButtonColor: '#0877ca' });
+                }
+            });
+        @endif
+    })();
+</script>
 @endsection

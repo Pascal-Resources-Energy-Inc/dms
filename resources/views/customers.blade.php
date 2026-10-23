@@ -477,7 +477,7 @@
                                 <td><span class="customer-ref">{{ strtoupper($customer->client_reference) }}</span></td>
                                 <td>
                                     <a href="{{ $customerViewUrl }}" class="customer-link">
-                                        {{ strtoupper($customer->name) }}
+                                        {{ strtoupper($customer->display_name ?? $customer->name) }}
                                     </a>
                                 </td>
                                 <td>{{ $customer->number ?: '-' }}</td>
