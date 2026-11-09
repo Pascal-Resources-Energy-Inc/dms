@@ -177,7 +177,7 @@
                 <div class="modal-body">
                     <div>
                         <label class="form-label" for="mfiName">MFI name <span class="mfi-required">*</span></label>
-                        <input id="mfiName" class="form-control{{ $errors->has('name') && old('form_context') === 'create' ? ' is-invalid' : '' }}" name="name" value="{{ old('form_context') === 'create' ? old('name') : '' }}" maxlength="100" placeholder="e.g. SEDP" autocomplete="organization" required>
+                        <input id="mfiName" class="form-control{{ $errors->has('name') && old('form_context') === 'create' ? ' is-invalid' : '' }}" name="name" value="{{ old('form_context') === 'create' ? old('name') : '' }}" maxlength="100" placeholder="e.g. SEDP" autocomplete="organization" data-uppercase required>
                         <small class="mfi-field-help">Use a short, recognizable organization name.</small>
                     </div>
 
@@ -243,7 +243,7 @@
                     <div class="modal-body">
                         <div>
                             <label class="form-label" for="mfiEditName{{ $mfi->id }}">MFI name <span class="mfi-required">*</span></label>
-                            <input id="mfiEditName{{ $mfi->id }}" class="form-control{{ $errors->has('name') && $editingThisMfi ? ' is-invalid' : '' }}" name="name" value="{{ $editName }}" maxlength="100" autocomplete="organization" required>
+                            <input id="mfiEditName{{ $mfi->id }}" class="form-control{{ $errors->has('name') && $editingThisMfi ? ' is-invalid' : '' }}" name="name" value="{{ $editName }}" maxlength="100" autocomplete="organization" data-uppercase required>
                             <small class="mfi-field-help">Renaming updates matching center and MFI-user assignments.</small>
                         </div>
 

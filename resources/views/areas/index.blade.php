@@ -253,7 +253,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="coverage-wide mb-3"><label class="form-label">Area Name <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" value="{{ old('name') }}" maxlength="255" placeholder="e.g. Davao City North" required></div>
+                    <div class="coverage-wide mb-3"><label class="form-label">Area Name <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" value="{{ old('name') }}" maxlength="255" placeholder="e.g. Davao City North" data-uppercase required></div>
                     <div class="coverage-intro"><i class="bi bi-info-circle me-1"></i>Add every geographic location covered by this area. You can add as many Region → Province → City/Municipality → Barangay combinations as needed.</div>
                     <div id="coverageEntries" class="coverage-entries" data-prefix="coverages">
                         @foreach(old('coverages', [['region' => '', 'province' => '', 'city_municipality' => '', 'barangay' => '']]) as $index => $entry)
@@ -297,7 +297,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="coverage-wide mb-3"><label class="form-label" for="areaEditName{{ $area->id }}">Area Name <span class="text-danger">*</span></label><input type="text" id="areaEditName{{ $area->id }}" name="name" class="form-control" value="{{ old('name', $area->name) }}" maxlength="255" required></div>
+                        <div class="coverage-wide mb-3"><label class="form-label" for="areaEditName{{ $area->id }}">Area Name <span class="text-danger">*</span></label><input type="text" id="areaEditName{{ $area->id }}" name="name" class="form-control" value="{{ old('name', $area->name) }}" maxlength="255" data-uppercase required></div>
                         <div class="coverage-intro"><i class="bi bi-layers me-1"></i>Manage all geographic locations served by this area.</div>
                         <div id="editCoverageEntries{{ $area->id }}" class="coverage-entries" data-prefix="coverages">
                             @foreach($area->geographicCoverages as $index => $coverage)

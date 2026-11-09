@@ -42,7 +42,7 @@ class AreaController extends Controller
         }
 
         DB::transaction(function () use ($data, $coverages) {
-            $area = Area::create(['name' => trim($data['name'])]);
+            $area = Area::create(['name' => trim($data['name']), 'created_by' => auth()->user()->id]);
             $area->geographicCoverages()->createMany($coverages->all());
         });
 
