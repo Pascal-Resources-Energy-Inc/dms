@@ -351,6 +351,8 @@
 @section('content')
 @php
   $isRemoteDealer = $isRemoteDealer ?? false;
+  $partnerLabel = $partnerLabel ?? 'Dealer';
+  $partnerListUrl = $partnerListUrl ?? url('/dealers');
   $firstName = strtoupper($dealer->user->first_name ?? '');
   $lastName = strtoupper($dealer->user->last_name ?? '');
   $profileName = trim($firstName . ' ' . $lastName);
@@ -381,13 +383,13 @@
 <section class="dealer-view">
   <div class="dealer-view-header">
     <div>
-      <p class="dealer-view-kicker">{{ $isRemoteDealer ? $sourceLabel : (auth()->user()->role == 'Admin' ? 'Dealer Profile' : 'Dealer Profile') }}</p>
-      <h1 class="dealer-view-title">Dealer Information</h1>
+      <p class="dealer-view-kicker">{{ $isRemoteDealer ? $sourceLabel : $partnerLabel . ' Profile' }}</p>
+      <h1 class="dealer-view-title">{{ $partnerLabel }} Information</h1>
       <p class="dealer-view-subtitle">{{ $profileName }} / {{ $storeName }} / {{ $dealerReference }}</p>
     </div>
-    @if(auth()->user()->role == 'Admin')
-      <a href="{{ url('/dealers') }}" class="dealer-back-link">
-        <i class="bi bi-arrow-left"></i> Back to Dealers
+    @if(!$isRemoteDealer)
+      <a href="{{ $partnerListUrl }}" class="dealer-back-link">
+        <i class="bi bi-arrow-left"></i> Back to {{ $partnerLabel }}s
       </a>
     @endif
   </div>
@@ -398,7 +400,7 @@
         <div class="dealer-profile-cover"></div>
         <div class="dealer-profile-body">
           <div class="text-center">
-            <img src="{{ $avatarUrl }}" class="profile-avatar mx-auto" alt="Dealer avatar">
+            <img src="{{ $avatarUrl }}" class="profile-avatar mx-auto" alt="{{ $partnerLabel }} avatar">
             <div class="profile-name">{{ $profileName }}</div>
             <div class="profile-store">{{ $storeName }}</div>
             <span class="dealer-status-pill {{ $isActive ? 'is-active' : 'is-inactive' }}">{{ strtoupper($status) }}</span>
@@ -413,8 +415,18 @@
               @if(($canEditDealer ?? false) || auth()->user()->role == 'Admin')
                 <button type="button" class="btn btn-warning dealer-icon-btn" data-toggle="modal" data-target="#editDealerModal" data-bs-toggle="modal" data-bs-target="#editDealerModal" title="Edit Dealer">
                   <i class="fas fa-edit"></i>
-                  <span class="sr-only">Edit Dealer</span>
+                  <span class="sr-only">Edit {{ $partnerLabel }}</span>
                 </button>
+              @endif
+              @if($canDeleteMegaDealer ?? false)
+                <form method="POST" action="{{ route('mds.destroy', $dealer->id) }}" class="d-inline js-delete-mega-dealer-form">
+                  @csrf
+                  @method('DELETE')
+                  <button type="submit" class="btn btn-danger dealer-icon-btn" title="Delete Mega Dealer">
+                    <i class="fas fa-trash-alt"></i>
+                    <span class="sr-only">Delete Mega Dealer</span>
+                  </button>
+                </form>
               @endif
             </div>
           @endunless
@@ -496,8 +508,8 @@
       <div class="dealer-panel">
         <div class="dealer-panel-header">
           <div>
-            <h2 class="dealer-panel-title">Dealer Requirements</h2>
-            <p class="dealer-panel-subtitle">{{ $isRemoteDealer ? 'Read-only records from the selected CRM database.' : 'Valid ID and contract records for this dealer.' }}</p>
+            <h2 class="dealer-panel-title">{{ $partnerLabel }} Requirements</h2>
+            <p class="dealer-panel-subtitle">{{ $isRemoteDealer ? 'Read-only records from the selected CRM database.' : 'Valid ID and contract records for this ' . strtolower($partnerLabel) . '.' }}</p>
           </div>
         </div>
         <div class="dealer-panel-body">
@@ -583,7 +595,7 @@
                   </tr>
                 @empty
                   <tr>
-                    <td colspan="6" class="dealer-empty">No transactions found for this dealer.</td>
+                    <td colspan="6" class="dealer-empty">No transactions found for this {{ strtolower($partnerLabel) }}.</td>
                   </tr>
                 @endforelse
               </tbody>
@@ -612,6 +624,35 @@
 
 @section('javascript')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  document.addEventListener('submit', function (event) {
+    const form = event.target.closest('.js-delete-mega-dealer-form');
+    if (!form || form.dataset.confirmed === '1') return;
+
+    event.preventDefault();
+    const submitDelete = function () {
+      form.dataset.confirmed = '1';
+      form.submit();
+    };
+
+    if (!window.Swal) {
+      if (window.confirm('Delete this Mega Dealer? This action cannot be undone.')) submitDelete();
+      return;
+    }
+
+    Swal.fire({
+      icon: 'warning',
+      title: 'Delete Mega Dealer?',
+      text: 'This permanently removes the account when it has no order or transaction history.',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc3545'
+    }).then(function (result) {
+      if (result.isConfirmed) submitDelete();
+    });
+  });
+</script>
 @unless($isRemoteDealer)
 <script>
   const canvas = document.getElementById('signatureCanvas');

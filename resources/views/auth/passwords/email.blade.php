@@ -199,7 +199,7 @@
     .recovery-showcase-copy > p { max-width: 560px; margin: 24px 0 28px; color: rgba(255,255,255,.78); font-size: 15px; line-height: 1.75; }
 
     .recovery-steps { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-    .recovery-step { display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 12px; max-width: 390px; padding: 11px 13px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.07); backdrop-filter: blur(10px); }
+    .recovery-step { display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 12px; max-width: 500px; padding: 11px 13px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.07); backdrop-filter: blur(10px); }
     .recovery-step.is-active { border-color: rgba(117,220,255,.46); background: rgba(117,220,255,.13); }
     .recovery-step-number { width: 36px; height: 36px; display: grid; place-items: center; color: #bdefff; font-size: 12px; font-weight: 900; border: 1px solid rgba(156,231,255,.35); border-radius: 11px; background: rgba(255,255,255,.08); }
     .recovery-step.is-active .recovery-step-number { color: #075798; border-color: transparent; background: #8ce4ff; }

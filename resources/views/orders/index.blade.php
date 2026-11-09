@@ -579,12 +579,10 @@ table.dataTable {
                             </span>
                             <div>
                                 <span class="order-summary-label">Total Sales</span>
-                                <strong class="order-summary-value">
-                                    PHP {{ number_format($orders->sum(function($transaction) {
-                                        return ($transaction->price * $transaction->qty) + ($transaction->delivery_fee ?? 0);
-                                    }), 2) }}
+                                <strong class="order-summary-value" id="completedSalesTotal">
+                                    PHP {{ number_format($totalCompletedSales ?? 0, 2) }}
                                 </strong>
-                                <span class="order-summary-note">Includes delivery fees</span>
+                                <span class="order-summary-note">Completed transactions only</span>
                             </div>
                         </div>
                     </div>
@@ -613,10 +611,10 @@ table.dataTable {
                             </span>
                             <div>
                                 <span class="order-summary-label">Qty Sold</span>
-                                <strong class="order-summary-value">
-                                    {{ number_format($orders->sum('qty'), 2) }}
+                                <strong class="order-summary-value" id="completedQuantityTotal">
+                                    {{ number_format($totalCompletedQuantity ?? 0, 2) }}
                                 </strong>
-                                <span class="order-summary-note">Total products ordered</span>
+                                <span class="order-summary-note">Completed transactions only</span>
                             </div>
                         </div>
                     </div>
@@ -731,9 +729,8 @@ table.dataTable {
                         @foreach($orderTabs as $tabIndex => $orderTab)
                             @php
                                 $tabOrders = collect($orderTab['orders']);
-                                $tabSales = $tabOrders->sum(function ($order) {
-                                    return ((float) $order->price * (float) $order->qty) + (float) ($order->delivery_fee ?? 0);
-                                });
+                                $tabSales = (float) ($orderTab['completed_sales'] ?? 0);
+                                $tabQuantity = (float) ($orderTab['completed_quantity'] ?? 0);
                                 $tabPending = $tabOrders->filter(function ($order) {
                                     return strcasecmp((string) $order->status, 'Pending') === 0;
                                 })->count();
@@ -745,7 +742,7 @@ table.dataTable {
                                 <div class="order-tab-summary">
                                     <div class="order-tab-metric">
                                         <small>Total Sales</small>
-                                        <strong>{{ number_format($tabSales, 2) }}</strong>
+                                        <strong data-completed-sales-summary="{{ $orderTab['key'] }}">{{ number_format($tabSales, 2) }}</strong>
                                     </div>
                                     <div class="order-tab-metric">
                                         <small>Orders</small>
@@ -753,7 +750,7 @@ table.dataTable {
                                     </div>
                                     <div class="order-tab-metric">
                                         <small>Quantity</small>
-                                        <strong>{{ number_format($tabOrders->sum('qty'), 2) }}</strong>
+                                        <strong data-completed-quantity-summary="{{ $orderTab['key'] }}">{{ number_format($tabQuantity, 2) }}</strong>
                                     </div>
                                     <div class="order-tab-metric">
                                         <small>Pending</small>
@@ -1896,6 +1893,7 @@ document.addEventListener('DOMContentLoaded', function () {
             row.querySelector('.dealer-points-cell').innerHTML =
                 `<span class="text-success">${data.points_dealer || 0}</span>`;
             row.querySelector('.status-cell').innerHTML = renderStatus(data.status);
+            row.dataset.orderStatus = String(data.status || '').toLowerCase().trim();
 
             editButton.dataset.qty = data.qty;
             editButton.dataset.payment = data.payment_method;
@@ -1903,6 +1901,8 @@ document.addEventListener('DOMContentLoaded', function () {
             editButton.dataset.deliveryFee = data.delivery_fee || '';
             editButton.dataset.status = data.status;
             editButton.dataset.remarks = data.remarks || '';
+
+            refreshCompletedOrderSummaries();
 
             modal.hide();
 
@@ -1927,6 +1927,53 @@ document.addEventListener('DOMContentLoaded', function () {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
+    }
+
+    function refreshCompletedOrderSummaries() {
+        let overallTotal = 0;
+        let overallQuantity = 0;
+
+        document.querySelectorAll('[id^="transactionBody-"]').forEach(function (tableBody) {
+            let tabTotal = 0;
+            let tabQuantity = 0;
+
+            tableBody.querySelectorAll('tr[data-order-status="completed"]').forEach(function (row) {
+                const amountCell = row.querySelector('.amount-cell');
+                const quantityCell = row.querySelector('.qty-cell');
+                const amount = amountCell
+                    ? Number(amountCell.textContent.replace(/[^0-9.-]/g, '')) || 0
+                    : 0;
+                const quantity = quantityCell
+                    ? Number(quantityCell.textContent.replace(/[^0-9.-]/g, '')) || 0
+                    : 0;
+
+                tabTotal += amount;
+                tabQuantity += quantity;
+            });
+
+            overallTotal += tabTotal;
+            overallQuantity += tabQuantity;
+
+            const tabKey = tableBody.id.replace('transactionBody-', '');
+            const tabSummary = document.querySelector('[data-completed-sales-summary="' + tabKey + '"]');
+            const tabQuantitySummary = document.querySelector('[data-completed-quantity-summary="' + tabKey + '"]');
+            if (tabSummary) {
+                tabSummary.textContent = formatNumber(tabTotal);
+            }
+            if (tabQuantitySummary) {
+                tabQuantitySummary.textContent = formatNumber(tabQuantity);
+            }
+        });
+
+        const overallSummary = document.getElementById('completedSalesTotal');
+        if (overallSummary) {
+            overallSummary.textContent = 'PHP ' + formatNumber(overallTotal);
+        }
+
+        const overallQuantitySummary = document.getElementById('completedQuantityTotal');
+        if (overallQuantitySummary) {
+            overallQuantitySummary.textContent = formatNumber(overallQuantity);
+        }
     }
 
     function renderStatus(status) {

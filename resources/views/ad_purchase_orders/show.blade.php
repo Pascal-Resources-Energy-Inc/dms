@@ -281,7 +281,14 @@
         <a href="{{ $isSupplyingProvincialDistributor ? route('provincial-distributor.purchase-orders') : route('ad-purchase-orders.index') }}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Back to ADPO
         </a>
+        @if($order->status === 'Pending' && auth()->user()->hasAreaDistributorAccess() && (int) $order->ad_user_id === (int) auth()->id())
+            <a href="{{ route('ad-purchase-orders.edit', $order->id) }}" class="btn btn-sm btn-warning">
+                <i class="bi bi-pencil-square"></i> Edit Pending Order
+            </a>
+        @endif
     </div>
+
+    @include('ad_purchase_orders.partials.tax_document')
 
     @if($canReviewIncompleteVerification && $order->status === 'For Verification' && $verificationItems->isNotEmpty() && $hasVerificationSubmission)
         <div class="modal fade" id="incompleteVerificationModal" tabindex="-1" aria-labelledby="incompleteVerificationModalLabel" aria-hidden="true">

@@ -1,0 +1,167 @@
+.rr-page { width: 100%; max-width: 1600px; min-width: 0; margin: 0 auto; color: #20364d; }
+.rr-page *, .rr-page *::before, .rr-page *::after { box-sizing: border-box; }
+.rr-page-heading { margin-bottom: 18px; }
+.rr-page-heading h3 { margin: 0; color: #142e46; font-size: 25px; font-weight: 700; letter-spacing: -.4px; }
+.rr-page-heading p { margin: 6px 0 0; color: #526b80; font-size: 14px; }
+.rr-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 22px; border: 1px solid #dfe7ee; border-radius: 12px; background: #fff; }
+.rr-stat { padding: 17px 22px; border-right: 1px solid #e5ecf2; }
+.rr-stat:last-child { border-right: 0; }
+.rr-stat small { display: block; color: #5d7083; font-size: 12px; font-weight: 600; }
+.rr-stat strong { display: block; margin-top: 6px; color: #20364d; font-size: 26px; line-height: 1.1; font-weight: 700; }
+.rr-stat.is-pending strong { color: #a35c05; }
+.rr-stat.is-processing strong { color: #156d9c; }
+.rr-stat.is-review strong { color: #7352ad; }
+.rr-card { container-type: inline-size; min-width: 0; border: 1px solid #dfe7ee; border-radius: 12px; background: #fff; overflow: hidden; }
+.rr-card-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 20px 22px 16px; }
+.rr-card-heading h5 { margin: 0; color: #20364d; font-size: 17px; font-weight: 700; }
+.rr-card-heading small { display: block; margin-top: 4px; color: #627589; font-size: 12px; }
+.rr-card-heading > span { padding: 5px 10px; border-radius: 20px; background: #edf4fb; color: #275f8b; font-size: 12px; white-space: nowrap; }
+.rr-filter { display: grid; grid-template-columns: minmax(200px, 1.4fr) minmax(140px, .8fr) repeat(2, minmax(145px, .8fr)) auto; gap: 12px; align-items: end; padding: 0 22px 20px; border-bottom: 1px solid #e5ecf2; }
+.rr-filter > div { min-width: 0; }
+.rr-filter label, .rr-bulk-controls label { display: block; margin-bottom: 6px; color: #425c72; font-size: 12px; font-weight: 600; }
+.rr-filter .form-control, .rr-bulk-controls .form-control { width: 100%; min-width: 0; height: 42px; padding: 9px 12px; border: 1px solid #c9d7e3; border-radius: 7px; color: #20364d; background: #fff; font-size: 14px; }
+.rr-page .btn { min-height: 42px; padding: 10px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; line-height: 1.4; }
+.rr-page .btn:disabled { opacity: .55; cursor: not-allowed; }
+.rr-page .btn-success { background: #228858; border-color: #228858; color: #fff; }
+.rr-page .btn-success:hover:not(:disabled) { background: #176c43; border-color: #176c43; }
+.rr-filter-clear .btn { height: 42px; color: #526b80; border-color: #c9d7e3; white-space: nowrap; }
+.rr-table-shell { min-width: 0; }
+#returnRefundRequestsTable { width: 100% !important; table-layout: fixed; margin: 0 !important; border-collapse: separate; border-spacing: 0; }
+#returnRefundRequestsTable th:nth-child(1) { width: 20%; }
+#returnRefundRequestsTable th:nth-child(2) { width: 20%; }
+#returnRefundRequestsTable th:nth-child(3) { width: 28%; }
+#returnRefundRequestsTable th:nth-child(4) { width: 18%; }
+#returnRefundRequestsTable th:nth-child(5) { width: 14%; }
+#returnRefundRequestsTable > thead > tr > th { padding: 12px 18px; color: #556d83; background: #f5f8fb; border: 0; border-bottom: 1px solid #dfe7ee; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .035em; }
+#returnRefundRequestsTable > tbody > tr > td { padding: 17px 18px; border: 0; border-bottom: 1px solid #e5ecf2; color: #20364d; vertical-align: middle; overflow-wrap: anywhere; font-size: 13px; }
+.rr-table strong { display: block; color: #20364d; font-size: 13px; font-weight: 600; }
+.rr-table small { display: block; margin-top: 3px; color: #63778b; font-size: 12px; line-height: 1.5; }
+.rr-product-summary { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 5px; }
+.rr-product-summary b { flex-shrink: 0; font-size: 12px; font-weight: 600; }
+.rr-stage, .rr-status { display: inline-block; max-width: 100%; margin: 2px 0; padding: 5px 9px; border-radius: 5px; background: #edf4fb; color: #275f8b; font-size: 11px; font-weight: 600; line-height: 1.4; white-space: normal; }
+.rr-stage { display: table; }
+.rr-stage.is-pending, .rr-product-detail .badge-warning { background: #fff3d9; color: #8b570b; }
+.rr-product-detail .badge-primary, .rr-product-detail .badge-info { background: #eaf3fc; color: #275f8b; }
+.rr-product-detail .badge-success { background: #e6f4ec; color: #24643e; }
+.rr-product-detail .badge-danger { background: #fdecec; color: #a13232; }
+.rr-product-detail .badge-secondary { background: #f0edfa; color: #6b4da2; }
+.rr-view-products { white-space: normal; color: #24618e; border-color: #abc6dc; background: #fff; }
+.rr-datatable-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 22px; color: #627589; font-size: 12px; }
+.rr-card .dataTables_length, .rr-card .dataTables_filter, .rr-card .dataTables_info, .rr-card .dataTables_paginate { float: none !important; margin: 0 !important; padding: 0 !important; }
+.rr-card .dataTables_length label { display: flex; gap: 8px; align-items: center; margin: 0; white-space: nowrap; }
+.rr-card .dataTables_length select { min-width: 0; height: 36px; margin: 0; padding: 6px 10px; border: 1px solid #c9d7e3; border-radius: 7px; background: #fff; color: #20364d; font-size: 13px; }
+.rr-card .dataTables_info { margin-right: auto !important; }
+.rr-card .dataTables_paginate { display: flex; align-items: center; gap: 5px; }
+.rr-card .dataTables_paginate .paginate_button { display: inline-block; padding: 7px 10px; border: 1px solid transparent; border-radius: 6px; color: #35618a; cursor: pointer; }
+.rr-card .dataTables_paginate .paginate_button.current { background: #eaf2fa; color: #204e77; font-weight: 700; }
+.rr-card .dataTables_paginate .paginate_button.disabled { color: #8294a5; cursor: default; }
+#returnRefundRequestsTable td.dataTables_empty { padding: 36px 16px !important; text-align: center; color: #63778b; }
+#returnRefundRequestsTable > tbody > tr.rr-detail-row > td { padding: 20px 22px; background: #f5f8fb; }
+.rr-request-details { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+.rr-request-details.has-approval { grid-template-columns: minmax(0, 1fr) 310px; }
+.rr-bulk-approval, .rr-request-details > .rr-bulk-heading { grid-column: 1 / -1; }
+.rr-product-list { display: grid; gap: 12px; min-width: 0; }
+.rr-detail-intro { margin: 0; color: #63778b; font-size: 12px; }
+.rr-bulk-approval { margin: 0; }
+.rr-bulk-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin: 0 0 2px; }
+.rr-bulk-heading h6 { margin: 0; font-size: 14px; color: #20364d; font-weight: 700; }
+.rr-bulk-heading p { margin: 4px 0 0; color: #63778b; font-size: 12px; }
+.rr-bulk-heading > span { color: #63778b; font-size: 12px; }
+.rr-select-all-label { display: flex; align-items: center; gap: 9px; min-height: 42px; margin: 0; padding: 9px 12px; border: 1px solid #dce5ed; border-radius: 7px; background: #fff; color: #36536b; font-size: 12px; font-weight: 600; cursor: pointer; }
+.rr-approval-select, .rr-select-all { flex-shrink: 0; width: 20px; height: 20px; margin: 0; accent-color: #228858; cursor: pointer; }
+.rr-bulk-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; padding: 18px; border: 1px solid #dce5ed; border-radius: 9px; background: #fff; }
+.rr-approval-heading { padding-bottom: 14px; border-bottom: 1px solid #e5ecf2; }
+.rr-approval-heading h6 { margin: 0 0 8px; color: #20364d; font-size: 14px; font-weight: 700; }
+.rr-bulk-controls textarea.form-control { height: 80px; min-height: 80px; resize: vertical; }
+.rr-approval-submit .btn { width: 100%; }
+.rr-approval-submit p { margin: 10px 0 0; color: #63778b; font-size: 12px; line-height: 1.5; }
+.rr-bulk-controls label span { color: #63778b; font-weight: 400; }
+.rr-approval-summary { color: #24643e; font-size: 12px; font-weight: 600; }
+.rr-product-detail { min-width: 0; border: 1px solid #dce5ed; border-radius: 9px; background: #fff; }
+.rr-product-detail.is-selected { border-color: #83b99d; background: #fcfffd; }
+.rr-product-detail > header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px; }
+.rr-product-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.rr-product-heading h6 { margin: 0; font-size: 14px; font-weight: 600; color: #20364d; }
+.rr-product-heading label { margin: 0; font: inherit; cursor: pointer; }
+.rr-product-meta { display: flex; flex-shrink: 0; align-items: center; justify-content: flex-end; gap: 18px; text-align: right; }
+.rr-product-meta .rr-status { justify-self: end; }
+.rr-product-quantity { flex-shrink: 0; color: #63778b; font-size: 12px; white-space: nowrap; }
+.rr-product-quantity b { margin-right: 3px; color: #20364d; font-size: 15px; font-weight: 600; }
+.rr-product-detail-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 0 18px 16px; align-items: start; font-size: 13px; }
+.rr-product-detail-body.has-documents { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rr-product-detail-body.is-pending { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 18px; border-top: 1px solid #e5ecf2; }
+.rr-documents > summary, .rr-reject > summary { min-height: 42px; padding: 12px 0; color: #546f88; cursor: pointer; font-size: 12px; font-weight: 500; }
+.rr-documents > summary:focus-visible, .rr-reject > summary:focus-visible { outline: 2px solid #4389bd; outline-offset: 2px; border-radius: 3px; }
+.rr-reject > summary { width: fit-content; margin-left: auto; color: #a74646; list-style-position: inside; }
+.rr-reject-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; margin: 0; padding: 0 0 16px; }
+.rr-reject-field { min-width: 0; }
+.rr-reject-field label span { color: #63778b; font-weight: 400; }
+.rr-reject-form .btn { border-color: #e3b2b2; color: #a13232; background: #fff; }
+.rr-reject-form .btn:hover { border-color: #a13232; color: #fff; background: #a13232; }
+.rr-product-documents { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 10px 0; }
+.rr-product-documents h6 { margin: 0 0 4px; color: #546f88; font-size: 12px; font-weight: 600; }
+.rr-files { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 5px; }
+.rr-files a { max-width: 100%; color: #24618e; font-size: 12px; overflow-wrap: anywhere; }
+.rr-product-actions { min-width: 0; }
+.rr-product-actions .form-control { width: 100%; max-width: 100%; min-width: 0; min-height: 42px; border-color: #c9d7e3; border-radius: 7px; font-size: 14px; }
+.rr-product-actions input[type=file] { height: auto; font-size: 12px; }
+.rr-product-actions .btn { white-space: normal; }
+.rr-product-actions .rr-field-label { display: block; margin-bottom: 5px; color: #425c72; font-size: 12px; }
+.rr-action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rr-action-grid .rr-wide { grid-column: 1 / -1; }
+.rr-page input:focus-visible, .rr-page textarea:focus-visible, .rr-page select:focus-visible, .rr-page button:focus-visible { outline: 2px solid #4389bd; outline-offset: 2px; }
+@container (max-width: 1100px) {
+    .rr-filter { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+    .rr-filter-search { grid-column: 1 / -1; }
+    .rr-request-details.has-approval { grid-template-columns: minmax(0, 1fr); }
+    .rr-bulk-controls { grid-template-columns: minmax(0, 1fr) 250px; align-items: start; }
+    .rr-approval-heading { grid-column: 1 / -1; }
+    .rr-approval-submit { padding-top: 24px; }
+}
+@media (max-width: 600px) {
+    .rr-page-heading h3 { font-size: 22px; }
+    .rr-page-heading p { font-size: 13px; }
+    .rr-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rr-stat { padding: 14px 16px; }
+    .rr-stat:nth-child(2) { border-right: 0; }
+    .rr-stat:nth-child(-n+2) { border-bottom: 1px solid #e5ecf2; }
+}
+@container (max-width: 900px) {
+    #returnRefundRequestsTable, #returnRefundRequestsTable > tbody { display: block; }
+    #returnRefundRequestsTable > thead { display: none; }
+    #returnRefundRequestsTable > tbody > tr:not(.rr-detail-row) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 18px; border-bottom: 1px solid #dfe7ee; }
+    #returnRefundRequestsTable > tbody > tr:not(.rr-detail-row) > td { display: block; min-width: 0; padding: 0; border: 0; }
+    #returnRefundRequestsTable td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 6px; color: #63778b; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    #returnRefundRequestsTable td[data-label="Products"], #returnRefundRequestsTable td.dataTables_empty { grid-column: 1 / -1; }
+    #returnRefundRequestsTable .rr-detail-row, #returnRefundRequestsTable .rr-detail-row > td { display: block; width: 100%; }
+}
+@container (max-width: 700px) {
+    .rr-card-heading { padding: 18px 16px 14px; align-items: flex-start; }
+    .rr-filter { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 16px 16px; }
+    .rr-filter-search { grid-column: 1 / -1; }
+    .rr-filter-status { grid-column: 1 / -1; }
+    .rr-filter-clear { grid-column: 1 / -1; justify-self: end; }
+    .rr-filter-clear .btn { min-width: 105px; }
+    .rr-product-detail-body, .rr-product-detail-body.has-documents, .rr-product-detail-body.is-pending { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .rr-product-meta { flex-direction: column; align-items: flex-end; gap: 4px; }
+    .rr-product-detail > header { align-items: flex-start; }
+    .rr-product-documents { grid-template-columns: minmax(0, 1fr); }
+    .rr-bulk-controls { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .rr-approval-submit { padding-top: 0; }
+    .rr-page .form-control { font-size: 16px; }
+    .rr-reject-form { grid-template-columns: minmax(0, 1fr); }
+    .rr-reject-form .btn { justify-self: end; }
+    #returnRefundRequestsTable > tbody > tr.rr-detail-row > td { padding: 16px; }
+    .rr-datatable-footer { flex-wrap: wrap; gap: 12px; padding: 14px 16px; }
+    .rr-card .dataTables_paginate { margin-left: auto !important; }
+}
+@container (max-width: 400px) {
+    .rr-card-heading { flex-wrap: wrap; gap: 10px; }
+    .rr-filter { grid-template-columns: minmax(0, 1fr); }
+    .rr-filter-search, .rr-filter-status, .rr-filter-clear { grid-column: auto; }
+    #returnRefundRequestsTable > tbody > tr:not(.rr-detail-row) { grid-template-columns: minmax(0, 1fr); }
+    .rr-product-detail > header { flex-wrap: wrap; gap: 10px; }
+    .rr-product-meta { width: 100%; flex-direction: row; justify-content: space-between; align-items: center; gap: 10px; text-align: left; }
+    .rr-action-grid { grid-template-columns: minmax(0, 1fr); }
+    .rr-page .rr-approve-selected { width: 100%; white-space: normal; }
+}

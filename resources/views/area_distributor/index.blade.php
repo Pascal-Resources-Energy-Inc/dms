@@ -119,21 +119,26 @@
     $distributorSingular = $distributorSingular ?? 'Area Distributor';
     $distributorCopy = $distributorCopy ?? 'Monitor distributor status, business information, and awarded territories.';
     $showCreateButton = $showCreateButton ?? true;
+    $viewRoute = $viewRoute ?? 'ad.view';
+    $storeRoute = $storeRoute ?? 'new-ad';
+    $updateRoute = $updateRoute ?? 'edit-ads';
+    $updateAreasRoute = $updateAreasRoute ?? 'update.areas';
+    $destroyRoute = $destroyRoute ?? null;
     $filteredAwardedAreas = $ads->sum(function ($ad) { return $ad->areas->count(); });
     $hasFilters = request()->filled('search') || request()->filled('status') || request()->filled('region') || request()->filled('project_type') || request()->filled('area');
 @endphp
 
 <section class="ad-page">
-    {{-- <div class="ad-page-head">
+    <div class="ad-page-head">
         <div>
             <div class="ad-kicker"><i class="ti ti-map-pin"></i> Partner Network</div>
             <h3 class="ad-title">{{ $distributorTitle }}</h3>
             <p class="ad-copy">{{ $distributorCopy }}</p>
         </div>
-        @if($showCreateButton)
+        {{-- @if($showCreateButton)
             <button class="btn btn-danger ad-primary-action" type="button" data-bs-toggle="modal" data-bs-target="#new_area_distributor"><i class="ti ti-plus"></i> Add {{ $distributorSingular }}</button>
-        @endif
-    </div> --}}
+        @endif --}}
+    </div>
 
     <div class="ad-stats">
         @foreach([
@@ -177,9 +182,21 @@
                     <tbody>
                     @foreach($ads as $ad)
                         <tr>
-                            <td><div class="ad-actions"><a href="{{ route('ad.view', $ad->id) }}" class="btn btn-outline-info ad-action-btn" title="View"><i class="ti ti-eye"></i></a><button type="button" class="btn btn-outline-warning ad-action-btn" data-bs-toggle="modal" data-bs-target="#edit_area_distributor-{{ $ad->id }}" title="Edit"><i class="ti ti-edit"></i></button></div></td>
+                            <td>
+                                <div class="ad-actions">
+                                    <a href="{{ route($viewRoute, $ad->id) }}" class="btn btn-outline-info ad-action-btn" title="View"><i class="ti ti-eye"></i></a>
+                                    <button type="button" class="btn btn-outline-warning ad-action-btn" data-bs-toggle="modal" data-bs-target="#edit_area_distributor-{{ $ad->id }}" title="Edit"><i class="ti ti-edit"></i></button>
+                                    @if($destroyRoute)
+                                        <form method="POST" action="{{ route($destroyRoute, $ad->id) }}" class="d-inline" onsubmit="return confirm('Remove this {{ strtolower($distributorSingular) }}? Existing operational history will be preserved.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-outline-danger ad-action-btn" title="Delete"><i class="ti ti-trash"></i></button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
                             <td><span class="ad-area-badge">{{ strtoupper($ad->store_code ?: '-') }}</span></td>
-                            <td><div class="ad-person"><span class="ad-avatar">{{ strtoupper(substr($ad->name ?: 'A', 0, 1)) }}</span><div><a href="{{ route('ad.view', $ad->id) }}">{{ strtoupper($ad->name ?: '-') }}</a><small>{{ strtoupper($ad->business_type ?: 'AREA DISTRIBUTOR') }}</small></div></div></td>
+                            <td><div class="ad-person"><span class="ad-avatar">{{ strtoupper(substr($ad->name ?: 'A', 0, 1)) }}</span><div><a href="{{ route($viewRoute, $ad->id) }}">{{ strtoupper($ad->name ?: '-') }}</a><small>{{ strtoupper($ad->business_type ?: $distributorSingular) }}</small></div></div></td>
                             <td><span class="ad-muted"><i class="ti ti-phone"></i> {{ strtoupper($ad->contact_number ?: '-') }}</span></td>
                             <td><strong>{{ strtoupper($ad->business_name ?: '-') }}</strong><span class="ad-muted">{{ strtoupper($ad->address ?: '-') }}</span></td>
                             <td><span class="ad-muted"><i class="ti ti-map-pin"></i> {{ strtoupper($ad->location_region ?: '-') }}</span></td>
@@ -211,7 +228,7 @@
                 </div>
             @endif
         @else
-            <div class="ad-empty"><i class="ti ti-user-search"></i><strong>No area distributors found</strong><div>Adjust the filters or clear them to view all records.</div></div>
+            <div class="ad-empty"><i class="ti ti-user-search"></i><strong>No {{ strtolower($distributorTitle) }} found</strong><div>Adjust the filters or add a new record.</div></div>
         @endif
     </div>
 </section>

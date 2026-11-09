@@ -1,227 +1,69 @@
 @extends('layouts.header')
 
-@section('content')
-    <div class="container-fluid pull-out-queue">
-        <div class="queue-hero mb-4">
-            <div>
-                <div class="queue-eyebrow"><i class="bi bi-box-seam me-1"></i> Warehouse Operations</div>
-                <h4 class="mb-1 text-white">Pull Out Replacement Requests</h4>
-                <p class="mb-0">Review and release replacement stock for the {{ ucfirst($warehouse) }} warehouse.</p>
-            </div>
-            <div class="queue-hero-icon"><i class="bi bi-arrow-repeat"></i></div>
-        </div>
+@section('css')
+    <link rel="stylesheet" href="{{ asset('css/warehouse-pull-outs.css') }}">
+@endsection
 
-        <div class="row mb-4">
-            <div class="col-md-3 mb-3 mb-md-0">
-                <div class="queue-kpi is-pending"><span class="queue-kpi-icon"><i class="bi bi-hourglass-split"></i></span><div><small>Pending Review</small><strong>{{ number_format($summary['pending']) }}</strong></div></div>
+@section('content')
+    <div class="pull-out-queue">
+        <header class="queue-heading">
+            <div>
+                <p class="queue-eyebrow">Warehouse operations</p>
+                <h1>Pull Out Replacement Requests</h1>
+                <p class="queue-intro">Track replacement stock from request review through distributor receipt.</p>
             </div>
-            <div class="col-md-3 mb-3 mb-md-0">
-                <div class="queue-kpi is-processing"><span class="queue-kpi-icon"><i class="bi bi-gear"></i></span><div><small>For Processing</small><strong>{{ number_format($summary['processing']) }}</strong></div></div>
-            </div>
-            <div class="col-md-3 mb-3 mb-md-0">
-                <div class="queue-kpi is-replacing"><span class="queue-kpi-icon"><i class="bi bi-check2-circle"></i></span><div><small>Replacing</small><strong>{{ number_format($summary['replacing']) }}</strong></div></div>
-            </div>
-            <div class="col-md-3 mb-3 mb-md-0">
-                <div class="queue-kpi is-replacing"><span class="queue-kpi-icon"><i class="bi bi-check2-circle"></i></span><div><small>AD Confirmed</small><strong>{{ number_format($summary['ad_confirmed']) }}</strong></div></div>
-            </div>
-        </div>
+            <div class="queue-location"><i class="bi bi-building" aria-hidden="true"></i>{{ ucfirst($warehouse) }} warehouse</div>
+        </header>
+
+        <dl class="queue-stages" aria-label="Request counts by stage">
+            @foreach(['pending' => 'Pending review', 'processing' => 'For processing', 'replacing' => 'Replacing', 'ad_confirmed' => 'AD confirmed'] as $key => $label)
+                <div class="queue-stage stage-{{ $key }}">
+                    <dt>{{ $label }}</dt><dd>{{ number_format($summary[$key]) }}</dd>
+                </div>
+            @endforeach
+        </dl>
 
         @if (session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">{{ session('success') }}<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>
+            <div class="alert alert-success alert-dismissible fade show" role="status">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss message"></button></div>
         @endif
         @if (session('error'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">{{ session('error') }}<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">{{ session('error') }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss message"></button></div>
+        @endif
+        @if ($errors->any())
+            <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
         @endif
 
-        <div class="card queue-card border-0">
-            <div class="card-header bg-white border-0 d-flex flex-column flex-md-row align-items-md-center justify-content-between">
-                <div><h5 class="mb-1">Replacement Queue</h5><p class="text-muted small mb-0">Approve requests first, then enter the DR # to post replacement stock.</p></div>
-                <span class="queue-total">{{ number_format($summary['total']) }} request{{ $summary['total'] === 1 ? '' : 's' }}</span>
-            </div>
-            <div class="card-body pt-0">
+        <section class="queue-card" aria-labelledby="queueTitle">
+            <header class="queue-card-head">
+                <div><h2 id="queueTitle">Replacement queue</h2>
+                    <p>Review pending quantities or release approved products under one DR.</p></div>
+                <span class="queue-total">{{ number_format($summary['total']) }} {{ $summary['total'] == 1 ? 'request' : 'requests' }}</span>
+            </header>
+            <div class="queue-card-body">
                 <div class="queue-table-shell">
                     <table id="pullOutRequestsTable" class="table queue-table align-middle mb-0">
                         <thead>
                             <tr>
+                                <th scope="col">Request</th>
+                                <th scope="col">Distributor</th>
+                                <th scope="col">Products</th>
+                                <th scope="col">Progress</th>
+                                <th scope="col">Actions</th>
+                                <th>Search</th>
                                 <th>Date</th>
-                                <th>Reference</th>
-                                <th>Distributor</th>
-                                <th>Products &amp; Quantities</th>
-                                <th>Source Areas</th>
-                                <th>RIS Number</th>
-                                <th>RIS Date</th>
-                                <th>Warehouse</th>
-                                <th>Product Status</th>
-                                <th>Pending Aging</th>
-                                <th>Processing Aging</th>
-                                <th>Replacing Aging</th>
-                                <th>Attachments</th>
-                                <th>Remarks</th>
-                                <th class="queue-action-column">Item Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @forelse ($requests->take(0) as $request)
-                                <tr>
-                                    <td data-label="Date" data-order="{{ $request->created_at ? $request->created_at->timestamp : 0 }}">{{ $request->transfer_date ? $request->transfer_date->format('M d, Y') : '—' }}</td>
-                                    <td data-label="Reference"><strong>{{ $request->reference_no ?: 'Draft request' }}</strong></td>
-                                    <td data-label="Distributor">
-                                        <div class="fw-semibold">{{ $request->ad_name ?: 'Distributor' }}</div>
-                                    </td>
-                                    <td data-label="Products & Quantities">
-                                        <div class="grouped-products">
-                                            @foreach ($request->groupedItems as $item)
-                                                <div class="grouped-product-row">
-                                                    <div><strong>{{ $item->item_name }}</strong><small>{{ $item->sku ?: 'No SKU' }}</small></div>
-                                                    <span class="qty-pill">{{ number_format($item->replacement_qty ?: $item->qty) }} pcs</span>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                        <small class="group-total">Total requested: {{ number_format($request->requestedQtyTotal) }} pcs</small>
-                                    </td>
-                                    <td data-label="Source Areas">
-                                        @foreach ($request->groupedItems->pluck('from_area')->filter()->unique() as $area)
-                                            <span class="area-chip"><i class="bi bi-geo-alt"></i>{{ $area }}</span>
-                                        @endforeach
-                                    </td>
-                                    <td data-label="RIS Number">{{ $request->ris_number ?: '—' }}</td>
-                                    <td data-label="RIS Date">{{ $request->ris_date ? $request->ris_date->format('M d, Y') : '—' }}</td>
-                                    <td data-label="Warehouse">{{ ucfirst($request->warehouse ?: $warehouse) }}</td>
-                                    <td data-label="Product Status">
-                                        <div class="product-workflow-list">
-                                            @foreach ($request->groupedItems as $item)
-                                                @php
-                                                    $itemStatus = $item->approval_status ?: 'Pending';
-                                                    $itemStatusMeta = [
-                                                        'Pending' => ['class' => 'is-pending', 'icon' => 'bi-hourglass-split'],
-                                                        'For Processing' => ['class' => 'is-processing', 'icon' => 'bi-gear'],
-                                                        'Replacing' => ['class' => 'is-replacing', 'icon' => 'bi-check2-circle'],
-                                                        'Rejected' => ['class' => 'is-rejected', 'icon' => 'bi-x-circle'],
-                                                    ][$itemStatus] ?? ['class' => 'is-rejected', 'icon' => 'bi-info-circle'];
-                                                @endphp
-                                                <div class="product-workflow-row">
-                                                    <small>{{ $item->item_name }}</small>
-                                                    <span class="workflow-badge {{ $itemStatusMeta['class'] }}"><i class="bi {{ $itemStatusMeta['icon'] }}"></i>{{ $itemStatus }}</span>
-                                                    @if ($item->approval_status === 'Replacing' && $item->replacement_dr_number)
-                                                        <small class="product-workflow-detail">DR # {{ $item->replacement_dr_number }}</small>
-                                                    @endif
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    </td>
-                                    @foreach (['Pending', 'For Processing', 'Replacing'] as $agingStatus)
-                                        <td data-label="{{ $agingStatus === 'For Processing' ? 'Processing' : $agingStatus }} Aging">
-                                            <div class="product-workflow-list">
-                                                @forelse ($request->groupedItems->where('approval_status', $agingStatus) as $item)
-                                                    @php
-                                                        $statusStartedAt = $agingStatus === 'Pending'
-                                                            ? $item->created_at
-                                                            : ($item->reviewed_at ?: $item->created_at);
-                                                        $agingDays = $statusStartedAt
-                                                            ? \Carbon\Carbon::parse($statusStartedAt)->startOfDay()->diffInDays(now()->startOfDay())
-                                                            : 0;
-                                                    @endphp
-                                                    <div class="product-workflow-row">
-                                                        <small>{{ $item->item_name }}</small>
-                                                        <span class="aging-day">{{ $agingDays }} Day(s)</span>
-                                                    </div>
-                                                @empty
-                                                    <span class="text-muted">—</span>
-                                                @endforelse
-                                            </div>
-                                        </td>
-                                    @endforeach
-                                    <td data-label="Attachments">
-                                        @forelse ($request->pull_out_attachments ?: [] as $file)
-                                            @php
-                                                $attachmentPath = is_array($file) ? ($file['path'] ?? null) : $file;
-                                                $attachmentName = is_array($file) ? ($file['name'] ?? basename($attachmentPath)) : basename($attachmentPath);
-                                            @endphp
-                                            @if ($attachmentPath)
-                                                <a class="d-block text-primary small text-truncate" style="max-width: 160px;" href="{{ asset($attachmentPath) }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip"></i> {{ $attachmentName }}</a>
-                                            @endif
-                                        @empty
-                                            <span class="text-muted">—</span>
-                                        @endforelse
-                                    </td>
-                                    <td data-label="Remarks">{{ $request->warehouse_remarks ?: ($request->remarks ?: '—') }}</td>
-                                    <td data-label="Item Actions" class="queue-action-cell">
-                                        @foreach ($request->groupedItems as $item)
-                                            <div class="item-action-card">
-                                                <div class="item-action-title">{{ $item->item_name }} <span>{{ number_format($item->replacement_qty ?: $item->qty) }} pcs</span></div>
-                                        @if ($item->approval_status === 'Pending')
-                                            <form method="POST" action="{{ route('warehouse-pull-outs.review', $item->id) }}" class="queue-action-form">
-                                                @csrf
-                                                <div class="form-row">
-                                                    <div class="col-4"><label for="replacement_qty_{{ $item->id }}">Approve Qty</label><input id="replacement_qty_{{ $item->id }}" class="form-control form-control-sm js-approved-qty" type="number" name="replacement_qty" min="1" max="{{ $item->replacement_qty }}" value="{{ $item->replacement_qty }}" data-requested-qty="{{ $item->replacement_qty }}" required></div>
-                                                    <div class="col-4"><label for="replacement_unit_cost_{{ $item->id }}">Unit Cost</label><input id="replacement_unit_cost_{{ $item->id }}" class="form-control form-control-sm" type="number" name="replacement_unit_cost" min="0" step="0.01" value="{{ $item->replacement_unit_cost }}"></div>
-                                                    <div class="col-4"><label for="warehouse_remarks_{{ $item->id }}" class="js-remarks-label">Remarks</label><input id="warehouse_remarks_{{ $item->id }}" class="form-control form-control-sm js-warehouse-remarks" name="warehouse_remarks" placeholder="Optional"><small class="quantity-change-note js-quantity-change-note d-none">Required when quantity changes.</small></div>
-                                                </div>
-                                                <div class="d-flex mt-2"><button class="btn btn-success btn-sm" type="submit" name="decision" value="For Processing"><i class="bi bi-check-lg"></i> Process</button><button class="btn btn-outline-danger btn-sm ml-2" type="submit" name="decision" value="Rejected">Reject</button></div>
-                                            </form>
-                                        @elseif ($item->approval_status === 'For Processing')
-                                            <div class="approved-summary"><span>Approved: <b>{{ number_format($item->qty) }}</b></span><span>PHP {{ number_format($item->unit_cost ?? 0, 2) }}</span></div>
-                                            <form method="POST" action="{{ route('warehouse-pull-outs.review', $item->id) }}" class="queue-action-form mt-2">
-                                                @csrf
-                                                <label for="replacement_dr_number_{{ $item->id }}">DR #</label>
-                                                <div class="input-group input-group-sm"><input id="replacement_dr_number_{{ $item->id }}" class="form-control" name="replacement_dr_number" placeholder="Enter DR number" required><div class="input-group-append"><button class="btn btn-primary" type="submit" name="decision" value="Replacing">Replace</button></div></div>
-                                            </form>
-                                        @else
-                                            <div class="queue-complete">
-                                                @if ($item->approval_status === 'Replacing')
-                                                    <i class="bi bi-check-circle-fill text-primary"></i> Replacement stock posted
-                                                @else
-                                                    {{ $item->warehouse_remarks ?: 'No warehouse remarks.' }}
-                                                @endif
-                                            </div>
-                                        @endif
-                                            </div>
-                                        @endforeach
-                                    </td>
-                                </tr>
-                            @empty
-                            @endforelse
-                        </tbody>
+                        <tbody></tbody>
                     </table>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 
-    <style>
-        .pull-out-queue { color: #1f2937; }
-        .queue-hero { display:flex; align-items:center; justify-content:space-between; padding:24px 26px; color:#fff; background:linear-gradient(135deg,#0f172a,#1d4ed8); border-radius:14px; box-shadow:0 14px 30px rgba(30,64,175,.18); }
-        .queue-hero h4 { font-weight:800; }.queue-hero p { color:#dbeafe; }.queue-eyebrow { color:#bfdbfe; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; margin-bottom:5px; }.queue-hero-icon { display:grid; place-items:center; width:54px; height:54px; border-radius:14px; font-size:26px; background:rgba(255,255,255,.14); }
-        .queue-kpi { height:100%; display:flex; align-items:center; gap:13px; padding:16px 18px; background:#fff; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 5px 14px rgba(15,23,42,.05); }.queue-kpi-icon { display:grid; place-items:center; width:40px; height:40px; border-radius:10px; font-size:18px; }.queue-kpi small { display:block; color:#64748b; font-weight:700; }.queue-kpi strong { display:block; font-size:25px; line-height:1.1; }.queue-kpi.is-pending .queue-kpi-icon { color:#92400e;background:#fef3c7; }.queue-kpi.is-processing .queue-kpi-icon { color:#075985;background:#e0f2fe; }.queue-kpi.is-replacing .queue-kpi-icon { color:#1d4ed8;background:#dbeafe; }
-        .queue-card { border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:hidden; }.queue-card .card-header { padding:19px 21px; }.queue-card h5 { font-weight:800; }.queue-total { padding:6px 10px; color:#1d4ed8; font-size:12px; font-weight:800; background:#eff6ff; border-radius:999px; }.dataTables_scrollBody { border-bottom:0!important; }.queue-table { min-width:2230px; table-layout:fixed; }.queue-table thead th { padding:13px 14px; color:#526b8d; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; border-top:0; border-bottom:1px solid #dce5ef; background:#f8fafc; white-space:nowrap; }.queue-table tbody td { padding:13px 14px; border-color:#edf0f5; vertical-align:middle; background:#fff; }.queue-table tbody tr:hover td { background:#fbfdff; }.queue-table th:nth-child(1), .queue-table td:nth-child(1) { width:96px!important; }.queue-table th:nth-child(2), .queue-table td:nth-child(2) { width:154px!important; }.queue-table th:nth-child(3), .queue-table td:nth-child(3) { width:155px!important; }.queue-table th:nth-child(4), .queue-table td:nth-child(4) { width:280px!important; }.queue-table th:nth-child(5), .queue-table td:nth-child(5) { width:135px!important; }.queue-table th:nth-child(6), .queue-table td:nth-child(6) { width:120px!important; }.queue-table th:nth-child(7), .queue-table td:nth-child(7) { width:110px!important; }.queue-table th:nth-child(8), .queue-table td:nth-child(8) { width:125px!important; }.queue-table th:nth-child(9), .queue-table td:nth-child(9), .queue-table th:nth-child(10), .queue-table td:nth-child(10), .queue-table th:nth-child(11), .queue-table td:nth-child(11), .queue-table th:nth-child(12), .queue-table td:nth-child(12) { width:180px!important; }.queue-table th:nth-child(13), .queue-table td:nth-child(13) { width:165px!important; }.queue-table th:nth-child(14), .queue-table td:nth-child(14) { width:180px!important; }.queue-table th:nth-child(15), .queue-table td:nth-child(15) { width:220px!important; }.queue-table td:nth-child(1), .queue-table td:nth-child(2), .queue-table td:nth-child(6), .queue-table td:nth-child(7), .queue-table td:nth-child(8) { font-weight:700; overflow-wrap:anywhere; }.queue-action-column { min-width:205px; }.area-chip { display:inline-flex; align-items:center; gap:4px; margin:2px 4px 2px 0; color:#475569; font-size:12px; font-weight:700; }.area-chip i { color:#2563eb; }.aging-day { display:inline-flex; padding:4px 8px; color:#075985; font-size:11px; font-weight:800; white-space:nowrap; border-radius:999px; background:#e0f2fe; }.grouped-products { min-width:250px; }.grouped-product-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid #edf0f5; }.grouped-product-row:last-child { border-bottom:0; }.grouped-product-row strong, .grouped-product-row small { display:block; }.grouped-product-row small { color:#64748b; font-size:11px; }.qty-pill { padding:3px 7px; color:#075985; font-size:11px; font-weight:800; white-space:nowrap; border-radius:999px; background:#e0f2fe; }.group-total { display:block; margin-top:7px; color:#475569; font-weight:700; }
-        .product-workflow-list { min-width:175px; }.product-workflow-row { display:flex; align-items:center; flex-wrap:wrap; gap:5px; padding:7px 0; border-bottom:1px solid #edf0f5; }.product-workflow-row:last-child { border-bottom:0; }.product-workflow-row > small:first-child { flex:1 0 100%; color:#64748b; font-size:10px; font-weight:700; }.aging-product-row > small:first-child { display:flex; align-items:center; justify-content:space-between; gap:7px; }.aging-product-row > small span { color:#94a3b8; font-size:10px; font-weight:800; white-space:nowrap; }.product-workflow-detail { color:#64748b; font-size:10px; }.product-workflow-detail.is-confirmed-qty { color:#15803d; font-weight:800; }.workflow-badge { display:inline-flex; align-items:center; gap:5px; padding:5px 8px; font-size:11px; font-weight:800; border-radius:999px; white-space:nowrap; }.workflow-badge.is-pending { color:#92400e; background:#fef3c7; }.workflow-badge.is-processing { color:#075985; background:#e0f2fe; }.workflow-badge.is-replacing { color:#1d4ed8; background:#dbeafe; }.workflow-badge.is-confirmed { color:#166534; background:#dcfce7; }.workflow-badge.is-rejected { color:#b91c1c; background:#fee2e2; }
-        .queue-action-form { min-width:280px; }.item-action-card { padding:10px; margin-bottom:8px; border:1px solid #e5e7eb; border-radius:9px; background:#fff; }.item-action-card:last-child { margin-bottom:0; }.item-action-disclosure { min-width:190px; margin-bottom:7px; border:1px solid #dbe5ef; border-radius:8px; background:#fff; }.item-action-disclosure:last-child { margin-bottom:0; }.item-action-disclosure summary { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; color:#2563eb; font-size:11px; font-weight:800; cursor:pointer; list-style:none; }.item-action-disclosure summary::-webkit-details-marker { display:none; }.item-action-disclosure summary::after { content:'+'; font-size:15px; line-height:1; }.item-action-disclosure[open] summary { border-bottom:1px solid #e5e7eb; }.item-action-disclosure[open] summary::after { content:'–'; }.item-action-disclosure .item-action-card { margin:0; border:0; border-radius:0; }.item-action-title { display:flex; justify-content:space-between; gap:10px; margin-bottom:8px; color:#1e293b; font-size:12px; font-weight:800; }.item-action-title span { color:#075985; white-space:nowrap; }.queue-action-form label { display:block; margin-bottom:3px; color:#64748b; font-size:10px; font-weight:800; text-transform:uppercase; }.quantity-change-note { display:block; margin-top:4px; color:#b45309; font-size:10px; font-weight:700; }.approved-summary { display:flex; justify-content:space-between; padding:7px 9px; color:#075985; font-size:12px; background:#f0f9ff; border-radius:7px; }.queue-complete { color:#64748b; font-size:12px; }.proof-files { display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }.proof-files a { max-width:155px; overflow:hidden; color:#2563eb; font-size:11px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
-        .pull-out-queue .dataTables_wrapper { padding-top:16px; }.pull-out-queue .dataTables_length { float:left!important; }.pull-out-queue .dataTables_filter { float:right!important; margin:0 0 16px!important; text-align:right; }.pull-out-queue .dataTables_filter input, .pull-out-queue .dataTables_length select { min-height:36px; padding:6px 10px; border:1px solid #dbe2ea; border-radius:8px; background:#fff; }.pull-out-queue .dataTables_wrapper::after { display:block; clear:both; content:''; }.pull-out-queue .dataTables_info { float:left!important; padding-top:14px; color:#64748b; font-size:12px; }.pull-out-queue .dataTables_paginate { float:right!important; padding-top:10px; text-align:right!important; }.pull-out-queue .dataTables_paginate .paginate_button { min-width:32px; padding:6px 9px!important; margin-left:4px; color:#2563eb!important; border:1px solid #dbeafe!important; border-radius:7px!important; background:#eff6ff!important; }.pull-out-queue .dataTables_paginate .paginate_button.current { color:#fff!important; border-color:#2563eb!important; background:#2563eb!important; }
-        @media (max-width: 991.98px) { .queue-table { min-width:1680px; }.queue-action-column { min-width:300px; }.pull-out-queue .dataTables_wrapper .row { align-items:center; } }
-        @media (max-width: 767.98px) { .queue-hero { padding:20px; }.queue-hero-icon { width:46px; height:46px; font-size:22px; }.pull-out-queue .dataTables_length, .pull-out-queue .dataTables_filter, .pull-out-queue .dataTables_info, .pull-out-queue .dataTables_paginate { float:none!important; text-align:left!important; }.pull-out-queue .dataTables_filter { margin-top:10px!important; }.pull-out-queue .dataTables_filter input { width:190px; }.queue-card .card-header { padding:17px; } }
-        @media (max-width: 575.98px) { .pull-out-queue { padding-right:12px; padding-left:12px; }.queue-hero { align-items:flex-start; gap:15px; padding:18px; }.queue-hero h4 { font-size:19px; }.queue-kpi { padding:13px; }.queue-kpi strong { font-size:22px; }.queue-card { overflow:visible; }.queue-table { min-width:0; }.queue-table thead { display:none; }.queue-table, .queue-table tbody, .queue-table tr, .queue-table td { display:block; width:100%; }.queue-table tbody tr { margin-bottom:12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; overflow:hidden; }.queue-table tbody td { align-items:flex-start; gap:14px; padding:11px 13px; border:0; border-bottom:1px solid #f1f5f9; text-align:center; }.queue-table tbody td::before { content:attr(data-label); flex:0 0 82px; color:#64748b; font-size:10px; font-weight:800; text-align:left; text-transform:uppercase; letter-spacing:.04em; }.queue-table .queue-action-cell { display:block; text-align:left; }.queue-table .queue-action-cell::before { display:block; margin-bottom:8px; }.queue-action-form { min-width:0; }.queue-action-form .form-row { margin-right:-3px; margin-left:-3px; }.queue-action-form .form-row > .col-4 { padding-right:3px; padding-left:3px; }.approved-summary { width:100%; }.proof-files { margin-top:10px; }.pull-out-queue .dataTables_wrapper .row > div { width:100%; max-width:100%; }.pull-out-queue .dataTables_length, .pull-out-queue .dataTables_filter { margin-bottom:10px; text-align:left; }.pull-out-queue .dataTables_filter input { width:calc(100% - 115px); }.pull-out-queue .dataTables_paginate { margin-top:10px; text-align:left; }.pull-out-queue .dataTables_info { margin-bottom:8px; } }
-    </style>
+    @include('inventory_transfers.partials.warehouse_release_dialog')
 
     <script>
         document.addEventListener('DOMContentLoaded', async function () {
-            function syncChangedQuantityRemarks(quantityInput) {
-                var form = quantityInput.closest('form');
-                if (!form) return;
-
-                var remarksInput = form.querySelector('.js-warehouse-remarks');
-                var remarksLabel = form.querySelector('.js-remarks-label');
-                var changeNote = form.querySelector('.js-quantity-change-note');
-                var hasChanged = Number(quantityInput.value) !== Number(quantityInput.dataset.requestedQty);
-
-                if (remarksInput) remarksInput.required = hasChanged;
-                if (remarksLabel) remarksLabel.textContent = hasChanged ? 'Remarks *' : 'Remarks';
-                if (changeNote) changeNote.classList.toggle('d-none', !hasChanged);
-            }
-
-            document.addEventListener('input', function (event) {
-                if (event.target.matches('.js-approved-qty')) syncChangedQuantityRemarks(event.target);
-            });
-            document.querySelectorAll('.js-approved-qty').forEach(syncChangedQuantityRemarks);
 
             if (!window.jQuery) return;
 
@@ -257,98 +99,372 @@
                     return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character];
                 });
             };
-            var productRows = function (items) {
-                return '<div class="grouped-products">' + items.map(function (item) {
-                    return '<div class="grouped-product-row"><div><strong>' + escapeHtml(item.name) + '</strong><small>' + escapeHtml(item.sku) + '</small></div><span class="qty-pill">' + Number(item.requested_qty).toLocaleString() + ' pcs</span></div>';
-                }).join('') + '</div>';
+            const text = value => escapeHtml(releaseLabel(value));
+            const units = value => Number(value || 0).toLocaleString();
+            const statusClasses = {
+                'Pending': 'pending', 'For Processing': 'processing', 'Replacing': 'replacing',
+                'AD Confirmed': 'confirmed', 'Rejected': 'rejected'
             };
-            var workflowRows = function (items) {
-                var statusMeta = {
-                    'Pending': ['is-pending', 'bi-hourglass-split'],
-                    'For Processing': ['is-processing', 'bi-gear'],
-                    'Replacing': ['is-replacing', 'bi-check2-circle'],
-                    'AD Confirmed': ['is-confirmed', 'bi-check-circle-fill'],
-                    'Rejected': ['is-rejected', 'bi-x-circle']
-                };
-                return '<div class="product-workflow-list">' + items.map(function (item) {
-                    var status = item.status || 'Pending';
-                    var meta = statusMeta[status] || ['is-rejected', 'bi-info-circle'];
-                    var dr = status === 'Replacing' && item.dr_number ? '<small class="product-workflow-detail">DR # ' + escapeHtml(item.dr_number) + '</small>' : '';
-                    var confirmedQty = status === 'AD Confirmed' ? '<small class="product-workflow-detail is-confirmed-qty">Confirmed: ' + Number(item.ad_confirmed_qty || 0).toLocaleString() + ' pcs</small>' : '';
-                    return '<div class="product-workflow-row"><small>' + escapeHtml(item.name) + '</small><span class="workflow-badge ' + meta[0] + '"><i class="bi ' + meta[1] + '"></i>' + escapeHtml(status) + '</span>' + dr + confirmedQty + '</div>';
-                }).join('') + '</div>';
-            };
-            var agingRows = function (items, status) {
-                var matches = items.filter(function (item) {
-                    return item.aging && item.aging[status] !== null && item.aging[status] !== undefined;
+            function statusBadge(status, suffix = '') {
+                return `<span class="queue-status ${statusClasses[status] || ''}">${text(status)}${suffix}</span>`;
+            }
+            function productSummary(products, total) {
+                const visible = products.slice(0, 2).map(product =>
+                    `<div class="queue-mini-product"><span>${text(product.name)}</span><b>${units(product.qty)} pcs</b></div>`
+                ).join('');
+                const more = products.length > 2 ? `+${products.length - 2} more · ` : '';
+                return visible + `<small class="queue-subtext">${more}${units(total)} pcs requested</small>`;
+            }
+            function progressSummary(items) {
+                const counts = new Map();
+                items.forEach(item => {
+                    const status = item.status || 'Pending';
+                    const qty = status === 'Pending' || status === 'Rejected' ? item.requested_qty : item.approved_qty;
+                    counts.set(status, (counts.get(status) || 0) + Number(qty));
                 });
-                if (!matches.length) return '<span class="text-muted">—</span>';
-                return '<div class="product-workflow-list">' + matches.map(function (item) {
-                    var days = Number(item.aging[status]);
-                    days = Number.isFinite(days) ? Math.max(0, days) : 0;
-                    return '<div class="product-workflow-row aging-product-row"><small>' + escapeHtml(item.name) + '<span>' + Number(item.requested_qty).toLocaleString() + ' pcs</span></small><span class="aging-day">' + days + ' Day(s)</span></div>';
-                }).join('') + '</div>';
-            };
-            var actionRows = function (items) {
-                return items.map(function (item) {
-                    var displayQuantity = item.status === 'AD Confirmed'
-                        ? Number(item.ad_confirmed_qty || 0)
-                        : Number(item.requested_qty || 0);
-                    var heading = '<div class="item-action-title">' + escapeHtml(item.name) + '<span>' + displayQuantity.toLocaleString() + ' pcs</span></div>';
-                    var action = '';
-                    if (item.status === 'Pending') {
-                        action = '<form method="POST" action="' + escapeHtml(item.review_url) + '" class="queue-action-form">'
-                            + '<input type="hidden" name="_token" value="' + csrfToken + '"><div class="form-row">'
-                            + '<div class="col-4"><label>Approve Qty</label><input class="form-control form-control-sm js-approved-qty" type="number" name="replacement_qty" min="1" max="' + item.requested_qty + '" value="' + item.requested_qty + '" data-requested-qty="' + item.requested_qty + '" required></div>'
-                            + '<div class="col-4"><label>Unit Cost</label><input class="form-control form-control-sm" type="number" name="replacement_unit_cost" min="0" step="0.01" value="' + (item.replacement_unit_cost || '') + '"></div>'
-                            + '<div class="col-4"><label class="js-remarks-label">Remarks</label><input class="form-control form-control-sm js-warehouse-remarks" name="warehouse_remarks" placeholder="Optional"><small class="quantity-change-note js-quantity-change-note d-none">Required when quantity changes.</small></div>'
-                            + '</div><div class="d-flex mt-2"><button class="btn btn-success btn-sm" type="submit" name="decision" value="For Processing"><i class="bi bi-check-lg"></i> Process</button><button class="btn btn-outline-danger btn-sm ml-2" type="submit" name="decision" value="Rejected">Reject</button></div></form>';
-                    } else if (item.status === 'For Processing') {
-                        action = '<div class="approved-summary"><span>Approved: <b>' + Number(item.approved_qty).toLocaleString() + '</b></span><span>PHP ' + Number(item.unit_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></div>'
-                            + '<form method="POST" action="' + escapeHtml(item.review_url) + '" class="queue-action-form mt-2"><input type="hidden" name="_token" value="' + csrfToken + '"><label>DR #</label><div class="input-group input-group-sm"><input class="form-control" name="replacement_dr_number" placeholder="Enter DR number" required><div class="input-group-append"><button class="btn btn-primary" type="submit" name="decision" value="Replacing">Replace</button></div></div></form>';
-                    } else {
-                        action = '<div class="queue-complete">' + (item.status === 'Replacing' ? '<i class="bi bi-check-circle-fill text-primary"></i> Replacement stock posted' : escapeHtml(item.remarks || 'No warehouse remarks.')) + '</div>';
-                    }
-                    return '<details class="item-action-disclosure"><summary>' + escapeHtml(item.name) + '<span>' + displayQuantity.toLocaleString() + ' pcs</span></summary><div class="item-action-card">' + heading + action + '</div></details>';
+                return '<div class="queue-status-list">' + Array.from(counts, ([status, qty]) =>
+                    statusBadge(status, ' · ' + units(qty) + ' pcs')).join('') + '</div>';
+            }
+            function bulkApprovalForm(row) {
+                const pending = row.items.filter(item => item.status === 'Pending');
+                if (!pending.length) return '';
+                const fields = pending.map((item, index) => {
+                    const capacity = Number(item.requested_qty);
+                    return `<fieldset class="queue-approval-line" data-capacity="${capacity}">
+                        <legend><span class="queue-product-heading"><span class="queue-product-index" aria-hidden="true">${index + 1}</span>
+                            <span><strong>${text(item.name)}</strong><small>${text(item.sku)}</small></span>
+                            <span class="queue-pending-count">${units(capacity)} pending</span></span></legend>
+                        <input type="hidden" name="lines[${index}][line_id]" value="${Number(item.id)}">
+                        <div class="queue-approval-fields">
+                            <label><span class="queue-form-label">Approve quantity</span>
+                                <span class="queue-quantity-input"><input type="number" name="lines[${index}][qty]" class="form-control js-approval-qty" min="0" max="${capacity}" step="1" inputmode="numeric" placeholder="0" aria-label="Approve quantity for ${text(item.name)}" aria-describedby="approval-balance-${Number(item.id)}"><span aria-hidden="true">pcs</span></span></label>
+                            <div class="queue-balance" id="approval-balance-${Number(item.id)}"><span class="queue-form-label">Still pending</span>
+                                <span class="queue-balance-value"><b class="js-pending-balance">${units(capacity)}</b> <small>pcs</small></span></div>
+                            <label class="queue-remarks-field"><span class="queue-form-label js-remark-label">Remarks <small>optional</small></span>
+                                <input name="lines[${index}][remarks]" class="form-control js-approval-remark" maxlength="1000" placeholder="Optional"></label>
+                        </div>
+                    </fieldset>`;
                 }).join('');
-            };
-            var dataTable = table.DataTable({
-                processing: true,
-                serverSide: true,
-                deferRender: true,
-                searchDelay: 350,
-                scrollX: true,
-                scrollCollapse: true,
-                pageLength: 25,
-                lengthMenu: [[25, 50, 100], [25, 50, 100]],
-                order: [[0, 'desc']],
-                autoWidth: false,
+                return `<form method="POST" action="${text(row.approval_url)}" class="queue-bulk-approval">
+                    <input type="hidden" name="_token" value="${escapeHtml(csrfToken)}">
+                    <div class="queue-approval-toolbar"><div><h3>Review products <span class="queue-total">${pending.length}</span></h3>
+                        <p>Enter full or partial quantities to approve.</p></div>
+                        <div class="queue-fill-actions"><button type="button" class="btn btn-outline-primary btn-sm js-fill-pending">Fill all quantities</button>
+                            <button type="button" class="btn btn-light btn-sm js-clear-pending" disabled>Clear</button></div></div>
+                    <div class="queue-approval-products">${fields}</div>
+                    <p class="queue-approval-help">Unapproved quantities stay pending on this request.</p>
+                    <div class="queue-approval-toolbar queue-approval-footer"><div><span class="queue-form-label">Ready to approve</span><strong class="js-approval-total" aria-live="polite">0 products · 0 units</strong></div>
+                        <button class="btn btn-success js-submit-approval" type="submit" disabled>Approve selected products <span aria-hidden="true">&rarr;</span></button></div>
+                </form>`;
+            }
+            function syncBulkApproval(form) {
+                let count = 0, total = 0, valid = true;
+                form.querySelectorAll('.queue-approval-line').forEach(line => {
+                    const input = line.querySelector('.js-approval-qty');
+                    const capacity = Number(line.dataset.capacity), qty = Number(input.value);
+                    const partial = qty > 0 && qty < capacity;
+                    line.classList.toggle('is-selected', qty > 0 && input.validity.valid);
+                    line.querySelector('.js-pending-balance').textContent = input.validity.valid ? units(capacity - qty) : '—';
+                    const remark = line.querySelector('.js-approval-remark');
+                    remark.required = partial;
+                    remark.placeholder = partial ? 'Reason for partial approval' : 'Optional';
+                    line.querySelector('.js-remark-label').innerHTML = partial ? 'Remarks <small class="queue-required">required</small>' : 'Remarks <small>optional</small>';
+                    if (qty > 0) { count++; total += qty; }
+                    valid = valid && input.validity.valid;
+                });
+                form.querySelector('.js-approval-total').textContent = `${count} ${count === 1 ? 'product' : 'products'} · ${units(total)} units`;
+                form.querySelector('.js-submit-approval').disabled = !count || !valid;
+                form.querySelector('.js-clear-pending').disabled = !Array.from(form.querySelectorAll('.js-approval-qty')).some(input => input.value !== '');
+            }
+            table.on('input', '.js-approval-qty', function () { syncBulkApproval(this.form); });
+            table.on('click', '.js-fill-pending', function () {
+                this.form.querySelectorAll('.js-approval-qty').forEach(input => { input.value = input.max; });
+                syncBulkApproval(this.form);
+            });
+            table.on('click', '.js-clear-pending', function () {
+                this.form.querySelectorAll('.js-approval-qty').forEach(input => { input.value = ''; });
+                syncBulkApproval(this.form);
+            });
+            table.on('submit', '.queue-bulk-approval', function (event) {
+                const button = this.querySelector('.js-submit-approval');
+                if (button.disabled) event.preventDefault();
+                button.disabled = true;
+            });
+            function productDetail(item) {
+                const age = Object.entries(item.aging || {}).filter(([, days]) => days != null).map(([stage, days]) =>
+                    `${text(stage)}: ${units(days)}d`).join(' · ');
+                const status = item.status || 'Pending';
+                const qty = status === 'Pending' || status === 'Rejected' ? item.requested_qty : item.approved_qty;
+                let workflow = '';
+                if (item.dr_number) workflow += `<p>DR <strong>${text(item.dr_number)}</strong></p>`;
+                if (status === 'Pending') workflow += `<form method="POST" class="queue-rejection" action="${text(item.review_url)}">
+                    <input type="hidden" name="_token" value="${escapeHtml(csrfToken)}">
+                    <label><span class="queue-form-label">Rejection remarks (optional)</span>
+                        <input name="warehouse_remarks" class="form-control" maxlength="1000"></label>
+                    <button class="btn btn-outline-danger btn-sm" type="submit" name="decision" value="Rejected">Reject pending quantity</button>
+                    </form>`;
+                if (status === 'For Processing') workflow += `<p>${units(item.approved_qty)} approved · Unit cost PHP ${Number(item.unit_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</p>`;
+                if (status === 'Replacing') workflow += '<p>Awaiting distributor receipt.</p>';
+                if (status === 'AD Confirmed') workflow += `<p>${units(item.ad_confirmed_qty)} pcs received</p>`;
+                if (item.remarks) workflow += `<p>${text(item.remarks)}</p>`;
+                return `<details class="queue-product-detail"><summary>
+                    <strong>${text(item.name)}</strong><span>${units(qty)} pcs</span>${statusBadge(status)}
+                    </summary><div class="queue-portion"><p class="queue-subtext">${text(item.sku)} · ${units(item.requested_qty)} requested</p>
+                    ${age ? `<p class="queue-subtext">Time in stage · ${age}</p>` : ''}${workflow}</div></details>`;
+            }
+            function requestDetails(row, panelId) {
+                const metadata = [
+                    ['Source areas', row.source_areas.join(', ')], ['RIS number', row.ris_number],
+                    ['RIS date', row.ris_date], ['Warehouse', row.warehouse]
+                ].map(([label, value]) => `<div><dt>${label}</dt><dd>${text(value || '—')}</dd></div>`).join('');
+                const files = (row.attachments || []).map(file => {
+                    const path = typeof file === 'string' ? file : file.path;
+                    if (!path) return '';
+                    const href = appUrl + '/' + releaseLabel(path).replace(/^\/+/, '');
+                    const name = typeof file === 'object' && file.name ? file.name : path;
+                    return `<a class="queue-file" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer"><span class="queue-file-icon" aria-hidden="true">↗</span><span>${text(name)}</span><span class="visually-hidden"> (opens in a new tab)</span></a>`;
+                }).join('');
+                const totals = row.products.map(product => `<div><dt>${text(product.name)}</dt><dd>${units(product.open)} awaiting release · ${units(product.confirmed)} received</dd></div>`).join('');
+                const approval = bulkApprovalForm(row);
+                return `<section class="queue-details" id="${panelId}" aria-label="Request details">
+                    <div class="queue-review-main">
+                        ${approval}
+                        <details class="queue-tracking" ${approval ? '' : 'open'}><summary>Product tracking and history</summary>
+                            <div class="queue-tracking-body"><dl class="queue-meta">${totals}</dl>
+                            ${row.items.map(productDetail).join('')}</div>
+                        </details>
+                    </div>
+                    <aside class="queue-context" aria-label="Request information">
+                        <h3>Request information</h3><dl class="queue-meta">${metadata}</dl>
+                        <div class="queue-docs"><h4>Attachments</h4>${files || '<span class="queue-context-empty">No attachments</span>'}</div>
+                        <div class="queue-docs"><h4>Request remarks</h4><p class="queue-request-remarks">${text(row.remarks || 'No remarks added.')}</p></div>
+                    </aside></section>`;
+            }
+            const labels = ['Request', 'Distributor', 'Products', 'Progress', 'Actions'];
+            const dataTable = table.DataTable({
+                processing: true, serverSide: true, deferRender: true, searchDelay: 350, autoWidth: false,
+                dom: "<'queue-tools'lf>rt<'queue-foot'ip>",
+                pageLength: 25, lengthMenu: [25, 50, 100], order: [[6, 'desc']],
                 ajax: { url: @json(route('warehouse-pull-outs.data')) },
                 columns: [
-                    { data: 'date', name: 'sort_date' },
-                    { data: 'reference' },
-                    { data: 'ad_name' },
-                    { data: 'items', orderable: false, searchable: true, render: function (items, type, row) { return productRows(items) + '<small class="group-total">Total requested: ' + Number(row.requested_qty_total).toLocaleString() + ' pcs</small>'; } },
-                    { data: 'source_areas', orderable: false, render: function (areas) { return areas.length ? areas.map(function (area) { return '<span class="area-chip"><i class="bi bi-geo-alt"></i>' + escapeHtml(area) + '</span>'; }).join('') : '—'; } },
-                    { data: 'ris_number' },
-                    { data: 'ris_date' },
-                    { data: 'warehouse' },
-                    { data: 'items', orderable: false, searchable: false, render: workflowRows },
-                    { data: 'items', orderable: false, searchable: false, render: function (items) { return agingRows(items, 'Pending'); } },
-                    { data: 'items', orderable: false, searchable: false, render: function (items) { return agingRows(items, 'For Processing'); } },
-                    { data: 'items', orderable: false, searchable: false, render: function (items) { return agingRows(items, 'Replacing'); } },
-                    { data: 'attachments', orderable: false, searchable: false, render: function (files) { return files.length ? files.map(function (file) { var path = typeof file === 'object' ? file.path : file; var name = typeof file === 'object' ? (file.name || path) : path; return path ? '<a class="d-block text-primary small text-truncate" style="max-width:160px" href="' + appUrl + '/' + String(path).replace(/^\/+/, '') + '" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip"></i> ' + escapeHtml(name) + '</a>' : ''; }).join('') : '<span class="text-muted">—</span>'; } },
-                    { data: 'remarks' },
-                    { data: 'items', orderable: false, searchable: false, render: actionRows }
+                    { data: 'reference', orderData: [6], render: (ref, type, row) =>
+                        `<strong class="queue-ref">${text(ref)}</strong><small class="queue-subtext">${text(row.date)}</small>` },
+                    { data: 'ad_name', render: (name, type, row) =>
+                        `<strong>${text(name)}</strong><small class="queue-subtext">${text(row.source_areas.join(', '))}</small>` },
+                    { data: 'products', orderable: false, searchable: false, render: (products, type, row) => productSummary(products, row.requested_qty_total) },
+                    { data: 'items', orderable: false, searchable: false, render: progressSummary },
+                    { data: null, orderable: false, searchable: false, render: function (data, type, row) {
+                        const ready = row.release_products.length > 0;
+                        const pending = row.items.some(item => item.status === 'Pending');
+                        return `<div class="queue-actions">${ready ? '<button type="button" class="btn btn-success btn-sm js-open-dr-release" aria-haspopup="dialog">Release products</button>' : ''}
+                            <button type="button" class="btn ${pending && !ready ? 'btn-primary' : 'btn-outline-primary'} btn-sm js-review-request" aria-expanded="false">${pending ? 'Review request' : 'View details'}</button></div>`;
+                    } },
+                    { data: 'search_text', visible: false, orderable: false },
+                    { data: 'sort_date', visible: false, searchable: false }
                 ],
                 createdRow: function (row) {
-                    ['Date', 'Reference', 'Distributor', 'Products & Quantities', 'Source Areas', 'RIS Number', 'RIS Date', 'Warehouse', 'Product Status', 'Pending Aging', 'Processing Aging', 'Replacing Aging', 'Attachments', 'Remarks', 'Item Actions'].forEach(function (label, index) {
-                        row.children[index].setAttribute('data-label', label);
-                    });
+                    labels.forEach((label, i) => row.cells[i].setAttribute('data-label', label));
                 },
-                language: { processing: '<i class="bi bi-arrow-repeat me-1"></i> Loading replacement requests...', search: 'Search requests:', lengthMenu: 'Show _MENU_ requests', emptyTable: 'No Pull Out replacement requests for this warehouse.', zeroRecords: 'No matching replacement requests found.' }
+                language: {
+                    processing: 'Loading requests…', search: 'Search', searchPlaceholder: 'Find a request…',
+                    lengthMenu: 'Show _MENU_', info: 'Showing _START_–_END_ of _TOTAL_ requests', infoEmpty: '0 requests',
+                    emptyTable: 'No Pull Out requests for this warehouse.', zeroRecords: 'No requests match this search.'
+                }
             });
-            table.on('draw.dt', function () { table.find('.js-approved-qty').each(function () { syncChangedQuantityRemarks(this); }); });
+            table.on('click', '.js-review-request', function () {
+                const tr = this.closest('tr'), row = dataTable.row(tr);
+                const opening = !row.child.isShown();
+                if (opening) {
+                    const id = 'queue-details-' + row.index();
+                    if (!row.child()) row.child(requestDetails(row.data(), id), 'queue-detail-row');
+                    row.child.show();
+                    this.setAttribute('aria-controls', id);
+                    this.dataset.closedLabel = this.textContent;
+                } else {
+                    row.child.hide();
+                }
+                tr.classList.toggle('is-expanded', opening);
+                this.setAttribute('aria-expanded', String(opening));
+                this.textContent = opening ? 'Close details' : this.dataset.closedLabel;
+            });
+            const dialog = document.getElementById('pullOutReleaseDialog');
+            const form = document.getElementById('pullOutReleaseForm');
+            const products = document.getElementById('drReleaseProducts');
+            const submit = document.getElementById('drReleaseSubmit');
+            const clearRelease = document.getElementById('drClear');
+            const drChoice = document.getElementById('drReleaseChoice');
+            const drOrder = document.getElementById('drReleaseOrder');
+            const drNumber = document.getElementById('drReleaseNumber');
+            const drHelp = document.getElementById('drNumberHelp');
+            const drRetry = document.getElementById('drRetryReceipts');
+            let drOptions = [], drLoading = false, drFailed = false, drRequest = null, drLoadVersion = 0, drFetch = null;
+            // DataTables escapes the JSON labels for HTML. Decode one layer for textContent.
+            function releaseLabel(value) {
+                const entities = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'" };
+                return String(value == null ? '' : value).replace(/&(amp|lt|gt|quot|#039);/g, entity => entities[entity]);
+            }
+            function syncDeliveryReceipt() {
+                const manual = drChoice.value === 'manual';
+                const selected = drOptions.find(option => String(option.id) === drChoice.value);
+                drOrder.value = selected ? selected.id : '';
+                document.getElementById('drManualEntry').hidden = !manual;
+                drNumber.required = manual;
+                if (!manual) drNumber.value = selected ? selected.dr_number : '';
+                if (!drLoading) {
+                    drHelp.textContent = drFailed
+                        ? 'Unable to load DPO receipts. Retry or enter a new DR number.'
+                        : selected ? [selected.po_number, selected.delivery_date ? 'Delivery ' + selected.delivery_date : '', 'One DR for all selected products.'].filter(Boolean).join(' · ')
+                        : drOptions.length ? 'Select a DR from this distributor’s For Delivery DPOs, or enter a new DR number.'
+                        : 'No For Delivery DPO with a DR number was found for this distributor. Enter a new DR number.';
+                }
+                updateReleaseTotal();
+            }
+            async function loadDeliveryReceipts(request) {
+                const version = ++drLoadVersion;
+                drRequest = request;
+                drLoading = true;
+                drFailed = false;
+                drOptions = [];
+                drOrder.value = '';
+                drNumber.value = '';
+                drNumber.required = false;
+                document.getElementById('drManualEntry').hidden = true;
+                drChoice.replaceChildren(new Option('Loading delivery receipts…', ''));
+                drChoice.disabled = true;
+                drRetry.hidden = true;
+                drHelp.textContent = 'Loading this distributor’s For Delivery DPOs…';
+                updateReleaseTotal();
+                if (drFetch) drFetch.abort();
+                const controller = new AbortController();
+                drFetch = controller;
+                const timeout = window.setTimeout(() => controller.abort(), 15000);
+                try {
+                    const response = await fetch(request.delivery_receipts_url, {headers: {'Accept': 'application/json'}, credentials: 'same-origin', cache: 'no-store', signal: controller.signal});
+                    if (!response.ok) throw new Error('Unable to load delivery receipts');
+                    const data = await response.json();
+                    if (!Array.isArray(data.delivery_receipts)) throw new Error('Invalid delivery receipts');
+                    if (version !== drLoadVersion) return;
+                    drOptions = data.delivery_receipts;
+                } catch (error) {
+                    if (version !== drLoadVersion) return;
+                    drFailed = true;
+                    drRetry.hidden = false;
+                } finally {
+                    window.clearTimeout(timeout);
+                }
+                if (version !== drLoadVersion) return;
+                drLoading = false;
+                drChoice.replaceChildren();
+                if (drOptions.length) {
+                    const placeholder = new Option('Select a DPO delivery receipt', '');
+                    placeholder.disabled = true;
+                    placeholder.selected = true;
+                    drChoice.add(placeholder);
+                    drOptions.forEach(option => drChoice.add(new Option([option.dr_number, option.po_number, option.delivery_date].filter(Boolean).join(' · '), option.id)));
+                }
+                drChoice.add(new Option('Enter a new DR number', 'manual'));
+                drChoice.value = drOptions.length ? '' : 'manual';
+                drChoice.disabled = false;
+                syncDeliveryReceipt();
+                if (document.activeElement === dialog || document.activeElement === dialog.querySelector('.dr-close')) {
+                    (drChoice.value === 'manual' ? drNumber : drChoice).focus();
+                }
+            }
+            function updateReleaseTotal() {
+                let units = 0, selected = 0, valid = true, hasInput = false;
+                products.querySelectorAll('.dr-line-qty').forEach(function (input) {
+                    const qty = Number(input.value), available = Number(input.max);
+                    const line = input.closest('.dr-product'), error = line.querySelector('.dr-quantity-error');
+                    let message = '';
+                    if (input.validity.badInput || !Number.isInteger(qty) || qty < 0) {
+                        message = 'Enter a whole number of 0 or more.';
+                    } else if (qty > available) {
+                        message = 'Only ' + available.toLocaleString() + ' approved pcs are available to release.';
+                    }
+                    const lineValid = !message && input.validity.valid;
+                    valid = valid && lineValid;
+                    hasInput = hasInput || input.value !== '' || input.validity.badInput;
+                    if (lineValid && qty > 0) { units += qty; selected++; }
+                    error.textContent = message;
+                    error.hidden = !message;
+                    input.setAttribute('aria-invalid', String(!lineValid));
+                    line.classList.toggle('has-error', !lineValid);
+                    line.classList.toggle('is-selected', lineValid && qty > 0);
+                    line.querySelector('.dr-remaining b').textContent = lineValid ? (available - qty).toLocaleString() : '—';
+                });
+                document.getElementById('drReleaseTotal').textContent = selected + (selected === 1 ? ' product' : ' products') + ' · ' + units.toLocaleString() + ' units';
+                const receiptValid = !drLoading && (drChoice.value === 'manual'
+                    ? drNumber.value.trim() !== '' && drNumber.validity.valid
+                    : drOptions.some(option => String(option.id) === drChoice.value));
+                submit.disabled = !valid || !selected || !receiptValid;
+                clearRelease.disabled = !hasInput;
+                return valid && selected > 0 && receiptValid;
+            }
+            table.on('click', '.js-open-dr-release', function () {
+                const request = dataTable.row(this.closest('tr')).data();
+                form.reset();
+                delete form.dataset.submitting;
+                form.action = request.release_url;
+                document.getElementById('drReleaseReference').textContent = releaseLabel(request.reference);
+                document.getElementById('drProductCount').textContent = request.release_products.length;
+                products.textContent = '';
+                request.release_products.forEach(function (product, index) {
+                    const line = document.getElementById('drReleaseLine').content.cloneNode(true);
+                    const id = line.querySelector('.dr-line-id'), qty = line.querySelector('.dr-line-qty');
+                    id.name = 'lines[' + index + '][line_id]';
+                    id.value = product.line_id;
+                    qty.name = 'lines[' + index + '][qty]';
+                    qty.max = product.available;
+                    const name = releaseLabel(product.name);
+                    qty.setAttribute('aria-label', 'Release quantity for ' + name);
+                    const prefix = 'dr-product-' + index;
+                    qty.setAttribute('aria-describedby', prefix + '-limit ' + prefix + '-balance ' + prefix + '-error');
+                    line.querySelector('.dr-product').setAttribute('aria-labelledby', prefix + '-name');
+                    line.querySelector('.dr-product-name strong').id = prefix + '-name';
+                    line.querySelector('.dr-product-name strong').textContent = name;
+                    const sku = line.querySelector('.dr-product-sku');
+                    sku.textContent = releaseLabel(product.sku);
+                    sku.hidden = !product.sku;
+                    line.querySelector('.dr-approved-count').textContent = Number(product.available).toLocaleString();
+                    const limit = line.querySelector('.dr-quantity-limit');
+                    limit.id = prefix + '-limit';
+                    limit.textContent = 'Maximum ' + Number(product.available).toLocaleString() + ' pcs';
+                    line.querySelector('.dr-remaining').id = prefix + '-balance';
+                    line.querySelector('.dr-quantity-error').id = prefix + '-error';
+                    products.appendChild(line);
+                });
+                loadDeliveryReceipts(request);
+                dialog.showModal();
+                dialog.querySelector('.dr-dialog-body').scrollTop = 0;
+            });
+            products.addEventListener('input', updateReleaseTotal);
+            drChoice.addEventListener('change', function () {
+                drNumber.value = '';
+                syncDeliveryReceipt();
+                if (drChoice.value === 'manual') drNumber.focus();
+            });
+            drNumber.addEventListener('input', updateReleaseTotal);
+            drRetry.addEventListener('click', function () { if (drRequest) loadDeliveryReceipts(drRequest); });
+            dialog.addEventListener('close', function () { drLoadVersion++; if (drFetch) drFetch.abort(); });
+            document.getElementById('drFillAll').addEventListener('click', function () {
+                products.querySelectorAll('.dr-line-qty').forEach(input => { input.value = input.max; });
+                updateReleaseTotal();
+            });
+            clearRelease.addEventListener('click', function () {
+                products.querySelectorAll('.dr-line-qty').forEach(input => { input.value = ''; });
+                updateReleaseTotal();
+            });
+            dialog.querySelectorAll('.js-close-dr').forEach(function (button) {
+                button.addEventListener('click', function () { dialog.close(); });
+            });
+            form.addEventListener('submit', function (event) {
+                if (form.dataset.submitting === 'true' || !updateReleaseTotal()) {
+                    event.preventDefault();
+                    return;
+                }
+                form.dataset.submitting = 'true';
+                submit.disabled = true;
+            });
         });
     </script>
 @endsection

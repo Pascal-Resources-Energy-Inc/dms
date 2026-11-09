@@ -85,6 +85,10 @@
     @php
         $dealerPageTitle = $dealerPageTitle ?? 'Dealers';
         $dealerSingularTitle = $dealerSingularTitle ?? 'Dealer';
+        $dealerServerSide = $dealerServerSide ?? false;
+        $dealerDataUrl = $dealerDataUrl ?? null;
+        $isMegaDealerPage = $isMegaDealerPage ?? false;
+        $totalDealers = $totalDealers ?? $dealers->count();
         $isAdminDealerPage = auth()->user()->role == 'Admin' && Route::currentRouteName() !== 'mds';
         $adminCrmDealers = $adminCrmDealers ?? collect();
         $adminCrm2Dealers = $adminCrm2Dealers ?? collect();
@@ -94,7 +98,11 @@
             || (auth()->user()->hasAreaDistributorAccess() && Route::currentRouteName() !== 'mds')
         );
 
-        if ($isAdminDealerPage) {
+        if ($isMegaDealerPage) {
+            $dealerTabs = collect($megaDealerTabs ?? [
+                ['key' => 'regular', 'label' => 'Regular', 'icon' => 'ti ti-building-store', 'count' => $totalDealers],
+            ]);
+        } elseif ($isAdminDealerPage) {
             $dealerTabs = collect([
                 ['key' => 'Regular', 'label' => 'Regular', 'icon' => 'ti ti-building-store', 'count' => $adminRegularDealers->count()],
                 ['key' => 'admin_crms', 'label' => 'Project Rise', 'icon' => 'ti ti-database', 'count' => $adminCrmDealers->count()],
@@ -154,7 +162,7 @@
                         <i class="ti ti-users"></i>
                     </div>
                     <div>
-                        <div class="dealer-stat-value">{{ number_format($dealers->count()) }}</div>
+                        <div class="dealer-stat-value">{{ number_format($totalDealers) }}</div>
                         <div class="dealer-stat-label">Total {{ $dealerPageTitle }}</div>
                     </div>
                 </div>
@@ -189,7 +197,7 @@
                 <div class="card dealer-table-card w-100">
                     <div class="card-header bg-white d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
                         <div>
-                            <h5 class="mb-0" id="dealerTableTitle">{{ $initialDealerLabel }} Dealers</h5>
+                            <h5 class="mb-0" id="dealerTableTitle">{{ $initialDealerLabel }} {{ $isMegaDealerPage ? 'Mega Dealers' : 'Dealers' }}</h5>
                             <div class="small text-muted" id="dealerTableCount">{{ $initialDealerCount }} record{{ $initialDealerCount == 1 ? '' : 's' }} listed</div>
                         </div>
                         <div class="dealer-tabs mt-3 mt-lg-0" role="tablist" aria-label="Dealer type">
@@ -209,13 +217,13 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div id="dealerEmptyState" class="dealer-empty-state" style="display: {{ $dealers->count() ? 'none' : 'block' }};">
+                        <div id="dealerEmptyState" class="dealer-empty-state" style="display: {{ $dealerServerSide || $totalDealers ? 'none' : 'block' }};">
                             <i class="ti ti-users-off"></i>
                             <strong>No dealers found</strong>
                             <span>Add a dealer to start building this list.</span>
                         </div>
-                        <div class="table-responsive" id="dealerTableWrap" style="display: {{ $dealers->count() ? 'block' : 'none' }};">
-                            <table class="table dealer-table transaction-table" style="width:100%">
+                        <div class="table-responsive" id="dealerTableWrap" style="display: {{ $dealerServerSide || $totalDealers ? 'block' : 'none' }};">
+                            <table class="table dealer-table transaction-table" id="dealerTable" style="width:100%">
                                 <thead>
                                     <tr>
                                         <th>{{ $dealerSingularTitle }} Reference</th>
@@ -232,6 +240,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="adBody">
+                                    @unless($dealerServerSide)
                                     @foreach($dealers as $dealer)
                                     @php
                                         $dealerType = strcasecmp((string) $dealer->dealer_type, 'Regular') === 0 ? 'Regular' : 'Project';
@@ -271,7 +280,7 @@
                                                     {{ strtoupper($dealer->name) }}
                                                 </button>
                                             @else
-                                                <a href="view-dealer/{{$dealer->id}}" class="dealer-link">{{ strtoupper($dealer->name) }}</a>
+                                                <a href="{{ $isMegaDealerPage ? route('mega-dealer.view', $dealer->id) : route('dealer.view', $dealer->id) }}" class="dealer-link">{{ strtoupper($dealer->name) }}</a>
                                             @endif
                                         </td>
                                         <td data-label="Store name" scope="col">{{ strtoupper($dealer->store_name ?? '-') }}</td>
@@ -300,11 +309,12 @@
                                                     data-dealer="{{ e(json_encode($dealerInfo)) }}">
                                                     <i class="ti ti-eye"></i>
                                                 </button> --}}
-                                                <a href="view-dealer/{{$dealer->id}}" class="dealer-link dealer-action-btn"><i class="ti ti-eye"></i></a>
+                                                <a href="{{ $isMegaDealerPage ? route('mega-dealer.view', $dealer->id) : route('dealer.view', $dealer->id) }}" class="dealer-link dealer-action-btn"><i class="ti ti-eye"></i></a>
                                             @endif
                                         </td>
                                     </tr>
                                     @endforeach
+                                    @endunless
                                 </tbody>
                             </table>
                         </div>
@@ -359,6 +369,9 @@
     @section('javascript')
     <script>
         $(document).ready(async function () {
+            const dealerServerSide = @json((bool) $dealerServerSide);
+            const dealerDataUrl = @json($dealerDataUrl);
+
             function loadScript(src) {
                 return new Promise(function (resolve, reject) {
                     const script = document.createElement('script');
@@ -411,6 +424,82 @@
             const $dealerTableBody = $dealerTable.find('tbody');
             const hasDealerRows = $dealerTableBody.find('tr').length > 0;
             const allDealerRows = $dealerTableBody.find('tr').detach().toArray();
+
+            if (dealerServerSide) {
+                if (!await ensureDataTables()) {
+                    console.error('DataTables failed to load.');
+                    return;
+                }
+
+                $('#dealerTableWrap').show();
+                $('#dealerEmptyState').hide();
+
+                const megaDealerTable = $dealerTable.DataTable({
+                    processing: true,
+                    serverSide: true,
+                    ajax: {
+                        url: dealerDataUrl,
+                        data: function (request) {
+                            request.source = activeDealerType;
+                        }
+                    },
+                    pageLength: 10,
+                    autoWidth: false,
+                    order: [[0, 'desc']],
+                    columns: [
+                        {data: 'dealer_reference', name: 'dealer_reference'},
+                        {data: 'name', name: 'name'},
+                        {data: 'store_name', name: 'store_name'},
+                        {data: 'store_type', name: 'store_type'},
+                        {data: 'number', name: 'number'},
+                        {data: 'stock_qty', name: 'stock_qty', searchable: false},
+                        {data: 'sold_qty', name: 'sold_qty', searchable: false},
+                        {data: 'address', name: 'address'},
+                        {data: 'area', name: 'area'},
+                        {data: 'status', name: 'status'},
+                        {data: 'action', name: 'action', orderable: false, searchable: false}
+                    ],
+                    createdRow: function (row) {
+                        const labels = ['Reference', 'Mega Dealer name', 'Store name', 'Store type', 'Contact number', 'Stock quantity', 'Quantity sold', 'Address', 'Sales territory', 'Status', 'View'];
+                        $('td', row).each(function (index) {
+                            $(this).attr('data-label', labels[index] || '');
+                        });
+                    },
+                    language: {
+                        processing: '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading Mega Dealers...',
+                        search: 'Search Mega Dealers:',
+                        lengthMenu: 'Show _MENU_ records',
+                        emptyTable: 'No Mega Dealers found.',
+                        zeroRecords: 'No matching Mega Dealers found.'
+                    }
+                });
+
+                $('.dealer-tab').on('click', function () {
+                    const $tab = $(this);
+                    activeDealerType = $tab.data('dealer-tab');
+                    const label = $tab.data('dealer-tab-label') || activeDealerType;
+                    const count = Number($tab.data('count') || 0);
+
+                    $('.dealer-tab')
+                        .removeClass('active')
+                        .attr('aria-selected', 'false');
+                    $tab
+                        .addClass('active')
+                        .attr('aria-selected', 'true');
+
+                    $('#dealerTableTitle').text(label + ' Mega Dealers');
+                    $('#dealerTableCount').text(
+                        count.toLocaleString() + ' record' + (count === 1 ? '' : 's') + ' listed'
+                    );
+
+                    megaDealerTable.search('').page('first').ajax.reload();
+                });
+
+                if (typeof initSelect2 === 'function') {
+                    initSelect2();
+                }
+                return;
+            }
 
             function updateDealerHeader(label, count) {
                 $('#dealerTableTitle').text(label + ' Dealers');

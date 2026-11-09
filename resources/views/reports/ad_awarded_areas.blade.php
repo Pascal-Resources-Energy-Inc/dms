@@ -16,7 +16,7 @@
     .aar-table-wrap::-webkit-scrollbar { width: 9px; height: 9px; }
     .aar-table-wrap::-webkit-scrollbar-thumb { border: 2px solid #fff; border-radius: 99px; background: #94a3b8; }
     .aar-table-wrap::-webkit-scrollbar-corner { background: #f8fafc; }
-    .aar-table { width: 100%; min-width: 1850px; margin: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 12px; }
+    .aar-table { width: 100%; min-width: 2325px; margin: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 12px; }
     .aar-table thead { position: relative; z-index: 10; }
     .aar-table th { position: sticky; top: 0; z-index: 10; padding: 14px 12px; color: #334155; font-size: 10px; font-weight: 900; letter-spacing: .055em; text-transform: uppercase; background: linear-gradient(180deg,#fff 0%,#f1f5f9 100%); border-bottom: 1px solid #cbd5e1; box-shadow: 0 8px 14px -14px rgba(15,23,42,.9); white-space: nowrap; }
     .aar-table th + th { border-left: 1px solid rgba(203,213,225,.65); }
@@ -29,6 +29,9 @@
     .aar-code { color: #0f5f8f; font-weight: 900; white-space: nowrap; }
     .aar-partner { color: #172554; font-weight: 800; }
     .aar-area { color: #172554; font-weight: 800; }
+    .aar-table .aar-amount { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 800; }
+    .aar-filter .is-invalid { border-color: #dc3545; }
+    .aar-filter-help { margin: 0; color: var(--aar-muted); font-size: 12px; }
     .aar-meta { display: block; margin-top: 3px; color: #64748b; font-size: 10px; font-weight: 700; }
     .aar-address { white-space: normal; }
     .aar-status { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: 10px; font-weight: 900; white-space: nowrap; }
@@ -39,7 +42,7 @@
     .aar-pagination .pagination { margin: 0; }
     .aar-pagination nav { overflow: auto; }
     .aar-mobile { display: none; }
-    @media(max-width:991px){.aar-table{min-width:1650px}.aar-hero{align-items:flex-start;flex-direction:column}.aar-stats{grid-template-columns:1fr 1fr}}
+    @media(max-width:991px){.aar-table{min-width:2195px}.aar-hero{align-items:flex-start;flex-direction:column}.aar-stats{grid-template-columns:1fr 1fr}}
     @media(max-width:767px){.aar-page{padding:12px 8px 24px}.aar-hero{padding:15px}.aar-hero h3{font-size:20px}.aar-stats{grid-template-columns:1fr}.aar-filter-actions{margin-top:6px}.aar-filter-actions .btn{flex:1}.aar-report-head{align-items:flex-start;flex-direction:column}.aar-report-actions{width:100%;justify-content:space-between}.aar-table-wrap{display:none;max-height:none}.aar-mobile{display:grid;gap:10px;padding:12px;background:#f8fafc}.aar-mobile-card{padding:14px;background:#fff;border:1px solid var(--aar-line);border-radius:9px;box-shadow:0 2px 7px rgba(15,23,42,.04)}.aar-mobile-title{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px}.aar-mobile-title strong{color:var(--aar-dark);font-size:14px}.aar-mobile-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.aar-mobile-grid div{min-width:0}.aar-mobile-grid small{display:block;margin-bottom:2px;color:var(--aar-muted);font-size:9px;font-weight:900;text-transform:uppercase}.aar-mobile-grid span{display:block;overflow-wrap:anywhere;color:#344054;font-size:12px;font-weight:700}.aar-mobile-wide{grid-column:1/-1}.aar-pagination{align-items:flex-start;flex-direction:column}.aar-pagination nav{width:100%}}
 </style>
 @endsection
@@ -67,21 +70,27 @@
     <section class="aar-card aar-filter">
         <form method="GET" action="{{ route('ad-awarded-areas') }}">
             <div class="row align-items-end">
-                <div class="col-lg-4 col-md-6 mb-2"><label for="award-search">Search</label><input id="award-search" class="form-control" type="search" name="search" value="{{ $search }}" placeholder="Partner code, partner, business, or awarded area"></div>
-                <div class="col-lg-2 col-md-3 mb-2"><label for="award-project">AD package</label><select id="award-project" class="form-control" name="project_type"><option value="">All packages</option>@foreach($projectTypes as $type)<option value="{{ $type }}" {{ $projectType === $type ? 'selected' : '' }}>{{ $type }}</option>@endforeach</select></div>
-                <div class="col-lg-2 col-md-3 mb-2"><label for="award-status">Status</label><select id="award-status" class="form-control" name="assignment_status"><option value="all" {{ $assignmentStatus === 'all' ? 'selected' : '' }}>All assignments</option><option value="active" {{ $assignmentStatus === 'active' ? 'selected' : '' }}>Active</option><option value="disengaged" {{ $assignmentStatus === 'disengaged' ? 'selected' : '' }}>Disengaged</option></select></div>
-                <div class="col-lg-2 col-md-3 mb-2"><label for="award-per-page">Rows per page</label><select id="award-per-page" class="form-control" name="per_page">@foreach([10,25,50,100] as $size)<option value="{{ $size }}" {{ $perPage === $size ? 'selected' : '' }}>{{ $size }}</option>@endforeach</select></div>
-                <div class="col-lg-2 col-md-9 mb-2"><div class="aar-filter-actions"><button class="btn btn-primary" type="submit"><i class="ti ti-filter"></i>Apply</button><a class="btn btn-outline-secondary" href="{{ route('ad-awarded-areas') }}"><i class="ti ti-refresh"></i>Reset</a></div></div>
+                <div class="col-xl-4 col-md-6 mb-2"><label for="award-search">Search</label><input id="award-search" class="form-control" type="search" name="search" value="{{ $search }}" placeholder="Partner code, partner, business, or awarded area"></div>
+                <div class="col-xl-2 col-md-3 col-sm-6 mb-2"><label for="award-project">Project Affiliation</label><select id="award-project" class="form-control" name="project_type"><option value="">All projects</option>@foreach($projectTypes as $type)<option value="{{ $type }}" {{ $projectType === $type ? 'selected' : '' }}>{{ $type }}</option>@endforeach</select></div>
+                <div class="col-xl-2 col-md-3 col-sm-6 mb-2"><label for="award-status">Status</label><select id="award-status" class="form-control" name="assignment_status"><option value="all" {{ $assignmentStatus === 'all' ? 'selected' : '' }}>All assignments</option><option value="active" {{ $assignmentStatus === 'active' ? 'selected' : '' }}>Active</option><option value="disengaged" {{ $assignmentStatus === 'disengaged' ? 'selected' : '' }}>Disengaged</option></select></div>
+                <div class="col-xl-2 col-md-6 col-sm-6 mb-2">
+                    <label for="award-package-amount">Package amount (PHP)</label>
+                    <input id="award-package-amount" class="form-control{{ $errors->has('package_amount') ? ' is-invalid' : '' }}" type="number" name="package_amount" min="0" max="9999999999.99" step="0.01" inputmode="decimal" value="{{ old('package_amount', $packageAmount) }}" placeholder="Any amount" aria-describedby="award-amount-help{{ $errors->has('package_amount') ? ' award-amount-error' : '' }}" @if($errors->has('package_amount')) aria-invalid="true" @endif>
+                    @if($errors->has('package_amount'))<div id="award-amount-error" class="invalid-feedback d-block">{{ $errors->first('package_amount') }}</div>@endif
+                </div>
+                <div class="col-xl-2 col-md-6 col-sm-6 mb-2"><label for="award-per-page">Rows per page</label><select id="award-per-page" class="form-control" name="per_page">@foreach([10,25,50,100] as $size)<option value="{{ $size }}" {{ $perPage === $size ? 'selected' : '' }}>{{ $size }}</option>@endforeach</select></div>
+                <div class="col-md-8 mt-2"><p id="award-amount-help" class="aar-filter-help">Enter an exact package amount, or leave blank to show all amounts.</p></div>
+                <div class="col-md-4 mt-2"><div class="aar-filter-actions justify-content-end"><button class="btn btn-primary" type="submit"><i class="ti ti-filter"></i>Apply</button><a class="btn btn-outline-secondary" href="{{ route('ad-awarded-areas') }}"><i class="ti ti-refresh"></i>Reset</a></div></div>
             </div>
         </form>
     </section>
 
     <section class="aar-card aar-report">
-        <div class="aar-report-head"><div><h4>Awarded-area assignments</h4><p>Includes active and disengaged awards; a soft-deleted award displays its Disengagement Date.</p></div><div class="aar-report-actions"><span class="aar-count">{{ number_format($awards->total()) }} results</span><a class="aar-export" href="{{ route('ad-awarded-areas.export', request()->only(['search', 'project_type', 'assignment_status'])) }}"><i class="ti ti-file-spreadsheet"></i>Export CSV</a></div></div>
+        <div class="aar-report-head"><div><h4>Awarded-area assignments</h4><p>Includes active and disengaged awards; a soft-deleted award displays its Disengagement Date.</p></div><div class="aar-report-actions"><span class="aar-count">{{ number_format($awards->total()) }} results</span><a class="aar-export" href="{{ route('ad-awarded-areas.export', request()->only(['search', 'project_type', 'assignment_status', 'package_amount'])) }}"><i class="ti ti-file-spreadsheet"></i>Export CSV</a></div></div>
         <div class="aar-table-wrap" role="region" aria-label="AD awarded areas table" tabindex="0">
             <table class="aar-table">
                 <colgroup>
-                    <col style="width:125px"><col style="width:120px"><col style="width:180px"><col style="width:190px"><col style="width:125px"><col style="width:235px"><col style="width:115px"><col style="width:120px"><col style="width:105px"><col style="width:225px"><col style="width:135px"><col style="width:125px"><col style="width:145px">
+                    <col style="width:125px"><col style="width:120px"><col style="width:180px"><col style="width:190px"><col style="width:125px"><col style="width:210px"><col style="width:160px"><col style="width:155px"><col style="width:155px"><col style="width:145px"><col style="width:180px"><col style="width:105px"><col style="width:225px"><col style="width:135px"><col style="width:125px"><col style="width:145px">
                 </colgroup>
                 <thead>
                     <tr>
@@ -91,12 +100,15 @@
                         <th>Business / Store Name</th>
                         <th>Awarded Area #</th>
                         <th>Awarded Area</th>
+                        <th class="aar-amount">Package Amount</th>
+                        <th>Barangay</th>
+                        <th>City</th>
                         <th>Province</th>
                         <th>Region</th>
                         <th>PH Area</th>
                         <th>Delivery Address</th>
                         <th>Contact #</th>
-                        <th>AD Package</th>
+                        <th>Project Affiliation</th>
                         <th>Disengagement Date</th>
                     </tr>
                 </thead>
@@ -115,7 +127,7 @@
                             <td rowspan="{{ $partnerAwards->count() }}" class="aar-partner">{{ $award->partner_name }}</td>
                             <td rowspan="{{ $partnerAwards->count() }}">{{ $award->business_name }}</td>
                         @endif
-                        <td><span class="aar-code">{{ $award->award_reference }}</span></td><td class="aar-area">{{ $award->area_name }}<span class="aar-meta">{{ $award->awarded_date ? 'Awarded: ' . $award->awarded_date_display : 'No award date' }}</span></td><td>{{ $award->province }}</td><td>{{ $award->region }}</td><td>{{ $award->ph_area }}</td>
+                        <td><span class="aar-code">{{ $award->award_reference }}</span></td><td class="aar-area">{{ $award->area_name }}<span class="aar-meta">{{ $award->awarded_date ? 'Awarded: ' . $award->awarded_date_display : 'No award date' }}</span></td><td class="aar-amount">{{ $award->package_amount_display }}</td><td>{{ $award->barangay }}</td><td>{{ $award->city }}</td><td>{{ $award->province }}</td><td>{{ $award->region }}</td><td>{{ $award->ph_area }}</td>
                         @if($awardIndex === 0)
                             <td rowspan="{{ $partnerAwards->count() }}" class="aar-address">{{ $award->delivery_address }}</td>
                             <td rowspan="{{ $partnerAwards->count() }}">{{ $award->contact_number }}</td>
@@ -123,11 +135,11 @@
                         <td>{{ $award->project_type }}</td><td>@if($award->disengagement_date)<span class="aar-status disengaged">{{ $award->disengagement_date_display }}</span>@else<span class="aar-status active">Active</span>@endif</td>
                     </tr>
                 @endforeach
-            @empty<tr><td colspan="13" class="aar-empty">No awarded-area assignments match the selected filters.</td></tr>@endforelse
+            @empty<tr><td colspan="16" class="aar-empty">No awarded-area assignments match the selected filters.</td></tr>@endforelse
                 </tbody>
             </table>
         </div>
-        <div class="aar-mobile">@forelse($awards as $award)<article class="aar-mobile-card"><div class="aar-mobile-title"><strong>{{ $award->partner_name }}</strong><span class="aar-status {{ $award->disengagement_date ? 'disengaged' : 'active' }}">{{ $award->disengagement_date ? 'Disengaged' : 'Active' }}</span></div><div class="aar-mobile-grid"><div><small>Partner code</small><span>{{ $award->partner_code }}</span></div><div><small>Awarded area #</small><span>{{ $award->award_reference }}</span></div><div class="aar-mobile-wide"><small>Awarded area</small><span>{{ $award->area_name }}</span></div><div><small>Date started</small><span>{{ $award->partner_started_display }}</span></div><div><small>AD package</small><span>{{ $award->project_type }}</span></div><div><small>Location</small><span>{{ $award->province }} · {{ $award->region }}</span></div><div><small>PH area</small><span>{{ $award->ph_area }}</span></div><div class="aar-mobile-wide"><small>Business / contact</small><span>{{ $award->business_name }} · {{ $award->contact_number }}</span></div></div></article>@empty<div class="aar-empty">No awarded-area assignments match the selected filters.</div>@endforelse</div>
+        <div class="aar-mobile">@forelse($awards as $award)<article class="aar-mobile-card"><div class="aar-mobile-title"><strong>{{ $award->partner_name }}</strong><span class="aar-status {{ $award->disengagement_date ? 'disengaged' : 'active' }}">{{ $award->disengagement_date ? 'Disengaged' : 'Active' }}</span></div><div class="aar-mobile-grid"><div><small>Partner code</small><span>{{ $award->partner_code }}</span></div><div><small>Awarded area #</small><span>{{ $award->award_reference }}</span></div><div class="aar-mobile-wide"><small>Awarded area</small><span>{{ $award->area_name }}</span></div><div><small>Package amount</small><span>{{ $award->package_amount_display }}</span></div><div><small>Date started</small><span>{{ $award->partner_started_display }}</span></div><div><small>Project Affiliation</small><span>{{ $award->project_type }}</span></div><div class="aar-mobile-wide"><small>Location</small><span>{{ collect([$award->barangay, $award->city, $award->province, $award->region])->reject(function ($value) { return $value === '—'; })->implode(' · ') ?: '—' }}</span></div><div><small>PH area</small><span>{{ $award->ph_area }}</span></div><div class="aar-mobile-wide"><small>Business / contact</small><span>{{ $award->business_name }} · {{ $award->contact_number }}</span></div></div></article>@empty<div class="aar-empty">No awarded-area assignments match the selected filters.</div>@endforelse</div>
         @if($awards->hasPages())<div class="aar-pagination"><small class="text-muted">Showing {{ number_format($awards->firstItem()) }}–{{ number_format($awards->lastItem()) }} of {{ number_format($awards->total()) }}</small>{{ $awards->links() }}</div>@endif
     </section>
 </div>

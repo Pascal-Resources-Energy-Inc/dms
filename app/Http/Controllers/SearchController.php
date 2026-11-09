@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Dealer;
+use App\MegaDealer;
 use App\Client;
 use App\Stove;
 use App\TransactionDetail;
@@ -21,11 +22,14 @@ class SearchController extends Controller
 
         $client = Client::where('name', 'LIKE', '%' . $query . '%')->first();
         $dealer = Dealer::where('name', 'LIKE', '%' . $query . '%')->first();
+        $megaDealer = MegaDealer::where('name', 'LIKE', '%' . $query . '%')->first();
 
         if ($client) {
             return $this->viewProfile($client->id, 'client');
         } elseif ($dealer) {
             return $this->viewProfile($dealer->id, 'dealer');
+        } elseif ($megaDealer) {
+            return $this->viewProfile($megaDealer->id, 'mega_dealer');
         } else {
             return redirect()->back()->with('error', 'No user found with the name "' . $query . '".');
         }
@@ -38,6 +42,9 @@ class SearchController extends Controller
             $transactions = TransactionDetail::where('client_id', $profile->id)->get();
         } elseif ($type === 'dealer') {
             $profile = Dealer::findOrFail($id);
+            $transactions = TransactionDetail::where('dealer_id', $profile->user_id)->get();
+        } elseif ($type === 'mega_dealer') {
+            $profile = MegaDealer::findOrFail($id);
             $transactions = TransactionDetail::where('dealer_id', $profile->user_id)->get();
         } else {
             abort(404);
@@ -81,7 +88,19 @@ class SearchController extends Controller
                             ];
                         });
 
-        $suggestions = $clients->concat($dealers)->take(10);
+        $megaDealers = MegaDealer::where('name', 'LIKE', '%' . $query . '%')
+                        ->select('id', 'name')
+                        ->limit(5)
+                        ->get()
+                        ->map(function($dealer) {
+                            return [
+                                'id' => $dealer->id,
+                                'name' => $dealer->name,
+                                'type' => 'mega_dealer'
+                            ];
+                        });
+
+        $suggestions = $clients->concat($dealers)->concat($megaDealers)->take(10);
 
         return response()->json($suggestions);
     }

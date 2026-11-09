@@ -516,6 +516,8 @@
                                     'RCBC',
                                     'China Bank',
                                     'EastWest Bank',
+                                    'Cebuana Lhuillier',
+                                    'Palawan Express',
                                     'Maya Bank',
                                     'SeaBank Philippines',
                                 ];
@@ -850,7 +852,7 @@
                         <span>Pick Up Lubao Discount</span>
                         <strong>- PHP <span id="pickupDiscountTotal">0.00</span></strong>
                     </div>
-                    @if(optional($ad)->withholding_tax)
+                    @if($requiresTaxSignature)
                         <div class="summary-row" id="withholdingSummaryRow">
                             <span>Less: EWT</span>
                             <strong>- PHP <span id="withholdingTotal">0.00</span></strong>
@@ -871,6 +873,7 @@
             </aside>
         </div>
     </div>
+    @include('ad_purchase_orders.partials.tax_signing')
     <div class="adpo-mobile-checkout">
         <div class="adpo-mobile-total">
             <small>Order total</small>
@@ -942,7 +945,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const withholdingTotalEl = document.getElementById('withholdingTotal');
     const grandTotalEl = document.getElementById('grandTotal');
     const mobileGrandTotalEl = document.getElementById('mobileGrandTotal');
-    const hasWithholdingTax = @json((bool) optional($ad)->withholding_tax);
+    const hasWithholdingTax = @json((bool) $requiresTaxSignature);
     const availableVouchersUrl = @json(route('vouchers.available-for-territory'));
     let currentVoucherSubtotal = 0;
     let voucherCheckTimer = null;

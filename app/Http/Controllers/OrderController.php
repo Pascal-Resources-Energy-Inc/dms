@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Client;
 use App\Dealer;
+use App\MegaDealer;
 use App\Exports\DealerOrdersExport;
 use App\AdPurchaseOrderItem;
 use App\Item;
@@ -33,12 +34,17 @@ class OrderController extends Controller
         $items = Item::get();
         $adAreas = optional($user->ad) ? $user->ad->areas->pluck('area_name')->toArray() : [];
 
-        $dealers = Dealer::when($user->role !== 'Admin', function ($query) use ($adAreas) {
+        $regularDealers = Dealer::when($user->role !== 'Admin', function ($query) use ($adAreas) {
                 $query->whereIn('area', $adAreas);
             })
             ->where('status', 'Active')
-            ->orderBy('name')
             ->get();
+        $megaDealers = MegaDealer::when($user->role !== 'Admin', function ($query) use ($adAreas) {
+                $query->whereIn('area', $adAreas);
+            })
+            ->where('status', 'Active')
+            ->get();
+        $dealers = $regularDealers->concat($megaDealers)->sortBy('name')->values();
 
         $products = Product::when($user->role !== 'Admin', function ($query) use ($user) {
                 $query->where('ad_user_id', $user->id);
@@ -64,12 +70,21 @@ class OrderController extends Controller
 
         $pendingOrdersCount = $pendingOrdersQuery->count();
 
-        $orderTabs = $this->orderTabsForUser($user);
+        $orderTabs = $this->orderTabsForUser($user)->map(function ($orderTab) {
+            $orderTab['completed_sales'] = $this->completedSalesTotal($orderTab['orders']);
+            $orderTab['completed_quantity'] = $this->completedQuantityTotal($orderTab['orders']);
+
+            return $orderTab;
+        });
         $orders = $orderTabs->pluck('orders')->flatten(1);
+        $totalCompletedSales = $this->completedSalesTotal($orders);
+        $totalCompletedQuantity = $this->completedQuantityTotal($orders);
         // dd($orders);
         return view('orders.index', [
             'orders' => $orders,
             'orderTabs' => $orderTabs,
+            'totalCompletedSales' => $totalCompletedSales,
+            'totalCompletedQuantity' => $totalCompletedQuantity,
             'items' => $items,
             'customers' => $customers,
             'dealers' => $dealers,
@@ -79,6 +94,29 @@ class OrderController extends Controller
             'inventoryStatsByAreaProduct' => $inventoryStatsByAreaProduct,
             'pendingOrdersCount' => $pendingOrdersCount,
         ]);
+    }
+
+    private function completedSalesTotal($orders)
+    {
+        return collect($orders)
+            ->filter(function ($order) {
+                return strcasecmp(trim((string) ($order->status ?? '')), 'Completed') === 0;
+            })
+            ->sum(function ($order) {
+                return ((float) ($order->price ?? 0) * (float) ($order->qty ?? 0))
+                    + (float) ($order->delivery_fee ?? 0);
+            });
+    }
+
+    private function completedQuantityTotal($orders)
+    {
+        return collect($orders)
+            ->filter(function ($order) {
+                return strcasecmp(trim((string) ($order->status ?? '')), 'Completed') === 0;
+            })
+            ->sum(function ($order) {
+                return (float) ($order->qty ?? 0);
+            });
     }
 
     public function export()
@@ -95,7 +133,7 @@ class OrderController extends Controller
     {
         $user = auth()->user();
 
-        return OrderDetail::with(['ad', 'dealer', 'adDealer'])
+        return OrderDetail::with(['ad', 'dealer', 'adDealer', 'megaDealerProfile'])
             ->when($user->role !== 'Admin', function ($query) use ($user) {
                 $query->where('ad_id', optional($user->ad)->id);
             })
@@ -107,6 +145,9 @@ class OrderController extends Controller
         $adId = optional($user->ad)->id;
 
         $regularOrders = $this->orderIndexQuery()->get()->map(function ($order) {
+            if (!$order->adDealer && $order->megaDealerProfile) {
+                $order->setRelation('adDealer', $order->megaDealerProfile);
+            }
             $order->source_key = 'regular';
             $order->source_label = 'Regular';
             $order->source_database = 'dms_prei';
@@ -339,6 +380,9 @@ class OrderController extends Controller
 
         $ad = AreaDistributor::where('user_id', $product->ad_user_id)->firstOrFail();
         $dealer = Dealer::where('user_id', $request->dealer_id)
+            ->where('status', 'Active')
+            ->first();
+        $dealer = $dealer ?: MegaDealer::where('user_id', $request->dealer_id)
             ->where('status', 'Active')
             ->firstOrFail();
 

@@ -69,8 +69,12 @@ Route::delete('/inventory-transfers/{id}', 'InventoryTransferController@destroy'
 Route::get('/warehouse/pull-out-requests', 'InventoryTransferController@warehousePullOuts')->name('warehouse-pull-outs.index');
 Route::get('/warehouse/pull-out-requests/data', 'InventoryTransferController@warehousePullOutsData')->name('warehouse-pull-outs.data');
 Route::post('/warehouse/pull-out-requests/{id}/review', 'InventoryTransferController@reviewPullOut')->name('warehouse-pull-outs.review');
+Route::post('/warehouse/pull-out-requests/{id}/approve', 'InventoryTransferController@approvePullOutProducts')->name('warehouse-pull-outs.approve');
+Route::post('/warehouse/pull-out-requests/{id}/release', 'InventoryTransferController@releasePullOutProducts')->name('warehouse-pull-outs.release');
+Route::get('/warehouse/pull-out-requests/{id}/delivery-receipts', 'InventoryTransferController@pullOutDeliveryReceipts')->name('warehouse-pull-outs.delivery-receipts');
 Route::get('/return-refund-requests', 'InventoryTransferController@returnRefundRequests')->middleware('auth')->name('return-refunds.index');
 Route::post('/return-refund-requests/{id}/approve', 'InventoryTransferController@approveReturnRefund')->middleware('auth')->name('return-refunds.approve');
+Route::post('/return-refund-requests/{id}/approve-products', 'InventoryTransferController@approveReturnRefundProducts')->middleware('auth')->name('return-refunds.approve-products');
 Route::post('/return-refund-requests/{id}/documents', 'InventoryTransferController@uploadReturnDocuments')->middleware('auth')->name('return-refunds.documents');
 Route::post('/return-refund-requests/{id}/receive', 'InventoryTransferController@receiveReturnRefund')->middleware('auth')->name('return-refunds.receive');
 Route::post('/return-refund-requests/{id}/credit-memo', 'InventoryTransferController@submitReturnRefundCreditMemo')->middleware('auth')->name('return-refunds.credit-memo');
@@ -119,6 +123,11 @@ Route::post('ad/{id}/areas/update', 'AreaDistributorController@updateAreas')->na
 
 // Provincial Distributor
 Route::get('/pds','ProvincialDistributorController@index')->name('pds');
+Route::get('/pds/{id}', 'ProvincialDistributorController@view')->name('pd.view');
+Route::post('/pds', 'ProvincialDistributorController@store')->name('pds.store');
+Route::put('/pds/{id}', 'ProvincialDistributorController@update')->name('pds.update');
+Route::delete('/pds/{id}', 'ProvincialDistributorController@destroy')->name('pds.destroy');
+Route::post('/pds/{id}/areas', 'ProvincialDistributorController@updateAreas')->name('pds.areas.update');
 
 // Dealers Area Distributor
 Route::get('/dealer-ads','AreaDistributorController@myDealer')->name('dealer-ads');
@@ -136,10 +145,15 @@ Route::post('/orders','OrderController@store')->name('orders.store');
 Route::put('/orders/{id}', 'OrderController@update')->name('orders.update');
 
 // Area Distributor Purchase Orders
+Route::get('/adpo-tax/template', 'AdpoTaxCertificateController@template')->name('adpo-tax.template');
+Route::get('/adpo-tax/{id}/download', 'AdpoTaxCertificateController@download')->name('adpo-tax.download');
+Route::post('/adpo-tax/{id}/retry', 'AdpoTaxCertificateController@retry')->middleware('throttle:5,1')->name('adpo-tax.retry');
 Route::get('/ad-purchase-orders', 'AdPurchaseOrderController@index')->name('ad-purchase-orders.index');
 Route::get('/ad-purchase-orders/export', 'AdPurchaseOrderController@export')->name('ad-purchase-orders.export');
 Route::get('/ad-purchase-orders/create', 'AdPurchaseOrderController@create')->name('ad-purchase-orders.create');
 Route::post('/ad-purchase-orders', 'AdPurchaseOrderController@store')->name('ad-purchase-orders.store');
+Route::get('/ad-purchase-orders/{id}/edit', 'AdPurchaseOrderController@edit')->name('ad-purchase-orders.edit');
+Route::patch('/ad-purchase-orders/{id}', 'AdPurchaseOrderController@update')->name('ad-purchase-orders.update');
 Route::post('/ad-purchase-orders/products/{item}/favorite', 'AdPurchaseOrderController@toggleFavoriteProduct')->name('ad-purchase-orders.products.favorite');
 Route::get('/warehouse/ad-purchase-orders/region-v', 'AdPurchaseOrderController@regionVWarehouseIndex')->name('warehouse-ad-purchase-orders.region-v');
 Route::get('/warehouse/ad-purchase-orders/region-v/export', 'AdPurchaseOrderController@exportRegionVWarehouse')->name('warehouse-ad-purchase-orders.region-v.export');
@@ -151,16 +165,21 @@ Route::post('/ad-purchase-orders/{id}/verification-complete', 'AdPurchaseOrderCo
 Route::delete('/ad-purchase-orders/{id}', 'AdPurchaseOrderController@destroy')->name('ad-purchase-orders.destroy');
 
 Route::get('/dealers','DealerController@index')->name('dealers');
-Route::get('/mds','AreaDistributorController@megaDealers')->name('mds');
+Route::get('/mds/data', 'DealerController@megaDealersData')->name('mds.data');
+Route::get('/mds','DealerController@megaDealers')->name('mds');
+Route::delete('/mds/{id}', 'DealerController@destroyMegaDealer')->name('mds.destroy');
 Route::post('/new-dealer','DealerController@newDealer');
 Route::post('/check-dealer-duplicate', 'DealerController@checkDuplicate')->name('check.dealer.duplicate');
 Route::get('admin-crm-dealer/{source}/{id}', 'DealerController@viewAdminCrmDealer')->name('admin.crm.dealer.view');
+Route::get('admin-crm-mega-dealer/{source}/{id}', 'DealerController@viewAdminCrmMegaDealer')->name('admin.crm.mega-dealer.view');
 Route::get('view-dealer/{id}', 'DealerController@view')->name('dealer.view');
-Route::post('/change-avatar-dealer/{id}', 'DealerController@changeAvatar')->name('dealer.view');
-Route::post('valid-id-dealer/{id}', 'DealerController@uploadValidId')->name('dealer.view');
+Route::get('view-mega-dealer/{id}', 'DealerController@viewMegaDealer')->name('mega-dealer.view');
+Route::post('/change-avatar-dealer/{id}', 'DealerController@changeAvatar')->name('dealer.avatar.update');
+Route::post('valid-id-dealer/{id}', 'DealerController@uploadValidId')->name('dealer.valid-id.update');
 Route::post('/submit-contract-dealer/{id}','DealerController@contractSign')->name('sign');
 Route::get('/dashboard-dealer','DealerController@show')->name('Dealer');
 Route::post('/dealer/update/{id}', 'DealerController@update')->name('dealer.update');
+Route::post('/mega-dealer/update/{id}', 'DealerController@updateMegaDealer')->name('mega-dealer.update');
 Route::get('/get-zipcode1', [DealerController::class, 'getZipCode1']);
 
 Route::get('/customers','CustomerController@index')->name('customers');

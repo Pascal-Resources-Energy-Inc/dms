@@ -6,11 +6,13 @@ use App\AreaDistributor;
 use App\AreaAd;
 use App\Center;
 use App\Dealer;
+use App\MegaDealer;
 use App\User;
 use App\Area;
 use App\Item;
 use App\Product;
 use App\OrderDetail;
+use App\Services\DistributorProjectAreas;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -177,6 +179,13 @@ class AreaDistributorController extends Controller
      */
     public function store(Request $request)
     {
+        $request->validate([
+            'has_service_vehicle' => 'required|boolean',
+            'business_years_operation' => 'required|integer|min:0|max:200',
+            'contract_attachments' => 'nullable|array|max:10',
+            'contract_attachments.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+        ]);
+
         $imagePath = null;
 
         if ($request->hasFile('avatar')) {
@@ -220,6 +229,13 @@ class AreaDistributorController extends Controller
         $areaDistributor->address = $fullAddress;
         $areaDistributor->business_name = $request->business_name;
         $areaDistributor->business_type = $request->business_type;
+        $areaDistributor->has_service_vehicle = $request->filled('has_service_vehicle')
+            ? (bool) $request->input('has_service_vehicle')
+            : null;
+        $areaDistributor->business_years_operation = $request->filled('business_years_operation')
+            ? (int) $request->input('business_years_operation')
+            : null;
+        $areaDistributor->contract_attachments = $this->mergeContractAttachments($request, $areaDistributor);
         $areaDistributor->latitude = $request->latitude;
         $areaDistributor->longitude = $request->longitude;
         $areaDistributor->status = "Active";
@@ -278,6 +294,10 @@ class AreaDistributorController extends Controller
 
     public function update(Request $request, $id)
     {
+        $ad = AreaDistributor::findOrFail($id);
+        $projectAreaChanges = $request->has('sync_project_areas')
+            ? app(DistributorProjectAreas::class)->validate($request, $ad)
+            : null;
         if ($request->has('same_as_delivery_address')) {
             $request->merge([
                 'delivery_address' => $request->address,
@@ -286,6 +306,10 @@ class AreaDistributorController extends Controller
 
         $request->validate([
             'delivery_address' => 'nullable|string|max:1000',
+            'has_service_vehicle' => 'required|boolean',
+            'business_years_operation' => 'required|integer|min:0|max:200',
+            'contract_attachments' => 'nullable|array|max:10',
+            'contract_attachments.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
             // 'tin' => 'nullable|string|max:50',
             // 'store_picture' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
@@ -318,6 +342,7 @@ class AreaDistributorController extends Controller
             $avatarPath = $ad->avatar;
             $attachmentPath = $ad->attachment;
             $storePicturePath = $ad->store_picture;
+            $contractAttachments = $this->mergeContractAttachments($request, $ad);
 
             if ($request->hasFile('avatar')) {
 
@@ -398,6 +423,9 @@ class AreaDistributorController extends Controller
                 'zipcode' => $request->zipcode,
                 'business_name' => $request->business_name,
                 'business_type' => $request->business_type,
+                'has_service_vehicle' => (bool) $request->input('has_service_vehicle'),
+                'business_years_operation' => (int) $request->input('business_years_operation'),
+                'contract_attachments' => $contractAttachments,
                 'tin' => trim((string) $request->tin) ?: null,
                 'latitude' => $request->latitude,
                 'longitude' => $request->longitude,
@@ -408,70 +436,8 @@ class AreaDistributorController extends Controller
                 'withholding_tax' => $request->withholding_tax ? 1 : 0,
             ]);
 
-            if ($request->has('sync_project_areas')) {
-                $selectedProjectTypes = collect($request->input('type', []))
-                    ->filter(function ($type) {
-                        return in_array($type, ['Project Rise', 'Project Genesis'], true);
-                    })
-                    ->values()
-                    ->all();
-
-                $rows = collect($request->input('rows', []))->map(function ($row) {
-                    return [
-                        'id' => isset($row['id']) ? trim($row['id']) : null,
-                        'project_type' => isset($row['project_type']) ? trim($row['project_type']) : null,
-                        'area_name' => isset($row['area_name']) ? trim($row['area_name']) : null,
-                        'joining_date' => isset($row['joining_date']) ? trim($row['joining_date']) : null,
-                    ];
-                })->filter(function ($row) use ($selectedProjectTypes) {
-                    return !empty($row['area_name']) &&
-                        !empty($row['project_type']) &&
-                        in_array($row['project_type'], $selectedProjectTypes, true);
-                });
-
-                $submittedIds = [];
-                $userRole = optional($ad->userAds)->role ?: 'Area Distributor';
-
-                foreach ($rows as $row) {
-                    if (!empty($row['id'])) {
-                        $area = AreaAd::where('ad_id', $ad->id)
-                            ->where('id', $row['id'])
-                            ->first();
-
-                        if ($area) {
-                            $area->update([
-                                'project_type' => $row['project_type'],
-                                'area_name' => $row['area_name'],
-                                'joining_date' => $row['joining_date'] ?: null,
-                                'user_role' => $userRole,
-                            ]);
-
-                            $submittedIds[] = $area->id;
-                        }
-
-                        continue;
-                    }
-
-                    $newArea = AreaAd::create([
-                        'ad_id' => $ad->id,
-                        'ad_user_id' => $ad->user_id,
-                        'project_type' => $row['project_type'],
-                        'area_name' => $row['area_name'],
-                        'joining_date' => $row['joining_date'] ?: null,
-                        'user_role' => $userRole,
-                    ]);
-
-                    $submittedIds[] = $newArea->id;
-                }
-
-                $areaQuery = AreaAd::where('ad_id', $ad->id)
-                    ->whereIn('project_type', ['Project Rise', 'Project Genesis']);
-
-                if (count($submittedIds) > 0) {
-                    $areaQuery->whereNotIn('id', $submittedIds)->delete();
-                } else {
-                    $areaQuery->delete();
-                }
+            if ($projectAreaChanges !== null) {
+                app(DistributorProjectAreas::class)->sync($ad, $projectAreaChanges);
             }
 
             DB::commit();
@@ -750,7 +716,7 @@ class AreaDistributorController extends Controller
         });
         $centers = Center::whereIn('name', $areaNames)->orderBy('name')->get();
 
-        $dealers = Dealer::with([
+        $dealers = MegaDealer::with([
             'user',
             'orders' => function ($q) {
                 $q->where('status', 'Completed')
@@ -810,6 +776,7 @@ class AreaDistributorController extends Controller
             'dealerRouteName' => 'md-ads',
             'dealerRole' => 'Mega Dealer',
             'canCreateDealer' => true,
+            'isMegaDealerPage' => true,
         ]);
     }
 
@@ -1050,7 +1017,6 @@ class AreaDistributorController extends Controller
 
                     if ($area) {
                         $area->update([
-                            'project_type' => null,
                             'area_name' => $row['area_name'],
                             'joining_date' => $row['joining_date'] ?: null,
                             'package_amount' => $row['package_amount'],
@@ -1098,5 +1064,31 @@ class AreaDistributorController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    private function mergeContractAttachments(Request $request, AreaDistributor $profile)
+    {
+        $attachments = collect($profile->contract_attachments ?: [])->filter()->values();
+
+        if (!$request->hasFile('contract_attachments')) {
+            return $attachments->all();
+        }
+
+        $directory = 'uploads/contracts';
+
+        if (!is_dir(public_path($directory))) {
+            mkdir(public_path($directory), 0755, true);
+        }
+
+        $newAttachments = collect($request->file('contract_attachments'))
+            ->filter()
+            ->map(function ($file) use ($directory) {
+                $filename = 'contract_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move(public_path($directory), $filename);
+
+                return $directory . '/' . $filename;
+            });
+
+        return $attachments->merge($newAttachments)->unique()->values()->all();
     }
 }

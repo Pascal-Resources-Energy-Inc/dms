@@ -38,6 +38,11 @@ class User extends Authenticatable implements Auditable
         return $this->hasOne(Dealer::class, 'user_id');
     }
 
+    public function megaDealer()
+    {
+        return $this->hasOne(MegaDealer::class, 'user_id');
+    }
+
     public function client()
     {
         return $this->hasOne(Client::class, 'user_id');
@@ -56,6 +61,11 @@ class User extends Authenticatable implements Auditable
     public function ad()
     {
         return $this->hasOne(AreaDistributor::class, 'user_id', 'id');
+    }
+
+    public function provincialDistributor()
+    {
+        return $this->hasOne(ProvincialDistributor::class, 'user_id', 'id');
     }
     
     public function redeemedHistory()

@@ -358,8 +358,8 @@
                     <label class="custom-control-label font-weight-bold" for="same_address_{{ $formUser ? $formUser->id : 'new' }}">Same as address</label>
                 </div>
             </div>
-            <label class="font-weight-bold">Delivery Address</label>
-            <textarea class="form-control js-delivery-address" name="delivery_address" rows="3" placeholder="Enter delivery address">{{ old('delivery_address', $formUser ? $formUser->delivery_address : '') }}</textarea>
+            <label class="font-weight-bold">Business/ Delivery Address</label>
+            <textarea class="form-control js-delivery-address" name="delivery_address" rows="3" placeholder="Enter Business/ Delivery Address">{{ old('delivery_address', $formUser ? $formUser->delivery_address : '') }}</textarea>
         </div>
 
         <div class="map-panel mt-3">

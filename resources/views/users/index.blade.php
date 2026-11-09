@@ -887,6 +887,8 @@
         const distributorDeliveryRequiredFields = $('.distributor-delivery-required');
         const distributorPersonnelField = $('.distributor-personnel-field');
         const distributorPersonnelInput = $('#is_distributor_personnel');
+        const distributorProfileFields = $('.distributor-profile-fields');
+        const distributorProfileInputs = distributorProfileFields.find('.distributor-profile-input');
         const areaField = $('.project-area-field');
 
         const areaSelect = $('#area_name');
@@ -1072,6 +1074,8 @@
                 distributorDeliveryFields.hide();
                 distributorPersonnelField.hide();
                 distributorPersonnelInput.prop('disabled', true).prop('checked', false);
+                distributorProfileFields.hide();
+                distributorProfileInputs.prop('disabled', true).prop('required', false);
                 areaField.hide();
 
                 businessName.prop('required', false);
@@ -1138,6 +1142,15 @@
             distributorPersonnelInput.prop('disabled', !isDistributorRole);
             if (!isDistributorRole) {
                 distributorPersonnelInput.prop('checked', false);
+            }
+            distributorProfileFields.toggle(needsDeliveryAddress);
+            distributorProfileInputs.prop('disabled', !needsDeliveryAddress);
+            $('input[name="has_service_vehicle"]').prop('required', needsDeliveryAddress);
+            $('#business_years_operation').prop('required', needsDeliveryAddress);
+            if (!needsDeliveryAddress) {
+                $('input[name="has_service_vehicle"]').prop('checked', false);
+                $('#business_years_operation').val('');
+                $('#contract_attachments').val('');
             }
             areaField.toggle(canShowAreas);
 

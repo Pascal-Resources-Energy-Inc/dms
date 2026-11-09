@@ -240,7 +240,7 @@
     .showcase-copy h1 span { color: #75dcff; }
     .showcase-copy > p { max-width: 560px; margin: 24px 0 30px; color: rgba(255,255,255,.78); font-size: 15px; line-height: 1.75; }
     .feature-grid { display: grid; gap: 10px; }
-    .feature-item { display: grid; grid-template-columns: 42px 1fr; align-items: center; gap: 12px; max-width: 370px; padding: 10px 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.07); backdrop-filter: blur(10px); }
+    .feature-item { display: grid; grid-template-columns: 42px 1fr; align-items: center; gap: 12px; max-width: 500px; padding: 10px 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.07); backdrop-filter: blur(10px); }
     .feature-icon { width: 42px; height: 42px; display: grid; place-items: center; color: #9ce7ff; background: rgba(255,255,255,.1); border-radius: 12px; }
     .feature-icon svg { width: 21px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
     .feature-item strong, .feature-item small { display: block; }

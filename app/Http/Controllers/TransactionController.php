@@ -6,6 +6,7 @@ use App\OrderDetail;
 use App\Item;
 use App\Client;
 use App\Dealer;
+use App\MegaDealer;
 use App\AreaAd;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -483,6 +484,9 @@ class TransactionController extends Controller
             : [];
 
         $dealer = Dealer::where('user_id', $request->dealer)
+            ->whereIn('area', $areas)
+            ->first();
+        $dealer = $dealer ?: MegaDealer::where('user_id', $request->dealer)
             ->whereIn('area', $areas)
             ->firstOrFail();
 

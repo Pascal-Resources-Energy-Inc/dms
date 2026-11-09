@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\AdPurchaseOrder;
+use App\AdpoTaxCertificate;
+use App\Services\AdpoTaxService;
 use App\AdPurchaseOrderPartialReceipt;
 use App\InventoryTransfer;
 use App\Exports\AdPurchaseOrdersExport;
@@ -315,6 +317,9 @@ class AdPurchaseOrderController extends Controller
     public function create()
     {
         $user = auth()->user();
+        $taxService = app(AdpoTaxService::class);
+        $requiresTaxSignature = $taxService->required($user);
+        $taxProfile = $taxService->profile($user);
         $ad = $user->ad;
         $isProvincialDistributor = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR;
         $isAdmin = $user->role === 'Admin';
@@ -377,7 +382,7 @@ class AdPurchaseOrderController extends Controller
             $user->province
         );
 
-        return view('ad_purchase_orders.create', compact('ad', 'products', 'favoriteProductIds', 'userVouchers', 'showPickupLubao', 'isAdmin', 'provincialDistributors', 'selectedOrderSource', 'selectedProvincialDistributorId', 'orderForUser', 'isProvincialDistributor', 'territoryOptions'));
+        return view('ad_purchase_orders.create', compact('ad', 'products', 'favoriteProductIds', 'userVouchers', 'showPickupLubao', 'isAdmin', 'provincialDistributors', 'selectedOrderSource', 'selectedProvincialDistributorId', 'orderForUser', 'isProvincialDistributor', 'territoryOptions', 'requiresTaxSignature', 'taxProfile'));
     }
 
     public function toggleFavoriteProduct(Request $request, Item $item)
@@ -415,6 +420,9 @@ class AdPurchaseOrderController extends Controller
     public function store(Request $request)
     {
         $user = auth()->user();
+        $taxService = app(AdpoTaxService::class);
+        $requiresTaxSignature = $taxService->required($user);
+        $taxSigning = $taxService->validateSigning($request, $user);
         $ad = $user->ad;
         $isProvincialDistributor = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR;
 
@@ -542,7 +550,7 @@ class AdPurchaseOrderController extends Controller
             $shippingType = $isRegionVAd ? 'pickup_guinobatan' : 'pickup_lubao';
         }
 
-        $po = DB::transaction(function () use ($request, $user, $ad, $orderProfile, $supplyingProvincialDistributor, $selectedProducts, $products, $authorizedTerritory, $shippingType, $bankName) {
+        $po = DB::transaction(function () use ($request, $user, $ad, $orderProfile, $supplyingProvincialDistributor, $selectedProducts, $products, $authorizedTerritory, $shippingType, $bankName, $requiresTaxSignature, $taxSigning, $taxService) {
             $poNumber = $this->nextPoNumber();
             $subtotal = 0;
             $totalQty = 0;
@@ -661,7 +669,7 @@ class AdPurchaseOrderController extends Controller
             $po->pickup_discount = $this->pickupLubaoDiscount($shippingType, $po->items()->get());
             $taxableTotal = max(0, $subtotal - (float) $po->rebate_amount - (float) $po->pickup_discount);
             $ewtBase = $taxableTotal / 1.12;
-            $withholdingTax = (optional($ad)->withholding_tax ?: $user->withholding_tax) ? ($ewtBase * 0.01) : 0;
+            $withholdingTax = $requiresTaxSignature ? ($ewtBase * 0.01) : 0;
             $po->withholding_tax = $withholdingTax;
             $po->total_amount = max(0, $taxableTotal - $withholdingTax);
             $po->save();
@@ -678,9 +686,14 @@ class AdPurchaseOrderController extends Controller
                 $remainingRebate -= $appliedRebate;
             });
 
+            if ($taxSigning) {
+                $taxService->capture($po, $user, $taxSigning);
+            }
+
             return $po;
         });
 
+        $taxService->deliverForOrder($po);
         $this->notifyGuinobatanWarehouseForRegionV($po);
 
         Alert::success('ADPO Created', 'ADPO ' . $po->po_number . ' submitted successfully.');
@@ -724,6 +737,253 @@ class AdPurchaseOrderController extends Controller
         }
 
         return view('ad_purchase_orders.show', compact('order', 'canReviewIncompleteVerification', 'provincialDistributorStock'));
+    }
+
+    public function edit($id)
+    {
+        $user = auth()->user();
+        $order = $this->pendingOrderForEditing($id, $user);
+        $orderProfile = $order->ad ?: optional(User::find($order->ad_user_id))->provincialDistributor;
+        $territoryOptions = $this->territoryOptions($orderProfile ?: User::find($order->ad_user_id));
+
+        if ($order->authorized_territory && !$territoryOptions->contains($order->authorized_territory)) {
+            $territoryOptions->push($order->authorized_territory);
+        }
+
+        $availableProducts = Item::where('status', 'Activate')
+            ->whereNotIn('id', $order->items->pluck('product_id')->filter()->all())
+            ->orderBy('item')
+            ->get();
+
+        $taxService = app(AdpoTaxService::class);
+        $requiresTaxSignature = $taxService->required($user) || $order->taxCertificates()->exists();
+        $taxProfile = $taxService->profile($user);
+        return view('ad_purchase_orders.edit', compact('order', 'territoryOptions', 'availableProducts', 'requiresTaxSignature', 'taxProfile'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $user = auth()->user();
+        $order = $this->pendingOrderForEditing($id, $user);
+        $taxService = app(AdpoTaxService::class);
+        $taxSigning = $taxService->validateSigning($request, $user, $taxService->required($user) || $order->taxCertificates()->exists());
+        $orderProfile = $order->ad ?: optional(User::find($order->ad_user_id))->provincialDistributor;
+        $territoryOptions = $this->territoryOptions($orderProfile ?: User::find($order->ad_user_id));
+
+        $request->validate([
+            'phone_number' => 'nullable|string|max:50',
+            'email_address' => 'nullable|email|max:255',
+            'authorized_territory' => 'nullable|string|max:255',
+            'delivery_address' => 'nullable|string|max:1000',
+            'shipping_type' => 'required|in:delivered,pickup_lubao,pickup_guinobatan',
+            'payment_method' => 'required|in:voucher,cash,gcash,bank_transfer,credit',
+            'bank_name' => 'nullable|required_if:payment_method,bank_transfer|string|max:255',
+            'remarks' => 'nullable|string|max:2000',
+            'items' => 'required|array|min:1',
+            'items.*.qty' => 'nullable|integer|min:0',
+            'items.*.colors' => 'nullable|array',
+            'items.*.colors.*' => 'nullable|integer|min:0',
+            'items.*.sizes' => 'nullable|array',
+            'items.*.sizes.*' => 'nullable|integer|min:0',
+            'new_products' => 'nullable|array',
+            'new_products.*.qty' => 'nullable|integer|min:0',
+            'new_products.*.colors' => 'nullable|array',
+            'new_products.*.colors.*' => 'nullable|integer|min:0',
+            'new_products.*.sizes' => 'nullable|array',
+            'new_products.*.sizes.*' => 'nullable|integer|min:0',
+            'new_products.*.other_size' => 'nullable|string|max:100',
+        ]);
+
+        if ($request->filled('authorized_territory')
+            && $territoryOptions->isNotEmpty()
+            && !$territoryOptions->contains($request->authorized_territory)) {
+            throw ValidationException::withMessages([
+                'authorized_territory' => 'Please select a valid authorized territory.',
+            ]);
+        }
+
+        if ($request->shipping_type === 'pickup_lubao' && $this->isRegionVText(
+            $request->delivery_address,
+            optional($order->ad)->address,
+            optional($order->ad)->delivery_address,
+            optional($order->ad)->location_region
+        )) {
+            throw ValidationException::withMessages([
+                'shipping_type' => 'Pick Up in Lubao Plant is not available for Region V or Albay addresses.',
+            ]);
+        }
+
+        DB::transaction(function () use ($request, $id, $user, $taxService, $taxSigning) {
+            $lockedOrder = AdPurchaseOrder::with(['items', 'ad'])
+                ->lockForUpdate()
+                ->findOrFail($id);
+
+            if ($lockedOrder->status !== 'Pending' || !$this->canEditPendingOrder($lockedOrder, $user)) {
+                throw ValidationException::withMessages([
+                    'order' => 'Only an authorized Pending purchase order can be edited.',
+                ]);
+            }
+
+            $submittedItems = collect($request->input('items', []));
+            $subtotal = 0;
+            $totalQty = 0;
+
+            foreach ($lockedOrder->items as $item) {
+                $line = (array) $submittedItems->get($item->id, []);
+                $currentColors = collect(json_decode($item->color_breakdown ?: '[]', true) ?: []);
+                $currentSizes = collect(json_decode($item->size_breakdown ?: '[]', true) ?: []);
+                $colorBreakdown = [];
+                $sizeBreakdown = [];
+
+                if ($currentColors->isNotEmpty()) {
+                    foreach ($currentColors->keys() as $color) {
+                        $quantity = max(0, (int) data_get($line, 'colors.' . $color, 0));
+                        if ($quantity > 0) {
+                            $colorBreakdown[$color] = $quantity;
+                        }
+                    }
+                    $quantity = array_sum($colorBreakdown);
+                } elseif ($currentSizes->isNotEmpty()) {
+                    foreach ($currentSizes->keys() as $size) {
+                        $quantity = max(0, (int) data_get($line, 'sizes.' . $size, 0));
+                        if ($quantity > 0) {
+                            $sizeBreakdown[$size] = $quantity;
+                        }
+                    }
+                    $quantity = array_sum($sizeBreakdown);
+                } else {
+                    $quantity = max(0, (int) data_get($line, 'qty', 0));
+                }
+
+                if ($quantity <= 0) {
+                    $item->delete();
+                    continue;
+                }
+
+                $lineTotal = (float) $item->unit_price * $quantity;
+                $item->update([
+                    'qty' => $quantity,
+                    'color_breakdown' => $currentColors->isNotEmpty() ? json_encode($colorBreakdown) : null,
+                    'size_breakdown' => $currentSizes->isNotEmpty() ? json_encode($sizeBreakdown) : null,
+                    'line_total' => $lineTotal,
+                ]);
+                $subtotal += $lineTotal;
+                $totalQty += $quantity;
+            }
+
+            $newProductLines = collect($request->input('new_products', []));
+            $newProductIds = $newProductLines->keys()->map(function ($productId) {
+                return (int) $productId;
+            })->filter()->unique()->values();
+            $existingProductIds = $lockedOrder->items->pluck('product_id')->filter()->map(function ($productId) {
+                return (int) $productId;
+            })->unique()->values();
+            $newProducts = Item::where('status', 'Activate')
+                ->whereIn('id', $newProductIds)
+                ->whereNotIn('id', $existingProductIds)
+                ->get()
+                ->keyBy('id');
+
+            foreach ($newProductLines as $productId => $line) {
+                $product = $newProducts->get((int) $productId);
+                if (!$product) {
+                    continue;
+                }
+
+                $line = (array) $line;
+                $colorBreakdown = $this->colorBreakdown($product, $line);
+                $sizeBreakdown = $this->sizeBreakdown($product, $line);
+                $quantity = $colorBreakdown
+                    ? array_sum($colorBreakdown)
+                    : ($sizeBreakdown ? array_sum($sizeBreakdown) : max(0, (int) data_get($line, 'qty', 0)));
+
+                if ($quantity <= 0) {
+                    continue;
+                }
+
+                $unitPrice = $this->dealerPrice($product);
+                $lineTotal = $unitPrice * $quantity;
+                $lockedOrder->items()->create([
+                    'product_id' => $product->id,
+                    'sku' => null,
+                    'product_name' => $product->item ?: $product->product_name,
+                    'description' => $product->item_description ?: $product->description,
+                    'product_image' => $product->item_image,
+                    'color_breakdown' => $colorBreakdown ? json_encode($colorBreakdown) : null,
+                    'size_breakdown' => $sizeBreakdown ? json_encode($sizeBreakdown) : null,
+                    'qty' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'line_total' => $lineTotal,
+                    'dealer_points' => 0,
+                ]);
+                $subtotal += $lineTotal;
+                $totalQty += $quantity;
+            }
+
+            if ($totalQty <= 0) {
+                throw ValidationException::withMessages([
+                    'items' => 'At least one product must have a quantity greater than zero.',
+                ]);
+            }
+
+            $lockedOrder->load('items');
+            $pickupDiscount = $this->pickupLubaoDiscount($request->shipping_type, $lockedOrder->items);
+            $rebateAmount = min((float) $lockedOrder->rebate_amount, $subtotal);
+            $taxableTotal = max(0, $subtotal - $rebateAmount - $pickupDiscount);
+            $orderingUser = User::with('provincialDistributor')->find($lockedOrder->ad_user_id);
+            $withholdingEnabled = (bool) (optional($lockedOrder->ad)->withholding_tax
+                ?: optional(optional($orderingUser)->provincialDistributor)->withholding_tax
+                ?: optional($orderingUser)->withholding_tax);
+            $withholdingTax = $withholdingEnabled ? (($taxableTotal / 1.12) * 0.01) : 0;
+
+            $lockedOrder->update([
+                'phone_number' => $request->phone_number,
+                'email_address' => $request->email_address,
+                'authorized_territory' => $request->authorized_territory,
+                'delivery_address' => $request->delivery_address,
+                'shipping_type' => $request->shipping_type,
+                'payment_method' => $request->payment_method,
+                'bank_name' => $request->payment_method === 'bank_transfer' ? $request->bank_name : null,
+                'remarks' => $request->remarks,
+                'subtotal' => $subtotal,
+                'total_qty' => $totalQty,
+                'rebate_amount' => $rebateAmount,
+                'pickup_discount' => $pickupDiscount,
+                'withholding_tax' => $withholdingTax,
+                'total_amount' => max(0, $taxableTotal - $withholdingTax),
+            ]);
+            if ($taxSigning) {
+                $taxService->capture($lockedOrder, $user, $taxSigning);
+            }
+        });
+
+        $taxService->deliverForOrder($order);
+        Alert::success('DPO Updated', 'Pending purchase order updated successfully.');
+
+        return redirect()->route('ad-purchase-orders.show', $order->id);
+    }
+
+    private function pendingOrderForEditing($id, User $user)
+    {
+        if (!$user->hasAreaDistributorAccess()) {
+            abort(403, 'Only Provincial Distributors and Area Distributors can edit purchase orders.');
+        }
+
+        $query = AdPurchaseOrder::with(['items', 'ad', 'vouchers'])
+            ->where('status', 'Pending')
+            ->where('ad_user_id', $user->id);
+
+        return $query->findOrFail($id);
+    }
+
+    private function canEditPendingOrder(AdPurchaseOrder $order, User $user)
+    {
+        if ($order->status !== 'Pending') {
+            return false;
+        }
+
+        return $user->hasAreaDistributorAccess()
+            && (int) $order->ad_user_id === (int) $user->id;
     }
 
     /**

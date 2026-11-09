@@ -1755,17 +1755,15 @@
                     $pendingPullOutRequestsCount = \App\InventoryTransfer::where('out_type', 'Pull Out')
                         ->where('approval_status', 'Pending')
                         ->where('warehouse', $sidebarWarehouse)
-                        ->count();
-                    $pendingReturnRefundRequestsCount = \App\InventoryTransfer::where('out_type', 'Return and Refund')
+                        ->selectRaw('MIN(id) as id')->groupPullOutTransactions()->get()->count();
+                    $pendingReturnRefundRequestsCount = \App\InventoryTransfer::countReturnRefundTransactions(\App\InventoryTransfer::where('out_type', 'Return and Refund')
                         ->where('approval_status', 'Pending')
-                        ->where('warehouse', $sidebarWarehouse)
-                        ->count();
+                        ->where('warehouse', $sidebarWarehouse));
                 }
 
                 if ($sidebarIsAdmin && strtolower(trim((string) $sidebarUser->name)) === 'dennis villareal') {
-                    $pendingReturnRefundRequestsCount = \App\InventoryTransfer::where('out_type', 'Return and Refund')
-                        ->where('approval_status', 'Pending')
-                        ->count();
+                    $pendingReturnRefundRequestsCount = \App\InventoryTransfer::countReturnRefundTransactions(\App\InventoryTransfer::where('out_type', 'Return and Refund')
+                        ->where('approval_status', 'Pending'));
                 }
 
                 if ($sidebarReturnRefundProcessor) {
@@ -1788,7 +1786,7 @@
                         });
                     }
 
-                    $pendingReturnRefundRequestsCount = $creditMemoRequests->count();
+                    $pendingReturnRefundRequestsCount = \App\InventoryTransfer::countReturnRefundTransactions($creditMemoRequests);
                 }
             @endphp
 
@@ -3100,7 +3098,7 @@
                                                 </div>
                                                 <div class="flex-grow-1">
                                                     <div class="fw-semibold text-dark">${item.name}</div>
-                                                    <small class="text-muted">${item.type === 'client' ? 'Customer' : 'Dealer'}</small>
+                                                    <small class="text-muted">${item.type === 'client' ? 'Customer' : (item.type === 'mega_dealer' ? 'Mega Dealer' : 'Dealer')}</small>
                                                 </div>
                                                 <div>
                                                     <iconify-icon icon="solar:arrow-right-linear" class="text-muted"></iconify-icon>

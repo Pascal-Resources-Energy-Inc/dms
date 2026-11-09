@@ -199,6 +199,44 @@
                                 <option value="Grocery">Grocery</option>
                             </select>
                         </div>
+                        <div class="col-12 mb-3 distributor-profile-fields" style="display: none;">
+                            <div class="border rounded-3 p-3 bg-light">
+                                <div class="d-flex align-items-center gap-2 mb-3">
+                                    <span class="badge bg-primary-subtle text-primary"><i class="bi bi-briefcase"></i></span>
+                                    <div>
+                                        <div class="fw-bold">Distributor Operations</div>
+                                        <small class="text-muted">Operational capacity and supporting contracts.</small>
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label d-block">Service Vehicle <span class="text-danger">*</span></label>
+                                        <div class="d-flex gap-3 flex-wrap">
+                                            <div class="form-check">
+                                                <input class="form-check-input distributor-profile-input" type="radio" name="has_service_vehicle" id="service_vehicle_yes" value="1">
+                                                <label class="form-check-label" for="service_vehicle_yes"><i class="bi bi-truck me-1"></i>Yes</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input distributor-profile-input" type="radio" name="has_service_vehicle" id="service_vehicle_no" value="0">
+                                                <label class="form-check-label" for="service_vehicle_no">No</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="business_years_operation">Years in Business Operation <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control distributor-profile-input" id="business_years_operation" name="business_years_operation" min="0" max="200" step="1" placeholder="e.g., 5">
+                                            <span class="input-group-text">year(s)</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="contract_attachments">Contract Attachments</label>
+                                        <input type="file" class="form-control distributor-profile-input" id="contract_attachments" name="contract_attachments[]" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                                        <small class="text-muted">Select up to 10 PDF, Word, JPG, or PNG files. Maximum 10MB each.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="col-md-6 mb-3 business-fields">
                             <label class="form-label" for="tin">TIN</label>
                             <input
@@ -491,9 +529,9 @@
                                     </div>
                                 </div>
                                 <label class="form-label" for="delivery_address">
-                                    Delivery Address <span class="text-danger">*</span>
+                                    Business/ Delivery Address <span class="text-danger">*</span>
                                 </label>
-                                <textarea class="form-control distributor-delivery-required delivery-address-box" id="delivery_address" name="delivery_address" rows="3" placeholder="Enter delivery address" data-uppercase></textarea>
+                                <textarea class="form-control distributor-delivery-required delivery-address-box" id="delivery_address" name="delivery_address" rows="3" placeholder="Enter Business/ Delivery Address" data-uppercase></textarea>
                             </div>
                         </div>
                         {{-- <div class="col-md-6 mb-2 business-fields">

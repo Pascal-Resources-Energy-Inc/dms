@@ -297,8 +297,8 @@
 @section('content')
 <section class="welcome">
     <div class="page-toolbar">
-        <h5 class="page-title">Area Distributor Details</h5>
-        <a href="{{ route('ads') }}" class="btn btn-sm btn-secondary">
+        <h5 class="page-title">{{ $distributorSingular ?? 'Area Distributor' }} Details</h5>
+        <a href="{{ route($indexRoute ?? 'ads') }}" class="btn btn-sm btn-secondary">
             <i class="ti ti-arrow-left"></i> Back
         </a>
     </div>
@@ -408,6 +408,14 @@
                             <div class="info-value">{{ strtoupper($ad->business_type ?? '-') }}</div>
                         </div>
                         <div class="info-item">
+                            <div class="info-label">Service Vehicle</div>
+                            <div class="info-value">{{ is_null($ad->has_service_vehicle) ? '-' : ($ad->has_service_vehicle ? 'YES' : 'NO') }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Years in Business Operation</div>
+                            <div class="info-value">{{ is_null($ad->business_years_operation) ? '-' : number_format($ad->business_years_operation) . ' YEAR(S)' }}</div>
+                        </div>
+                        <div class="info-item">
                             <div class="info-label">TIN</div>
                             <div class="info-value">{{ strtoupper($ad->tin ?? '-') }}</div>
                         </div>
@@ -428,6 +436,20 @@
                             <div class="info-value">{{ $ad->longitude ?? '-' }}</div>
                         </div>
                     </div>
+
+                    @php($contractAttachments = collect($ad->contract_attachments ?: [])->filter()->values())
+                    @if($contractAttachments->isNotEmpty())
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="info-label mb-2">Contract Attachments</div>
+                            <div class="d-flex flex-wrap gap-2">
+                                @foreach($contractAttachments as $contractIndex => $contractPath)
+                                    <a href="{{ asset($contractPath) }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-file-earmark-text"></i> Contract {{ $contractIndex + 1 }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
 
                     
                 </div>

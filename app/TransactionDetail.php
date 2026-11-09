@@ -30,5 +30,10 @@ class TransactionDetail extends Model
     public function adDealer()
     {
         return $this->belongsTo(Dealer::class,'dealer_id','user_id');
-    }   
+    }
+
+    public function megaDealerProfile()
+    {
+        return $this->belongsTo(MegaDealer::class, 'dealer_id', 'user_id');
+    }
 }

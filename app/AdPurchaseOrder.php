@@ -70,6 +70,11 @@ class AdPurchaseOrder extends Model implements Auditable
         return $this->hasMany(AdPurchaseOrderItem::class, 'ad_purchase_order_id');
     }
 
+    public function taxCertificates()
+    {
+        return $this->hasMany(AdpoTaxCertificate::class, 'ad_purchase_order_id')->orderBy('id', 'desc');
+    }
+
     public function partialReceipts()
     {
         return $this->hasMany(AdPurchaseOrderPartialReceipt::class, 'ad_purchase_order_id');
