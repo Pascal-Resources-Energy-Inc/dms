@@ -11,7 +11,7 @@ class Area extends Model implements Auditable
     use \OwenIt\Auditing\Auditable;
     
     protected $table = 'areas';
-    protected $fillable = ['name', 'region', 'province', 'city_municipality', 'barangay'];
+    protected $fillable = ['name', 'created_by'];
 
     public function usesTimestamps()
     {
