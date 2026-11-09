@@ -543,6 +543,11 @@
                                                     <div class="small text-muted">{{ strtoupper($order->bank_name) }}</div>
                                                 @endif
                                             </div>
+                                            @if($order->status === 'Pending' && auth()->user()->hasAreaDistributorAccess() && (int) $order->ad_user_id === (int) auth()->id())
+                                                <a href="{{ route('ad-purchase-orders.edit', $order->id) }}" class="btn btn-sm btn-outline-warning">
+                                                    <i class="ti ti-edit"></i> Edit
+                                                </a>
+                                            @endif
                                             <a href="{{ route($viewRouteName, $order->id) }}" class="btn btn-sm btn-outline-primary">
                                                 <i class="ti ti-eye"></i> View
                                             </a>
@@ -679,6 +684,11 @@
                                                     <i class="ti ti-shield-check"></i> Submit DPO for Verification
                                                 </button>
                                             @endif
+                                        @endif
+                                        @if($order->status === 'Pending' && auth()->user()->hasAreaDistributorAccess() && (int) $order->ad_user_id === (int) auth()->id())
+                                            <a href="{{ route('ad-purchase-orders.edit', $order->id) }}" class="btn btn-sm btn-outline-warning">
+                                                <i class="ti ti-edit"></i> Edit
+                                            </a>
                                         @endif
                                         <a href="{{ route($viewRouteName, $order->id) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="ti ti-eye"></i> View

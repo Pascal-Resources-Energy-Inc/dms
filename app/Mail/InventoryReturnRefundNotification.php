@@ -26,6 +26,10 @@ class InventoryReturnRefundNotification extends Mailable
             ? 'Return and Refund approval required: ' . $this->movement->reference_no
             : 'Return and Refund received: ' . $this->movement->reference_no;
 
-        return $this->subject($subject)->view('emails.inventory_return_refund_notification');
+        $products = $this->recipientType === 'approver'
+            ? InventoryTransfer::sameReturnRefund($this->movement)->orderBy('id')->get()
+            : collect([$this->movement]);
+
+        return $this->subject($subject)->view('emails.inventory_return_refund_notification', compact('products'));
     }
 }

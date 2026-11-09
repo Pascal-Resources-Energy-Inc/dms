@@ -10,6 +10,7 @@
       </div>
       <form method='POST' action='{{url('valid-id-dealer/'.$dealer->id)}}' onsubmit='show()' enctype="multipart/form-data" class="validation-wizard wizard-circle mt-5">
       @csrf
+        <input type="hidden" name="partner_record_type" value="{{ $partnerRecordType ?? 'dealer' }}">
         <div class="modal-body text-center">
           <div class="mb-3">
             <label for="valid_id_type" class="form-label">Select ID Type</label>

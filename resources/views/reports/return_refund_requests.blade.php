@@ -23,7 +23,9 @@
     .rrr-filter { padding: 15px; border: 1px solid #edf2f7; border-radius: 13px; background: #f8fafc; }
     .rrr-filter label { margin-bottom: 5px; color: #475569; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
     .rrr-filter .form-control { height: 40px; border-color: #cbd5e1; border-radius: 9px; background: #fff; }
-    .rrr-table-shell { overflow: hidden; border: 1px solid #e6edf4; border-radius: 12px; background: #fff; }
+    .rrr-table-shell { min-width: 0; overflow: hidden; border: 1px solid #e6edf4; border-radius: 12px; background: #fff; }
+    .rrr-load-state { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 9px; background: #f8fafc; color: #475569; }
+    .rrr-load-state.is-error { border-color: #f3c5c5; background: #fff5f5; color: #9b3030; }
     #returnRefundReportTable { min-width: 1560px; margin: 0 !important; border-collapse: separate; border-spacing: 0; }
     #returnRefundReportTable thead th { padding: 13px 12px; color: #475569; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; background: #f8fafc; border-top: 0; border-bottom: 1px solid #dbe3ed; }
     #returnRefundReportTable td { padding: 14px 12px; vertical-align: middle; border-color: #edf1f5; }
@@ -64,20 +66,22 @@
     </section>
 
     <div class="row g-3 mt-1">
-        <div class="col-6 col-lg"><div class="rrr-stat"><small>Total Requests</small><strong>{{ number_format($summary['total']) }}</strong></div></div>
-        <div class="col-6 col-lg"><div class="rrr-stat is-pending"><small>Pending</small><strong>{{ number_format($summary['pending']) }}</strong></div></div>
-        <div class="col-6 col-lg"><div class="rrr-stat is-receiving"><small>For Receiving</small><strong>{{ number_format($summary['receiving']) }}</strong></div></div>
-        <div class="col-6 col-lg"><div class="rrr-stat is-processing"><small>Processing</small><strong>{{ number_format($summary['processing']) }}</strong></div></div>
-        <div class="col-12 col-lg"><div class="rrr-stat is-review"><small>For Review</small><strong>{{ number_format($summary['review']) }}</strong></div></div>
+        <div class="col-6 col-lg"><div class="rrr-stat"><small>Total Requests</small><strong data-report-summary="total">{{ number_format($summary['total']) }}</strong></div></div>
+        <div class="col-6 col-lg"><div class="rrr-stat is-pending"><small>Pending</small><strong data-report-summary="pending">{{ number_format($summary['pending']) }}</strong></div></div>
+        <div class="col-6 col-lg"><div class="rrr-stat"><small>Awaiting RIS</small><strong data-report-summary="approved">{{ number_format($summary['approved']) }}</strong></div></div>
+        <div class="col-6 col-lg"><div class="rrr-stat is-receiving"><small>For Receiving</small><strong data-report-summary="receiving">{{ number_format($summary['receiving']) }}</strong></div></div>
+        <div class="col-6 col-lg"><div class="rrr-stat is-processing"><small>Processing</small><strong data-report-summary="processing">{{ number_format($summary['processing']) }}</strong></div></div>
+        <div class="col-6 col-lg"><div class="rrr-stat is-review"><small>For Review</small><strong data-report-summary="review">{{ number_format($summary['review']) }}</strong></div></div>
     </div>
+
+    <div id="returnRefundSubmissionSuccess" class="alert alert-success mt-3 {{ session('success') ? '' : 'd-none' }}" role="status" tabindex="-1">{{ session('success') }}</div>
 
     <section class="rrr-card">
         <div class="rrr-card-heading">
             <div>
                 <h5>Transaction Register</h5>
-                <small>Server-side return and refund requests, grouped by movement reference.</small>
+                <small>Track each request and the progress of its returned products.</small>
             </div>
-            <span><i class="bi bi-database-check me-1"></i>Server-side data</span>
         </div>
 
         <div class="row g-3 rrr-filter mb-4">
@@ -93,6 +97,8 @@
                     <option value="Reviewed">Reviewed</option>
                     <option value="President Approved">President approved</option>
                     <option value="Rejected">Rejected</option>
+                    <option value="Partial">Mixed statuses</option>
+                    <option value="Warehouse Confirmed">Confirmed</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -109,9 +115,15 @@
             <div class="col-md-2 d-flex align-items-end"><button id="returnRefundClearFilters" type="button" class="btn btn-outline-secondary w-100"><i class="bi bi-arrow-counterclockwise me-1"></i>Clear</button></div>
         </div>
 
-        <div id="returnRefundReportError" class="alert alert-danger d-none mb-3"></div>
+        <div id="returnRefundReportError" class="rrr-load-state" role="status" aria-live="polite">
+            <span data-report-message>Loading Return &amp; Refund requests…</span>
+            <button type="button" id="returnRefundReportRetry" class="btn btn-outline-secondary btn-sm d-none">Try again</button>
+        </div>
         <div class="rrr-table-shell">
-            <table id="returnRefundReportTable" class="table table-hover w-100 mb-0">
+            <table id="returnRefundReportTable" class="table table-hover w-100 mb-0"
+                data-url="{{ route('return-refund-report.data') }}"
+                data-datatables-src="{{ asset('design/assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"
+                data-datatables-fallback-src="{{ asset('design/vendors/datatables.net/jquery.dataTables.js') }}">
                 <thead>
                     <tr>
                         <th>Date</th>
@@ -130,77 +142,11 @@
         </div>
     </section>
 </div>
+@if(auth()->user()->hasAreaDistributorAccess())
+    @include('reports.partials.return_refund_ris_dialog')
+@endif
 @endsection
 
 @section('javascript')
-<script src="{{ asset('design/assets/libs/datatables.net/js/jquery.dataTables.min.js') }}"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    if (!window.jQuery || !window.jQuery.fn.DataTable) return;
-
-    const $ = window.jQuery;
-    const $table = $('#returnRefundReportTable');
-    const $error = $('#returnRefundReportError');
-
-    const table = $table.DataTable({
-        processing: true,
-        serverSide: true,
-        deferRender: true,
-        searchDelay: 350,
-        pageLength: 25,
-        lengthMenu: [[25, 50, 100], [25, 50, 100]],
-        pagingType: 'simple_numbers',
-        scrollX: true,
-        scrollCollapse: true,
-        autoWidth: false,
-        dom: '<"rrr-datatable-tools"lf>rt<"rrr-datatable-footer"ip>',
-        order: [[0, 'desc']],
-        language: {
-            processing: '<i class="bi bi-arrow-repeat me-1"></i> Loading return and refund requests...',
-            search: 'Search transactions:',
-            lengthMenu: 'Show _MENU_ requests',
-            emptyTable: 'No Return & Refund requests found.',
-            zeroRecords: 'No matching Return & Refund requests found.'
-        },
-        ajax: {
-            url: '{{ route('return-refund-report.data') }}',
-            data: function (data) {
-                data.status = $('#returnRefundStatusFilter').val();
-                data.warehouse = $('#returnRefundWarehouseFilter').val();
-                data.date_from = $('#returnRefundDateFrom').val();
-                data.date_to = $('#returnRefundDateTo').val();
-            },
-            error: function (xhr) {
-                $error.text(xhr.status === 403
-                    ? 'You do not have access to view this report.'
-                    : 'Unable to load Return & Refund data. Please refresh and try again.')
-                    .removeClass('d-none');
-            }
-        },
-        columns: [
-            { data: 'transfer_date', name: 'return_refund_rows.transfer_date' },
-            { data: 'reference_no', name: 'return_refund_rows.reference_no' },
-            { data: 'distributor', name: 'distributors.name' },
-            { data: 'products', orderable: false },
-            { data: 'ris_details', orderable: false, searchable: false },
-            { data: 'receiving_details', orderable: false, searchable: false },
-            { data: 'credit_memo_details', orderable: false, searchable: false },
-            { data: 'warehouse', name: 'return_refund_rows.warehouse' },
-            { data: 'status_badge', name: 'return_refund_rows.approval_status', orderable: false },
-            { data: 'remarks_display', name: 'return_refund_rows.warehouse_remarks' }
-        ]
-    });
-
-    $('#returnRefundStatusFilter, #returnRefundWarehouseFilter, #returnRefundDateFrom, #returnRefundDateTo').on('change', function () {
-        $error.addClass('d-none');
-        table.draw();
-    });
-
-    $('#returnRefundClearFilters').on('click', function () {
-        $('#returnRefundStatusFilter, #returnRefundWarehouseFilter, #returnRefundDateFrom, #returnRefundDateTo').val('');
-        $error.addClass('d-none');
-        table.draw();
-    });
-});
-</script>
+<script src="{{ asset('js/return-refund-report.js') }}?v={{ filemtime(public_path('js/return-refund-report.js')) }}"></script>
 @endsection

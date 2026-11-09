@@ -10,6 +10,8 @@ use App\Center;
 use App\TransactionDetail;
 use App\AreaDistributor;
 use App\AreaAd;
+use App\ProvincialDistributor;
+use App\ProvincialDistributorArea;
 use App\Services\SemaphoreSmsService;
 use RealRashid\SweetAlert\Facades\Alert;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +55,11 @@ class UserController extends Controller
        $isAdmin = $request->role === 'Admin';
        $isSedp = $request->role === 'MFI';
        $isAdminLike = $isAdmin || $isSedp;
+       $isProvincialDistributor = $request->role === User::ROLE_PROVINCIAL_DISTRIBUTOR;
+       $isDistributorProfile = in_array($request->role, [
+            User::ROLE_PROVINCIAL_DISTRIBUTOR,
+            User::ROLE_AREA_DISTRIBUTOR,
+       ], true);
        $needsDeliveryAddress = in_array($request->role, ['Area Distributor', 'Provincial Distributor'], true);
        $normalizedContactNumber = $this->normalizeMobileNumber($request->contact_number);
 
@@ -106,6 +113,10 @@ class UserController extends Controller
             'contact_number' => 'nullable|regex:/^09[0-9]{9}$/',
             'type' => 'nullable|array',
             'type.*' => 'in:Project Rise,Project Genesis,Regular',
+            'has_service_vehicle' => $isDistributorProfile ? 'required|boolean' : 'nullable|boolean',
+            'business_years_operation' => $isDistributorProfile ? 'required|integer|min:0|max:200' : 'nullable|integer|min:0|max:200',
+            'contract_attachments' => 'nullable|array|max:10',
+            'contract_attachments.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
             // 'tin' => 'nullable|string|max:50',
             // 'store_picture' => 'nullable|image|max:2048',
         ]);
@@ -233,13 +244,17 @@ class UserController extends Controller
                 ->with('success', $request->role . ' successfully created');
         }
 
-        $latestAd = AreaDistributor::orderBy('id', 'desc')->first();
+        $distributorModel = $isProvincialDistributor
+            ? new ProvincialDistributor()
+            : new AreaDistributor();
+        $latestAd = $distributorModel->newQuery()->orderBy('id', 'desc')->first();
 
         $number = ($latestAd && $latestAd->ad_reference)
-            ? intval(substr($latestAd->ad_reference, 4)) + 1
+            ? ((int) preg_replace('/\D+/', '', $latestAd->ad_reference)) + 1
             : 1;
 
-        $ad_reference = 'PRP' . str_pad($number, 5, '0', STR_PAD_LEFT);
+        $ad_reference = ($isProvincialDistributor ? 'PRPD' : 'PRP')
+            . str_pad($number, 5, '0', STR_PAD_LEFT);
 
 
         $attachmentPath = null;
@@ -258,7 +273,12 @@ class UserController extends Controller
             $storePicturePath = 'uploads/store_pictures/' . $filename;
         }
 
-        $areaDistributor = new AreaDistributor();
+        $contractAttachments = $isDistributorProfile
+            ? $this->storeContractAttachments($request)
+            : [];
+
+        $areaDistributor = $distributorModel;
+        $distributorTable = $areaDistributor->getTable();
         $areaDistributor->user_id = $user->id;
         $areaDistributor->ad_reference = $ad_reference;
         $areaDistributor->name = $fullName;
@@ -280,7 +300,14 @@ class UserController extends Controller
 
         $areaDistributor->business_name = $request->business_name;
         $areaDistributor->business_type = $request->business_type;
-        if (Schema::hasColumn('area_distributors', 'tin')) {
+        $areaDistributor->has_service_vehicle = $isDistributorProfile
+            ? (bool) $request->input('has_service_vehicle')
+            : null;
+        $areaDistributor->business_years_operation = $isDistributorProfile
+            ? (int) $request->input('business_years_operation')
+            : null;
+        $areaDistributor->contract_attachments = $contractAttachments;
+        if (Schema::hasColumn($distributorTable, 'tin')) {
             $areaDistributor->tin = trim((string) $request->tin) ?: null;
         }
         $areaDistributor->withholding_tax = $request->has('withholding_tax') ? 1 : 0;
@@ -292,7 +319,7 @@ class UserController extends Controller
             $areaDistributor->attachment = $attachmentPath;
         }
 
-        if ($storePicturePath && Schema::hasColumn('area_distributors', 'store_picture')) {
+        if ($storePicturePath && Schema::hasColumn($distributorTable, 'store_picture')) {
             $areaDistributor->store_picture = $storePicturePath;
         }
 
@@ -314,24 +341,49 @@ class UserController extends Controller
 
             if ($areaName && !empty($projectTags)) {
                 foreach ($projectTags as $projectTag) {
-                    AreaAd::create([
-                        'ad_id' => $areaDistributor->id,
-                        'ad_user_id' => $user->id,
+                    $areaAttributes = [
+                        'user_id' => $user->id,
                         'area_name' => $areaName,
                         'project_type' => $projectTag,
                         'joining_date' => $date,
                         'user_role' => $request->role,
-                    ]);
+                    ];
+
+                    if ($isProvincialDistributor) {
+                        ProvincialDistributorArea::create(array_merge($areaAttributes, [
+                            'provincial_distributor_id' => $areaDistributor->id,
+                        ]));
+                    } else {
+                        AreaAd::create([
+                            'ad_id' => $areaDistributor->id,
+                            'ad_user_id' => $user->id,
+                            'area_name' => $areaName,
+                            'project_type' => $projectTag,
+                            'joining_date' => $date,
+                            'user_role' => $request->role,
+                        ]);
+                    }
                 }
             } elseif ($areaName) {
-                AreaAd::create([
-                    'ad_id' => $areaDistributor->id,
-                    'ad_user_id' => $user->id,
-                    'area_name' => $areaName,
-                    'project_type' => null,
-                    'joining_date' => $date,
-                    'user_role' => $request->role,
-                ]);
+                if ($isProvincialDistributor) {
+                    ProvincialDistributorArea::create([
+                        'provincial_distributor_id' => $areaDistributor->id,
+                        'user_id' => $user->id,
+                        'area_name' => $areaName,
+                        'project_type' => null,
+                        'joining_date' => $date,
+                        'user_role' => $request->role,
+                    ]);
+                } else {
+                    AreaAd::create([
+                        'ad_id' => $areaDistributor->id,
+                        'ad_user_id' => $user->id,
+                        'area_name' => $areaName,
+                        'project_type' => null,
+                        'joining_date' => $date,
+                        'user_role' => $request->role,
+                    ]);
+                }
             }
         }
 
@@ -1057,7 +1109,8 @@ class UserController extends Controller
         $query = User::with([
             'dealer:id,user_id,address,status',
             'client:id,user_id,address,status',
-            'ad'
+            'ad',
+            'provincialDistributor'
         ])->select('users.*');
 
         if ($request->role) {
@@ -1112,9 +1165,12 @@ class UserController extends Controller
             })
 
             ->addColumn('status', function ($user) {
+                $distributorProfile = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+                    ? $user->provincialDistributor
+                    : $user->ad;
                 $status = optional($user->dealer)->status
                     ?? optional($user->client)->status
-                    ?? optional($user->ad)->status
+                    ?? optional($distributorProfile)->status
                     ?? 'N/A';
 
                 $statusText = strtoupper($status);
@@ -1131,9 +1187,12 @@ class UserController extends Controller
                 $canEdit = $currentUserIsAdminLike && $currentUser->can_edit === 'on';
                 $canAdd = $currentUserIsAdminLike && $currentUser->can_add === 'on';
 
+                $distributorProfile = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+                    ? $user->provincialDistributor
+                    : $user->ad;
                 $status = optional($user->dealer)->status
                     ?? optional($user->client)->status
-                    ?? optional($user->ad)->status
+                    ?? optional($distributorProfile)->status
                     ?? 'N/A';
 
                 $buttons = [];
@@ -1143,7 +1202,9 @@ class UserController extends Controller
                         $buttons[] = '<a href="'.url('view-dealer/'.$user->dealer->id).'" class="btn-custom btn-view-custom" title="View Details"><i class="fas fa-eye"></i></a>';
                     } elseif ($user->role === 'Client' && $user->client) {
                         $buttons[] = '<a href="'.url('view-client/'.$user->client->id).'" class="btn-custom btn-view-custom" title="View Details"><i class="fas fa-eye"></i></a>';
-                    } elseif (in_array($user->role, ['Area Distributor', 'Provincial Distributor', 'Mega Dealer'], true) && $user->ad) {
+                    } elseif ($user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR && $user->provincialDistributor) {
+                        $buttons[] = '<a href="'.route('pd.view', $user->provincialDistributor->id).'" class="btn-custom btn-view-custom" title="View Details"><i class="fas fa-eye"></i></a>';
+                    } elseif (in_array($user->role, ['Area Distributor', 'Mega Dealer'], true) && $user->ad) {
                         $buttons[] = '<a href="'.url('view-ad/'.$user->ad->id).'" class="btn-custom btn-view-custom" title="View Details"><i class="fas fa-eye"></i></a>';
                     }
                 }
@@ -1207,5 +1268,29 @@ class UserController extends Controller
             ->filter()
             ->unique()
             ->values();
+    }
+
+    private function storeContractAttachments(Request $request)
+    {
+        if (!$request->hasFile('contract_attachments')) {
+            return [];
+        }
+
+        $directory = 'uploads/contracts';
+
+        if (!is_dir(public_path($directory))) {
+            mkdir(public_path($directory), 0755, true);
+        }
+
+        return collect($request->file('contract_attachments'))
+            ->filter()
+            ->map(function ($file) use ($directory) {
+                $filename = 'contract_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move(public_path($directory), $filename);
+
+                return $directory . '/' . $filename;
+            })
+            ->values()
+            ->all();
     }
 }

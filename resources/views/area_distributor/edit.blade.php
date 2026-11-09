@@ -11,7 +11,7 @@
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ url('edit-ads/'.$ad->id) }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ route($updateRoute ?? 'edit-ads', $ad->id) }}" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 <input type="hidden" name="latitude" id="hidden_latitude_{{ $ad->id }}" value="{{ $ad->latitude }}">
@@ -19,17 +19,27 @@
                 <div class="modal-body">
                     <div class="row">
                         @php
-                            $selectedTypes = is_array($ad->userAds->type)
-                                ? $ad->userAds->type
-                                : json_decode($ad->userAds->type, true);
-                            $selectedTypes = is_array($selectedTypes) ? $selectedTypes : [];
+                            $profileUser = $ad->userAds;
+                            $distributorFormKey = get_class($ad) . ':' . $ad->id;
+                            $restoreProjectAreas = old('distributor_form') === $distributorFormKey;
+                            $selectedTypes = $restoreProjectAreas
+                                ? (array) old('type', [])
+                                : \App\Services\DistributorProjectAreas::projectTags($profileUser);
+                            $projectAreaRows = $restoreProjectAreas
+                                ? collect(old('rows', []))->filter(function ($row) { return is_array($row); })->map(function ($row) { return (object) array_merge(['id' => null, 'project_type' => null, 'area_name' => '', 'joining_date' => null, 'package_amount' => null], $row); })->values()
+                                : $ad->areas->values();
+                            $profileNameParts = preg_split('/\s+/', trim((string) $ad->name), 3);
+                            $profileFirstName = optional($profileUser)->first_name ?: ($profileNameParts[0] ?? '');
+                            $profileMiddleName = optional($profileUser)->middle_name ?: (count($profileNameParts) === 3 ? $profileNameParts[1] : '');
+                            $profileLastName = optional($profileUser)->last_name ?: ($profileNameParts[count($profileNameParts) - 1] ?? '');
+                            $contractAttachments = collect($ad->contract_attachments ?: [])->filter()->values();
                             $awardedAreaOptions = collect($areas ?? []);
 
                             if ($awardedAreaOptions->isEmpty()) {
                                 $awardedAreaOptions = collect($centers ?? []);
                             }
 
-                            $existingAwardedAreaNames = $ad->areas->pluck('area_name');
+                            $existingAwardedAreaNames = $ad->areas->pluck('area_name')->merge($projectAreaRows->pluck('area_name'));
                             $awardedAreaOptions = $awardedAreaOptions
                                 ->pluck('name')
                                 ->merge($existingAwardedAreaNames)
@@ -42,9 +52,18 @@
                                 ->values();
 
                             $deletedAwardedAreas = $ad->relationLoaded('trashedAreas')
-                                ? $ad->trashedAreas->whereIn('project_type', ['Project Rise', 'Project Genesis'])
+                                ? $ad->trashedAreas
                                 : collect();
                         @endphp
+                        <input type="hidden" name="distributor_form" value="{{ $distributorFormKey }}">
+                        @if($restoreProjectAreas)
+                            @foreach((array) old('removed_area_ids', []) as $removedAreaId)
+                                <input type="hidden" name="removed_area_ids[]" value="{{ $removedAreaId }}">
+                            @endforeach
+                            @if($errors->any())
+                                <div class="col-12"><div class="alert alert-danger" role="alert"><strong>Please review the following:</strong><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div></div>
+                            @endif
+                        @endif
 
                         <div class="col-md-6 mb-3">
                             <div class="ad-section-card h-100">
@@ -110,15 +129,15 @@
                         </div> --}}
                         <div class="col-md-4 mb-2">
                             <label class="form-label" for="first_name_{{ $ad->id }}">First Name&nbsp;<span class="text-danger">*</span></label>
-                            <input type="text" class="form-control required" id="first_name_{{ $ad->id }}" name="first_name" placeholder="Enter First Name" data-uppercase value="{{ $ad->userAds->first_name }}" required/>
+                            <input type="text" class="form-control required" id="first_name_{{ $ad->id }}" name="first_name" placeholder="Enter First Name" data-uppercase value="{{ $profileFirstName }}" required/>
                         </div>
                         <div class="col-md-4 mb-2">
                             <label class="form-label" for="middle_name_{{ $ad->id }}">Middle Name</label>
-                            <input type="text" class="form-control required" id="middle_name_{{ $ad->id }}" name="middle_name" placeholder="Enter Middle Name" data-uppercase value="{{ $ad->userAds->middle_name }}">
+                            <input type="text" class="form-control required" id="middle_name_{{ $ad->id }}" name="middle_name" placeholder="Enter Middle Name" data-uppercase value="{{ $profileMiddleName }}">
                         </div>
                         <div class="col-md-4 mb-2">
                             <label class="form-label" for="last_name_{{ $ad->id }}">Last Name&nbsp;<span class="text-danger">*</span></label>
-                            <input type="text" class="form-control required" id="last_name_{{ $ad->id }}" name="last_name" placeholder="Enter Last Name" data-uppercase value="{{ $ad->userAds->last_name }}" required/>
+                            <input type="text" class="form-control required" id="last_name_{{ $ad->id }}" name="last_name" placeholder="Enter Last Name" data-uppercase value="{{ $profileLastName }}" required/>
                         </div>
                         <div class="col-md-6 mb-2">
                             <label class="form-label" for="email_address_{{ $ad->id }}">Email Address&nbsp;<span class="text-danger">*</span></label>
@@ -130,7 +149,7 @@
                         </div>
                         <div class="col-md-6 mb-2">
                             <label class="form-label" for="birthdate_{{ $ad->id }}">Birthdate&nbsp;<span class="text-danger">*</span></label>
-                            <input type="date" class="form-control required" id="birthdate_{{ $ad->id }}" name='birthdate' placeholder="Enter Birthdate" value="{{ $ad->userAds->birthdate }}">
+                            <input type="date" class="form-control required" id="birthdate_{{ $ad->id }}" name='birthdate' placeholder="Enter Birthdate" value="{{ optional($profileUser)->birthdate }}">
                         </div>
                         <div class="col-md-6 mb-2">
                             <label class="form-label" for="facebook_{{ $ad->id }}">Facebook</label>
@@ -248,6 +267,40 @@
                             <small class="text-muted">Optional. Tax identification number if applicable.</small>
                         </div>
                         <div class="col-md-6 mb-3">
+                            <label class="form-label d-block">Service Vehicle <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-3 flex-wrap border rounded-3 px-3 py-2 bg-light">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" type="radio" name="has_service_vehicle" id="service_vehicle_yes_{{ $ad->id }}" value="1" {{ $ad->has_service_vehicle === true ? 'checked' : '' }} required>
+                                    <label class="form-check-label" for="service_vehicle_yes_{{ $ad->id }}"><i class="bi bi-truck me-1"></i>Yes</label>
+                                </div>
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" type="radio" name="has_service_vehicle" id="service_vehicle_no_{{ $ad->id }}" value="0" {{ $ad->has_service_vehicle === false ? 'checked' : '' }} required>
+                                    <label class="form-check-label" for="service_vehicle_no_{{ $ad->id }}">No</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="business_years_operation_{{ $ad->id }}">Years in Business Operation <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="business_years_operation_{{ $ad->id }}" name="business_years_operation" value="{{ old('business_years_operation', $ad->business_years_operation) }}" min="0" max="200" step="1" placeholder="e.g., 5" required>
+                                <span class="input-group-text">year(s)</span>
+                            </div>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label" for="contract_attachments_{{ $ad->id }}">Contract Attachments</label>
+                            <input type="file" class="form-control" id="contract_attachments_{{ $ad->id }}" name="contract_attachments[]" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                            <small class="text-muted d-block mt-1">New files are added to the current contracts. Up to 10 files per upload, maximum 10MB each.</small>
+                            @if($contractAttachments->isNotEmpty())
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    @foreach($contractAttachments as $contractIndex => $contractPath)
+                                        <a href="{{ asset($contractPath) }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-file-earmark-text"></i> Contract {{ $contractIndex + 1 }}
+                                        </a>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label class="form-label" for="store_picture_{{ $ad->id }}">Store Picture</label>
                             <div class="ad-store-picture-editor">
                                 <div class="ad-store-picture-preview" id="storePicturePreview-{{ $ad->id }}">
@@ -313,7 +366,7 @@
                                         <i class="ti ti-map-pin"></i>
                                         <div>
                                             <span>Awarded Areas Per Project</span>
-                                            <small>Select Project Rise or Project Genesis above to assign areas.</small>
+                                            <small>Review awarded areas, package amounts, and joining dates. Project affiliation follows the partner tags above.</small>
                                         </div>
                                     </div>
                                     <button type="button"
@@ -323,24 +376,26 @@
                                     </button>
                                 </div>
                                 <div id="projectRows-{{ $ad->id }}" class="ad-project-rows">
-                                    @foreach($ad->areas->whereIn('project_type', ['Project Rise', 'Project Genesis'])->values() as $areaIndex => $area)
+                                    @foreach($projectAreaRows as $areaIndex => $area)
                                         <div class="ad-project-row" data-project-row>
-                                            <input type="hidden" name="rows[{{ $areaIndex }}][id]" value="{{ $area->id }}">
+                                            <input type="hidden" class="ad-row-id" name="rows[{{ $areaIndex }}][id]" value="{{ $area->id }}">
+                                            <input type="hidden" class="ad-row-project-value" name="rows[{{ $areaIndex }}][project_type]" value="{{ $area->project_type }}">
                                             <div class="row align-items-end">
-                                                <div class="col-md-3 mb-2">
-                                                    <label class="form-label">Project Type <span class="text-danger">*</span></label>
-                                                    <select class="form-select ad-row-project-type" name="rows[{{ $areaIndex }}][project_type]" required>
-                                                        <option value="">Select Project</option>
-                                                        <option value="Project Rise" {{ $area->project_type === 'Project Rise' ? 'selected' : '' }}>Project Rise</option>
-                                                        <option value="Project Genesis" {{ $area->project_type === 'Project Genesis' ? 'selected' : '' }}>Project Genesis</option>
+                                                {{-- <div class="col-md-3 mb-2">
+                                                    <label class="form-label">Project Type</label>
+                                                    <select class="form-select ad-row-project-type" name="rows[{{ $areaIndex }}][project_type]">
+                                                        <option value="">No project assigned</option>
+                                                        @foreach(collect($selectedTypes)->push($area->project_type)->filter()->unique() as $rowProject)
+                                                            <option value="{{ $rowProject }}" {{ $area->project_type === $rowProject ? 'selected' : '' }}>{{ $rowProject }}</option>
+                                                        @endforeach
                                                     </select>
-                                                </div>
+                                                </div> --}}
                                                 <div class="col-md-5 mb-2">
                                                     <label class="form-label">Awarded Area <span class="text-danger">*</span></label>
                                                     <select class="form-select ad-row-area-name" name="rows[{{ $areaIndex }}][area_name]" required>
                                                         <option value="">Select Area</option>
                                                         @foreach($awardedAreaOptions as $areaOption)
-                                                            <option value="{{ $areaOption }}" {{ $area->area_name === $areaOption ? 'selected' : '' }}>{{ $areaOption }}</option>
+                                                            <option value="{{ $areaOption }}" {{ trim((string) $area->area_name) === $areaOption ? 'selected' : '' }}>{{ $areaOption }}</option>
                                                         @endforeach
                                                     </select>
                                                     @if($awardedAreaOptions->isEmpty())
@@ -348,8 +403,15 @@
                                                     @endif
                                                 </div>
                                                 <div class="col-md-3 mb-2">
+                                                    <label class="form-label" for="ad_area_amount_{{ $ad->id }}_{{ $areaIndex }}">Package Amount</label>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text">₱</span>
+                                                        <input type="number" class="form-control ad-row-package-amount" id="ad_area_amount_{{ $ad->id }}_{{ $areaIndex }}" name="rows[{{ $areaIndex }}][package_amount]" value="{{ $restoreProjectAreas ? $area->package_amount : ($area->package_amount !== null ? number_format((float) $area->package_amount, 2, '.', '') : '') }}" min="0" max="9999999999.99" step="0.01" inputmode="decimal" placeholder="Not set">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3 mb-2">
                                                     <label class="form-label">Joining Date</label>
-                                                    <input type="date" class="form-control" name="rows[{{ $areaIndex }}][joining_date]" value="{{ $area->joining_date }}">
+                                                    <input type="date" class="form-control" name="rows[{{ $areaIndex }}][joining_date]" value="{{ $restoreProjectAreas ? $area->joining_date : ($area->joining_date ? \Carbon\Carbon::parse($area->joining_date)->format('Y-m-d') : '') }}">
                                                 </div>
                                                 <div class="col-md-1 mb-2">
                                                     <button type="button" class="btn btn-outline-danger ad-remove-project-row" title="Remove area">
@@ -372,7 +434,7 @@
                                         </div>
                                         @foreach($deletedAwardedAreas as $deletedArea)
                                             <div class="ad-deleted-area-item">
-                                                <span>{{ $deletedArea->project_type }} - {{ $deletedArea->area_name }}</span>
+                                                <span>{{ $deletedArea->project_type ?: 'No project assigned' }} - {{ $deletedArea->area_name }}</span>
                                                 <small>Deleted: {{ optional($deletedArea->deleted_at)->format('M d, Y h:i A') ?? 'No timestamp' }}</small>
                                             </div>
                                         @endforeach
@@ -669,7 +731,7 @@
         gap: 8px;
     }
     #edit_area_distributor-{{ $ad->id }} .ad-awarded-area-wrapper {
-        display: none;
+        display: block;
     }
     #edit_area_distributor-{{ $ad->id }} .ad-awarded-area-card {
         background: #ffffff;
@@ -1064,81 +1126,24 @@
                 .replace(/'/g, '&#039;');
         }
 
-        function selectedProjectTags() {
-            return Array.from(modal.querySelectorAll('.project-type:checked'))
-                .map(input => input.value)
-                .filter(value => ['Project Rise', 'Project Genesis'].includes(value));
-        }
-
-        function setRowInputsDisabled(row, disabled) {
-            row.querySelectorAll('input, select').forEach(input => {
-                input.disabled = disabled;
-            });
-        }
-
-        function refreshRowProjectOptions(row, projects) {
-            const select = row.querySelector('.ad-row-project-type');
-            if (!select) return;
-
-            const current = select.value;
-            select.innerHTML = '<option value="">Select Project</option>';
-
-            if (current && !projects.includes(current)) {
-                const currentOption = document.createElement('option');
-                currentOption.value = current;
-                currentOption.textContent = current;
-                select.appendChild(currentOption);
-            }
-
-            projects.forEach(project => {
-                const option = document.createElement('option');
-                option.value = project;
-                option.textContent = project;
-                select.appendChild(option);
-            });
-
-            select.value = current || (projects[0] || '');
-        }
-
-        function syncProjectAreaVisibility(autoAddRow = false) {
-            const projects = selectedProjectTags();
+        function syncProjectAreaVisibility() {
             const wrapper = document.getElementById(`dynamic-area-wrapper-${adId}`);
             const empty = document.getElementById(`projectRowsEmpty-${adId}`);
             const rows = Array.from(modal.querySelectorAll('[data-project-row]'));
 
             if (!wrapper) return;
 
-            const shouldShow = projects.length > 0;
-            wrapper.style.display = shouldShow ? 'block' : 'none';
-
-            let visibleRows = 0;
+            wrapper.style.display = 'block';
 
             rows.forEach(row => {
-                refreshRowProjectOptions(row, projects);
-
-                const projectSelect = row.querySelector('.ad-row-project-type');
-                const project = projectSelect ? projectSelect.value : '';
-                const rowVisible = shouldShow && projects.includes(project);
-
-                row.style.display = rowVisible ? 'block' : 'none';
-                setRowInputsDisabled(row, !rowVisible);
-
-                if (rowVisible) {
-                    visibleRows++;
-                }
+                row.style.display = 'block';
             });
 
             if (empty) {
-                empty.style.display = shouldShow && visibleRows === 0 ? 'flex' : 'none';
+                empty.style.display = rows.length === 0 ? 'flex' : 'none';
             }
 
-            if (shouldShow) {
-                initializeDynamicSelects(wrapper);
-            }
-
-            if (autoAddRow && shouldShow && visibleRows === 0) {
-                addProjectAreaRow();
-            }
+            initializeDynamicSelects(wrapper);
         }
 
         function initializeDynamicSelects(scope) {
@@ -1159,15 +1164,11 @@
         }
 
         function addProjectAreaRow() {
-            const projects = selectedProjectTags();
             const container = document.getElementById(`projectRows-${adId}`);
 
-            if (!container || projects.length === 0) return;
+            if (!container) return;
 
             const index = areaRowIndex++;
-            const projectOptions = projects
-                .map(project => `<option value="${escapeHtml(project)}">${escapeHtml(project)}</option>`)
-                .join('');
             const areaOptionsHtml = areaOptions
                 .map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
                 .join('');
@@ -1176,21 +1177,22 @@
             template.className = 'ad-project-row';
             template.dataset.projectRow = 'true';
             template.innerHTML = `
-                <input type="hidden" name="rows[${index}][id]" value="">
+                <input type="hidden" class="ad-row-id" name="rows[${index}][id]" value="">
+                <input type="hidden" class="ad-row-project-value" name="rows[${index}][project_type]" value="">
                 <div class="row align-items-end">
-                    <div class="col-md-3 mb-2">
-                        <label class="form-label">Project Type <span class="text-danger">*</span></label>
-                        <select class="form-select ad-row-project-type" name="rows[${index}][project_type]" required>
-                            <option value="">Select Project</option>
-                            ${projectOptions}
-                        </select>
-                    </div>
                     <div class="col-md-5 mb-2">
                         <label class="form-label">Awarded Area <span class="text-danger">*</span></label>
                         <select class="form-select ad-row-area-name" name="rows[${index}][area_name]" required>
                             <option value="">Select Area</option>
                             ${areaOptionsHtml}
                         </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label" for="ad_area_amount_${adId}_${index}">Package Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">₱</span>
+                            <input type="number" class="form-control ad-row-package-amount" id="ad_area_amount_${adId}_${index}" name="rows[${index}][package_amount]" min="0" max="9999999999.99" step="0.01" inputmode="decimal" placeholder="Not set">
+                        </div>
                     </div>
                     <div class="col-md-3 mb-2">
                         <label class="form-label">Joining Date</label>
@@ -1204,7 +1206,6 @@
                 </div>
             `;
 
-            template.querySelector('.ad-row-project-type').value = projects[0];
             container.appendChild(template);
             initializeDynamicSelects(template);
             syncProjectAreaVisibility();
@@ -1552,7 +1553,7 @@
 
         modal.querySelectorAll('.project-type').forEach(input => {
             input.addEventListener('change', function () {
-                syncProjectAreaVisibility(true);
+                syncProjectAreaVisibility();
             });
         });
 
@@ -1561,12 +1562,6 @@
         if (addProjectRowButton) {
             addProjectRowButton.addEventListener('click', addProjectAreaRow);
         }
-
-        modal.addEventListener('change', function (event) {
-            if (event.target.classList.contains('ad-row-project-type')) {
-                syncProjectAreaVisibility();
-            }
-        });
 
         modal.addEventListener('click', function (event) {
             const button = event.target.closest('.ad-remove-project-row');
@@ -1586,6 +1581,14 @@
             }
 
             if (row) {
+                const savedId = row.querySelector('.ad-row-id');
+                if (savedId && savedId.value) {
+                    const removed = document.createElement('input');
+                    removed.type = 'hidden';
+                    removed.name = 'removed_area_ids[]';
+                    removed.value = savedId.value;
+                    modal.querySelector('form').appendChild(removed);
+                }
                 row.remove();
             }
             syncProjectAreaVisibility();
@@ -1603,11 +1606,21 @@
         }
 
         modal.addEventListener('shown.bs.modal', async function () {
+            syncProjectAreaVisibility();
+            initializeDynamicSelects(modal);
             await initializeLocationFields();
             initMap();
-            syncProjectAreaVisibility(true);
-            initializeDynamicSelects(modal);
         });
+
+        syncProjectAreaVisibility();
+
+        @if($restoreProjectAreas && $errors->any())
+        window.addEventListener('load', function () {
+            if (window.bootstrap && window.bootstrap.Modal) {
+                new window.bootstrap.Modal(modal).show();
+            }
+        });
+        @endif
 
         const form = modal.querySelector('form');
 

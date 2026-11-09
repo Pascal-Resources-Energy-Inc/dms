@@ -7,6 +7,7 @@
       </div>
       <form method='POST' action='{{url('change-avatar-dealer/'.$dealer->id)}}' onsubmit='show()' enctype="multipart/form-data" class="validation-wizard wizard-circle mt-5">
         @csrf
+        <input type="hidden" name="partner_record_type" value="{{ $partnerRecordType ?? 'dealer' }}">
         <div class="modal-body text-center">
           <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFileUpload(event)">
           

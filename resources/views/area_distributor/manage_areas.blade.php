@@ -1,7 +1,7 @@
 <div class="modal fade manage-area-modal" id="manageAreaModal-{{ $ad->id }}"  tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable manage-area-dialog">
         <div class="modal-content manage-area-shell border-0 shadow-lg">
-            <form id="areaForm-{{ $ad->id }}" data-ad="{{ $ad->id }}" method="POST" action="{{ url('ad/'.$ad->id.'/areas/update') }}" class="manage-area-form">
+            <form id="areaForm-{{ $ad->id }}" data-ad="{{ $ad->id }}" method="POST" action="{{ route($updateAreasRoute ?? 'update.areas', $ad->id) }}" class="manage-area-form">
                 @csrf
 
                 <div class="modal-header manage-area-header">

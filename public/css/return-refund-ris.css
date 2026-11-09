@@ -1,0 +1,40 @@
+.rrr-ris-dialog { width: min(640px, calc(100% - 24px)); max-width: 640px; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); margin: auto; padding: 0; border: 1px solid #dce5ed; border-radius: 14px; color: #20364d; background: #fff; box-shadow: 0 24px 80px #142e4638; }
+.rrr-ris-dialog::backdrop { background: #142e4680; }
+.rrr-ris-dialog * { box-sizing: border-box; }
+.rrr-ris-dialog form { display: flex; flex-direction: column; max-height: calc(100vh - 34px); max-height: calc(100dvh - 34px); margin: 0; }
+.rrr-ris-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-shrink: 0; padding: 22px 24px; border-bottom: 1px solid #e2eaf1; }
+.rrr-ris-header h2 { margin: 0; color: #17354e; font-size: 21px; font-weight: 700; }
+.rrr-ris-header p { margin: 6px 0 0; color: #61768a; font-size: 13px; overflow-wrap: anywhere; }
+.rrr-ris-close { flex-shrink: 0; width: 38px; height: 38px; border: 1px solid #dce5ed; border-radius: 8px; background: #f5f8fb; color: #526b80; font-size: 24px; line-height: 1; }
+.rrr-ris-body { min-height: 0; overflow-y: auto; padding: 22px 24px; overscroll-behavior: contain; }
+.rrr-ris-body > p { margin: 0 0 18px; color: #526b80; font-size: 14px; line-height: 1.6; }
+.rrr-ris-products { margin-bottom: 22px; padding: 14px 16px; border: 1px solid #dce5ed; border-radius: 9px; background: #f8fafc; }
+.rrr-ris-products h3 { margin: 0 0 8px; color: #425c72; font-size: 12px; font-weight: 700; }
+.rrr-ris-products ul { list-style: none; padding: 0; margin: 0; }
+.rrr-ris-products li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-top: 1px solid #e2eaf1; font-size: 14px; }
+.rrr-ris-products li > div { min-width: 0; overflow-wrap: anywhere; }
+.rrr-ris-products strong { display: block; font-size: 14px; font-weight: 600; }
+.rrr-ris-products small { color: #61768a; font-size: 12px; }
+.rrr-ris-products li > span { flex-shrink: 0; color: #36536b; white-space: nowrap; font-size: 13px; }
+.rrr-ris-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-bottom: 20px; }
+.rrr-ris-dialog label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 600; }
+.rrr-ris-dialog label span { color: #a13232; }
+.rrr-ris-dialog .form-control { width: 100%; max-width: 100%; min-width: 0; height: 44px; padding: 10px 12px; border: 1px solid #c1d1df; border-radius: 7px; background: #fff; color: #20364d; font-size: 14px; }
+.rrr-ris-dialog input[type=file] { height: auto; padding: 10px; }
+.rrr-ris-upload > small { display: block; margin-top: 8px; color: #61768a; font-size: 12px; }
+.rrr-ris-errors { margin-top: 16px; padding: 12px; border: 1px solid #edbaba; border-radius: 8px; color: #9b3030; background: #fff5f5; font-size: 13px; }
+.rrr-ris-errors ul { margin: 0; padding-left: 18px; }
+.rrr-ris-footer { display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; padding: 18px 24px; border-top: 1px solid #e2eaf1; background: #f8fafc; }
+.rrr-ris-footer .btn { min-height: 42px; padding: 10px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; }
+.rrr-ris-footer .btn-success { background: #228858; border-color: #228858; }
+.rrr-ris-dialog :focus-visible { outline: 2px solid #4389bd; outline-offset: 2px; }
+.rrr-ris-dialog button:disabled { opacity: .6; cursor: wait; }
+.rrr-submit-ris { display: block; margin-top: 8px; white-space: nowrap; }
+@media (max-width: 575px) {
+    .rrr-ris-header, .rrr-ris-body { padding: 18px; }
+    .rrr-ris-header h2 { font-size: 19px; }
+    .rrr-ris-fields { grid-template-columns: minmax(0, 1fr); }
+    .rrr-ris-dialog .form-control { font-size: 16px; }
+    .rrr-ris-footer { padding: 14px 18px; }
+    .rrr-ris-footer .btn { flex: 1; }
+}

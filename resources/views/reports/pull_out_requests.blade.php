@@ -1,118 +1,54 @@
 @extends('layouts.header')
 
+@section('css')
+    <link rel="stylesheet" href="{{ asset('css/pull-out-report.css') }}">
+@endsection
+
 @section('content')
-<style>
-    .por-page { min-height: calc(100vh - 80px); padding: 24px; background: #f6f8fb; }
-    .por-hero { position: relative; overflow: hidden; padding: 26px 28px; color: #fff; border-radius: 18px; background: linear-gradient(115deg, #0f2747, #0f766e); box-shadow: 0 18px 36px rgba(15, 61, 94, .18); }
-    .por-hero::after { position: absolute; right: -65px; bottom: -105px; width: 260px; height: 260px; content: ''; border: 42px solid rgba(255, 255, 255, .08); border-radius: 50%; }
-    .por-hero h3 { margin: 0; font-weight: 800; }
-    .por-hero p { margin: 6px 0 0; opacity: .82; }
-    .por-stat, .por-card { border: 1px solid #e7edf4; background: #fff; box-shadow: 0 8px 20px rgba(15, 23, 42, .04); }
-    .por-stat { height: 100%; padding: 18px; border-radius: 14px; }
-    .por-stat small { display: block; color: #64748b; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-    .por-stat strong { display: block; margin-top: 6px; color: #172554; font-size: 28px; }
-    .is-pending strong { color: #d97706; }
-    .is-processing strong { color: #0284c7; }
-    .is-replacing strong { color: #2563eb; }
-    .por-card { margin-top: 20px; padding: 20px; border-radius: 18px; box-shadow: 0 10px 26px rgba(15, 23, 42, .05); }
-    .por-card-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-    .por-card-heading h5 { margin: 0; color: #172554; font-weight: 800; }
-    .por-card-heading span { display: inline-flex; gap: 6px; align-items: center; color: #0f766e; font-size: 12px; font-weight: 800; }
-    .por-filter { padding: 15px; border: 1px solid #edf2f7; border-radius: 13px; background: #f8fafc; }
-    .por-filter label { margin-bottom: 5px; color: #475569; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-    .por-filter .form-control { height: 40px; border-color: #cbd5e1; border-radius: 9px; background: #fff; }
-    .por-table-shell { overflow: hidden; border: 1px solid #e6edf4; border-radius: 12px; background: #fff; }
-    #pullOutReportTable { min-width: 1680px; margin: 0 !important; border-collapse: separate; border-spacing: 0; }
-    #pullOutReportTable thead th { padding: 13px 12px; color: #475569; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; background: #f8fafc; border-top: 0; border-bottom: 1px solid #dbe3ed; }
-    #pullOutReportTable td { padding: 14px 12px; vertical-align: middle; border-color: #edf1f5; }
-    #pullOutReportTable tbody tr:hover { background: #f8fbff; }
-    #pullOutReportTable td:nth-child(1), #pullOutReportTable td:nth-child(2), #pullOutReportTable td:nth-child(7), #pullOutReportTable td:nth-child(8), #pullOutReportTable td:nth-child(9), #pullOutReportTable td:nth-child(10), #pullOutReportTable td:nth-child(11), #pullOutReportTable td:nth-child(12), #pullOutReportTable td:nth-child(13), #pullOutReportTable td:nth-child(14), #pullOutReportTable td:nth-child(15) { white-space: nowrap; }
-    .aging-day { display: inline-flex; padding: 4px 8px; color: #075985; font-size: 11px; font-weight: 800; border-radius: 999px; background: #e0f2fe; }
-    .por-card .dataTables_wrapper { padding: 0; }
-    .por-card .dataTables_scroll { border-top: 1px solid #edf1f5; border-bottom: 1px solid #edf1f5; }
-    .por-card .dataTables_scrollHead { background: #f8fafc; }
-    .por-card .dataTables_scrollBody { scrollbar-color: #94a3b8 transparent; }
-    .por-card .dataTables_scrollBody::-webkit-scrollbar { width: 9px; height: 9px; }
-    .por-card .dataTables_scrollBody::-webkit-scrollbar-thumb { border: 2px solid #fff; border-radius: 99px; background: #94a3b8; }
-    .por-datatable-tools, .por-datatable-footer { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 14px 16px; background: #fff; }
-    .por-datatable-tools .dataTables_length, .por-datatable-tools .dataTables_filter, .por-datatable-footer .dataTables_info, .por-datatable-footer .dataTables_paginate { float: none !important; margin: 0 !important; }
-    .por-datatable-tools .dataTables_filter { margin-left: auto !important; text-align: right; }
-    .por-card .dataTables_filter input, .por-card .dataTables_length select { min-height: 36px; margin-left: 7px; padding: 5px 9px; color: #334155; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; outline: none; }
-    .por-card .dataTables_filter input:focus, .por-card .dataTables_length select:focus { border-color: #0f766e; box-shadow: 0 0 0 3px rgba(15, 118, 110, .12); }
-    .por-card .dataTables_paginate .paginate_button { min-width: 34px; height: 34px; margin: 0 2px !important; padding: 7px 10px !important; color: #475569 !important; font-size: 12px; font-weight: 700; line-height: 18px; border: 1px solid transparent !important; border-radius: 8px; background: transparent !important; }
-    .por-card .dataTables_paginate .paginate_button:hover { color: #0f766e !important; border-color: #99f6e4 !important; background: #f0fdfa !important; }
-    .por-card .dataTables_paginate .paginate_button.current, .por-card .dataTables_paginate .paginate_button.current:hover { color: #fff !important; border-color: #0f766e !important; background: #0f766e !important; }
-    .por-card .dataTables_paginate .paginate_button.disabled, .por-card .dataTables_paginate .paginate_button.disabled:hover { color: #cbd5e1 !important; background: transparent !important; }
-    .dataTables_processing { z-index: 10 !important; padding: 13px 22px !important; color: #0f766e !important; font-weight: 800 !important; border: 0 !important; border-radius: 10px !important; background: #fff !important; box-shadow: 0 8px 24px rgba(15, 23, 42, .16) !important; }
-    @media (max-width: 991.98px) { #pullOutReportTable { min-width: 1500px; } }
-    @media (max-width: 575.98px) { .por-page { padding: 14px; }.por-hero, .por-card-heading, .por-datatable-tools, .por-datatable-footer { align-items: flex-start; gap: 10px; flex-direction: column; }.por-hero { padding: 21px; }.por-datatable-tools .dataTables_filter { margin-left: 0 !important; text-align: left; }.por-datatable-footer .dataTables_paginate { width: 100%; overflow-x: auto; white-space: nowrap; } }
-</style>
-
-<div class="por-hero">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h3 class="text-white"><i class="bi bi-clipboard-data me-2"></i>Pull Out Request Report</h3>
-            <p>Track warehouse approval, replacement quantities, RIS details, and supporting files.</p>
-        </div>
-        <i class="bi bi-arrow-left-right fs-1 opacity-50"></i>
-    </div>
-</div>
-
-<div class="row g-3 mt-1">
-    <div class="col-6 col-lg-3"><div class="por-stat"><small>Total Requests</small><strong>{{ number_format($summary['total']) }}</strong></div></div>
-    <div class="col-6 col-lg-3"><div class="por-stat is-pending"><small>Pending Review</small><strong>{{ number_format($summary['pending']) }}</strong></div></div>
-    <div class="col-6 col-lg-3"><div class="por-stat is-processing"><small>Processing</small><strong>{{ number_format($summary['processing']) }}</strong></div></div>
-    <div class="col-6 col-lg-3"><div class="por-stat is-replacing"><small>Replacing</small><strong>{{ number_format($summary['replacing']) }}</strong></div></div>
-</div>
-
-<section class="por-card">
-    <div class="por-card-heading">
-        <div>
-            <h5>Transaction Register</h5>
-            <small class="text-muted">Server-side transaction list with status and aging per request.</small>
-        </div>
-        <span><i class="bi bi-database-check"></i> Server-side data</span>
-    </div>
-
-    <div class="row g-3 por-filter mb-4">
-        <div class="col-md-3">
-            <label for="statusFilter">Status</label>
-            <select id="statusFilter" class="form-control">
-                <option value="">All statuses</option>
-                <option>Pending</option>
-                <option>For Processing</option>
-                <option>Replacing</option>
-                <option>Approved</option>
-                <option>Rejected</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label for="warehouseFilter">Warehouse</label>
-            <select id="warehouseFilter" class="form-control">
+<div class="por-page">
+    <header class="por-heading">
+        <h1>Pull Out Request Report</h1>
+        <p>Track requests, replacement quantities, and delivery receipts.</p>
+    </header>
+    <dl class="por-stats" aria-label="Request totals">
+        @foreach(['total' => 'Total requests', 'pending' => 'Pending review', 'processing' => 'Processing', 'replacing' => 'Replacing'] as $key => $label)
+            <div class="por-stat is-{{ $key }}"><dt>{{ $label }}</dt><dd>{{ number_format($summary[$key]) }}</dd></div>
+        @endforeach
+    </dl>
+    @if(session('success'))
+        <div class="alert alert-success" role="status">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger" role="alert">{{ session('error') }}</div>
+    @endif
+    @if($errors->any())
+        <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
+    @endif
+    <section class="por-card" aria-labelledby="porRegisterTitle">
+        <header class="por-card-heading"><h2 id="porRegisterTitle">Transaction register</h2><p>Open a request to view its details and delivery receipts.</p></header>
+        <div class="por-filter" role="group" aria-label="Filter requests">
+            <div><label for="statusFilter">Status</label><select id="statusFilter" class="form-select">
+                <option value="">All statuses</option><option>Pending</option><option>Partial</option><option>For Processing</option><option>Replacing</option><option>Approved</option><option>AD Confirmed</option><option>Rejected</option>
+            </select></div>
+            <div><label for="warehouseFilter">Warehouse</label><select id="warehouseFilter" class="form-select">
                 <option value="">All warehouses</option>
-                @foreach ($warehouses as $warehouse)
+                @foreach($warehouses as $warehouse)
                     <option value="{{ $warehouse }}">{{ ucfirst($warehouse) }}</option>
                 @endforeach
-            </select>
+            </select></div>
+            <div><label for="dateFrom">From date</label><input id="dateFrom" type="date" class="form-control"></div>
+            <div><label for="dateTo">To date</label><input id="dateTo" type="date" class="form-control"></div>
+            <button id="clearFilters" type="button" class="btn btn-light">Clear filters</button>
         </div>
-        <div class="col-md-2"><label for="dateFrom">From</label><input id="dateFrom" type="date" class="form-control"></div>
-        <div class="col-md-2"><label for="dateTo">To</label><input id="dateTo" type="date" class="form-control"></div>
-        <div class="col-md-2 d-flex align-items-end">
-            <button id="clearFilters" type="button" class="btn btn-outline-secondary w-100"><i class="bi bi-arrow-counterclockwise"></i> Clear</button>
+        <div id="reportDataError" class="alert alert-danger d-none" role="alert"></div>
+        <div class="por-table-shell">
+            <table id="pullOutReportTable" class="por-table">
+                <thead><tr><th scope="col">Request</th><th scope="col">Distributor</th><th scope="col">Products</th><th scope="col">Status</th><th scope="col">Actions</th><th>Date</th><th>Area</th><th>Warehouse</th><th>RIS number</th><th>RIS date</th><th>Remarks</th></tr></thead>
+                <tbody></tbody>
+            </table>
         </div>
-    </div>
-
-    <div id="reportDataError" class="alert alert-danger d-none mb-3"></div>
-    <div class="por-table-shell">
-        <table id="pullOutReportTable" class="table table-hover w-100" style="margin-bottom: 0px">
-            <thead>
-                <tr>
-                    <th>Date</th><th>Reference</th><th>Distributor</th><th>Pull-out Product</th><th>Replacement Product</th><th>Source Area</th><th>Requested Qty</th><th>Approved Qty</th><th>RIS Number</th><th>RIS Date</th><th>Warehouse</th><th>Status</th><th>Pending Aging</th><th>Processing Aging</th><th>Replacing Aging</th><th>Attachments</th><th>Remarks</th><th>Distributor Confirmation</th>
-                </tr>
-            </thead>
-        </table>
-    </div>
-</section>
+    </section>
+</div>
 @endsection
 
 @section('javascript')
@@ -160,6 +96,44 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     if ($.fn.DataTable.isDataTable('#pullOutReportTable')) $table.DataTable().destroy();
 
+    const text = function (value) {
+        const entities = {'&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'"};
+        return String(value == null ? '' : value)
+            .replace(/&(amp|lt|gt|quot|#039);/g, entity => entities[entity])
+            .replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[character]));
+    };
+    const units = value => Number(value || 0).toLocaleString();
+    function productSummary(products, row) {
+        const names = products.slice(0, 2).map(product => `<div class="por-product-summary"><span>${text(product.name)}</span><b>${units(product.qty)} pcs</b></div>`).join('');
+        return names + `<small class="por-muted">${products.length > 2 ? '+' + (products.length - 2) + ' more · ' : ''}${units(row.requested_qty_total)} requested · ${units(row.approved_qty_total)} approved</small>`;
+    }
+    function statusSummary(status, type, row) {
+        const colors = {'Pending': 'pending', 'Partial': 'pending', 'For Processing': 'processing', 'Replacing': 'replacing', 'Rejected': 'rejected', 'Approved': 'confirmed', 'AD Confirmed': 'confirmed', 'Warehouse Confirmed': 'confirmed'};
+        const aging = {'Pending': row.pending_aging, 'For Processing': row.processing_aging, 'Replacing': row.replacing_aging}[status];
+        return `<span class="por-status ${colors[status] || ''}">${text(status || 'Approved')}</span>` + (aging && aging !== '—' ? `<small class="por-muted por-age">In this stage ${aging}</small>` : '');
+    }
+    function requestDetails(row, panelId) {
+        const metadata = [['Source area', row.from_area], ['Warehouse', row.warehouse], ['RIS number', row.ris_number], ['RIS date', row.ris_date_display]]
+            .map(([label, value]) => `<div><dt>${label}</dt><dd>${text(value || '—')}</dd></div>`).join('');
+        const products = row.products.map(product => {
+            const replacement = product.replacement_name && (product.replacement_name !== product.name || product.replacement_sku !== product.sku)
+                ? `<small class="por-muted">Replacement: ${text(product.replacement_name)} · ${text(product.replacement_sku)}</small>` : '';
+            const quantities = [['Requested', product.qty], ['Approved', product.approved], ['Awaiting release', product.open], ['Received', product.confirmed]]
+                .map(([label, qty]) => `<div><dt>${label}</dt><dd>${units(qty)} <small>pcs</small></dd></div>`).join('');
+            return `<div class="por-product-detail"><div><strong>${text(product.name)}</strong><small class="por-muted">${text(product.sku)}</small>${replacement}</div><dl class="por-quantities">${quantities}</dl></div>`;
+        }).join('');
+        const confirmation = Number(row.confirmation_count) > 0 ? `<section class="por-panel por-confirmations"><h3>Confirm receipt</h3><p class="por-muted">Confirm the products you have received for each delivery receipt.</p>${row.ad_confirmation}</section>` : '';
+        const aging = [['Pending', row.pending_aging], ['Processing', row.processing_aging], ['Replacing', row.replacing_aging]]
+            .map(([label, value]) => `<div><dt>${label}</dt><dd>${value || '—'}</dd></div>`).join('');
+        return `<section class="por-details" id="${panelId}" aria-label="Request details"><div class="por-details-main">
+            ${confirmation}<section class="por-panel"><h3>Product quantities</h3>${products}</section>
+            </div><aside class="por-panel por-context"><h3>Request information</h3><dl class="por-meta">${metadata}</dl>
+                <div class="por-context-section"><h4>Time in stage</h4><dl class="por-aging">${aging}</dl></div>
+                <div class="por-context-section por-files"><h4>Attachments</h4>${row.attachments}</div>
+                <div class="por-context-section"><h4>Remarks</h4><p>${text(row.remarks || '—')}</p></div>
+            </aside></section>`;
+    }
+    const labels = ['Request', 'Distributor', 'Products', 'Status', 'Actions'];
     const table = $table.DataTable({
         processing: true,
         serverSide: true,
@@ -168,15 +142,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         pageLength: 25,
         lengthMenu: [[25, 50, 100], [25, 50, 100]],
         pagingType: 'simple_numbers',
-        scrollX: true,
-        scrollCollapse: true,
         autoWidth: false,
         dom: '<"por-datatable-tools"lf>rt<"por-datatable-footer"ip>',
-        order: [[0, 'desc']],
+        order: [[5, 'desc']],
         language: {
             processing: '<i class="bi bi-arrow-repeat me-1"></i> Loading pull-out requests...',
-            search: 'Search transactions:',
-            lengthMenu: 'Show _MENU_ requests',
+            search: 'Search', searchPlaceholder: 'Reference, distributor, RIS…',
+            lengthMenu: 'Show _MENU_',
+            info: 'Showing _START_–_END_ of _TOTAL_ requests', infoEmpty: '0 requests',
             emptyTable: 'No pull-out requests found.',
             zeroRecords: 'No matching pull-out requests found.'
         },
@@ -193,28 +166,42 @@ document.addEventListener('DOMContentLoaded', async function () {
                     ? 'You do not have access to view Pull Out Requests.'
                     : 'Unable to load the Pull Out Request data. Please refresh and try again.';
                 $error.text(message).removeClass('d-none');
+            },
+            dataSrc: function (response) {
+                $error.addClass('d-none');
+                return response.data;
             }
         },
         columns: [
-            { data: 'transfer_date', name: 'pull_out_rows.transfer_date' },
-            { data: 'reference_no', name: 'pull_out_rows.reference_no' },
-            { data: 'distributor', name: 'distributors.name' },
-            { data: 'pull_out_product', orderable: false },
-            { data: 'replacement_product', orderable: false },
-            { data: 'from_area', name: 'pull_out_rows.from_area' },
-            { data: 'request_qty', name: 'pull_out_rows.requested_qty_total' },
-            { data: 'approved_qty', name: 'pull_out_rows.approved_qty_total' },
-            { data: 'ris_number_display', name: 'pull_out_rows.ris_number' },
-            { data: 'ris_date_display', name: 'pull_out_rows.ris_date' },
-            { data: 'warehouse', name: 'pull_out_rows.warehouse' },
-            { data: 'status_badge', name: 'pull_out_rows.approval_status', orderable: false },
-            { data: 'pending_aging', orderable: false, searchable: false },
-            { data: 'processing_aging', orderable: false, searchable: false },
-            { data: 'replacing_aging', orderable: false, searchable: false },
-            { data: 'attachments', orderable: false, searchable: false },
-            { data: 'remarks', name: 'inventory_transfers.warehouse_remarks' },
-            { data: 'ad_confirmation', orderable: false, searchable: false }
-        ]
+            { data: 'reference_no', name: 'pull_out_rows.reference_no', orderData: [5], render: (value, type, row) => `<strong class="por-reference">${text(value || '—')}</strong><small class="por-muted">${text(row.transfer_date)}</small>` },
+            { data: 'distributor', name: 'distributors.name', render: (value, type, row) => `<strong>${text(row.distributor_name || value)}</strong><small class="por-muted">${text(row.from_area)}</small><small class="por-muted por-warehouse">${text(row.warehouse)} warehouse</small>` },
+            { data: 'products', orderable: false, searchable: false, render: (value, type, row) => productSummary(value, row) },
+            { data: 'approval_status', name: 'pull_out_rows.approval_status', orderable: false, render: statusSummary },
+            { data: null, orderable: false, searchable: false, render: (value, type, row) => `<button type="button" class="btn ${Number(row.confirmation_count) > 0 ? 'btn-success' : 'btn-outline-primary'} por-open-request" aria-expanded="false">${Number(row.confirmation_count) > 0 ? 'Review delivery' : 'View details'}</button>${Number(row.confirmation_count) > 0 ? `<small class="por-muted">${units(row.confirmation_count)} awaiting confirmation</small>` : ''}` },
+            { data: 'transfer_date', name: 'pull_out_rows.transfer_date', visible: false },
+            { data: 'from_area', name: 'pull_out_rows.from_area', visible: false },
+            { data: 'warehouse', name: 'pull_out_rows.warehouse', visible: false },
+            { data: 'ris_number_display', name: 'pull_out_rows.ris_number', visible: false },
+            { data: 'ris_date_display', name: 'pull_out_rows.ris_date', visible: false },
+            { data: 'remarks', name: 'pull_out_rows.warehouse_remarks', visible: false }
+        ],
+        createdRow: function (row) {
+            labels.forEach((label, i) => row.cells[i].setAttribute('data-label', label));
+        }
+    });
+
+    $table.on('click', '.por-open-request', function () {
+        const tr = this.closest('tr'), row = table.row(tr), opening = !row.child.isShown();
+        if (opening) {
+            const panelId = 'por-details-' + row.index();
+            if (!row.child()) row.child(requestDetails(row.data(), panelId), 'por-detail-row');
+            row.child.show();
+            this.setAttribute('aria-controls', panelId);
+            this.dataset.closedLabel = this.textContent;
+        } else row.child.hide();
+        tr.classList.toggle('is-expanded', opening);
+        this.setAttribute('aria-expanded', String(opening));
+        this.textContent = opening ? 'Close details' : this.dataset.closedLabel;
     });
 
     $('#statusFilter, #warehouseFilter, #dateFrom, #dateTo').on('change', function () {
@@ -225,7 +212,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     $('#clearFilters').on('click', function () {
         $('#statusFilter, #warehouseFilter, #dateFrom, #dateTo').val('');
         $error.addClass('d-none');
-        table.draw();
+        table.search('').draw();
     });
 
     document.addEventListener('submit', function (event) {

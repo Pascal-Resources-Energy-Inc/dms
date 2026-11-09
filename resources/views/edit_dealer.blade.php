@@ -107,10 +107,10 @@
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Edit Dealer Information</h5>
+                <h5 class="modal-title">Edit {{ $partnerLabel ?? 'Dealer' }} Information</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="editDealerForm" method="POST" action="{{ route('dealer.update', $dealer->id) }}" enctype="multipart/form-data">
+            <form id="editDealerForm" method="POST" action="{{ route(($partnerRecordType ?? 'dealer') === 'mega_dealer' ? 'mega-dealer.update' : 'dealer.update', $dealer->id) }}" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="latitude" id="hidden_latitude" value="{{ $dealer->latitude }}">
                 <input type="hidden" name="longitude" id="hidden_longitude" value="{{ $dealer->longitude }}">
@@ -150,7 +150,7 @@
                         @php
                             $currentDealerType = old('dealer_type', $dealer->dealer_type ?: 'Project');
                         @endphp
-                        @if(auth()->user()->role === 'Admin')
+                        @if(auth()->user()->role === 'Admin' && ($partnerLabel ?? 'Dealer') !== 'Mega Dealer')
                             <div class="col-md-12 mb-3">
                                 <label class="form-label d-block">Dealer Type <span class="text-danger">*</span></label>
                                 <div class="edit-dealer-type-picker">

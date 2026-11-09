@@ -3,11 +3,11 @@
         <div class="modal-content">
             <div class="modal-header d-flex align-items-center">
                 <h4 class="modal-title" id="myModalLabel">
-                    New Gazlite Partner
+                    New {{ $distributorSingular ?? 'Area Distributor' }}
                 </h4>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method='POST' action='{{url('new-ad')}}' onsubmit='show()' enctype="multipart/form-data">
+            <form method="POST" action="{{ route($storeRoute ?? 'new-ad') }}" onsubmit="show()" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="latitude" id="hidden_latitude">
                 <input type="hidden" name="longitude" id="hidden_longitude">
@@ -15,12 +15,8 @@
                     <div class="row">
                         <div class="col-md-4">
                             <label class="form-label">Role Type&nbsp;<span class="text-danger">*</span></label>
-                            <select id="roleFilter" class="form-control select2" required>
-                                <option value="">Select Role</option>
-                                <option value="Admin">Admin</option>
-                                <option value="Provincial Distributor">Provincial Distributor</option>
-                                <option value="Area Distributor">Area Distributor</option>
-                                <option value="Mega Dealer">Mega Dealer</option>
+                            <select id="roleFilter" class="form-control select2" required disabled>
+                                <option value="{{ $distributorSingular ?? 'Area Distributor' }}" selected>{{ $distributorSingular ?? 'Area Distributor' }}</option>
                             </select>
                         </div>
                         <div class="col-md-4">
@@ -107,6 +103,22 @@
                         <div class="col-md-6 mb-2">
                             <label class="form-label" for="business_type">Business Type<span class="text-danger">*</span></label>
                             <input type="text" class="form-control required" id="business_type" name="business_type" placeholder="Enter Business Type" required/>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label d-block">Service Vehicle <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-3 border rounded-3 px-3 py-2 bg-light">
+                                <div class="form-check mb-0"><input class="form-check-input" type="radio" name="has_service_vehicle" id="new_ad_service_vehicle_yes" value="1" required><label class="form-check-label" for="new_ad_service_vehicle_yes"><i class="bi bi-truck me-1"></i>Yes</label></div>
+                                <div class="form-check mb-0"><input class="form-check-input" type="radio" name="has_service_vehicle" id="new_ad_service_vehicle_no" value="0" required><label class="form-check-label" for="new_ad_service_vehicle_no">No</label></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="new_ad_business_years_operation">Years in Business Operation <span class="text-danger">*</span></label>
+                            <div class="input-group"><input type="number" class="form-control" id="new_ad_business_years_operation" name="business_years_operation" min="0" max="200" step="1" placeholder="e.g., 5" required><span class="input-group-text">year(s)</span></div>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label" for="new_ad_contract_attachments">Contract Attachments</label>
+                            <input type="file" class="form-control" id="new_ad_contract_attachments" name="contract_attachments[]" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                            <small class="text-muted">Select up to 10 PDF, Word, JPG, or PNG files. Maximum 10MB each.</small>
                         </div>
                         {{-- <div class="col-md-6 mb-2">
                             <label class="form-label">Area<span class="text-danger">*</span></label>

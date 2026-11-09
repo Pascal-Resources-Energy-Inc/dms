@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use RealRashid\SweetAlert\Facades\Alert;
 use App\User;
 use App\Dealer;
+use App\MegaDealer;
 use App\Center;
 use App\AreaDistributor;
 use App\TransactionDetail;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Yajra\DataTables\Facades\DataTables;
 
 class DealerController extends Controller
 {
@@ -337,34 +339,27 @@ class DealerController extends Controller
 
     public function megaDealers(Request $request)
     {
-        $activeDealers = Dealer::where('status', 'Active')
-            ->whereHas('user', function ($q) {
-                $q->where('role', 'Mega Dealer');
-            })
-            ->count();
-
-        $inactiveDealers = Dealer::where('status', 'Inactive')
-            ->whereHas('user', function ($q) {
-                $q->where('role', 'Mega Dealer');
-            })
-            ->count();
+        $sourceStats = collect([
+            'regular' => $this->megaDealerSourceStats('regular'),
+            'admin_crms' => $this->megaDealerSourceStats('admin_crms'),
+            'admin_crms2' => $this->megaDealerSourceStats('admin_crms2'),
+        ]);
+        $totalDealers = $sourceStats->sum('total');
+        $activeDealers = $sourceStats->sum('active');
+        $inactiveDealers = $sourceStats->sum('inactive');
+        $megaDealerTabs = collect([
+            ['key' => 'regular', 'label' => 'Regular', 'icon' => 'ti ti-building-store', 'count' => data_get($sourceStats, 'regular.total', 0)],
+            ['key' => 'admin_crms', 'label' => 'Project Rise', 'icon' => 'ti ti-database', 'count' => data_get($sourceStats, 'admin_crms.total', 0)],
+            ['key' => 'admin_crms2', 'label' => 'Project Genesis', 'icon' => 'ti ti-database-export', 'count' => data_get($sourceStats, 'admin_crms2.total', 0)],
+        ]);
 
         $items = Item::select('item')->get();
         $centers = Center::get();
         $areas = Area::with('areaAd.distributor')->get();
-        $dealers = Dealer::with(['user', 'orders', 'sales'])
-            ->whereHas('user', function ($q) {
-                $q->where('role', 'Mega Dealer');
-            })
-            ->get()
-            ->map(function ($dealer) {
-                $this->applyLocalDealerMetrics($dealer);
-
-                return $dealer;
-            });
 
         return view('dealers', [
-            'dealers' => $dealers,
+            'dealers' => collect(),
+            'totalDealers' => $totalDealers,
             'activeDealers' => $activeDealers,
             'inactiveDealers' => $inactiveDealers,
             'items' => $items,
@@ -373,7 +368,366 @@ class DealerController extends Controller
             'dealerPageTitle' => 'Mega Dealers',
             'dealerSingularTitle' => 'Mega Dealer',
             'dealerRouteName' => 'mds',
+            'dealerRole' => 'Mega Dealer',
+            'dealerServerSide' => true,
+            'dealerDataUrl' => route('mds.data'),
+            'isMegaDealerPage' => true,
+            'canCreateDealer' => true,
+            'megaDealerTabs' => $megaDealerTabs,
         ]);
+    }
+
+    public function megaDealersData(Request $request)
+    {
+        $source = $request->input('source', 'regular');
+
+        if (in_array($source, ['admin_crms', 'admin_crms2'], true)) {
+            $metadata = $this->crmMegaDealerMetadata($source);
+            $query = $this->crmMegaDealerQuery($source, $metadata);
+
+            if (!$query) {
+                return DataTables::of(collect())->make(true);
+            }
+
+            return $this->formatMegaDealerDataTable(DataTables::of($query), $source, $metadata);
+        }
+
+        $query = $this->megaDealerQueryForAuthUser()
+            ->select('mega_dealers.*')
+            ->selectRaw('(SELECT COALESCE(SUM(order_details.qty), 0) FROM order_details WHERE order_details.dealer_id = mega_dealers.user_id) AS stock_qty')
+            ->selectRaw('(SELECT COALESCE(SUM(transaction_details.qty), 0) FROM transaction_details WHERE transaction_details.dealer_id = mega_dealers.user_id) AS sold_qty');
+
+        return $this->formatMegaDealerDataTable(DataTables::of($query));
+    }
+
+    private function formatMegaDealerDataTable($dataTable, $source = null, array $metadata = null)
+    {
+        $table = $source ? 'remote_mega_dealers' : 'mega_dealers';
+        $referenceColumn = $metadata['reference_column'] ?? 'dealer_reference';
+
+        return $dataTable
+            ->editColumn('dealer_reference', function ($dealer) {
+                return '<span class="dealer-ref">' . e(strtoupper($dealer->dealer_reference ?: '-')) . '</span>';
+            })
+            ->editColumn('name', function ($dealer) use ($source) {
+                $url = $source
+                    ? route('admin.crm.mega-dealer.view', ['source' => $source, 'id' => $dealer->id])
+                    : route('mega-dealer.view', $dealer->id);
+
+                return '<a href="' . e($url) . '" class="dealer-link">'
+                    . e(strtoupper($dealer->name ?: '-')) . '</a>';
+            })
+            ->editColumn('store_name', function ($dealer) {
+                return e(strtoupper($dealer->store_name ?: '-'));
+            })
+            ->editColumn('store_type', function ($dealer) {
+                return e(strtoupper($dealer->store_type ?: '-'));
+            })
+            ->editColumn('number', function ($dealer) {
+                return e(strtoupper($dealer->number ?: '-'));
+            })
+            ->editColumn('stock_qty', function ($dealer) {
+                return '<span class="dealer-metric is-stock">' . number_format((float) $dealer->stock_qty) . '</span>';
+            })
+            ->editColumn('sold_qty', function ($dealer) {
+                return '<span class="dealer-metric is-sold">' . number_format((float) $dealer->sold_qty) . '</span>';
+            })
+            ->editColumn('address', function ($dealer) {
+                return '<div class="dealer-muted">' . e(strtoupper($dealer->address ?: '-')) . '</div>';
+            })
+            ->editColumn('area', function ($dealer) {
+                return '<div class="dealer-muted">' . e(strtoupper($dealer->area ?: '-')) . '</div>';
+            })
+            ->editColumn('status', function ($dealer) {
+                $active = strcasecmp((string) $dealer->status, 'Active') === 0;
+
+                return '<span class="dealer-status ' . ($active ? 'is-active' : 'is-inactive') . '">'
+                    . ($active ? 'Active' : e($dealer->status ?: 'Inactive')) . '</span>';
+            })
+            ->addColumn('action', function ($dealer) use ($source) {
+                $url = $source
+                    ? route('admin.crm.mega-dealer.view', ['source' => $source, 'id' => $dealer->id])
+                    : route('mega-dealer.view', $dealer->id);
+
+                return '<a href="' . e($url) . '" class="dealer-action-btn" title="View Mega Dealer">'
+                    . '<i class="ti ti-eye"></i></a>';
+            })
+            ->filterColumn('dealer_reference', function ($query, $keyword) use ($table, $referenceColumn) {
+                if ($referenceColumn) {
+                    $query->where($table . '.' . $referenceColumn, 'like', '%' . $keyword . '%');
+                } else {
+                    $query->whereRaw("CONCAT('CRM-MD-', {$table}.id) LIKE ?", ['%' . $keyword . '%']);
+                }
+            })
+            ->filterColumn('name', function ($query, $keyword) use ($table) {
+                $query->where($table . '.name', 'like', '%' . $keyword . '%');
+            })
+            ->rawColumns([
+                'dealer_reference', 'name', 'stock_qty', 'sold_qty',
+                'address', 'area', 'status', 'action',
+            ])
+            ->make(true);
+    }
+
+    private function megaDealerSourceStats($source)
+    {
+        try {
+            $query = $source === 'regular'
+                ? $this->megaDealerQueryForAuthUser()
+                : $this->crmMegaDealerQuery($source);
+
+            if (!$query) {
+                return ['total' => 0, 'active' => 0, 'inactive' => 0];
+            }
+
+            $statusColumn = $source === 'regular' ? 'mega_dealers.status' : 'remote_mega_dealers.status';
+
+            return [
+                'total' => (clone $query)->count(),
+                'active' => (clone $query)->where($statusColumn, 'Active')->count(),
+                'inactive' => (clone $query)->where($statusColumn, 'Inactive')->count(),
+            ];
+        } catch (\Throwable $exception) {
+            return ['total' => 0, 'active' => 0, 'inactive' => 0];
+        }
+    }
+
+    private function crmMegaDealerMetadata($connection)
+    {
+        if (!in_array($connection, ['admin_crms', 'admin_crms2'], true)) {
+            return null;
+        }
+
+        try {
+            $schema = DB::connection($connection)->getSchemaBuilder();
+
+            if ($schema->hasTable('mega_dealers')) {
+                $table = 'mega_dealers';
+                $dedicated = true;
+            } elseif ($schema->hasTable('dealers')) {
+                $table = 'dealers';
+                $dedicated = false;
+            } else {
+                return null;
+            }
+
+            $referenceColumn = collect(['partner_code', 'dealer_reference'])
+                ->first(function ($column) use ($schema, $table) {
+                    return $schema->hasColumn($table, $column);
+                });
+
+            return [
+                'table' => $table,
+                'dedicated' => $dedicated,
+                'reference_column' => $referenceColumn,
+            ];
+        } catch (\Throwable $exception) {
+            return null;
+        }
+    }
+
+    private function crmMegaDealerQuery($connection, array $metadata = null)
+    {
+        if (!in_array($connection, ['admin_crms', 'admin_crms2'], true)) {
+            return null;
+        }
+
+        try {
+            $metadata = $metadata ?: $this->crmMegaDealerMetadata($connection);
+
+            if (!$metadata) {
+                return null;
+            }
+
+            $schema = DB::connection($connection)->getSchemaBuilder();
+            $table = $metadata['table'];
+            $referenceColumn = $metadata['reference_column'];
+            $alias = 'remote_mega_dealers';
+
+            $query = DB::connection($connection)->table($table . ' as ' . $alias);
+
+            if ($schema->hasColumn($table, 'deleted_at')) {
+                $query->whereNull($alias . '.deleted_at');
+            }
+
+            $hasReference = (bool) $referenceColumn;
+            $hasRoleUsers = $schema->hasTable('users')
+                && $schema->hasColumn('users', 'role')
+                && $schema->hasColumn($table, 'user_id');
+
+            if (!$metadata['dedicated'] && !$hasReference && !$hasRoleUsers) {
+                return null;
+            }
+
+            if (!$metadata['dedicated']) {
+                $query->where(function ($megaQuery) use ($hasReference, $hasRoleUsers, $referenceColumn, $alias) {
+                    if ($hasReference) {
+                        $megaQuery->where($alias . '.' . $referenceColumn, 'like', '%MD%');
+                    }
+
+                    if ($hasRoleUsers) {
+                        $method = $hasReference ? 'orWhereExists' : 'whereExists';
+                        $megaQuery->{$method}(function ($userQuery) use ($alias) {
+                            $userQuery->select(DB::raw(1))
+                                ->from('users')
+                                ->whereColumn('users.id', $alias . '.user_id')
+                                ->where('users.role', 'Mega Dealer');
+                        });
+                    }
+                });
+            }
+
+            $user = auth()->user();
+            if ($user && $user->role !== 'Admin' && $user->hasAreaDistributorAccess() && $schema->hasColumn($table, 'area')) {
+                $user->loadMissing('ad.areas');
+                $areas = $user->ad ? $user->ad->areas->pluck('area_name')->filter()->unique()->values()->all() : [];
+                $query->whereIn($alias . '.area', $areas);
+            }
+
+            $stockExpression = '0';
+            if ($schema->hasTable('order_details')) {
+                $qtyColumn = $schema->hasColumn('order_details', 'qty') ? 'qty' : ($schema->hasColumn('order_details', 'quantity') ? 'quantity' : null);
+                if ($qtyColumn && $metadata['dedicated'] && $schema->hasColumn('order_details', 'mega_dealer_id')) {
+                    $stockExpression = '(SELECT COALESCE(SUM(remote_orders.' . $qtyColumn . '), 0) FROM order_details AS remote_orders WHERE remote_orders.mega_dealer_id = ' . $alias . '.id)';
+                } elseif ($qtyColumn && $schema->hasColumn('order_details', 'dealer_id') && $schema->hasColumn($table, 'user_id')) {
+                    $stockExpression = '(SELECT COALESCE(SUM(remote_orders.' . $qtyColumn . '), 0) FROM order_details AS remote_orders WHERE remote_orders.dealer_id = ' . $alias . '.user_id)';
+                }
+            }
+
+            $soldExpression = '0';
+            if ($schema->hasTable('transaction_details')) {
+                $qtyColumn = $schema->hasColumn('transaction_details', 'qty') ? 'qty' : ($schema->hasColumn('transaction_details', 'quantity') ? 'quantity' : null);
+                if ($qtyColumn && $metadata['dedicated'] && $schema->hasColumn('transaction_details', 'mega_dealer_id')) {
+                    $soldExpression = '(SELECT COALESCE(SUM(remote_sales.' . $qtyColumn . '), 0) FROM transaction_details AS remote_sales WHERE remote_sales.mega_dealer_id = ' . $alias . '.id)';
+                } elseif ($qtyColumn && $schema->hasColumn('transaction_details', 'dealer_id') && $schema->hasColumn($table, 'user_id')) {
+                    $soldExpression = '(SELECT COALESCE(SUM(remote_sales.' . $qtyColumn . '), 0) FROM transaction_details AS remote_sales WHERE remote_sales.dealer_id = ' . $alias . '.user_id)';
+                }
+            }
+
+            $query->select($alias . '.*');
+
+            if ($referenceColumn !== 'dealer_reference') {
+                $query->selectRaw($referenceColumn
+                    ? $alias . '.' . $referenceColumn . ' AS dealer_reference'
+                    : "CONCAT('CRM-MD-', {$alias}.id) AS dealer_reference");
+            }
+
+            foreach (['name', 'store_name', 'store_type', 'number', 'address', 'area', 'status'] as $column) {
+                if (!$schema->hasColumn($table, $column)) {
+                    $query->selectRaw('NULL AS ' . $column);
+                }
+            }
+
+            return $query
+                ->selectRaw($stockExpression . ' AS stock_qty')
+                ->selectRaw($soldExpression . ' AS sold_qty');
+        } catch (\Throwable $exception) {
+            return null;
+        }
+    }
+
+    public function viewAdminCrmMegaDealer(Request $request, $source, $id)
+    {
+        abort_unless(auth()->user()->role === 'Admin', 403);
+        abort_unless(in_array($source, ['admin_crms', 'admin_crms2'], true), 404);
+
+        $metadata = $this->crmMegaDealerMetadata($source);
+        $query = $this->crmMegaDealerQuery($source, $metadata);
+        abort_unless($query && $metadata, 404);
+
+        $dealer = $query->where('remote_mega_dealers.id', $id)->first();
+        abort_unless($dealer, 404);
+
+        $labels = [
+            'admin_crms' => 'Project Rise',
+            'admin_crms2' => 'Project Genesis',
+        ];
+        $dealer = $this->normalizeCrmDealer($dealer, $source, $labels[$source]);
+        $allTransactions = $this->crmTransactions($source, $dealer);
+        $transactions = $this->paginateCollection($allTransactions, $request);
+        $transactionStats = [
+            'count' => $allTransactions->count(),
+            'qty' => $allTransactions->sum('qty'),
+            'amount' => $allTransactions->sum(function ($transaction) {
+                return (float) $transaction->qty * (float) $transaction->price;
+            }),
+            'points' => $allTransactions->sum('points_client'),
+        ];
+
+        return view('dealer', [
+            'dealer' => $dealer,
+            'transactions' => $transactions,
+            'transactionStats' => $transactionStats,
+            'centers' => collect(),
+            'areas' => collect(),
+            'isRemoteDealer' => true,
+            'partnerLabel' => 'Mega Dealer',
+            'partnerListUrl' => route('mds'),
+            'canEditDealer' => false,
+            'canDeleteMegaDealer' => false,
+            'partnerRecordType' => 'remote_mega_dealer',
+        ]);
+    }
+
+    private function megaDealerQueryForAuthUser()
+    {
+        $user = auth()->user();
+        abort_unless($user, 403);
+
+        $query = MegaDealer::query()
+            ->whereHas('user', function ($userQuery) {
+                $userQuery->where('role', 'Mega Dealer');
+            });
+
+        if ($user->role === 'Admin') {
+            return $query;
+        }
+
+        abort_unless($user->hasAreaDistributorAccess(), 403);
+        $user->loadMissing('ad.areas');
+        $areaNames = $user->ad
+            ? $user->ad->areas->pluck('area_name')->filter()->unique()->values()->all()
+            : [];
+
+        return $query->whereIn('mega_dealers.area', $areaNames);
+    }
+
+    public function destroyMegaDealer($id)
+    {
+        $dealer = MegaDealer::with('user')->findOrFail($id);
+        $user = auth()->user();
+
+        abort_unless(optional($dealer->user)->role === 'Mega Dealer', 404);
+        abort_unless($this->canManageDealerForAuthUser($dealer, $user), 403);
+
+        if ($dealer->orders()->exists() || $dealer->sales()->exists()) {
+            Alert::warning(
+                'Mega Dealer cannot be deleted',
+                'This account has order or transaction history that must be retained.'
+            );
+
+            return redirect()->back();
+        }
+
+        try {
+            DB::transaction(function () use ($dealer) {
+                $linkedUser = $dealer->user;
+                $dealer->delete();
+
+                if ($linkedUser && $linkedUser->role === 'Mega Dealer') {
+                    $linkedUser->delete();
+                }
+            });
+        } catch (\Throwable $exception) {
+            report($exception);
+            Alert::error('Delete failed', 'The Mega Dealer is still connected to another record and was not deleted.');
+
+            return redirect()->back();
+        }
+
+        Alert::success('Deleted', 'Mega Dealer deleted successfully.');
+
+        return redirect()->route($user->role === 'Admin' ? 'mds' : 'md-ads');
     }
     
     public function show(Request $request)
@@ -397,7 +751,9 @@ class DealerController extends Controller
             return false;
         }
 
-        $dealer = $dealer instanceof Dealer ? $dealer : Dealer::find($dealer);
+        $dealer = ($dealer instanceof Dealer || $dealer instanceof MegaDealer)
+            ? $dealer
+            : Dealer::find($dealer);
 
         if (!$dealer) {
             return false;
@@ -502,11 +858,12 @@ class DealerController extends Controller
         $user->password = bcrypt('12345678');
         $user->save();
 
-        $dealer = new Dealer;
+        $dealer = $partnerRole === 'Mega Dealer' ? new MegaDealer : new Dealer;
+        $dealerTable = $dealer->getTable();
         $dealer->user_id = $user->id;
         $dealer->dealer_reference = $this->nextDealerReference($partnerRole === 'Mega Dealer' ? 'Mega Dealer' : $dealerType);
         $dealer->name = $fullName;
-        if (Schema::hasColumn('dealers', 'dealer_type')) {
+        if (Schema::hasColumn($dealerTable, 'dealer_type')) {
             $dealer->dealer_type = $dealerType;
         }
         $dealer->spo = $dealerType === 'Project' ? $request->spo : null;
@@ -518,10 +875,10 @@ class DealerController extends Controller
         $dealer->location_province = $request->location_province;
         $dealer->location_city = $request->location_city;
         $dealer->location_barangay = $request->location_barangay;
-        if (Schema::hasColumn('dealers', 'postal_code')) {
+        if (Schema::hasColumn($dealerTable, 'postal_code')) {
             $dealer->postal_code = $request->postal_code;
         }
-        if (Schema::hasColumn('dealers', 'street_address')) {
+        if (Schema::hasColumn($dealerTable, 'street_address')) {
             $dealer->street_address = $request->street_address;
         }
         $dealer->store_name = $request->store_name;
@@ -535,7 +892,7 @@ class DealerController extends Controller
         
 
         Alert::success($partnerRole . ' successfully encoded')->persistent('Dismiss');
-        return redirect('view-dealer/' . $dealer->id);
+        return redirect()->route($partnerRole === 'Mega Dealer' ? 'mega-dealer.view' : 'dealer.view', $dealer->id);
     }
 
     public function checkDuplicate(Request $request)
@@ -574,6 +931,17 @@ class DealerController extends Controller
     public function view(Request $request,$id)
     {
         $dealer = Dealer::with('user')->findOrfail($id);
+        return $this->renderPartnerProfile($request, $dealer, false);
+    }
+
+    public function viewMegaDealer(Request $request, $id)
+    {
+        $dealer = MegaDealer::with('user')->findOrFail($id);
+        return $this->renderPartnerProfile($request, $dealer, true);
+    }
+
+    private function renderPartnerProfile(Request $request, $dealer, $isMegaDealer)
+    {
         $user = auth()->user();
 
         if ($user && $user->hasAreaDistributorAccess() && !$this->canManageDealerForAuthUser($dealer, $user)) {
@@ -602,12 +970,19 @@ class DealerController extends Controller
                 'centers' => $centers,
                 'areas' => $areas,
                 'canEditDealer' => $this->canManageDealerForAuthUser($dealer, $user),
+                'partnerLabel' => $isMegaDealer ? 'Mega Dealer' : 'Dealer',
+                'partnerListUrl' => $isMegaDealer
+                    ? ($user->role === 'Admin' ? route('mds') : route('md-ads'))
+                    : ($user->role === 'Admin' ? route('dealers') : route('dealer-ads')),
+                'canDeleteMegaDealer' => $isMegaDealer && $this->canManageDealerForAuthUser($dealer, $user),
+                'partnerRecordType' => $isMegaDealer ? 'mega_dealer' : 'dealer',
             )
         );
     }
     public function changeAvatar(Request $request, $id)
     {
-        $dealer = Dealer::findOrfail($id);
+        $dealer = $this->partnerRecordFromRequest($request, $id);
+        abort_unless($this->canManageDealerForAuthUser($dealer), 403);
         
         $imageData = $request->image_data;
         
@@ -655,7 +1030,8 @@ class DealerController extends Controller
     public function uploadValidId(Request $request,$id)
     {
         // dd($request->all());
-        $customer = Dealer::findOrfail($id);
+        $customer = $this->partnerRecordFromRequest($request, $id);
+        abort_unless($this->canManageDealerForAuthUser($customer), 403);
         $customer->valid_id = $request->valid_id_type;
         $customer->valid_id_number = $request->id_number;
 
@@ -676,7 +1052,8 @@ class DealerController extends Controller
     {
         // dd($request->all());
 
-        $customer = Dealer::findOrfail($id);
+        $customer = $this->partnerRecordFromRequest($request, $id);
+        abort_unless($this->canManageDealerForAuthUser($customer), 403);
 
         $attachment = $request->file('contract_signature');
         $original_name = $attachment->getClientOriginalName();
@@ -688,7 +1065,10 @@ class DealerController extends Controller
         $customer->save();
 
         Alert::success('Successfully Uploaded')->persistent('Dismiss');
-        return redirect()->to('view-dealer/' . $customer->id);
+        return redirect()->route(
+            $customer instanceof MegaDealer ? 'mega-dealer.view' : 'dealer.view',
+            $customer->id
+        );
     }
 
     public function sign($id)
@@ -703,24 +1083,36 @@ class DealerController extends Controller
 
     public function update(Request $request, $id)
     {
-        $dealer = Dealer::findOrFail($id);
+        return $this->updatePartnerRecord($request, Dealer::with('user')->findOrFail($id), false);
+    }
+
+    public function updateMegaDealer(Request $request, $id)
+    {
+        return $this->updatePartnerRecord($request, MegaDealer::with('user')->findOrFail($id), true);
+    }
+
+    private function updatePartnerRecord(Request $request, $dealer, $isMegaDealer)
+    {
         $user = auth()->user();
         $isAdmin = $user && $user->role === 'Admin';
+        $dealerTable = $dealer->getTable();
 
         if (!$this->canManageDealerForAuthUser($dealer, $user)) {
             Alert::error('Unauthorized', 'You are not authorized to update this dealer.');
 
             return redirect()->back();
         }
-        $existingDealerType = Schema::hasColumn('dealers', 'dealer_type')
+        $existingDealerType = Schema::hasColumn($dealerTable, 'dealer_type')
             ? ($dealer->dealer_type ?: 'Project')
             : 'Project';
-        $dealerType = $isAdmin
+        $dealerType = $isMegaDealer
+            ? 'Regular'
+            : ($isAdmin
             ? (strtolower((string) $request->dealer_type) === 'regular' ? 'Regular' : 'Project')
-            : $existingDealerType;
+            : $existingDealerType);
 
         $request->validate([
-            'dealer_type' => $isAdmin ? 'required|in:Project,Regular' : 'nullable',
+            'dealer_type' => $isAdmin && !$isMegaDealer ? 'required|in:Project,Regular' : 'nullable',
             'spo' => $dealerType === 'Project' ? 'required|string|max:255' : 'nullable',
             'center' => $dealerType === 'Project' ? 'required|string|max:255' : 'nullable',
         ]);
@@ -747,10 +1139,12 @@ class DealerController extends Controller
         $dealer->street_address = $request->street_address;
         $dealer->store_name = $request->store_name;
         $dealer->store_type = $request->store_type;
-        if ($isAdmin && strcasecmp($existingDealerType, $dealerType) !== 0) {
+        if ($isMegaDealer && !preg_match('/^MD\d{4}\d+$/i', (string) $dealer->dealer_reference)) {
+            $dealer->dealer_reference = $this->nextDealerReference('Mega Dealer');
+        } elseif ($isAdmin && strcasecmp($existingDealerType, $dealerType) !== 0) {
             $dealer->dealer_reference = $this->nextDealerReference($dealerType);
         }
-        if (Schema::hasColumn('dealers', 'dealer_type')) {
+        if (Schema::hasColumn($dealerTable, 'dealer_type')) {
             $dealer->dealer_type = $dealerType;
         }
         $dealer->spo = $dealerType === 'Project' ? $request->spo : null;
@@ -768,8 +1162,15 @@ class DealerController extends Controller
 
         $dealer->save();
 
-        Alert::success('Success', 'Dealer updated successfully!');
+        Alert::success('Success', ($isMegaDealer ? 'Mega Dealer' : 'Dealer') . ' updated successfully!');
         return redirect()->back();
+    }
+
+    private function partnerRecordFromRequest(Request $request, $id)
+    {
+        return $request->input('partner_record_type') === 'mega_dealer'
+            ? MegaDealer::findOrFail($id)
+            : Dealer::findOrFail($id);
     }
 
     private function nextDealerReference($dealerType)
@@ -787,7 +1188,12 @@ class DealerController extends Controller
             $padding = 5;
         }
 
-        $latestSequence = Dealer::where('dealer_reference', 'like', $prefix . '%')
+        $referenceModel = strcasecmp((string) $dealerType, 'Mega Dealer') === 0
+            ? new MegaDealer
+            : new Dealer;
+
+        $latestSequence = $referenceModel->newQuery()
+            ->where('dealer_reference', 'like', $prefix . '%')
             ->pluck('dealer_reference')
             ->map(function ($reference) use ($prefix) {
                 $suffix = substr(strtoupper(trim((string) $reference)), strlen($prefix));

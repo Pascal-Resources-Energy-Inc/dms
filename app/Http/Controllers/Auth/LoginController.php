@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use App\AreaDistributor;
+use App\ProvincialDistributor;
+use App\User;
 
 class LoginController extends Controller
 {
@@ -89,7 +91,9 @@ class LoginController extends Controller
     protected function isUserInactive($user)
     {
         if ($user->hasAreaDistributorAccess()) {
-            $ad = AreaDistributor::where('user_id', $user->id)->first();
+            $ad = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+                ? ProvincialDistributor::where('user_id', $user->id)->first()
+                : AreaDistributor::where('user_id', $user->id)->first();
 
             return !$ad || strtolower($ad->status ?? '') === 'inactive';
         }

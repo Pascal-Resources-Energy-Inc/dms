@@ -2,6 +2,7 @@
   <div class="modal-dialog modal-lg modal-dialog-centered">
    <form method='POST' action='{{url('submit-contract-dealer/'.$dealer->id)}}' onsubmit='show()' enctype="multipart/form-data" class="validation-wizard wizard-circle mt-5">
       @csrf
+      <input type="hidden" name="partner_record_type" value="{{ $partnerRecordType ?? 'dealer' }}">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="contractModalLabel"><i class="bi bi-file-earmark-text"></i> Contract Signing</h5>

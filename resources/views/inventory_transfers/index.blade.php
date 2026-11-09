@@ -254,7 +254,7 @@
                         </div>
                         <div class="alert alert-info py-2 small js-return-refund-note" style="display: none;">
                             <i class="bi bi-arrow-return-left me-1"></i>
-                            <strong>Return and Refund workflow:</strong> submit the request to Sir Dennis. When he approves, he will record the RIS number, return date, and supporting attachments.
+                            <strong>One Return and Refund request:</strong> add all products below. They share one reference number and stay together in the request and report. Submit to Sir Dennis for approval and RIS documents.
                         </div>
                         <div class="mb-3 js-movement-items">
                             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -264,6 +264,7 @@
                             <div id="movementRows"></div>
                         </div>
                         <div class="row js-pull-out-ris" style="display: none;">
+                            <p class="small text-muted mb-2">All products share one Pull Out reference. The warehouse can release part of each product and process the remaining quantity later.</p>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="pullOutRisNumber">RIS Number <span class="text-danger">*</span></label>
                                 <input type="text" name="ris_number" id="pullOutRisNumber" class="form-control" value="{{ old('ris_number') }}" placeholder="Enter RIS number" disabled>
@@ -477,17 +478,10 @@
                                         <td data-label="Products / Quantity">
                                             @php
                                                 $historyItems = $movement->batch_number
-                                                    ? ($batchItems->get($movement->batch_number) ?: collect([$movement]))
+                                                    ? ($batchItems->get($movement->batch_number . '|' . $movement->movement_type) ?: collect([$movement]))
                                                     : collect([$movement]);
                                             @endphp
-                                            <div class="border rounded overflow-hidden bg-white">
-                                                @foreach($historyItems as $historyItem)
-                                                    <div class="d-flex justify-content-between align-items-center px-2 py-1 {{ !$loop->last ? 'border-bottom' : '' }}">
-                                                        <span class="small fw-semibold">{{ $historyItem->item_name }} <small class="text-muted">{{ $historyItem->sku }}</small></span>
-                                                        <span class="badge bg-light text-dark border">{{ number_format($historyItem->qty) }}</span>
-                                                    </div>
-                                                @endforeach
-                                            </div>
+                                            @include('inventory_transfers.partials.history_products')
                                         </td>
                                         <td data-label="From">{{ $movement->from_area ?? '-' }}</td>
                                         <td data-label="To">{{ $movement->to_area ?? '-' }}</td>
@@ -522,33 +516,7 @@
                                             @endif
                                         </td> --}}
                                         <td data-label="Action" class="text-center">
-                                            <button
-                                                type="button"
-                                                class="btn btn-sm btn-outline-primary js-view-movement"
-                                                data-toggle="modal"
-                                                data-target="#movementDetailsModal"
-                                                data-date="{{ $movement->transfer_date ? $movement->transfer_date->format('M d, Y') : '-' }}"
-                                                data-type="{{ strtoupper($movement->movement_type) }}"
-                                                data-reason="{{ $movement->out_type ?: '-' }}"
-                                                data-product="{{ optional($movement->product)->product_name ?: $movement->item_name }}"
-                                                data-sku="{{ $movement->sku ?: '-' }}"
-                                                data-products="{{ $historyItems->map(function ($historyItem) { return ['name' => $historyItem->item_name, 'sku' => $historyItem->sku, 'qty' => $historyItem->qty]; })->values()->toJson() }}"
-                                                data-from-area="{{ $movement->from_area ?: '-' }}"
-                                                data-to-area="{{ $movement->to_area ?: '-' }}"
-                                                data-quantity="{{ number_format($movement->qty) }}"
-                                                data-unit-cost="{{ $movement->unit_cost !== null ? 'PHP ' . number_format($movement->unit_cost, 2) : 'Not set' }}"
-                                                data-reference="{{ $movement->reference_no ?: '-' }}"
-                                                data-remarks="{{ $movement->remarks ?: '-' }}"
-                                                data-is-replacement-workflow="{{ in_array($movement->out_type, ['Pull Out', 'Replacement']) ? '1' : '0' }}"
-                                                data-workflow-status="{{ $movement->approval_status ?: '-' }}"
-                                                data-requested-quantity="{{ $movement->replacement_qty !== null ? number_format($movement->replacement_qty) : '-' }}"
-                                                data-approved-quantity="{{ $movement->approval_status !== 'Pending' ? number_format($movement->qty) : '-' }}"
-                                                data-dr-number="{{ $movement->replacement_dr_number ?: '-' }}"
-                                                data-warehouse-remarks="{{ $movement->warehouse_remarks ?: '-' }}"
-                                                data-attachments="{{ json_encode($movement->pull_out_attachments ?: []) }}"
-                                            >
-                                                <i class="bi bi-eye"></i> View
-                                            </button>
+                                            @include('inventory_transfers.partials.history_action')
                                         </td>
                                     </tr>
                                 @empty
@@ -565,7 +533,7 @@
         <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header movement-modal-header">
-                    <div><div class="movement-modal-eyebrow">Inventory Ledger</div><h5 class="modal-title" id="movementDetailsModalTitle"><i class="bi bi-journal-text me-1"></i> Movement Details</h5></div>
+                    <div><div class="movement-modal-eyebrow">Inventory Ledger</div><h5 class="modal-title text-white" id="movementDetailsModalTitle"><i class="bi bi-journal-text me-1"></i> Movement Details</h5></div>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="modal-body movement-modal-body">
@@ -1649,6 +1617,9 @@
                 name.textContent = product.name || fallbackProduct.name;
                 const sku = document.createElement('small');
                 sku.textContent = product.sku || 'No SKU';
+                if (product.open !== undefined) {
+                    sku.textContent += ' · ' + product.open + ' awaiting release · ' + product.approved + ' approved · ' + product.confirmed + ' received';
+                }
                 identity.appendChild(name);
                 identity.appendChild(sku);
                 const quantity = document.createElement('span');
