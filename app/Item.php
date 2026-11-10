@@ -48,6 +48,12 @@ class Item extends Model implements Auditable
         'stove_kit_color_availability' => 'array',
     ];
 
+    public function distributorPurchaseOrderPrice(): float
+    {
+        // Marketing collateral uses its catalog price; regular products use DPO pricing.
+        return (float) ($this->for_ad ? $this->price : $this->dprice);
+    }
+
     public function isGazLiteStoveKit()
     {
         return strpos(strtolower(trim((string) $this->item)), 'gaz lite stove kit') !== false;
