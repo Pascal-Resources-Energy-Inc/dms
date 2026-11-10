@@ -588,7 +588,7 @@
                         <div class="product-list" data-product-list>
                         @forelse($regularProducts as $product)
                             @php
-                                $unitPrice = ($product->dprice !== null && $product->dprice !== '') ? (float) $product->dprice : 0;
+                                $unitPrice = $product->distributorPurchaseOrderPrice();
                                 $oldQty = old('products.' . $product->id . '.qty', 0);
                                 $oldSelected = old('products.' . $product->id . '.selected') || (int) $oldQty > 0;
                                 $productName = $product->item ?: $product->product_name;
@@ -706,7 +706,7 @@
                                         <div class="product-list" data-product-list>
                                             @foreach($adProducts as $product)
                                                 @php
-                                                    $unitPrice = ($product->price !== null && $product->price !== '') ? (float) $product->price : 0;
+                                                    $unitPrice = $product->distributorPurchaseOrderPrice();
                                                     $oldQty = old('products.' . $product->id . '.qty', 0);
                                                     $oldSelected = old('products.' . $product->id . '.selected') || (int) $oldQty > 0;
                                                     $productName = $product->item ?: $product->product_name;

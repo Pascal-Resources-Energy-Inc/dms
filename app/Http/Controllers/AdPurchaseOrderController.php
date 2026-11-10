@@ -603,7 +603,7 @@ class AdPurchaseOrderController extends Controller
                     continue;
                 }
 
-                $unitPrice = $this->dealerPrice($product);
+                $unitPrice = $product->distributorPurchaseOrderPrice();
                 $lineTotal = $unitPrice * $qty;
                 $subtotal += $lineTotal;
                 $totalQty += $qty;
@@ -901,7 +901,7 @@ class AdPurchaseOrderController extends Controller
                     continue;
                 }
 
-                $unitPrice = $this->dealerPrice($product);
+                $unitPrice = $product->distributorPurchaseOrderPrice();
                 $lineTotal = $unitPrice * $quantity;
                 $lockedOrder->items()->create([
                     'product_id' => $product->id,
@@ -1982,12 +1982,6 @@ class AdPurchaseOrderController extends Controller
 
         return redirect()
             ->route('ad-purchase-orders.index');
-    }
-
-    private function dealerPrice(Item $product)
-    {
-        return (float) $product->dprice;
-        // return (float) $product->price;
     }
 
     private function pickupLubaoDiscount($shippingType, $items)
