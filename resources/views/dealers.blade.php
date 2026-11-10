@@ -61,8 +61,9 @@
         @media (max-width: 767.98px) {
             .dealer-head { padding: 20px; border-radius: 14px; }
             .dealer-actions, .dealer-actions .btn { width: 100%; }
-            .dealer-tabs { flex-wrap: nowrap; margin-right: -22px; padding-right: 22px; overflow-x: auto; scrollbar-width: none; }
-            .dealer-tabs::-webkit-scrollbar { display: none; }
+            .dealer-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; min-width: 0; gap: 6px; }
+            .dealer-tab { min-width: 0; min-height: 44px; justify-content: center; flex-wrap: wrap; gap: 4px; padding: 8px 6px; font-size: .72rem; white-space: normal; }
+            .dealer-tab > i { display: none; }
             .dealer-table-card .card-header, .dealer-table-card .card-body { padding: 16px; }
             .dealer-table thead { display: none; }
             .dealer-table, .dealer-table tbody, .dealer-table tr, .dealer-table td { display: block; width: 100% !important; }
@@ -101,6 +102,8 @@
         if ($isMegaDealerPage) {
             $dealerTabs = collect($megaDealerTabs ?? [
                 ['key' => 'regular', 'label' => 'Regular', 'icon' => 'ti ti-building-store', 'count' => $totalDealers],
+                ['key' => 'admin_crms', 'label' => 'Project Rise', 'icon' => 'ti ti-database', 'count' => 0],
+                ['key' => 'admin_crms2', 'label' => 'Project Genesis', 'icon' => 'ti ti-database-export', 'count' => 0],
             ]);
         } elseif ($isAdminDealerPage) {
             $dealerTabs = collect([
