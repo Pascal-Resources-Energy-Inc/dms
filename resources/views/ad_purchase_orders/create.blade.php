@@ -249,6 +249,7 @@
         'extra_large' => 'Extra Large',
     ];
     $favoriteProductIds = collect($favoriteProductIds ?? [])->map(fn($id) => (int) $id)->values();
+    $prefillProductId = $prefillProductId ?? null;
     $favoriteProductCount = $favoriteProductIds->count();
     $userVouchers = collect($userVouchers ?? []);
     $territoryVouchers = $selectedTerritory === ''
@@ -576,8 +577,8 @@
                         $regularProducts = $products->filter(fn($product) => (int) ($product->for_ad ?? 0) !== 1);
                         // dd($regularProducts);
                         $adProducts = $products->filter(fn($product) => (int) ($product->for_ad ?? 0) === 1);
-                        $hasSelectedAdProduct = $adProducts->contains(function ($product) {
-                            $oldQty = old('products.' . $product->id . '.qty', 0);
+                        $hasSelectedAdProduct = $adProducts->contains(function ($product) use ($prefillProductId) {
+                            $oldQty = old('products.' . $product->id . '.qty', (int) $prefillProductId === (int) $product->id ? 1 : 0);
                             $oldColorQty = collect(old('products.' . $product->id . '.colors', []))->sum(fn($qty) => (int) $qty);
                             $oldSizeQty = collect(old('products.' . $product->id . '.sizes', []))->sum(fn($qty) => (int) $qty);
                             return old('products.' . $product->id . '.selected') || (int) $oldQty > 0 || $oldColorQty > 0 || $oldSizeQty > 0;
@@ -589,7 +590,7 @@
                         @forelse($regularProducts as $product)
                             @php
                                 $unitPrice = $product->distributorPurchaseOrderPrice();
-                                $oldQty = old('products.' . $product->id . '.qty', 0);
+                                $oldQty = old('products.' . $product->id . '.qty', (int) $prefillProductId === (int) $product->id ? 1 : 0);
                                 $oldSelected = old('products.' . $product->id . '.selected') || (int) $oldQty > 0;
                                 $productName = $product->item ?: $product->product_name;
                                 $productDescription = $product->item_description ?: $product->description;
@@ -708,6 +709,8 @@
                                                 @php
                                                     $unitPrice = $product->distributorPurchaseOrderPrice();
                                                     $oldQty = old('products.' . $product->id . '.qty', 0);
+                                                    $unitPrice = ($product->price !== null && $product->price !== '') ? (float) $product->price : 0;
+                                                    $oldQty = old('products.' . $product->id . '.qty', (int) $prefillProductId === (int) $product->id ? 1 : 0);
                                                     $oldSelected = old('products.' . $product->id . '.selected') || (int) $oldQty > 0;
                                                     $productName = $product->item ?: $product->product_name;
                                                     $productDescription = $product->item_description ?: $product->description;
