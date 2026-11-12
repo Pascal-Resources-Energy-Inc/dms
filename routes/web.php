@@ -26,9 +26,19 @@ Route::get('password/otp', 'Auth\ForgotPasswordController@showOtpForm')->name('p
 Route::post('password/verify-otp', 'Auth\ForgotPasswordController@verifyOtp')->name('password.verify-otp');
 Route::get('password/reset/form', 'Auth\ForgotPasswordController@showResetForm')->name('password.reset.form');
 Route::post('password/update', 'Auth\ForgotPasswordController@reset')->name('password.update');
-
-
 Route::group(['middleware' => ['auth', 'module.access']], function () {
+
+// ldr
+Route::get('/ldr', 'LayoutDesignController@index')->name('layout.index');
+Route::get('/ldr/create', 'LayoutDesignController@create')->name('layout.create');
+Route::post('/ldr', 'LayoutDesignController@store')->name('layout.store');
+Route::get('/ldr/{id}', 'LayoutDesignController@show')->name('layout.show');
+Route::get('/ldr/{id}/edit', 'LayoutDesignController@edit')->name('layout.edit');
+Route::put('/ldr/{id}', 'LayoutDesignController@update')->name('layout.update');
+Route::patch('/ldr/{id}/cancel', 'LayoutDesignController@cancel')->name('layout.cancel');
+
+// Partner survey frontend prototype
+Route::get('/surveys/create', 'SurveyController@create')->name('surveys.create');
 
 Route::get('/home', 'HomeController@index')->name('home');
 Route::get('/transactions','TransactionController@index')->name('transactions');

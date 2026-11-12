@@ -1953,7 +1953,10 @@
                             id="formsMenu">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
+                                    <a href="https://docs.google.com/forms/d/e/1FAIpQLScJ3kuD2UiWAMXyvQe3r4AZHlvY39N5_2bz68jY868uqjCxyQ/viewform?usp=send_form" target="_blank" class="nav-link @if(Route::currentRouteName() == 'arf')active @endif" style="font-size: 14px">Survey Form</a>
+                                <li class="nav-item">
                                     <a href="https://docs.google.com/forms/d/e/1FAIpQLScJ3kuD2UiWAMXyvQe3r4AZHlvY39N5_2bz68jY868uqjCxyQ/viewform?usp=send_form" target="_blank" class="nav-link @if(Route::currentRouteName() == 'arf')active @endif" style="font-size: 14px">Access Request Form</a>
+                                </li>
                                 </li>
                                 <li class="nav-item">
                                     <a href="https://docs.google.com/forms/d/e/1FAIpQLSdlOeSHBVOcAASbWkVOQpeVNbI1R36oVlEln-BctX7ekDlUnw/viewform" target="_blank" class="nav-link @if(Route::currentRouteName() == 'ir')active @endif" style="font-size: 14px">Incident Report</a>
@@ -1962,7 +1965,8 @@
                                     <a href="https://form.jotform.com/241338243724050" target="_blank" class="nav-link @if(Route::currentRouteName() == 'borrowing') active @endif" style="font-size: 14px">Borrowing Marketing Collateral Form</a>
                                 </li>
                                 <li class="nav-item">
-                                    <a href="https://form.jotform.com/240291186323048" target="_blank" class="nav-link @if(Route::currentRouteName() == 'layout') active @endif" style="font-size: 14px">Layout Design Request Form</a>
+                                    <!-- <a href="https://form.jotform.com/240291186323048" target="_blank" class="nav-link @if(Route::currentRouteName() == 'layout') active @endif" style="font-size: 14px">Layout Design Request Form</a> -->
+                                    <a href="{{ route('layout.index') }}" class="nav-link @if(in_array(Route::currentRouteName(), ['layout.index', 'layout.create'])) active @endif" style="font-size: 14px">Layout Design Requests</a>
                                 </li>
                                 <li class="nav-item">
                                     <a href="https://docs.google.com/forms/d/e/1FAIpQLScDxCoJdMlFDfr12wcrFcG2K7F1djvSJl3JKs-aAozqAp8bww/viewform" target="_blank" class="nav-link @if(Route::currentRouteName() == 'referral') active @endif" style="font-size: 14px">Area Distributor Referral Sheet</a>
