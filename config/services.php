@@ -46,4 +46,9 @@ return [
         ],
     ],
 
+    'ldr' => [
+        'endpoint' => env('LDR_API_URL', 'https://hris.staging.gazlite.com.ph/api/external/layout-design-requests'),
+        'api_key' => env('LDR_API_KEY')
+    ],
+
 ];
