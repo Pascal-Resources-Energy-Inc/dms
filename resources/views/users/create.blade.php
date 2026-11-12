@@ -1,4 +1,7 @@
-<div id="new_users" class="modal fade modal-select2" tabindex="-1" aria-labelledby="bs-example-modal-md" aria-hidden="true" style="display: none;">
+@php
+    $restoreMfiForm = old('user_form') === 'new_user' && old('role') === 'MFI';
+@endphp
+<div id="new_users" class="modal fade modal-select2" tabindex="-1" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header d-flex align-items-center">
@@ -9,16 +12,27 @@
             </div>
             <form method='POST' action='{{url('new-user')}}' id="newUserForm" enctype="multipart/form-data">
                 @csrf
+                <input type="hidden" name="user_form" value="new_user">
                 <input type="hidden" name="latitude" id="hidden_latitude">
                 <input type="hidden" name="longitude" id="hidden_longitude">
                 <div class="modal-body">
+                    <div id="newUserErrors" class="alert alert-danger" role="alert" tabindex="-1" @if(!$restoreMfiForm || !$errors->any()) hidden @endif>
+                        <strong>Unable to create user. Please check the following:</strong>
+                        <ul class="mb-0 mt-2" id="newUserErrorList">
+                            @if($restoreMfiForm)
+                                @foreach($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            @endif
+                        </ul>
+                    </div>
                     <div class="row">
                         <div class="col-md-6 mb-2">
                             <label class="form-label fw-semibold">Role Type&nbsp;<span class="text-danger">*</span></label>
                             <select id="roleFilter2" name="role" class="form-control select2 shadow-sm mb-2" required>
                                 <option value="">Select Role</option>
                                 <option value="Admin">Admin</option>
-                                <option value="MFI">MFI</option>
+                                <option value="MFI" {{ $restoreMfiForm ? 'selected' : '' }}>MFI</option>
                                 <option value="Provincial Distributor">Provincial Distributor</option>
                                 <option value="Area Distributor">Area Distributor</option>
                                 <option value="Mega Dealer">Mega Dealer</option>
@@ -123,26 +137,26 @@
                         </div> --}}
                         <div class="col-md-4 mb-2">
                             <label class="form-label" for="name">First Name&nbsp;<span class="text-danger">*</span></label>
-                            <input type="text" class="form-control required" id="first_name" name="first_name" placeholder="Enter First Name" data-uppercase required/>
+                            <input type="text" class="form-control required" id="first_name" name="first_name" value="{{ $restoreMfiForm ? old('first_name') : '' }}" placeholder="Enter First Name" data-uppercase required/>
                         </div>
                         <div class="col-md-4 mb-2">
                             <label class="form-label" for="middle_name">Middle Name</label>
-                            <input type="text" class="form-control required" id="middle_name" name="middle_name" placeholder="Enter Middle Name" data-uppercase>
+                            <input type="text" class="form-control required" id="middle_name" name="middle_name" value="{{ $restoreMfiForm ? old('middle_name') : '' }}" placeholder="Enter Middle Name" data-uppercase>
                         </div>
                         <div class="col-md-4 mb-2">
                             <label class="form-label" for="last_name">Last Name&nbsp;<span class="text-danger">*</span></label>
-                            <input type="text" class="form-control required" id="last_name" name="last_name" placeholder="Enter Last Name" data-uppercase required/>
+                            <input type="text" class="form-control required" id="last_name" name="last_name" value="{{ $restoreMfiForm ? old('last_name') : '' }}" placeholder="Enter Last Name" data-uppercase required/>
                         </div>
                         <div class="col-md-6 mb-2">
                             <label class="form-label" for="email_address">Email Address&nbsp;<span class="text-danger">*</span></label>
-                            <input type="email" class="form-control required" id="email_address" name="email_address" placeholder="Enter Email Address" required/>
+                            <input type="email" class="form-control required" id="email_address" name="email_address" value="{{ $restoreMfiForm ? old('email_address') : '' }}" placeholder="Enter Email Address" required/>
                         </div>
                         <div class="col-md-6 mb-2">
                             <label class="form-label" for="contact_number">Mobile Number&nbsp;<span class="text-danger" id="contactRequiredMark">*</span></label>
                             <div class="mobile-verify-shell" id="mobileVerifyShell">
                                 <div class="mobile-verify-input">
                                     <span class="mobile-phone-icon" aria-hidden="true"><i class="bi bi-phone"></i></span>
-                                    <input type="text" class="form-control" id="contact_number" name="contact_number" placeholder="09xxxxxxxxx" maxlength="11" pattern="09[0-9]{9}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, ''); toggleContactRequired();">
+                                    <input type="text" class="form-control" id="contact_number" name="contact_number" value="{{ $restoreMfiForm ? old('contact_number') : '' }}" placeholder="09xxxxxxxxx" maxlength="11" pattern="09[0-9]{9}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, ''); toggleContactRequired();">
                                     <button type="button" class="btn btn-primary" id="sendMobileOtpBtn">
                                         <i class="bi bi-send"></i><span>Send OTP</span>
                                     </button>
@@ -430,8 +444,9 @@
                                         <label class="form-label" for="mfi_type">MFI Type&nbsp;<span class="text-danger">*</span></label>
                                         <select class="form-control select2" id="mfi_type" name="mfi_type" data-placeholder="Select MFI type" disabled>
                                             <option value="">Select MFI Type</option>
-                                            <option value="SEDP">SEDP</option>
-                                            <option value="ASHI">ASHI</option>
+                                            @foreach($mfiTypes ?? ['SEDP', 'ASHI'] as $mfiType)
+                                                <option value="{{ $mfiType }}" {{ $restoreMfiForm && old('mfi_type') === $mfiType ? 'selected' : '' }}>{{ $mfiType }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
                                 </div>
@@ -452,7 +467,7 @@
                                         disabled
                                         multiple>
                                     @foreach($centers ?? [] as $center)
-                                        <option value="{{ $center->name }}" data-mfi="{{ strtoupper(trim((string) $center->mfi)) }}">{{ $center->name }}</option>
+                                        <option value="{{ trim($center->name) }}" data-mfi="{{ strtoupper(trim((string) $center->mfi)) }}" {{ $restoreMfiForm && in_array(trim($center->name), (array) old('sedp_center', []), true) ? 'selected' : '' }}>{{ trim($center->name) }}</option>
                                     @endforeach
                                 </select>
                                 <div class="sedp-center-toolbar">
@@ -494,9 +509,9 @@
                                                     data-placeholder="Select Designation"
                                                     disabled>
                                                 <option value="">-- Select Designation --</option>
-                                                <option value="CDW">CDW</option>
-                                                <option value="CDW2">CDW2</option>
-                                                <option value="SPOM">SPOM</option>
+                                                @foreach(['CDW', 'CDW2', 'SPOM'] as $designation)
+                                                    <option value="{{ $designation }}" {{ $restoreMfiForm && old('designation') === $designation ? 'selected' : '' }}>{{ $designation }}</option>
+                                                @endforeach
                                             </select>
                                         </div>
                                     </div>
@@ -1366,6 +1381,7 @@
         let hasDuplicateUser = false;
         let mobileOtpVerified = false;
         let verifiedMobileNumber = '';
+        let isSubmittingUser = false;
         let resendTimer = null;
         let select2LoadPromise = null;
         const allMfiCenters = sedpCenterSelect
@@ -1471,6 +1487,7 @@
             if (!sedpCenterSelect) return;
 
             const selectedMfiType = mfiTypeSelect ? mfiTypeSelect.value : '';
+            const selectedValues = selectedSedpCenters();
             const matchingCenters = allMfiCenters.filter(function (center) {
                 return center.mfi === selectedMfiType;
             });
@@ -1485,6 +1502,8 @@
                 const option = document.createElement('option');
                 option.value = center.value;
                 option.textContent = center.label;
+                option.dataset.mfi = center.mfi;
+                option.selected = selectedValues.includes(center.value);
                 sedpCenterSelect.appendChild(option);
             });
 
@@ -1600,7 +1619,7 @@
         function updateSubmitState() {
             if (!submitButton) return;
 
-            submitButton.disabled = hasDuplicateUser || !isMobileVerificationReady();
+            submitButton.disabled = isSubmittingUser || hasDuplicateUser || !isMobileVerificationReady();
         }
 
         function setMobileStatus(message, type) {
@@ -1660,9 +1679,16 @@
         function resetMobileVerification(message) {
             mobileOtpVerified = false;
             verifiedMobileNumber = '';
+            clearInterval(resendTimer);
+            setMobileOtpStatus(message || 'Send OTP to verify this mobile number.');
+            if (resendMobileOtpBtn) {
+                resendMobileOtpBtn.disabled = true;
+                resendMobileOtpBtn.textContent = 'Resend';
+            }
 
             if (mobileOtpInput) {
                 mobileOtpInput.value = '';
+                mobileOtpInput.removeAttribute('readonly');
             }
 
             if (mobileNeedsVerification()) {
@@ -1807,6 +1833,10 @@
 
             if (!contactInput || !facebookInput) return;
 
+            if (roleSelect && ['Admin', 'MFI'].includes(roleSelect.value)) {
+                setDuplicateValidation(false);
+            }
+
             const hasContact = contactInput.value.trim() !== '';
             const hasFacebook = facebookInput.value.trim() !== '';
 
@@ -1872,7 +1902,7 @@
             const last_name = lastNameInput.value.trim();
             const mothers_name = mothersNameInput.value.trim();
 
-            if (!first_name || !last_name || !mothers_name) {
+            if (['Admin', 'MFI'].includes(roleSelect.value) || !first_name || !last_name || !mothers_name) {
                 setDuplicateValidation(false);
                 return;
             }
@@ -1896,7 +1926,11 @@
             })
             .then(response => response.json())
             .then(data => {
-
+                // Ignore an old partner lookup after the role or name has changed.
+                if (['Admin', 'MFI'].includes(roleSelect.value)
+                    || firstNameInput.value.trim() !== first_name
+                    || lastNameInput.value.trim() !== last_name
+                    || mothersNameInput.value.trim() !== mothers_name) return;
                 setDuplicateValidation(data.exists === true);
 
             })
@@ -1921,6 +1955,70 @@
             });
 
         });
+        function showNewUserErrors(messages) {
+            const panel = document.getElementById('newUserErrors');
+            const list = document.getElementById('newUserErrorList');
+            list.textContent = '';
+            messages.forEach(function (message) {
+                const item = document.createElement('li');
+                item.textContent = message;
+                list.appendChild(item);
+            });
+            panel.hidden = false;
+            panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            panel.focus({ preventScroll: true });
+        }
+
+        async function submitMfiUser() {
+            if (isSubmittingUser) return;
+            const originalLabel = submitButton.textContent;
+            isSubmittingUser = true;
+            submitButton.textContent = 'Creating user...';
+            updateSubmitState();
+            newUserForm.setAttribute('aria-busy', 'true');
+            document.getElementById('newUserErrors').hidden = true;
+
+            try {
+                const response = await fetch(newUserForm.action, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+                    body: new FormData(newUserForm)
+                });
+                const data = (response.headers.get('content-type') || '').includes('application/json')
+                    ? await response.json() : {};
+
+                if (response.ok && data.success === true && data.redirect) {
+                    window.location.assign(data.redirect);
+                    return;
+                }
+
+                if (response.status === 422 && data.errors) {
+                    const messages = Object.keys(data.errors).reduce(function (all, field) {
+                        return all.concat(data.errors[field]);
+                    }, []);
+                    if (data.errors.contact_number) {
+                        resetMobileVerification(data.errors.contact_number[0]);
+                    }
+                    if (data.errors.sedp_center) {
+                        setSedpCenterInvalid(true);
+                    }
+                    showNewUserErrors(messages);
+                } else {
+                    showNewUserErrors([response.status === 419 || response.status === 401
+                        ? 'Your session has expired. Refresh the page, sign in if needed, and try again.'
+                        : 'Unable to create the user. Please try again. If the problem continues, contact your administrator.']);
+                }
+            } catch (error) {
+                showNewUserErrors(['Unable to confirm the save. Check your connection and the user list before trying again.']);
+            } finally {
+                isSubmittingUser = false;
+                submitButton.textContent = originalLabel;
+                newUserForm.removeAttribute('aria-busy');
+                updateSubmitState();
+            }
+        }
+
         if (newUserForm) {
 
             newUserForm.addEventListener('submit', function (event) {
@@ -1951,6 +2049,12 @@
                 }
 
                 syncDeliveryAddress();
+
+                if (roleSelect && roleSelect.value === 'MFI') {
+                    event.preventDefault();
+                    submitMfiUser();
+                    return;
+                }
 
                 if (typeof show === 'function') {
                     show();
@@ -2062,6 +2166,16 @@
         // }
 
         toggleContactRequired();
+
+        if (roleSelect && roleSelect.value === 'MFI') {
+            updateMfiCenters();
+        }
+
+        @if($restoreMfiForm && $errors->any())
+            $(function () {
+                $('#new_users').modal('show');
+            });
+        @endif
 
         function initMap() {
             map = L.map('location_map', {
