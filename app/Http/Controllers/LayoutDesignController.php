@@ -474,8 +474,7 @@ class LayoutDesignController extends Controller {
             $payload = json_decode((string) $response->getBody(), true);
 
             return redirect()->route('layout.index')
-                ->with('ldr_success', $payload['message'] ?? 'Layout design request cancelled.')
-                ->with('ldr_reference_no', $payload['data']['reference_no'] ?? null);
+                ->with('ldr_success', $payload['message'] ?? 'Layout design request has been cancelled.');
         } catch (RequestException $exception) {
             if ($exception->hasResponse()) {
                 $status = $exception->getResponse()->getStatusCode();

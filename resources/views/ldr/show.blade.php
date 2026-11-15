@@ -24,7 +24,7 @@
     .ldr-show-status.cancelled { color: #475467; background: #f2f4f7; }
     .ldr-show-sheet { overflow: hidden; background: #fff; border: 1px solid var(--ldr-line); border-radius: 14px; box-shadow: 0 10px 30px rgba(15, 23, 42, .055); }
     .ldr-show-heading { position: relative; padding: 25px 27px 23px; background: linear-gradient(135deg, #fff, #f7faff); }
-    .ldr-show-heading::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--ldr-blue); }
+    .ldr-show-heading::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; }
     .ldr-show-eyebrow { margin-bottom: 5px; color: var(--ldr-blue); font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
     .ldr-show-heading h1 { margin: 0; color: var(--ldr-ink); font-size: 24px; font-weight: 900; }
     .ldr-show-reference { margin: 7px 0 0; color: var(--ldr-muted); font-size: 12px; }
@@ -110,7 +110,7 @@
                 </div>
 
                 <div>
-                    <span class="ldr-show-status {{ $statusClass }}">{{ $status }}</span>
+                    <span class="ldr-show-status {{ $statusClass }}">{{ ['Approved' => 'In Progress', 'Processed' => 'Completed'][$status] ?? $status }}</span>
                 </div>
             </div>
         </header>
@@ -118,7 +118,7 @@
         <section class="ldr-show-section">
             <div class="ldr-show-section-head">
                 <span class="ldr-show-section-icon"><i class="ti ti-user"></i></span>
-                <div><h2>Request information</h2><p>Requestor and scheduling details</p></div>
+                <div><h2>Request information</h2><p>Details</p></div>
             </div>
             <dl class="ldr-show-grid">
                 <div class="ldr-show-field"><dt>Requestor</dt><dd>{{ $requestorName }}</dd></div>
@@ -138,7 +138,7 @@
         <section class="ldr-show-section">
             <div class="ldr-show-section-head">
                 <span class="ldr-show-section-icon"><i class="ti ti-file-description"></i></span>
-                <div><h2>Project details</h2><p>Design requirements submitted with the request</p></div>
+                <div><h2>Project details</h2><p>Design requirements</p></div>
             </div>
             <dl class="ldr-show-grid">
                 <div class="ldr-show-field wide"><dt>Purpose of layout request</dt><dd>{!! nl2br(e($layoutRequest['purpose_of_layout_request'] ?? '-')) !!}</dd></div>
@@ -180,10 +180,20 @@
                     @foreach($pegSamples as $attachment)
                         <div class="ldr-output-item">
                             <div class="ldr-output-name">
-                                @if(!empty($attachment['url']))<a href="{{ $attachment['url'] }}" target="_blank" rel="noopener noreferrer"><i class="ti {{ !empty($attachment['is_link']) ? 'ti-link' : 'ti-paperclip' }}"></i> {{ $attachment['display_name'] ?? 'Peg sample' }}</a>@else<span>{{ $attachment['display_name'] ?? 'Peg sample' }}</span>@endif
+                                @if(!empty($attachment['url']))
+                                    <a href="{{ $attachment['url'] }}" target="_blank" rel="noopener noreferrer">
+                                        <i class="ti {{ !empty($attachment['is_link']) ? 'ti-link' : 'ti-paperclip' }}"></i> {{ $attachment['display_name'] ?? 'Peg sample' }}
+                                    </a>
+                                @else
+                                    <span>{{ $attachment['display_name'] ?? 'Peg sample' }} </span>
+                                @endif
                                 <small>{{ !empty($attachment['is_link']) ? 'SHARED LINK' : strtoupper(pathinfo($attachment['display_name'] ?? '', PATHINFO_EXTENSION)) }}</small>
                             </div>
-                            @if(!empty($attachment['url']))<a href="{{ $attachment['url'] }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary"><i class="ti ti-external-link"></i> Open</a>@endif
+                            @if(!empty($attachment['url']))
+                                <a href="{{ $attachment['url'] }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+                                    <i class="ti ti-external-link"></i> Open
+                                </a>
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -198,7 +208,7 @@
             <section class="ldr-show-section">
                 <div class="ldr-show-section-head">
                     <span class="ldr-show-section-icon"><i class="ti ti-circle-check"></i></span>
-                    <div><h2>Issuance details</h2><p>Completed files and final remarks</p></div>
+                    <div><h2>Issuance details</h2><p>Complete request and attached files</p></div>
                 </div>
                 <dl class="ldr-show-grid">
                     <div class="ldr-show-field"><dt>Issuance date</dt><dd>{{ !empty($layoutRequest['issuance_date']) ? \Carbon\Carbon::parse($layoutRequest['issuance_date'])->format('M d, Y') : '-' }}</dd></div>
@@ -209,7 +219,7 @@
                             @forelse($outputAttachments as $attachment)
                                 @php
                                     $attachmentName = $attachment['original_name'] ?? basename($attachment['output_attachment_path'] ?? 'Attachment');
-                                    $attachmentExtension = strtoupper(pathinfo($attachmentName, PATHINFO_EXTENSION)) ?: 'FILE';
+                                    $attachmentExtension = strtoupper(pathinfo($attachmentName, PATHINFO_EXTENSION)) ?: 'LINK';
                                     $attachmentBytes = (int) ($attachment['file_size'] ?? 0);
                                     $attachmentSize = $attachmentBytes >= 1048576 ? number_format($attachmentBytes / 1048576, 1) . ' MB' : ($attachmentBytes >= 1024 ? number_format($attachmentBytes / 1024, 1) . ' KB' : ($attachmentBytes > 0 ? $attachmentBytes . ' bytes' : null));
                                 @endphp
