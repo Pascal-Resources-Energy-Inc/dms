@@ -41,7 +41,7 @@
     .ldr-reference { color: #1d4ed8; font-weight: 900; white-space: nowrap; }
     .ldr-requestor strong { display: block; color: var(--ldr-ink); font-size: 12px; }
     .ldr-requestor small { display: block; margin-top: 2px; color: var(--ldr-muted); }
-    .ldr-status { display: inline-flex; padding: 6px 9px; font-size: 11px; font-weight: 900; border-radius: 999px; }
+    .ldr-status { white-space: nowrap; display: inline-flex; padding: 6px 9px; font-size: 11px; font-weight: 900; border-radius: 999px; }
     .ldr-status.pending { color: #92400e; background: #fef3c7; }
     .ldr-status.approved { color: #1d4ed8; background: #dbeafe; }
     .ldr-status.processed { color: #166534; background: #dcfce7; }
@@ -94,14 +94,14 @@
             <div class="ldr-list-stat-icon approved"><i class="ti ti-circle-check"></i></div>
             <div>
                 <div class="ldr-list-stat-value">{{ number_format($summary['approved'] ?? 0) }}</div>
-                <div class="ldr-list-stat-label">Approved</div>
+                <div class="ldr-list-stat-label">In Progress</div>
             </div>
         </div>
         <div class="ldr-list-stat">
             <div class="ldr-list-stat-icon processed"><i class="ti ti-checks"></i></div>
             <div>
                 <div class="ldr-list-stat-value">{{ number_format($summary['processed'] ?? 0) }}</div>
-                <div class="ldr-list-stat-label">Processed</div>
+                <div class="ldr-list-stat-label">Completed</div>
             </div>
         </div>
         <div class="ldr-list-stat">
@@ -124,14 +124,14 @@
         <form method="GET" action="{{ route('layout.index') }}">
             <div class="ldr-list-field">
                 <label for="ldrSearch">Search</label>
-                <input type="search" name="search" id="ldrSearch" class="form-control" value="{{ $filters['search'] ?? '' }}" placeholder="Reference number / Collateral Type">
+                <input type="search" name="search" id="ldrSearch" class="form-control" value="{{ $filters['search'] ?? '' }}" placeholder="Reference no., Collateral Type, Medium Type">
             </div>
             <div class="ldr-list-field">
                 <label for="ldrStatus">Status</label>
                 <select name="status" id="ldrStatus" class="form-select">
                     <option value="">All statuses</option>
                     @foreach(['Pending', 'Approved', 'Processed', 'Declined', 'Cancelled'] as $status)
-                        <option value="{{ $status }}" @if(($filters['status'] ?? '') === $status) selected @endif>{{ $status }}</option>
+                        <option value="{{ $status }}" @if(($filters['status'] ?? '') === $status) selected @endif>{{ ['Approved' => 'In Progress', 'Processed' => 'Completed'][$status] ?? $status }}</option>
                     @endforeach
                 </select>
             </div>
@@ -198,7 +198,7 @@
                                 <td>{{ implode(', ', array_filter($collateral)) ?: '-' }}</td>
                                 <td>{{ !empty($item['date_needed']) ? \Carbon\Carbon::parse($item['date_needed'])->format('M d, Y') : '-' }}</td>
                                 <td>{{ !empty($item['submitted_at']) ? \Carbon\Carbon::parse($item['submitted_at'])->format('M d, Y') : '-' }}</td>
-                                <td><span class="ldr-status {{ strtolower($status) }}">{{ $status }}</span></td>
+                                <td><span class="ldr-status {{ strtolower($status) }}">{{ ['Approved' => 'In Progress', 'Processed' => 'Completed'][$status] ?? $status }}</span></td>
                                 <td>
                                     <div class="ldr-list-actions">
                                         <a href="{{ route('layout.show', $item['id']) }}" class="ldr-edit-action" title="View request" aria-label="View {{ $item['reference_no'] ?? 'request' }}">

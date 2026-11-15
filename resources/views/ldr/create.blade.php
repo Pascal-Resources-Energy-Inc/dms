@@ -114,12 +114,12 @@
                     <div class="ldr-grid">
                         <div>
                             <label for="requestorFirstName" class="ldr-label">First Name <span class="ldr-required">*</span></label>
-                            <input type="text" name="requestor_first_name" id="requestorFirstName" class="ldr-field {{ $errors->has('requestor_first_name') ? 'is-invalid' : '' }}" value="{{ old('requestor_first_name', $requestorFirstName) }}" autocomplete="given-name" placeholder="Juan" required>
+                            <input type="text" name="requestor_first_name" id="requestorFirstName" class="ldr-field {{ $errors->has('requestor_first_name') ? 'is-invalid' : '' }}" value="{{ old('requestor_first_name', mb_convert_case($requestorFirstName, MB_CASE_TITLE, 'UTF-8')) }}" autocomplete="given-name" placeholder="Juan" required>
                             @if($errors->has('requestor_first_name'))<div class="ldr-invalid">{{ $errors->first('requestor_first_name') }}</div>@endif
                         </div>
                         <div>
                             <label for="requestorLastName" class="ldr-label">Last Name <span class="ldr-required">*</span></label>
-                            <input type="text" name="requestor_last_name" id="requestorLastName" class="ldr-field {{ $errors->has('requestor_last_name') ? 'is-invalid' : '' }}" value="{{ old('requestor_last_name', $requestorLastName) }}" autocomplete="family-name" placeholder="Dela Cruz" required>
+                            <input type="text" name="requestor_last_name" id="requestorLastName" class="ldr-field {{ $errors->has('requestor_last_name') ? 'is-invalid' : '' }}" value="{{ old('requestor_last_name', mb_convert_case($requestorLastName, MB_CASE_TITLE, 'UTF-8')) }}" autocomplete="family-name" placeholder="Dela Cruz" required>
                             @if($errors->has('requestor_last_name'))<div class="ldr-invalid">{{ $errors->first('requestor_last_name') }}</div>@endif
                         </div>
                         <div>
