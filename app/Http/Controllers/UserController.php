@@ -7,6 +7,7 @@ use App\Client;
 use App\Stove;
 use App\Area;
 use App\Center;
+use App\Mfi;
 use App\TransactionDetail;
 use App\AreaDistributor;
 use App\AreaAd;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use OwenIt\Auditing\Facades\Auditor;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
@@ -38,6 +41,7 @@ class UserController extends Controller
             ->orderBy('name')
             ->get();
         $centers = Center::orderBy('name')->get();
+        $mfiTypes = $this->availableMfiTypes();
         $users = User::with([
                 'dealer:id,user_id,address,status',
                 'client:id,user_id,address,status',
@@ -47,7 +51,7 @@ class UserController extends Controller
             ->latest()
             ->paginate(20); // ✅ IMPORTANT
 
-        return view('users.index', compact('stoves', 'users', 'areas', 'allAreas', 'centers'));
+        return view('users.index', compact('stoves', 'users', 'areas', 'allAreas', 'centers', 'mfiTypes'));
     }
 
     public function store(Request $request)
@@ -88,7 +92,7 @@ class UserController extends Controller
             ->filter()
             ->unique();
 
-       $unavailableAreaKeys = $request->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+       $unavailableAreaKeys = $requestedAreaKeys->isEmpty() || $request->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
             ? collect()
             : $requestedAreaKeys->intersect($this->activeAdAreaKeys());
 
@@ -98,9 +102,13 @@ class UserController extends Controller
                 ->withInput();
        }
 
-       $request->validate([
+       if ($isSedp && is_string($request->input('mfi_type'))) {
+            $request->merge(['mfi_type' => strtoupper(trim((string) $request->input('mfi_type')))]);
+       }
+
+       $rules = [
             'warehouse' => 'nullable|in:lubao,guinobatan',
-            'mfi_type' => 'required_if:role,MFI|nullable|in:SEDP,ASHI',
+            'mfi_type' => ['required_if:role,MFI', 'nullable', 'string', Rule::in($this->availableMfiTypes()->all())],
             'sedp_center' => 'required_if:role,MFI|array',
             'sedp_center.*' => 'string|max:255',
             'delivery_address' => 'nullable|string|max:1000',
@@ -119,20 +127,39 @@ class UserController extends Controller
             'contract_attachments.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
             // 'tin' => 'nullable|string|max:50',
             // 'store_picture' => 'nullable|image|max:2048',
-        ]);
+        ];
 
        if ($isSedp) {
-            $selectedCenters = collect($request->input('sedp_center', []));
+            $rules += [
+                'first_name' => 'required|string|max:255',
+                'middle_name' => 'nullable|string|max:255',
+                'last_name' => 'required|string|max:255',
+                'email_address' => 'required|email|max:255|unique:users,email',
+            ];
+       }
+
+       $request->validate($rules, [
+            'mfi_type.required_if' => 'Please select an MFI type.',
+            'mfi_type.in' => 'The selected MFI is no longer available. Please select an existing MFI.',
+            'sedp_center.required_if' => 'Please select at least one center for this MFI.',
+            'designation.required_if' => 'Please select a designation.',
+            'email_address.unique' => 'This email address is already assigned to another user.',
+       ]);
+
+       if ($isSedp) {
+            $selectedCenters = collect($request->input('sedp_center', []))
+                ->map(function ($name) { return trim($name); })->unique()->values();
             $validCenters = Center::query()
                 ->whereRaw('UPPER(TRIM(mfi)) = ?', [$request->mfi_type])
-                ->whereIn('name', $selectedCenters)
-                ->pluck('name');
+                ->whereIn(DB::raw('TRIM(name)'), $selectedCenters)
+                ->pluck('name')->map(function ($name) { return trim($name); });
 
             if ($selectedCenters->diff($validCenters)->isNotEmpty()) {
-                return back()
-                    ->withErrors(['sedp_center' => 'Please select centers assigned to the selected MFI type.'])
-                    ->withInput();
+                throw ValidationException::withMessages([
+                    'sedp_center' => 'Please select centers assigned to the selected MFI type.',
+                ]);
             }
+            $request->merge(['sedp_center' => $selectedCenters->all()]);
        }
 
        if (!$isAdminLike && trim((string) $request->contact_number) === '' && trim((string) $request->facebook) === '') {
@@ -142,9 +169,9 @@ class UserController extends Controller
        }
 
        if ($normalizedContactNumber && !$this->isVerifiedMobileNumber($request, $normalizedContactNumber)) {
-            return back()
-                ->withErrors(['contact_number' => 'Please verify the mobile number by OTP before submitting.'])
-                ->withInput();
+            throw ValidationException::withMessages([
+                'contact_number' => 'Please verify the mobile number by OTP before submitting. Your verification may have expired.',
+            ]);
        }
 
        $duplicate = false;
@@ -238,6 +265,15 @@ class UserController extends Controller
 
         if ($isAdminLike) {
             session()->forget('mobile_otp');
+
+            if ($request->expectsJson()) {
+                session()->flash('success', $request->role . ' successfully created');
+                return response()->json([
+                    'success' => true,
+                    'message' => $request->role . ' successfully created',
+                    'redirect' => route('users'),
+                ], 201);
+            }
 
             return redirect()
                 ->route('users')
@@ -516,6 +552,16 @@ class UserController extends Controller
             'success' => true,
             'message' => 'Mobile number verified.',
         ]);
+    }
+
+    private function availableMfiTypes()
+    {
+        // Older installations may not have the MFI management table yet.
+        $names = Schema::hasTable('mfis') ? Mfi::orderBy('name')->pluck('name') : collect(['SEDP', 'ASHI']);
+
+        return $names->map(function ($name) {
+            return strtoupper(trim((string) $name));
+        })->filter()->unique()->values();
     }
 
     protected function normalizeMobileNumber($mobileNumber)
