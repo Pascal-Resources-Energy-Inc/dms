@@ -28,6 +28,24 @@ Route::get('password/reset/form', 'Auth\ForgotPasswordController@showResetForm')
 Route::post('password/update', 'Auth\ForgotPasswordController@reset')->name('password.update');
 Route::group(['middleware' => ['auth', 'module.access']], function () {
 
+Route::get('/bmc', 'BmcController@index')->name('bmc.index');
+Route::get('/bmc/create', 'BmcController@create')->name('bmc.create');
+Route::post('/bmc', 'BmcController@store')->name('bmc.store');
+Route::get('/bmc/{id}', 'BmcController@show')->name('bmc.show');
+Route::get('/bmc/{id}/edit', 'BmcController@edit')->name('bmc.edit');
+Route::patch('/bmc/{id}', 'BmcController@update')->name('bmc.update');
+Route::patch('/bmc/{id}/cancel', 'BmcController@cancel')->name('bmc.cancel');
+Route::post('/bmc/{id}/payment', 'BmcController@payment')->name('bmc.payment');
+Route::get('/bmc/{id}/payment-proof', 'BmcController@paymentProof')->name('bmc.payment-proof');
+Route::get('/bmc/{id}/refund-proof', 'BmcController@refundProof')->name('bmc.refund-proof');
+Route::get('/bmc/accountabilities/{id}', 'BmcController@accountability')->name('bmc.accountability');
+Route::get('/bmc/accountabilities/{id}/preview', 'BmcController@accountabilityPreview')->name('bmc.accountability.preview');
+Route::get('/bmc/accountabilities/{id}/signature-image', 'BmcController@signatureImage')->name('bmc.accountability.signature-image');
+Route::get('/bmc/accountabilities/{id}/payment-proof', 'BmcController@accountabilityPaymentProof')->name('bmc.accountability-payment-proof');
+Route::post('/bmc/accountabilities/{id}/signature', 'BmcController@signature')->name('bmc.signature');
+Route::post('/bmc/accountabilities/{id}/returns', 'BmcController@returnItems')->name('bmc.return');
+Route::post('/bmc/accountabilities/{id}/extensions', 'BmcController@extension')->name('bmc.extension');
+
 // ldr
 Route::get('/ldr', 'LayoutDesignController@index')->name('layout.index');
 Route::get('/ldr/create', 'LayoutDesignController@create')->name('layout.create');
