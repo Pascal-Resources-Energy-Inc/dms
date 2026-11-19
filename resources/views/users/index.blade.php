@@ -327,6 +327,83 @@
         color: #fff;
     }
 
+    .users-page .users-pagination-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px 20px;
+        padding-top: 16px;
+    }
+
+    .users-page .users-pagination-footer .dataTables_info,
+    .users-page .users-pagination-footer .dataTables_paginate {
+        float: none;
+        clear: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .users-page .users-pagination-footer .dataTables_paginate {
+        margin-left: auto;
+        max-width: 100%;
+    }
+
+    .users-page .users-pagination-footer .pagination {
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin: 0;
+    }
+
+    .users-page .users-pagination-footer .page-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        min-height: 38px;
+        margin: 0;
+        line-height: 1;
+    }
+
+    .users-page .users-page-arrow { display: none; }
+
+    @media (max-width: 767px) {
+        .users-page .users-pagination-footer {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .users-page .users-pagination-footer .dataTables_info {
+            text-align: center;
+        }
+
+        .users-page .users-pagination-footer .dataTables_paginate {
+            margin-left: 0;
+        }
+
+        .users-page .users-pagination-footer .pagination {
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .users-page .users-pagination-footer .page-link {
+            min-width: 30px;
+            min-height: 40px;
+            padding: 6px;
+        }
+
+        .users-page .users-page-arrow { display: inline; font-size: 20px; }
+        .users-page .users-page-label {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+        }
+    }
+
     @media (max-width: 768px) {
         .users-toolbar {
             display: block;
@@ -396,7 +473,6 @@
         </div>
 
         <div class="users-table-wrap">
-            <div class="table-responsive">
                 <table id="example" class="table users-table" style="width:100%">
                         <thead>
                             <tr>
@@ -410,7 +486,6 @@
                         </thead>
                         <tbody></tbody>
                 </table>
-            </div>
         </div>
     </div>
 </section>
@@ -437,10 +512,6 @@
         }
 
         async function ensureDataTables() {
-            if ($.fn && $.fn.DataTable) {
-                return true;
-            }
-
             var dataTableSources = [
                 "{{ asset('design/assets/libs/datatables.net/js/jquery.dataTables.min.js') }}",
                 "{{ asset('design/vendors/datatables.net/jquery.dataTables.js') }}",
@@ -448,6 +519,7 @@
             ];
 
             for (var i = 0; i < dataTableSources.length; i++) {
+                if ($.fn && $.fn.DataTable) break;
                 try {
                     await loadScript(dataTableSources[i]);
 
@@ -464,7 +536,9 @@
             }
 
             try {
-                await loadScript("{{ asset('design/vendors/datatables.net-bs4/dataTables.bootstrap4.js') }}");
+                if (!$.fn.dataTable.ext.renderer.pageButton.bootstrap) {
+                    await loadScript("{{ asset('design/vendors/datatables.net-bs4/dataTables.bootstrap4.js') }}");
+                }
             } catch (error) {
                 console.warn('DataTables Bootstrap styling script did not load. Continuing with core DataTables.');
             }
@@ -486,12 +560,30 @@
         if ($.fn.DataTable.isDataTable('#example')) {
             $('#example').DataTable().destroy();
         }
+
+        // Limit this table's pager without changing pagination in other modules.
+        $.fn.dataTable.ext.pager.users_compact = function (page, pages) {
+            var numbers = [];
+            if (pages <= 5) {
+                for (var number = 0; number < pages; number++) numbers.push(number);
+            } else if (page < 3) {
+                numbers = [0, 1, 2, 'ellipsis', pages - 1];
+            } else if (page >= pages - 3) {
+                numbers = [0, 'ellipsis', pages - 3, pages - 2, pages - 1];
+            } else {
+                numbers = [0, 'ellipsis', page, 'ellipsis', pages - 1];
+            }
+            return ['previous', numbers, 'next'];
+        };
+
         var table = $('#example').DataTable({
             processing: true,
             serverSide: true,
             pageLength: 10,
             lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
             autoWidth: false,
+            pagingType: 'users_compact',
+            dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>><'table-responsive'tr><'users-pagination-footer'ip>",
             order: [[0, 'asc']],
             ajax: {
                 url: "{{ route('users.data') }}",
@@ -510,13 +602,24 @@
                 { data: 'role', searchable: true },
                 { data: 'actions', orderable: false, searchable: false }
             ],
+            drawCallback: function () {
+                var pagination = $(this.api().table().container()).find('.dataTables_paginate');
+                pagination.attr({ role: 'navigation', 'aria-label': 'Users pagination' });
+                pagination.find('.active .page-link').attr('aria-current', 'page');
+                pagination.find('.disabled .page-link').attr({ 'aria-disabled': 'true', tabindex: '-1' });
+            },
             language: {
                 search: 'Search users:',
                 lengthMenu: 'Show _MENU_ records',
                 info: 'Showing _START_ to _END_ of _TOTAL_ users',
                 infoEmpty: 'No users to show',
                 zeroRecords: 'No matching users found.',
-                processing: 'Loading users...'
+                processing: 'Loading users...',
+                paginate: {
+                    previous: '<span class="users-page-arrow" aria-hidden="true">&#8249;</span><span class="users-page-label">Previous</span>',
+                    next: '<span class="users-page-label">Next</span><span class="users-page-arrow" aria-hidden="true">&#8250;</span>'
+                },
+                aria: { paginate: { previous: 'Previous page', next: 'Next page' } }
             }
         });
 
@@ -648,7 +751,7 @@
         function getDetailedAccessPermissions() {
             const permissions = {};
 
-            $('.access-permission-check:checked').each(function () {
+            $('.access-permission-check').each(function () {
                 const module = $(this).data('module');
                 const submodule = $(this).data('submodule');
                 const action = $(this).data('action');
@@ -661,7 +764,9 @@
                     permissions[module][submodule] = [];
                 }
 
-                permissions[module][submodule].push(action);
+                if (this.checked) {
+                    permissions[module][submodule].push(action);
+                }
             });
 
             return permissions;

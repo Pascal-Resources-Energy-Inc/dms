@@ -13,7 +13,6 @@
         --rpi-alert: #ff1f1f;
         --rpi-alert-bg: #f55a5a;
         --rpi-total: #e2f0d9;
-        padding: 18px 12px 32px;
     }
 
     .rpi-hero,
@@ -324,7 +323,7 @@
 @endsection
 
 @section('content')
-<div class="container-fluid rpi-page" style="margin-top: 5.5em;">
+<div class="container-fluid rpi-page">
     <div class="rpi-hero">
         <div>
             <div class="rpi-eyebrow">Reports</div>

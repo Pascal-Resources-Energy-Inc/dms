@@ -2,7 +2,7 @@
 
 @section('css')
 <style>
-    .customer-aging-page { max-width: 1540px; margin: 5.5em auto 28px; padding: 0 12px; color: #172033; }
+    .customer-aging-page { max-width: 1540px; padding: 0 12px; color: #172033; }
     .customer-aging-hero { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 16px; padding: 23px 25px; color: #fff; background: linear-gradient(120deg, #102a43, #176b87 58%, #0e7490); border-radius: 14px; box-shadow: 0 14px 32px rgba(15, 23, 42, .16); }
     .customer-aging-eyebrow { color: #a5f3fc; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
     .customer-aging-hero h3 { margin: 4px 0; font-size: 25px; font-weight: 900; }

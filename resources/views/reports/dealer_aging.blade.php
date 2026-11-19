@@ -1,7 +1,7 @@
 @extends('layouts.header')
 
 @section('content')
-<div class="container-fluid dealer-aging-page" style="margin-top: 5.5em">
+<div class="container-fluid dealer-aging-page">
 
     <section class="row g-3 mb-3">
         <div class="col-xl col-md-6"><div class="dealer-aging-kpi"><i class="ti ti-receipt"></i><div><span>Total orders</span><strong>{{ number_format($summary->total) }}</strong></div></div></div>

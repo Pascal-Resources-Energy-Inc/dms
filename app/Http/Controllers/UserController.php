@@ -895,7 +895,7 @@ class UserController extends Controller
                 'can_access_reports' => $user->can_access_reports,
                 'can_access_settings' => $user->can_access_settings,
                 'can_access_stock_requests' => $user->can_access_stock_requests,
-                'access_permissions' => $this->decodeAccessPermissions($user->access_permissions ?? null),
+                'access_permissions' => \App\Support\ModulePermissions::expand($this->decodeAccessPermissions($user->access_permissions ?? null)),
                 'address' => optional($user->dealer)->address
                     ?? optional($user->client)->address
                     ?? $user->address
@@ -1106,48 +1106,7 @@ class UserController extends Controller
 
     private function sanitizeAccessPermissions(array $permissions)
     {
-        $allowed = [
-            'dashboard' => ['overview'],
-            'users' => ['accounts'],
-            'distributors' => ['records'],
-            'dealers' => ['records'],
-            'customers' => ['records'],
-            'transactions' => ['sales'],
-            'orders' => ['sales_orders'],
-            'purchase_orders' => ['adpo'],
-            'inventory' => ['stock'],
-            'inventory_transfers' => ['transfers'],
-            'pull_out_requests' => ['approvals'],
-            'return_refunds' => ['requests'],
-            'settings' => ['items', 'rewards', 'campaigns'],
-            'products' => ['catalog'],
-            'reports' => ['sales', 'operations', 'sedp'],
-            'stock_requests' => ['approvals'],
-            'charges' => ['records'],
-            'locations' => ['directory'],
-        ];
-        $allowedActions = ['view', 'add', 'edit', 'delete'];
-        $clean = [];
-
-        foreach ($allowed as $module => $submodules) {
-            if (!isset($permissions[$module]) || !is_array($permissions[$module])) {
-                continue;
-            }
-
-            foreach ($submodules as $submodule) {
-                if (!isset($permissions[$module][$submodule]) || !is_array($permissions[$module][$submodule])) {
-                    continue;
-                }
-
-                $actions = array_values(array_intersect($allowedActions, $permissions[$module][$submodule]));
-
-                if (!empty($actions)) {
-                    $clean[$module][$submodule] = $actions;
-                }
-            }
-        }
-
-        return $clean;
+        return \App\Support\ModulePermissions::sanitize($permissions);
     }
 
     public function datatable(Request $request)

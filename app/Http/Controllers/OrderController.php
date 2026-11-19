@@ -32,7 +32,7 @@ class OrderController extends Controller
 
         $user = auth()->user();
         $items = Item::get();
-        $adAreas = optional($user->ad) ? $user->ad->areas->pluck('area_name')->toArray() : [];
+        $adAreas = collect(optional($user->ad)->areas)->pluck('area_name')->all();
 
         $regularDealers = Dealer::when($user->role !== 'Admin', function ($query) use ($adAreas) {
                 $query->whereIn('area', $adAreas);
@@ -387,7 +387,7 @@ class OrderController extends Controller
             ->firstOrFail();
 
         if ($user->role !== 'Admin') {
-            $adAreas = optional($user->ad) ? $user->ad->areas->pluck('area_name')->toArray() : [];
+            $adAreas = collect(optional($user->ad)->areas)->pluck('area_name')->all();
 
             abort_unless(in_array($dealer->area, $adAreas), 403);
 

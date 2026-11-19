@@ -22,9 +22,17 @@ class EnsureModuleAccess
             return $next($request);
         }
 
+        $permissions = \App\Support\ModulePermissions::expand($permissions);
+
         $routeName = optional($request->route())->getName();
 
         $access = $this->routeAccess($routeName);
+
+        $controllerAction = optional($request->route())->getActionName();
+        if (strpos((string) $controllerAction, 'DealerController@newDealer') !== false
+            || $routeName === 'check.dealer.duplicate') {
+            $access = ['dealers', $request->input('partner_role') === 'Mega Dealer' ? 'mega' : 'records', 'add', 'can_access_dealers'];
+        }
 
         if (! $access) {
             return $next($request);
@@ -52,6 +60,9 @@ class EnsureModuleAccess
 
     private function routeAccess($routeName)
     {
+        $moduleAccess = \App\Support\ModulePermissions::routeAccess($routeName);
+        if ($moduleAccess) return $moduleAccess;
+
         $view = 'view';
 
         $routes = [

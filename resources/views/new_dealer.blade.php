@@ -301,6 +301,7 @@
           'Accept': 'application/json'
         },
         body: JSON.stringify({
+          partner_role: $dealerForm.find('[name="partner_role"]').val(),
           first_name,
           last_name,
           mothers_name

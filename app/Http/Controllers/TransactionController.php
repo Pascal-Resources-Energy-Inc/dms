@@ -144,14 +144,14 @@ class TransactionController extends Controller
                     return;
                 }
 
-                $query->whereIn('area', $assignedAreas);
+                $this->whereOverviewTextIn($query, 'area', $assignedAreas);
             }
 
             $query->where(function ($dealerQuery) use ($regularAreas) {
                 $dealerQuery->where('dealer_type', 'Regular');
 
                 if ($regularAreas->isNotEmpty()) {
-                    $dealerQuery->orWhereIn('area', $regularAreas);
+                    $this->whereOverviewTextIn($dealerQuery, 'area', $regularAreas, 'or');
                 }
             });
         };
@@ -174,7 +174,7 @@ class TransactionController extends Controller
         $customersQuery = Client::where('status', 'Active')->whereHas('serial');
 
         if (!empty($dealerCenters)) {
-            $customersQuery->whereIn('center', $dealerCenters);
+            $this->whereOverviewTextIn($customersQuery, 'center', $dealerCenters);
         } else {
             $customersQuery->whereRaw('1 = 0');
         }
@@ -263,7 +263,7 @@ class TransactionController extends Controller
                     if ($allowedAreas->isEmpty() || !$areaColumn) {
                         $dealerQuery->whereRaw('1 = 0');
                     } else {
-                        $dealerQuery->whereIn($areaColumn, $allowedAreas);
+                        $this->whereOverviewTextIn($dealerQuery, $areaColumn, $allowedAreas);
                     }
                 }
 
@@ -302,7 +302,7 @@ class TransactionController extends Controller
                     if ($centerChiefAreas->isEmpty() || !$schema->hasColumn('center_chiefs', 'area')) {
                         $centerChiefQuery->whereRaw('1 = 0');
                     } else {
-                        $centerChiefQuery->whereIn('area', $centerChiefAreas);
+                        $this->whereOverviewTextIn($centerChiefQuery, 'area', $centerChiefAreas);
                     }
                 }
 
@@ -407,6 +407,20 @@ class TransactionController extends Controller
             report($exception);
             return ['transactions' => collect(), 'customers' => collect(), 'dealers' => collect()];
         }
+    }
+
+    private function whereOverviewTextIn($query, $column, $values, $boolean = 'and')
+    {
+        $connection = $query->getConnection();
+
+        // Older dealer/client columns are latin1 while awarded areas and newer
+        // profiles use utf8mb4. Compare in Unicode without altering stored data.
+        if ($connection->getDriverName() === 'mysql') {
+            $wrapped = $connection->getQueryGrammar()->wrap($column);
+            $column = DB::raw('CONVERT('.$wrapped.' USING utf8mb4) COLLATE utf8mb4_unicode_ci');
+        }
+
+        return $query->whereIn($column, $values, $boolean);
     }
 
     private function firstExistingColumn($schema, $table, array $columns)

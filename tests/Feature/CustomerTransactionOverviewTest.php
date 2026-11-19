@@ -153,6 +153,71 @@ class CustomerTransactionOverviewTest extends TestCase
         $this->assertSame('Mega Dealer', $data['transactions']->keyBy('dealer_id')[20]->dealer->seller_type);
     }
 
+    /** @dataProvider projects */
+    public function test_unicode_area_names_still_limit_sellers_to_the_assigned_area($project, $connection, $count)
+    {
+        $area = "MUŇOZ CITY 1 & O'Brien";
+        DB::table('ad_areas')->where('ad_id', 1)->update(['area_name' => $area]);
+        $db = DB::connection($connection);
+        foreach (['dealers', 'mega_dealers'] as $table) {
+            $db->table($table)->update(['area' => $area, 'center' => 'PEÑA CENTER']);
+        }
+        if ($connection !== 'overview_test') {
+            $db->table('center_chiefs')->update(['area' => $area]);
+        } else {
+            DB::table('stoves')->insert(['id' => 1]);
+            DB::table('clients')->insert(['id' => 103, 'name' => 'Unicode Center Customer',
+                'status' => 'Active', 'center' => 'PEÑA CENTER', 'serial_number' => 1]);
+        }
+        $db->table('dealers')->insert(['id' => 40, 'user_id' => 40, 'name' => 'Outside Seller',
+            'area' => 'Outside', 'dealer_type' => 'Regular']);
+        $this->sale($connection, 40, 40);
+        $data = $this->overview($project)->getData();
+        $this->assertCount($count, $data['transactions']);
+        $this->assertNotContains(40, $data['transactions']->pluck('dealer_id')->all());
+        if ($connection === 'overview_test') {
+            $this->assertContains(103, $data['customers']->pluck('id')->all());
+        }
+    }
+
+    public function test_mysql_text_filter_keeps_values_bound_and_preserves_or_grouping()
+    {
+        $connection = new \Illuminate\Database\MySqlConnection(null, '', '', ['driver' => 'mysql']);
+        $query = $connection->table('dealers')->where('dealer_type', 'Regular');
+        $method = new \ReflectionMethod(TransactionController::class, 'whereOverviewTextIn');
+        $method->setAccessible(true);
+        $values = collect(['MUŇOZ CITY 1', "O'Brien"]);
+        $method->invoke(new TransactionController, $query, 'dealers.area', $values, 'or');
+        $this->assertContains('or CONVERT(`dealers`.`area` USING utf8mb4) COLLATE utf8mb4_unicode_ci in (?, ?)', $query->toSql());
+        $this->assertSame(['Regular', 'MUŇOZ CITY 1', "O'Brien"], $query->getBindings());
+        $this->assertNotContains("O'Brien", $query->toSql());
+    }
+
+    public function test_mysql_mixed_collations_use_unicode_without_changing_stored_data()
+    {
+        if (getenv('RUN_MYSQL_COLLATION_TESTS') !== '1') {
+            $this->markTestSkipped('Set RUN_MYSQL_COLLATION_TESTS=1 for the read-only MySQL regression.');
+        }
+
+        // A derived table reproduces the legacy Latin-1 column without creating
+        // tables or writing any records in the configured MySQL database.
+        $connection = DB::connection('mysql');
+        $table = DB::raw("(select _latin1'NORTH' collate latin1_swedish_ci as area) as sellers");
+        $values = collect(['NORTH', 'MUŇOZ CITY 1', 'DASMARIÑAS CITY 2']);
+        $query = $connection->table($table);
+        $method = new \ReflectionMethod(TransactionController::class, 'whereOverviewTextIn');
+        $method->setAccessible(true);
+        $method->invoke(new TransactionController, $query, 'sellers.area', $values);
+        $this->assertSame('NORTH', $query->first()->area);
+
+        $empty = $connection->table($table);
+        $method->invoke(new TransactionController, $empty, 'sellers.area', collect());
+        $this->assertCount(0, $empty->get());
+        $outside = $connection->table($table);
+        $method->invoke(new TransactionController, $outside, 'sellers.area', collect(['MUŇOZ CITY 1']));
+        $this->assertCount(0, $outside->get());
+    }
+
     public function test_deleted_remote_sellers_and_transactions_are_excluded()
     {
         DB::connection('admin_crms')->table('dealers')->where('user_id', 10)->update(['deleted_at' => '2026-11-01']);
