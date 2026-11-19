@@ -53,201 +53,39 @@
                             <span>Delete</span>
                         </div>
 
-                        <div class="access-module-group" data-module-group="dashboard">
-                            <div class="access-module-heading">
-                                <span><i class="fas fa-th-large"></i> Workspace</span>
-                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-module="dashboard"><span>All</span></label>
+                        @foreach(config('user_access_modules') as $group)
+                            @php
+                                $groupModules = collect($group['modules'])->map(function ($definition) {
+                                    return explode('.', $definition['key'], 2)[0];
+                                })->unique()->implode(' ');
+                            @endphp
+                            <div class="access-module-group" data-module-group="{{ $groupModules }}">
+                                <div class="access-module-heading">
+                                    <span><i class="fas {{ $group['icon'] }}"></i> {{ $group['label'] }}</span>
+                                    <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-modules="{{ $groupModules }}"><span>All</span></label>
+                                </div>
+                                @foreach($group['modules'] as $definition)
+                                    @php
+                                        list($module, $submodule) = explode('.', $definition['key'], 2);
+                                    @endphp
+                                    <div class="access-row">
+                                        <div><strong>{{ $definition['label'] }}</strong><small>{{ $definition['description'] }}</small></div>
+                                        @foreach(['view', 'add', 'edit', 'delete'] as $action)
+                                            @php
+                                                $legacyId = $action !== 'view' && $definition['key'] === 'users.accounts'
+                                                    ? 'can_'.$action
+                                                    : ($action !== 'view' && $definition['key'] === 'settings.rewards' ? 'can_'.$action.'_rewards' : null);
+                                            @endphp
+                                            @if(array_key_exists($action, $definition['routes']))
+                                                <label><input type="checkbox" class="access-permission-check" @if($legacyId) id="{{ $legacyId }}" @endif data-module="{{ $module }}" data-submodule="{{ $submodule }}" data-action="{{ $action }}" aria-label="{{ ucfirst($action).' '.$definition['label'] }}"><span></span></label>
+                                            @else
+                                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                @endforeach
                             </div>
-                            <div class="access-row">
-                                <div><strong>Dashboard</strong><small>Overview, alerts, and performance summary</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="dashboard" data-submodule="overview" data-action="view"><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                            </div>
-                        </div>
-
-                        <div class="access-module-group" data-module-group="users">
-                            <div class="access-module-heading">
-                                <span><i class="fas fa-users-cog"></i> Administration</span>
-                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-module="users"><span>All</span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Users</strong><small>Account list and access control</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="users" data-submodule="accounts" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" id="can_add" data-module="users" data-submodule="accounts" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" id="can_edit" data-module="users" data-submodule="accounts" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" id="can_delete" data-module="users" data-submodule="accounts" data-action="delete"><span></span></label>
-                            </div>
-                        </div>
-
-                        <div class="access-module-group" data-module-group="distributors dealers customers">
-                            <div class="access-module-heading">
-                                <span><i class="fas fa-handshake"></i> Partners</span>
-                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-modules="distributors dealers customers"><span>All</span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Distributors</strong><small>Provincial and Area Distributor records</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="distributors" data-submodule="records" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="distributors" data-submodule="records" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="distributors" data-submodule="records" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="distributors" data-submodule="records" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Dealers</strong><small>Dealer and Mega Dealer records</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="dealers" data-submodule="records" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="dealers" data-submodule="records" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="dealers" data-submodule="records" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="dealers" data-submodule="records" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Customers</strong><small>Customer records and profiles</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="customers" data-submodule="records" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="customers" data-submodule="records" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="customers" data-submodule="records" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="customers" data-submodule="records" data-action="delete"><span></span></label>
-                            </div>
-                        </div>
-
-                        <div class="access-module-group" data-module-group="transactions orders purchase_orders inventory inventory_transfers pull_out_requests return_refunds stock_requests charges locations">
-                            <div class="access-module-heading">
-                                <span><i class="fas fa-cash-register"></i> Operations</span>
-                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-modules="transactions orders purchase_orders inventory inventory_transfers pull_out_requests return_refunds stock_requests charges locations"><span>All</span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Transactions</strong><small>Sales and payment activity</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="transactions" data-submodule="sales" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="transactions" data-submodule="sales" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="transactions" data-submodule="sales" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="transactions" data-submodule="sales" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Purchase Orders</strong><small>AD purchase order workflow</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="purchase_orders" data-submodule="adpo" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="purchase_orders" data-submodule="adpo" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="purchase_orders" data-submodule="adpo" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="purchase_orders" data-submodule="adpo" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Inventory</strong><small>Stock reports and inventory tools</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="inventory" data-submodule="stock" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="inventory" data-submodule="stock" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="inventory" data-submodule="stock" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="inventory" data-submodule="stock" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Sales Orders</strong><small>Customer and dealer order management</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="orders" data-submodule="sales_orders" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="orders" data-submodule="sales_orders" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="orders" data-submodule="sales_orders" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="orders" data-submodule="sales_orders" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Stock Requests</strong><small>Review and approve dealer stock requests</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="stock_requests" data-submodule="approvals" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="stock_requests" data-submodule="approvals" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="stock_requests" data-submodule="approvals" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="stock_requests" data-submodule="approvals" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Inventory Transfers</strong><small>Stock transfers and warehouse pull-out requests</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="inventory_transfers" data-submodule="transfers" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="inventory_transfers" data-submodule="transfers" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="inventory_transfers" data-submodule="transfers" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="inventory_transfers" data-submodule="transfers" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Pull Out Requests</strong><small>Warehouse review, approval, and rejection of pull-out replacements</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="pull_out_requests" data-submodule="approvals" data-action="view"><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="pull_out_requests" data-submodule="approvals" data-action="edit"><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Return and Refund</strong><small>Return, replacement, and refund workflow</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="return_refunds" data-submodule="requests" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="return_refunds" data-submodule="requests" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="return_refunds" data-submodule="requests" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="return_refunds" data-submodule="requests" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Other Charges</strong><small>Distributor charges and adjustments</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="charges" data-submodule="records" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="charges" data-submodule="records" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="charges" data-submodule="records" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="charges" data-submodule="records" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Store Locations</strong><small>Store map and location directory</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="locations" data-submodule="directory" data-action="view"><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                            </div>
-                        </div>
-
-                        <div class="access-module-group" data-module-group="settings products">
-                            <div class="access-module-heading">
-                                <span><i class="fas fa-cog"></i> Settings and Rewards</span>
-                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-modules="settings products"><span>All</span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Items</strong><small>Products, items, and catalog setup</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="items" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="items" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="items" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="items" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Product Catalog</strong><small>Product list, pricing, and product setup</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="products" data-submodule="catalog" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="products" data-submodule="catalog" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="products" data-submodule="catalog" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="products" data-submodule="catalog" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Rewards</strong><small>Reward setup and maintenance</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="rewards" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" id="can_add_rewards" data-module="settings" data-submodule="rewards" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" id="can_edit_rewards" data-module="settings" data-submodule="rewards" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" id="can_delete_rewards" data-module="settings" data-submodule="rewards" data-action="delete"><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Vouchers and Raffles</strong><small>Voucher, raffle, and area settings</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="campaigns" data-action="view"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="campaigns" data-action="add"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="campaigns" data-action="edit"><span></span></label>
-                                <label><input type="checkbox" class="access-permission-check" data-module="settings" data-submodule="campaigns" data-action="delete"><span></span></label>
-                            </div>
-                        </div>
-
-                        <div class="access-module-group" data-module-group="reports">
-                            <div class="access-module-heading">
-                                <span><i class="fas fa-chart-line"></i> Reports</span>
-                                <label class="module-toggle"><input type="checkbox" class="module-access-toggle" data-module="reports"><span>All</span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Sales Reports</strong><small>Daily and monthly sales reports</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="reports" data-submodule="sales" data-action="view"><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>Inventory and Aging Reports</strong><small>Stock level, aging, and voucher history</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="reports" data-submodule="operations" data-action="view"><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                            </div>
-                            <div class="access-row">
-                                <div><strong>MFI Reports</strong><small>Sign up and repeat purchase incentives</small></div>
-                                <label><input type="checkbox" class="access-permission-check" data-module="reports" data-submodule="sedp" data-action="view"><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                                <label class="is-disabled"><input type="checkbox" disabled><span></span></label>
-                            </div>
-                        </div>
+                        @endforeach
                     </div>
                 </div>
             </div>

@@ -1144,6 +1144,11 @@ class InventoryTransferController extends Controller
             return;
         }
 
+        $permissions = json_decode(auth()->user()->access_permissions ?? '{}', true);
+        if (is_array($permissions) && in_array('view', $permissions['reports']['return_refund'] ?? [], true)) {
+            return;
+        }
+
         $this->ensureReturnRefundReviewer();
     }
 

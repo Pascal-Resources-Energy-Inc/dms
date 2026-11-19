@@ -11,7 +11,10 @@ class AdpoTaxCertificateController extends Controller
     public function template()
     {
         abort_unless(auth()->user()->hasAreaDistributorAccess(), 403);
-        return response()->file(resource_path('forms/bir-2307-jan-2018.pdf'));
+        return response()->file(app(AdpoTaxService::class)->templatePath(), [
+            'Content-Type' => 'application/pdf',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function download($id)

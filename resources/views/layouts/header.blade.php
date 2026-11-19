@@ -1655,7 +1655,7 @@
                 $sidebarIsAdmin = $sidebarRole === 'Admin';
                 $sidebarIsSedp = $sidebarRole === 'MFI';
                 $sidebarAccessPermissions = json_decode($sidebarUser->access_permissions ?? '{}', true);
-                $sidebarAccessPermissions = is_array($sidebarAccessPermissions) ? $sidebarAccessPermissions : [];
+                $sidebarAccessPermissions = is_array($sidebarAccessPermissions) ? \App\Support\ModulePermissions::expand($sidebarAccessPermissions) : [];
                 $sidebarIsRestrictedAdmin = $sidebarRole === 'Admin' && !empty($sidebarAccessPermissions);
                 $sidebarIsAdmin = $sidebarRole === 'Admin' && !$sidebarIsRestrictedAdmin;
                 $sidebarIsSedp = $sidebarRole === 'MFI' || $sidebarIsRestrictedAdmin;
@@ -1697,14 +1697,17 @@
                 };
                 $canAccessDashboard = $canAccessModule('dashboard', 'overview');
                 $canAccessTransactions = $canAccessModule('transactions', 'sales', 'can_access_transactions');
-                $canAccessDistributors = $canAccessModule('distributors', 'records', 'can_access_distributors');
-                $canAccessDealers = $canAccessModule('dealers', 'records', 'can_access_dealers');
+                $canAccessDistributors = $canAccessModule('distributors', 'records', 'can_access_distributors') || $canAccessModule('distributors', 'provincial', 'can_access_distributors');
+                $canAccessDealers = $canAccessModule('dealers', 'records', 'can_access_dealers') || $canAccessModule('dealers', 'mega', 'can_access_dealers');
                 $canAccessCustomers = $canAccessModule('customers', 'records', 'can_access_customers');
                 $canAccessPurchaseOrders = $canAccessModule('purchase_orders', 'adpo', 'can_access_purchase_orders');
                 $canAccessInventory = $canAccessModule('inventory', 'stock', 'can_access_inventory');
                 $canAccessSettings = $canAccessModule('settings', 'items', 'can_access_settings')
                     || $canAccessModule('settings', 'rewards', 'can_access_settings')
-                    || $canAccessModule('settings', 'campaigns', 'can_access_settings');
+                    || $canAccessModule('settings', 'campaigns', 'can_access_settings')
+                    || $canAccessModule('settings', 'raffles', 'can_access_settings')
+                    || $canAccessModule('settings', 'areas', 'can_access_settings')
+                    || $canAccessModule('settings', 'mfis', 'can_access_settings');
                 $canAccessItems = $canAccessModule('settings', 'items', 'can_access_settings');
                 $canAccessRewards = $canAccessModule('settings', 'rewards', 'can_access_settings');
                 $canAccessCampaigns = $canAccessModule('settings', 'campaigns', 'can_access_settings');
@@ -1728,13 +1731,17 @@
                         (!$hasDetailedSidebarAccess && $sedpCanAccess('can_access_reports'))
                     )
                 );
-                $canAccessAnyReports = $canAccessStandardReports || $canAccessSedpReports;
+                $canAccessReport = function ($key) use ($sidebarUser) {
+                    return \App\Support\ModulePermissions::allows($sidebarUser, $key);
+                };
+                $visibleAccessReports = collect(config('user_access_modules.reports.modules'))->filter(function ($definition) use ($canAccessReport, $hasDetailedSidebarAccess) {
+                    if (!$hasDetailedSidebarAccess && in_array($definition['key'], ['reports.sales', 'reports.pull_out', 'reports.return_refund'], true)) return false;
+                    return $canAccessReport($definition['key']);
+                });
+                $canAccessAnyReports = $visibleAccessReports->isNotEmpty();
                 $standardReportRoutes = ['dsr', 'aging', 'dpo', 'isl', 'monthly-sales', 'voucher-history'];
                 $sedpReportRoutes = ['signup-incentives', 'ad-awarded-areas', 'repeat-purchase-incentives', 'center-chief-incentives', 'aging-report-dealer', 'aging-report-customer'];
-                $visibleReportRoutes = array_merge(
-                    $canAccessStandardReports ? $standardReportRoutes : [],
-                    $canAccessSedpReports ? $sedpReportRoutes : []
-                );
+                $visibleReportRoutes = $visibleAccessReports->flatMap(function ($definition) { return $definition['routes']['view']; })->all();
                 $canAccessUsersModule = $canAccessModule('users', 'accounts')
                     || (!$hasDetailedSidebarAccess && $sidebarIsSedp && (
                         ($sidebarUser->can_add ?? null) === 'on' ||
@@ -1863,9 +1870,11 @@
                             id="partnersMenu">
                             <ul class="nav flex-column ms-3">
                                 @if(auth()->user()->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR)
+                                @if(!$sidebarIsSedp || \App\Support\ModulePermissions::allows($sidebarUser, 'distributors.records'))
                                     <li class="nav-item">
                                         <a href="{{ url('/ads') }}" class="nav-link @if(Route::currentRouteName() == 'ads') active @endif" style="font-size: 14px">Area Distributor</a>
                                     </li>
+                                @endif
                                 @endif
                                 <li class="nav-item">
                                     <a href="{{url('/md-ads')}}" class="nav-link @if(Route::currentRouteName() == 'md-ads')active @endif" style="font-size: 14px">Mega Dealer</a>
@@ -2179,11 +2188,11 @@
                 @endif
                 @if(($sidebarIsAdmin && $sidebarWarehouse === 'lubao') || ($sidebarIsSedp && $canAccessInventory))
                     <div class="nav-item">
-                        <a href="{{ route('isl') }}" class="nav-link @if(Route::currentRouteName() == 'isl') active @endif">
+                        <a href="{{ $sidebarIsSedp ? route('stock-inventory') : route('isl') }}" class="nav-link @if(Route::currentRouteName() == ($sidebarIsSedp ? 'stock-inventory' : 'isl')) active @endif">
                             <div class="nav-icon">
                                 <i class="ti ti-box-seam"></i>
                             </div>
-                            <span class="nav-text">Inventory Stock Report</span>
+                            <span class="nav-text">{{ $sidebarIsSedp ? 'Stock Inventory Sheet' : 'Inventory Stock Report' }}</span>
                         </a>
                     </div>
                 @endif
@@ -2247,6 +2256,40 @@
                     </div>
                 @endif
                 
+                @if($sidebarIsSedp && $hasDetailedSidebarAccess)
+                    @php
+                        $extraAccessModules = \App\Support\ModulePermissions::modules();
+                        $extraAccessLinks = ['transactions.customer_overview', 'orders.guest', 'purchase_orders.provincial', 'purchase_orders.region_v'];
+                        $accessForms = collect(config('user_access_modules.forms.modules'))->filter(function ($definition) use ($sidebarUser) {
+                            return \App\Support\ModulePermissions::allows($sidebarUser, $definition['key']);
+                        });
+                    @endphp
+                    @foreach($extraAccessLinks as $moduleKey)
+                        @if(\App\Support\ModulePermissions::allows($sidebarUser, $moduleKey))
+                            <div class="nav-item">
+                                <a href="{{ route($extraAccessModules[$moduleKey]['routes']['view'][0]) }}" class="nav-link @if(in_array(Route::currentRouteName(), $extraAccessModules[$moduleKey]['routes']['view'], true)) active @endif">
+                                    <div class="nav-icon"><i class="ti ti-clipboard"></i></div>
+                                    <span class="nav-text">{{ $extraAccessModules[$moduleKey]['label'] }}</span>
+                                </a>
+                            </div>
+                        @endif
+                    @endforeach
+                    @if($accessForms->isNotEmpty())
+                        <div class="nav-item">
+                            <a href="#accessFormsMenu" class="nav-link" data-bs-toggle="collapse" aria-expanded="false">
+                                <div class="nav-icon"><i class="ti ti-clipboard"></i></div>
+                                <span class="nav-text">Forms</span><i class="ti ti-chevron-down ms-auto"></i>
+                            </a>
+                            <div class="collapse" id="accessFormsMenu">
+                                <ul class="nav flex-column ms-3">
+                                    @foreach($accessForms as $definition)
+                                        <li class="nav-item"><a href="{{ $definition['url'] }}" target="_blank" rel="noopener noreferrer" class="nav-link" style="font-size: 14px">{{ $definition['label'] }}</a></li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+                    @endif
+                @endif
                 {{-- @if(auth()->user()->role == "Admin" && auth()->user()->warehouse != ["lubao", "guinobatan"]) --}}
                 @if(($sidebarIsAdmin && !in_array($sidebarWarehouse, ['lubao', 'guinobatan'])) || ($sidebarIsSedp && (
                     $canAccessDistributors ||
@@ -2270,12 +2313,16 @@
                         <div class="collapse @if(in_array(Route::currentRouteName(), ['ads','pds'])) show @endif"
                             id="partnersMenu">
                             <ul class="nav flex-column ms-3">
+                                @if(!$sidebarIsSedp || \App\Support\ModulePermissions::allows($sidebarUser, 'distributors.provincial'))
                                 <li class="nav-item">
                                     <a href="{{ url('/pds') }}" class="nav-link @if(Route::currentRouteName() == 'pds') active @endif" style="font-size: 14px">Provincial Distributor</a>
                                 </li>
+                                @endif
+                                @if(!$sidebarIsSedp || \App\Support\ModulePermissions::allows($sidebarUser, 'distributors.records'))
                                 <li class="nav-item">
                                     <a href="{{ url('/ads') }}" class="nav-link @if(Route::currentRouteName() == 'ads') active @endif" style="font-size: 14px">Area Distributor</a>
                                 </li>
+                                @endif
                             </ul>
                         </div>
                     </div>
@@ -2297,12 +2344,16 @@
                                     <a href="{{ url('/mds') }}" class="nav-link @if(Route::currentRouteName() == 'mds') active @endif" style="font-size: 14px">Mega Dealer</a>
                                 </li> --}}
 
+                                @if(!$sidebarIsSedp || \App\Support\ModulePermissions::allows($sidebarUser, 'dealers.records'))
                                 <li class="nav-item">
                                     <a href="{{ url('/dealers') }}" class="nav-link @if(Route::currentRouteName() == 'dealers') active @endif" style="font-size: 14px">Dealers</a>
                                 </li>
+                                @endif
+                                @if(!$sidebarIsSedp || \App\Support\ModulePermissions::allows($sidebarUser, 'dealers.mega'))
                                 <li class="nav-item">
                                     <a href="{{ url('/mds') }}" class="nav-link @if(Route::currentRouteName() == 'mds') active @endif" style="font-size: 14px">Mega Dealers</a>
                                 </li>
+                                @endif
                             </ul>
                         </div>
                     </div>
@@ -2376,15 +2427,17 @@
                                     <a href="{{url('/rewards')}}" class="nav-link @if(Route::currentRouteName() == 'rewards') active @endif" style="font-size: 14px">Rewards</a>
                                 </li>
                                 @endif
-                                @if($sidebarIsAdmin || $canAccessCampaigns)
+                                @if($sidebarIsAdmin || $canAccessModule('settings', 'raffles', 'can_access_settings'))
                                 <li class="nav-item">
                                     <a href="{{url('/raffles')}}" class="nav-link @if(Route::currentRouteName() == 'raffles') active @endif" style="font-size: 14px">Raffles</a>
                                 </li>
+                                @endif
+                                @if($sidebarIsAdmin || $canAccessModule('settings', 'areas', 'can_access_settings'))
                                 <li class="nav-item">
                                     <a href="{{url('/areas')}}" class="nav-link @if(Route::currentRouteName() == 'areas') active @endif" style="font-size: 14px">Areas</a>
                                 </li>
                                 @endif
-                                @if($sidebarIsPrimaryAdmin || $sidebarIsAdmin)
+                                @if($sidebarIsPrimaryAdmin || $sidebarIsAdmin || $canAccessModule('settings', 'mfis', 'can_access_settings'))
                                 <li class="nav-item">
                                     <a href="{{ route('mfis.index') }}" class="nav-link @if(Route::currentRouteName() == 'mfis.index') active @endif" style="font-size: 14px">MFIs</a>
                                 </li>
@@ -2421,49 +2474,11 @@
                         <div class="collapse @if(in_array(Route::currentRouteName(), $visibleReportRoutes)) show @endif"
                             id="reportsMenu">
                             <ul class="nav flex-column ms-3">
-                                {{-- <li class="nav-item">
-                                    <a href="{{ url('/reports/daily-sales') }}" class="nav-link @if(Route::currentRouteName() == 'dsr') active @endif" style="font-size: 14px">Daily Sales & Remittance Report</a>
-                                </li> --}}
-                                @if($canAccessStandardReports)
-                                <li class="nav-item">
-                                    <a href="{{ url('/reports/dpo-report') }}" class="nav-link @if(Route::currentRouteName() == 'dpo') active @endif" style="font-size: 14px">Distributor Purchase Order Report</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="{{ url('/reports/monthly-sales') }}" class="nav-link @if(Route::currentRouteName() == 'monthly-sales') active @endif" style="font-size: 14px">Monthly Sales Report</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="{{ url('/reports/isl-report') }}" class="nav-link @if(Route::currentRouteName() == 'isl') active @endif" style="font-size: 14px">Inventory Stock Level Report</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="{{ url('/reports/aging') }}" class="nav-link @if(Route::currentRouteName() == 'aging') active @endif" style="font-size: 14px">Aging Report</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="{{ url('/reports/voucher-history') }}" class="nav-link @if(Route::currentRouteName() == 'voucher-history') active @endif" style="font-size: 14px">Voucher History Report</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="{{ url('/reports/distributor-other-charges') }}" class="nav-link @if(Route::currentRouteName() == 'distributor-other-charges') active @endif" style="font-size: 14px">Distributor Other Charges Report</a>
-                                </li>
-                                @endif
-                                @if($canAccessSedpReports)
+                                @foreach($visibleAccessReports as $definition)
                                     <li class="nav-item">
-                                        <a href="{{ url('/reports/signup-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'signup-incentives') active @endif" style="font-size: 14px">Sign Up Incentives Report</a>
+                                        <a href="{{ route($definition['routes']['view'][0]) }}" class="nav-link @if(in_array(Route::currentRouteName(), $definition['routes']['view'], true)) active @endif" style="font-size: 14px">{{ $definition['label'] }}</a>
                                     </li>
-                                    <li class="nav-item">
-                                        <a href="{{ route('ad-awarded-areas') }}" class="nav-link @if(Route::currentRouteName() == 'ad-awarded-areas') active @endif" style="font-size: 14px">AD Awarded Areas Report</a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a href="{{ url('/reports/repeat-purchase-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'repeat-purchase-incentives') active @endif" style="font-size: 14px">Repeat Purchase Incentives Report</a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a href="{{ route('center-chief-incentives') }}" class="nav-link @if(Route::currentRouteName() == 'center-chief-incentives') active @endif" style="font-size: 14px">Center Chief Incentive Report</a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a href="{{ url('/reports/aging-report-dealer') }}" class="nav-link @if(Route::currentRouteName() == 'aging-report-dealer') active @endif" style="font-size: 14px">Aging Report - Dealer</a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a href="{{ url('/reports/aging-report-customer') }}" class="nav-link @if(Route::currentRouteName() == 'aging-report-customer') active @endif" style="font-size: 14px">Aging Report - Customer</a>
-                                    </li>
-                                @endif
+                                @endforeach
                             </ul>
                         </div>
                     </div>  

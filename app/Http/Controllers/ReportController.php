@@ -68,6 +68,12 @@ class ReportController extends Controller
             abort(403);
         }
 
+        $routeAccess = \App\Support\ModulePermissions::routeAccess(optional(request()->route())->getName());
+        if ($routeAccess) {
+            abort_unless(\App\Support\ModulePermissions::allows($user, $routeAccess[0].'.'.$routeAccess[1]), 403);
+            return;
+        }
+
         $permissions = json_decode($user->access_permissions ?? '{}', true);
         $permissions = is_array($permissions) ? $permissions : [];
         $sedpReportActions = $permissions['reports']['sedp'] ?? [];

@@ -65,6 +65,35 @@ class AdpoTaxSigningTest extends TestCase
         return $order;
     }
 
+    public function test_official_template_is_bundled_and_viewable_by_both_distributors()
+    {
+        $path = (new AdpoTaxService)->templatePath();
+        $this->assertSame('%PDF-', file_get_contents($path, false, null, 0, 5));
+        $pdf = new \setasign\Fpdi\Fpdi;
+        $this->assertSame(2, $pdf->setSourceFile($path));
+        foreach (['Area Distributor', 'Provincial Distributor'] as $role) {
+            $this->actingAs($this->user($role));
+            $response = (new AdpoTaxCertificateController)->template();
+            $this->assertSame(realpath($path), $response->getFile()->getRealPath());
+            $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
+        }
+    }
+
+    public function test_missing_template_has_a_clear_error_before_pdf_import()
+    {
+        $basePath = $this->app->basePath();
+        $this->app->setBasePath($basePath . '/tmp/missing-bir-template-test');
+        try {
+            (new AdpoTaxService)->templatePath();
+            $this->fail('A missing template must not reach the PDF importer.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            $this->assertSame(503, $exception->getStatusCode());
+            $this->assertContains('BIR 2307 template is unavailable', $exception->getMessage());
+        } finally {
+            $this->app->setBasePath($basePath);
+        }
+    }
+
     public function test_requirement_uses_both_distributor_profiles_only()
     {
         $service = new AdpoTaxService;
