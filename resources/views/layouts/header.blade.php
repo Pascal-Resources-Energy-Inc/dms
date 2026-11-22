@@ -1962,7 +1962,8 @@
                             id="formsMenu">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
-                                    <a href="https://docs.google.com/forms/d/e/1FAIpQLScJ3kuD2UiWAMXyvQe3r4AZHlvY39N5_2bz68jY868uqjCxyQ/viewform?usp=send_form" target="_blank" class="nav-link @if(Route::currentRouteName() == 'arf')active @endif" style="font-size: 14px">Survey Form</a>
+                                    <a href="/surveys/create" target="_blank" class="nav-link" style="font-size: 14px">Survey Form</a>
+                                    {{--<a href="https://docs.google.com/forms/d/e/1FAIpQLScJ3kuD2UiWAMXyvQe3r4AZHlvY39N5_2bz68jY868uqjCxyQ/viewform?usp=send_form" target="_blank" class="nav-link @if(Route::currentRouteName() == 'arf')active @endif" style="font-size: 14px">Survey Form</a>--}}
                                 <li class="nav-item">
                                     <a href="https://docs.google.com/forms/d/e/1FAIpQLScJ3kuD2UiWAMXyvQe3r4AZHlvY39N5_2bz68jY868uqjCxyQ/viewform?usp=send_form" target="_blank" class="nav-link @if(Route::currentRouteName() == 'arf')active @endif" style="font-size: 14px">Access Request Form</a>
                                 </li>

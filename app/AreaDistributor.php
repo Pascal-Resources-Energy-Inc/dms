@@ -68,4 +68,9 @@ class AreaDistributor extends Model implements Auditable
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
+
+    public function partnerSurveys()
+    {
+        return $this->hasMany(PartnerSurvey::class, 'area_distributor_id');
+    }
 }
