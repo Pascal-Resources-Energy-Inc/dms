@@ -62,6 +62,7 @@ class ModulePermissions
     public static function allows($user, $key, $action = 'view')
     {
         if (!$user) return false;
+        if ($user->isSuperAdmin()) return true;
         $permissions = json_decode($user->access_permissions ?? '{}', true);
         $permissions = is_array($permissions) ? $permissions : [];
         if ($user->role === 'Admin' && empty($permissions)) return true;

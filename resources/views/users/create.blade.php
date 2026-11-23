@@ -2090,6 +2090,8 @@
                         setSedpCenterInvalid(true);
                     }
                     showNewUserErrors(messages);
+                } else if (response.status === 403) {
+                    showNewUserErrors(['You do not have permission to create users. Ask an administrator to enable Users > Add access.']);
                 } else {
                     showNewUserErrors([response.status === 419 || response.status === 401
                         ? 'Your session has expired. Refresh the page, sign in if needed, and try again.'

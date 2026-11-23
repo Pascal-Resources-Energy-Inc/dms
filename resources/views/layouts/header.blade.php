@@ -1649,14 +1649,14 @@
                 $sidebarUser = auth()->user();
                 $sidebarRole = $sidebarUser->role ?? '';
                 $sidebarWarehouse = strtolower((string) ($sidebarUser->warehouse ?? ''));
-                $sidebarIsPrimaryAdmin = (int) ($sidebarUser->id ?? 0) === 1;
-                // An Admin with saved detailed permissions is intentionally
-                // restricted to those modules; an Admin with none remains full access.
+                $sidebarIsPrimaryAdmin = $sidebarUser && $sidebarUser->isSuperAdmin();
+                // The primary administrator always has full access. Other Admins
+                // with saved detailed permissions are restricted to those modules.
                 $sidebarIsAdmin = $sidebarRole === 'Admin';
                 $sidebarIsSedp = $sidebarRole === 'MFI';
                 $sidebarAccessPermissions = json_decode($sidebarUser->access_permissions ?? '{}', true);
                 $sidebarAccessPermissions = is_array($sidebarAccessPermissions) ? \App\Support\ModulePermissions::expand($sidebarAccessPermissions) : [];
-                $sidebarIsRestrictedAdmin = $sidebarRole === 'Admin' && !empty($sidebarAccessPermissions);
+                $sidebarIsRestrictedAdmin = $sidebarRole === 'Admin' && !$sidebarIsPrimaryAdmin && !empty($sidebarAccessPermissions);
                 $sidebarIsAdmin = $sidebarRole === 'Admin' && !$sidebarIsRestrictedAdmin;
                 $sidebarIsSedp = $sidebarRole === 'MFI' || $sidebarIsRestrictedAdmin;
                 $sedpCanAccess = function ($field) use ($sidebarUser, $sidebarIsAdmin, $sidebarIsSedp) {
