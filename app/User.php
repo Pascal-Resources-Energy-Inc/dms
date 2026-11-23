@@ -33,6 +33,25 @@ class User extends Authenticatable implements Auditable
         'approval_types' => 'array',
     ];
 
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'Admin' && (int) $this->getKey() === 1;
+    }
+
+    public function canManageUsers($action = 'add'): bool
+    {
+        if ($this->isSuperAdmin()) return true;
+        if (!in_array($this->role, ['Admin', 'MFI'], true)) return false;
+
+        $permissions = json_decode($this->access_permissions ?? '{}', true);
+        if (is_array($permissions) && !empty($permissions)) {
+            return \App\Support\ModulePermissions::allows($this, 'users.accounts', $action);
+        }
+
+        return in_array($action, ['add', 'edit', 'delete'], true)
+            && $this->{'can_' . $action} === 'on';
+    }
+
     public function dealer()
     {
         return $this->hasOne(Dealer::class, 'user_id');

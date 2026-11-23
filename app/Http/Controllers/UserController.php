@@ -58,6 +58,9 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+       abort_unless($request->user() && $request->user()->canManageUsers('add'), 403,
+            'You do not have permission to create users. Ask an administrator to enable Users > Add access.');
+
        $isAdmin = $request->role === 'Admin';
        $isSedp = $request->role === 'MFI';
        $isAdminLike = $isAdmin || $isSedp;
@@ -1175,9 +1178,8 @@ class UserController extends Controller
 
             ->addColumn('actions', function ($user) {
                 $currentUser = auth()->user();
-                $currentUserIsAdminLike = $currentUser && in_array($currentUser->role, ['Admin', 'MFI'], true);
-                $canEdit = $currentUserIsAdminLike && $currentUser->can_edit === 'on';
-                $canAdd = $currentUserIsAdminLike && $currentUser->can_add === 'on';
+                $canEdit = $currentUser && $currentUser->canManageUsers('edit');
+                $canAdd = $currentUser && $currentUser->canManageUsers('add');
 
                 $distributorProfile = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
                     ? $user->provincialDistributor

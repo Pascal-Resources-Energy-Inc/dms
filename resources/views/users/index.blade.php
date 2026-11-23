@@ -427,7 +427,7 @@
 @section('content')
 @php
     $currentUser = auth()->user();
-    $canShowAddAdmin = $currentUser && in_array($currentUser->role, ['Admin', 'MFI'], true) && $currentUser->can_add === 'on';
+    $canShowAddAdmin = $currentUser && $currentUser->canManageUsers('add');
 @endphp
 
 <section class="users-page">

@@ -60,6 +60,7 @@ class NewUserAwardedAreasTest extends TestCase
         Schema::create('areas', function (Blueprint $table) { $table->increments('id'); $table->string('name'); });
         DB::table('areas')->insert([['name' => 'Area A'], ['name' => 'Area B'], ['name' => 'Area C']]);
         $admin = new User(['role' => 'Admin', 'name' => 'QA Admin']); $admin->id = 999;
+        $admin->forceFill(['can_add' => 'on']);
         $this->actingAs($admin);
     }
 
@@ -67,6 +68,62 @@ class NewUserAwardedAreasTest extends TestCase
     {
         return [['Area Distributor', AreaDistributor::class, AreaAd::class],
             ['Provincial Distributor', ProvincialDistributor::class, ProvincialDistributorArea::class]];
+    }
+
+    /** @dataProvider roles */
+    public function test_super_admin_creates_distributors_with_awarded_areas_despite_saved_restrictions($role, $profileClass)
+    {
+        $admin = new User(['role' => 'Admin', 'name' => 'Super Administrator']);
+        $admin->forceFill(['id' => '1', 'can_add' => 'off',
+            'access_permissions' => json_encode(['users' => ['accounts' => []]])]);
+        $this->actingAs($admin);
+
+        $this->postJson('/new-user', $this->input($role))
+            ->assertStatus(201)->assertJson(['success' => true, 'redirect' => url('/users')]);
+
+        $user = User::where('role', $role)->firstOrFail();
+        $profile = $profileClass::where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('LPG TRADING', $profile->nature_of_business);
+        $this->assertCount(4, $profile->areas);
+        $this->assertSame('4500.50', $profile->areas->first()->package_amount);
+        $this->assertSame('Main Business', $profile->areas->first()->business_name);
+        $this->assertSame('Sole Proprietorship', $profile->areas->first()->business_type);
+    }
+
+    /** @dataProvider roles */
+    public function test_restricted_admin_cannot_create_a_distributor_without_users_add_access($role, $profileClass)
+    {
+        $admin = auth()->user();
+        $admin->forceFill(['access_permissions' => json_encode(['users' => ['accounts' => ['view']]])]);
+        $this->actingAs($admin);
+
+        $this->postJson('/new-user', $this->input($role))->assertStatus(403);
+        $this->assertSame(0, User::count());
+        $this->assertSame(0, $profileClass::count());
+    }
+
+    /** @dataProvider roles */
+    public function test_users_add_permission_allows_distributor_creation_without_legacy_flag($role, $profileClass)
+    {
+        $admin = auth()->user();
+        $admin->forceFill(['can_add' => 'off',
+            'access_permissions' => json_encode(['users' => ['accounts' => ['view', 'add']]])]);
+        $this->actingAs($admin);
+
+        $this->postJson('/new-user', $this->input($role))->assertStatus(201);
+        $this->assertSame(1, $profileClass::count());
+    }
+
+    public function test_super_admin_still_receives_validation_errors_without_creating_records()
+    {
+        $admin = auth()->user();
+        $admin->forceFill(['id' => 1, 'can_add' => 'off']);
+        $this->actingAs($admin);
+
+        $this->postJson('/new-user', $this->input('Area Distributor', ['area_name' => []]))
+            ->assertStatus(422)->assertJsonValidationErrors(['area_name']);
+        $this->assertSame(0, User::count());
+        $this->assertSame(0, AreaDistributor::count());
     }
 
     private function manageUrl($profile)

@@ -51,6 +51,37 @@ class UserAccessModulesTest extends TestCase
         $this->assertTrue($this->allowed($this->user([], 'Area Distributor'), 'orders'));
     }
 
+    public function test_super_admin_retains_access_even_when_all_saved_permissions_are_empty()
+    {
+        $permissions = [];
+        foreach (ModulePermissions::modules() as $key => $row) {
+            list($module, $submodule) = explode('.', $key, 2);
+            $permissions[$module][$submodule] = [];
+        }
+        $admin = $this->user($permissions);
+        $admin->forceFill(['id' => '1', 'can_add' => 'off', 'can_edit' => 'off']);
+        $this->assertTrue($admin->isSuperAdmin());
+        $this->assertTrue($admin->canManageUsers('add'));
+        $this->assertTrue($admin->canManageUsers('edit'));
+        foreach (ModulePermissions::modules() as $key => $row) {
+            foreach ($row['routes'] as $action => $routes) {
+                $this->assertTrue(ModulePermissions::allows($admin, $key, $action), $key);
+                foreach ($routes as $route) $this->assertTrue($this->allowed($admin, $route), $route);
+            }
+        }
+    }
+
+    public function test_other_accounts_do_not_receive_super_admin_privileges()
+    {
+        foreach (['Admin', 'MFI', 'Area Distributor', 'Provincial Distributor'] as $role) {
+            $user = $this->user(['users' => ['accounts' => []]], $role);
+            $user->id = $role === 'Admin' ? 2 : 1;
+            $this->assertFalse($user->isSuperAdmin());
+            $this->assertFalse($user->canManageUsers('add'));
+            $this->assertFalse(ModulePermissions::allows($user, 'users.accounts', 'add'));
+        }
+    }
+
     public function test_separate_rows_do_not_grant_sibling_modules()
     {
         $user = $this->user(['distributors' => ['provincial' => ['view']],

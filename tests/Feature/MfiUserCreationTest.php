@@ -50,7 +50,9 @@ class MfiUserCreationTest extends TestCase
             ['name' => 'QA ASHI Center', 'mfi' => 'ASHI'],
         ]);
         $this->withoutMiddleware(\App\Http\Middleware\EnsureModuleAccess::class);
-        $this->actingAs(new User(['name' => 'QA Admin', 'role' => 'Admin']));
+        $admin = new User(['name' => 'QA Admin', 'role' => 'Admin']);
+        $admin->forceFill(['can_add' => 'on']);
+        $this->actingAs($admin);
     }
 
     private function mfiInput(array $changes = [])

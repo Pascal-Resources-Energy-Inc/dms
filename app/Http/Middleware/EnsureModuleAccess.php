@@ -10,6 +10,10 @@ class EnsureModuleAccess
     {
         $user = $request->user();
 
+        if ($user && $user->isSuperAdmin()) {
+            return $next($request);
+        }
+
         if (! $user || ! in_array($user->role, ['Admin', 'MFI'], true)) {
             return $next($request);
         }
