@@ -5,10 +5,14 @@ namespace App\Services;
 use App\ProvincialDistributor;
 use App\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class DistributorProjectAreas
 {
+    const BUSINESS_TYPES = ['Sole Proprietorship', 'Partnership', 'Limited Liability Company (LLC)', 'Corporation', 'Cooperative', 'Nonprofit'];
+
     public static function projectTags($user)
     {
         $value = optional($user)->type;
@@ -39,6 +43,11 @@ class DistributorProjectAreas
             'rows.*.area_name' => 'required|string|max:255',
             'rows.*.joining_date' => 'nullable|date_format:Y-m-d',
             'rows.*.package_amount' => 'nullable|numeric|min:0|max:9999999999.99',
+            'rows.*.business_name' => 'nullable|string|max:255',
+            'rows.*.same_business_name' => 'nullable|boolean',
+            'rows.*.business_type' => ['nullable', 'string', Rule::in(self::BUSINESS_TYPES)],
+            'rows.*.same_business_type' => 'nullable|boolean',
+            'rows.*.offer_sheet' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
             'removed_area_ids' => 'nullable|array',
             'removed_area_ids.*' => 'integer|distinct',
         ]);
@@ -76,6 +85,26 @@ class DistributorProjectAreas
                     ? number_format((float) $row['package_amount'], 2, '.', '')
                     : null;
             }
+            $sameBusiness = filter_var($row['same_business_name'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            if ($sameBusiness) {
+                $request->validate(['business_name' => 'required|string|max:255']);
+                $validatedRow['business_name'] = trim($request->business_name);
+            } elseif (array_key_exists('business_name', $row)) {
+                $request->validate(["rows.{$index}.business_name" => 'required|string|max:255']);
+                $validatedRow['business_name'] = trim($row['business_name']);
+            }
+            $sameBusinessType = filter_var($row['same_business_type'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            if ($sameBusinessType) {
+                $request->validate(['business_type' => ['required', 'string', Rule::in(self::BUSINESS_TYPES)]], [
+                    'business_type.in' => 'Select a main business type from the six available types, or uncheck Same as main business type for this area.',
+                ]);
+                $validatedRow['business_type'] = $request->business_type;
+            } elseif (array_key_exists('business_type', $row)) {
+                $validatedRow['business_type'] = $row['business_type'] ?: null;
+            }
+            if ($request->hasFile("rows.{$index}.offer_sheet")) {
+                $validatedRow['offer_sheet'] = $request->file("rows.{$index}.offer_sheet");
+            }
             $rows[] = $validatedRow;
         }
 
@@ -83,27 +112,53 @@ class DistributorProjectAreas
     }
 
     /** Called inside the profile update transaction; omitted areas stay unchanged. */
-    public function sync($profile, array $changes)
+    public function sync($profile, array $changes, array &$uploadedPaths = [])
     {
         $isPd = $profile instanceof ProvincialDistributor;
-        foreach ($changes['rows'] as $row) {
-            $area = $row['id']
-                ? $profile->areas()->lockForUpdate()->findOrFail($row['id'])
-                : $profile->areas()->make();
-            $attributes = [
-                'area_name' => $row['area_name'],
-                'project_type' => $row['project_type'],
-                'joining_date' => $row['joining_date'],
-                'user_role' => $isPd ? User::ROLE_PROVINCIAL_DISTRIBUTOR : User::ROLE_AREA_DISTRIBUTOR,
-                $isPd ? 'user_id' : 'ad_user_id' => $profile->user_id,
-            ];
-            if (array_key_exists('package_amount', $row)) {
-                $attributes['package_amount'] = $row['package_amount'];
+        try {
+            foreach ($changes['rows'] as $row) {
+                $area = $row['id']
+                    ? $profile->areas()->lockForUpdate()->findOrFail($row['id'])
+                    : $profile->areas()->make();
+                $attributes = [
+                    'area_name' => $row['area_name'],
+                    'project_type' => $row['project_type'],
+                    'joining_date' => $row['joining_date'],
+                    'user_role' => $isPd ? User::ROLE_PROVINCIAL_DISTRIBUTOR : User::ROLE_AREA_DISTRIBUTOR,
+                    $isPd ? 'user_id' : 'ad_user_id' => $profile->user_id,
+                ];
+                foreach (['package_amount', 'business_name', 'business_type'] as $field) {
+                    if (array_key_exists($field, $row)) $attributes[$field] = $row[$field];
+                }
+                if (!empty($row['offer_sheet'])) {
+                    $file = $row['offer_sheet'];
+                    $path = $file->store('distributor-offer-sheets/' . $profile->user_id, 'local');
+                    if (!$path) throw new \RuntimeException('Unable to store the awarded area offer sheet.');
+                    $uploadedPaths[] = $path;
+                    $attributes['offer_sheet_path'] = $path;
+                    $attributes['offer_sheet_name'] = mb_substr(basename($file->getClientOriginalName()), 0, 255);
+                }
+                $area->fill($attributes)->save();
             }
-            $area->fill($attributes)->save();
+            if ($changes['removed_ids']) {
+                foreach ($changes['removed_ids'] as $id) {
+                    $area = $profile->areas()->lockForUpdate()->findOrFail($id);
+                    $area->delete();
+                    // Disengagement history and reports use the soft-delete date.
+                    if (isset($changes['disengagement_dates'][$id])) {
+                        $area->deleted_at = $changes['disengagement_dates'][$id];
+                        $area->save();
+                    }
+                }
+            }
+        } catch (\Throwable $error) {
+            $this->discardUploads($uploadedPaths);
+            throw $error;
         }
-        if ($changes['removed_ids']) {
-            $profile->areas()->whereIn('id', $changes['removed_ids'])->delete();
-        }
+    }
+
+    public function discardUploads(array $paths)
+    {
+        if ($paths) Storage::disk('local')->delete($paths);
     }
 }

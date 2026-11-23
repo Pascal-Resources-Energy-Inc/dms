@@ -104,7 +104,7 @@
                             @foreach($availableProducts as $product)
                                 @php
                                     $productName = $product->item ?: $product->product_name;
-                                    $unitPrice = $product->distributorPurchaseOrderPrice();
+                                    $unitPrice = $product->distributorPurchaseOrderPrice(auth()->user());
                                     $isColorProduct = $product->isGazLiteStoveKit();
                                     $isSizeProduct = strpos(strtolower(trim((string) $productName)), 'gaz lite authorized retail partner uniform') !== false;
                                     $productImage = $product->item_image && file_exists(public_path('uploads/products/' . $product->item_image)) ? asset('uploads/products/' . $product->item_image) : asset('design/assets/images/products/empty-shopping-bag.gif');
@@ -112,7 +112,7 @@
                                 <div class="dpo-item js-dpo-line" data-price="{{ $unitPrice }}">
                                     <div class="dpo-item-info">
                                         <img src="{{ $productImage }}" class="dpo-item-image" alt="{{ $productName }}">
-                                        <div class="min-w-0"><div class="dpo-item-name">{{ $productName }}</div><div class="dpo-item-copy">PHP {{ number_format($unitPrice, 2) }} each</div></div>
+                                        <div class="min-w-0"><div class="dpo-item-name">{{ $productName }}</div><div class="dpo-item-copy">PHP {{ number_format($unitPrice, 2) }} each @if($product->usesVisminPriceFor(auth()->user())) · VisMin price @endif</div></div>
                                     </div>
                                     <div>
                                         @if($isColorProduct)

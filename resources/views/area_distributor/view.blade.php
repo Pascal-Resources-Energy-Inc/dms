@@ -253,7 +253,9 @@
         display: block;
         width: 100%;
         height: 250px;
-        object-fit: cover;
+        /* object-fit: cover; */
+        object-position: center;
+        object-fit: contain;
     }
 
     .store-picture-empty {
@@ -408,6 +410,10 @@
                             <div class="info-value">{{ strtoupper($ad->business_type ?? '-') }}</div>
                         </div>
                         <div class="info-item">
+                            <div class="info-label">Nature of Business</div>
+                            <div class="info-value">{{ $ad->nature_of_business ?: 'Not specified' }}</div>
+                        </div>
+                        <div class="info-item">
                             <div class="info-label">Service Vehicle</div>
                             <div class="info-value">{{ is_null($ad->has_service_vehicle) ? '-' : ($ad->has_service_vehicle ? 'YES' : 'NO') }}</div>
                         </div>
@@ -469,6 +475,20 @@
                                     <div>
                                         <div class="item-title">{{ $area->area_name }}</div>
                                         <div class="item-meta">{{ $area->project_type ?? 'Awarded Area' }}</div>
+                                        @if($area->business_name)
+                                            <div class="item-meta">Business: {{ $area->business_name }}</div>
+                                        @endif
+                                        @if($area->business_type)
+                                            <div class="item-meta">Business type: {{ $area->business_type }}</div>
+                                        @endif
+                                        @if($area->package_amount !== null)
+                                            <div class="item-meta">Package amount: ₱{{ number_format($area->package_amount, 2) }}</div>
+                                        @endif
+                                        @if($area->offer_sheet_path)
+                                            <a class="d-inline-block mt-2" href="{{ route($ad instanceof \App\ProvincialDistributor ? 'pds.areas.offer-sheet' : 'ad.areas.offer-sheet', ['id' => $ad->id, 'area' => $area->id]) }}">
+                                                <i class="bi bi-file-earmark-arrow-down" aria-hidden="true"></i> Download offer sheet
+                                            </a>
+                                        @endif
                                     </div>
                                 </div>
                                 <span class="area-date-pill">

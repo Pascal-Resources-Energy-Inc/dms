@@ -17,6 +17,8 @@ use App\Services\SemaphoreSmsService;
 use RealRashid\SweetAlert\Facades\Alert;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use App\Services\NewUserAwardedAreas;
 use Illuminate\Support\Facades\Validator;
 use OwenIt\Auditing\Facades\Auditor;
 use Illuminate\Http\Request;
@@ -66,6 +68,7 @@ class UserController extends Controller
        ], true);
        $needsDeliveryAddress = in_array($request->role, ['Area Distributor', 'Provincial Distributor'], true);
        $normalizedContactNumber = $this->normalizeMobileNumber($request->contact_number);
+       $newAwardedAreas = $isDistributorProfile ? (new NewUserAwardedAreas)->validate($request) : [];
 
        if ($isAdminLike && $request->has('same_as_address')) {
             $request->merge([
@@ -80,9 +83,7 @@ class UserController extends Controller
        }
 
        if ($needsDeliveryAddress && trim((string) $request->delivery_address) === '') {
-            return back()
-                ->withErrors(['delivery_address' => 'Delivery address is required.'])
-                ->withInput();
+            throw ValidationException::withMessages(['delivery_address' => 'Delivery address is required.']);
        }
 
        $requestedAreaKeys = collect($request->input('area_name', []))
@@ -97,9 +98,7 @@ class UserController extends Controller
             : $requestedAreaKeys->intersect($this->activeAdAreaKeys());
 
        if ($unavailableAreaKeys->isNotEmpty()) {
-            return back()
-                ->withErrors(['area_name' => 'One or more awarded areas are already assigned to an active Area Distributor.'])
-                ->withInput();
+            throw ValidationException::withMessages(['area_name' => 'One or more awarded areas are already assigned to an active Area Distributor.']);
        }
 
        if ($isSedp && is_string($request->input('mfi_type'))) {
@@ -129,7 +128,7 @@ class UserController extends Controller
             // 'store_picture' => 'nullable|image|max:2048',
         ];
 
-       if ($isSedp) {
+       if ($isSedp || $isDistributorProfile) {
             $rules += [
                 'first_name' => 'required|string|max:255',
                 'middle_name' => 'nullable|string|max:255',
@@ -138,7 +137,13 @@ class UserController extends Controller
             ];
        }
 
+       if ($isDistributorProfile) {
+            $rules['nature_of_business'] = ['required', 'string', Rule::in(config('distributors.natures_of_business'))];
+       }
+
        $request->validate($rules, [
+            'nature_of_business.required' => 'Please select the nature of business.',
+            'nature_of_business.in' => 'Please choose a nature of business from the available options.',
             'mfi_type.required_if' => 'Please select an MFI type.',
             'mfi_type.in' => 'The selected MFI is no longer available. Please select an existing MFI.',
             'sedp_center.required_if' => 'Please select at least one center for this MFI.',
@@ -163,9 +168,7 @@ class UserController extends Controller
        }
 
        if (!$isAdminLike && trim((string) $request->contact_number) === '' && trim((string) $request->facebook) === '') {
-            return back()
-                ->withErrors(['contact_number' => 'Mobile Number or Facebook is required.'])
-                ->withInput();
+            throw ValidationException::withMessages(['contact_number' => 'Mobile Number or Facebook is required.']);
        }
 
        if ($normalizedContactNumber && !$this->isVerifiedMobileNumber($request, $normalizedContactNumber)) {
@@ -185,7 +188,7 @@ class UserController extends Controller
 
         if ($duplicate) {
 
-            return back()->withErrors([
+            throw ValidationException::withMessages([
                 'duplicate' => 'User already exists.'
             ]);
 
@@ -201,233 +204,217 @@ class UserController extends Controller
             ->all();
 
 
-        $imagePath = null;
-        if ($request->hasFile('avatar')) {
-            $file = $request->file('avatar');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('uploads/area_distributor'), $filename);
-            $imagePath = 'uploads/area_distributor/' . $filename;
-        }
+        $offerSheetPaths = [];
+        try {
+            return DB::transaction(function () use ($request, $isAdmin, $isSedp, $isAdminLike, $isProvincialDistributor,
+                $isDistributorProfile, $needsDeliveryAddress, $normalizedContactNumber, $projectTags, $newAwardedAreas, &$offerSheetPaths) {
+                $imagePath = null;
+                if ($request->hasFile('avatar')) {
+                    $file = $request->file('avatar');
+                    $filename = time() . '_' . $file->getClientOriginalName();
+                    $file->move(public_path('uploads/area_distributor'), $filename);
+                    $imagePath = 'uploads/area_distributor/' . $filename;
+                }
 
-        $fullName = trim(collect([
-            $request->first_name,
-            $request->middle_name,
-            $request->last_name,
-        ])->filter()->implode(' '));
-        
-        $user = new User();
-        $user->first_name = $request->first_name;
-        $user->middle_name = $request->middle_name;
-        $user->last_name = $request->last_name;
-        $user->name = $fullName;
-        $user->email = $request->email_address;
-        $user->address = $isAdminLike ? null : $request->address;
-        $user->warehouse = $isAdmin ? $request->warehouse : null;
-        if (Schema::hasColumn('users', 'territory')) {
-            $user->territory = $isSedp ? implode(', ', (array) $request->input('sedp_center', [])) : null;
-        }
-        $user->delivery_address = $isAdminLike
-            ? ($request->has('same_as_address') ? $request->address : $request->delivery_address)
-            : null;
-        $user->role = $request->role;
-        if (Schema::hasColumn('users', 'is_distributor_personnel')) {
-            $user->is_distributor_personnel = in_array($request->role, ['Provincial Distributor', 'Area Distributor', 'Mega Dealer'], true)
-                && filter_var($request->input('is_distributor_personnel', false), FILTER_VALIDATE_BOOLEAN);
-        }
-        if (Schema::hasColumn('users', 'mfi_type')) {
-            $user->mfi_type = $isSedp ? $request->mfi_type : null;
-        }
+                $fullName = trim(collect([
+                    $request->first_name,
+                    $request->middle_name,
+                    $request->last_name,
+                ])->filter()->implode(' '));
 
-        if (Schema::hasColumn('users', 'type')) {
-            $user->type = json_encode($projectTags);
-        }
+                $user = new User();
+                $user->first_name = $request->first_name;
+                $user->middle_name = $request->middle_name;
+                $user->last_name = $request->last_name;
+                $user->name = $fullName;
+                $user->email = $request->email_address;
+                $user->address = $isAdminLike ? null : $request->address;
+                $user->warehouse = $isAdmin ? $request->warehouse : null;
+                if (Schema::hasColumn('users', 'territory')) {
+                    $user->territory = $isSedp ? implode(', ', (array) $request->input('sedp_center', [])) : null;
+                }
+                $user->delivery_address = $isAdminLike
+                    ? ($request->has('same_as_address') ? $request->address : $request->delivery_address)
+                    : null;
+                $user->role = $request->role;
+                if (Schema::hasColumn('users', 'is_distributor_personnel')) {
+                    $user->is_distributor_personnel = in_array($request->role, ['Provincial Distributor', 'Area Distributor', 'Mega Dealer'], true)
+                        && filter_var($request->input('is_distributor_personnel', false), FILTER_VALIDATE_BOOLEAN);
+                }
+                if (Schema::hasColumn('users', 'mfi_type')) {
+                    $user->mfi_type = $isSedp ? $request->mfi_type : null;
+                }
 
-        if (Schema::hasColumn('users', 'project_tag')) {
-            $user->project_tag = implode(', ', $projectTags);
-        }
+                if (Schema::hasColumn('users', 'type')) {
+                    $user->type = json_encode($projectTags);
+                }
 
-        $user->birthdate = $isAdminLike ? null : $request->birthdate;
-        $user->age = $isAdminLike ? null : $request->age;
-        $user->mothers_name = $isAdminLike ? null : $request->mothers_name;
-        $user->designation = $isAdminLike ? $request->designation : null;
-        $user->employee_number = $isAdmin ? $request->employee_number : null;
-        $user->department = $isAdmin ? $request->department : null;
-        if (Schema::hasColumn('users', 'approval_types')) {
-            $user->approval_types = $isAdmin ? array_values((array) $request->input('approval_types', [])) : null;
-        }
-        $user->password = bcrypt('12345678');
+                if (Schema::hasColumn('users', 'project_tag')) {
+                    $user->project_tag = implode(', ', $projectTags);
+                }
 
-        if ($imagePath) {
-            $user->avatar = $imagePath;
-        }
+                $user->birthdate = $isAdminLike ? null : $request->birthdate;
+                $user->age = $isAdminLike ? null : $request->age;
+                $user->mothers_name = $isAdminLike ? null : $request->mothers_name;
+                $user->designation = $isAdminLike ? $request->designation : null;
+                $user->employee_number = $isAdmin ? $request->employee_number : null;
+                $user->department = $isAdmin ? $request->department : null;
+                if (Schema::hasColumn('users', 'approval_types')) {
+                    $user->approval_types = $isAdmin ? array_values((array) $request->input('approval_types', [])) : null;
+                }
+                $user->password = bcrypt('12345678');
 
-        $user->save();
+                if ($imagePath) {
+                    $user->avatar = $imagePath;
+                }
 
-        if ($isAdminLike) {
-            session()->forget('mobile_otp');
+                $user->save();
 
-            if ($request->expectsJson()) {
-                session()->flash('success', $request->role . ' successfully created');
-                return response()->json([
-                    'success' => true,
-                    'message' => $request->role . ' successfully created',
-                    'redirect' => route('users'),
-                ], 201);
-            }
+                if ($isAdminLike) {
+                    session()->forget('mobile_otp');
 
-            return redirect()
-                ->route('users')
-                ->with('success', $request->role . ' successfully created');
-        }
+                    if ($request->expectsJson()) {
+                        session()->flash('success', $request->role . ' successfully created');
+                        return response()->json([
+                            'success' => true,
+                            'message' => $request->role . ' successfully created',
+                            'redirect' => route('users'),
+                        ], 201);
+                    }
 
-        $distributorModel = $isProvincialDistributor
-            ? new ProvincialDistributor()
-            : new AreaDistributor();
-        $latestAd = $distributorModel->newQuery()->orderBy('id', 'desc')->first();
+                    return redirect()
+                        ->route('users')
+                        ->with('success', $request->role . ' successfully created');
+                }
 
-        $number = ($latestAd && $latestAd->ad_reference)
-            ? ((int) preg_replace('/\D+/', '', $latestAd->ad_reference)) + 1
-            : 1;
+                $distributorModel = $isProvincialDistributor
+                    ? new ProvincialDistributor()
+                    : new AreaDistributor();
+                $latestAd = $distributorModel->newQuery()->orderBy('id', 'desc')->first();
 
-        $ad_reference = ($isProvincialDistributor ? 'PRPD' : 'PRP')
-            . str_pad($number, 5, '0', STR_PAD_LEFT);
+                $number = ($latestAd && $latestAd->ad_reference)
+                    ? ((int) preg_replace('/\D+/', '', $latestAd->ad_reference)) + 1
+                    : 1;
 
-
-        $attachmentPath = null;
-        if ($request->hasFile('attachment')) {
-            $file = $request->file('attachment');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('uploads/attachments'), $filename);
-            $attachmentPath = 'uploads/attachments/' . $filename;
-        }
-
-        $storePicturePath = null;
-        if ($request->hasFile('store_picture')) {
-            $file = $request->file('store_picture');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->move(public_path('uploads/store_pictures'), $filename);
-            $storePicturePath = 'uploads/store_pictures/' . $filename;
-        }
-
-        $contractAttachments = $isDistributorProfile
-            ? $this->storeContractAttachments($request)
-            : [];
-
-        $areaDistributor = $distributorModel;
-        $distributorTable = $areaDistributor->getTable();
-        $areaDistributor->user_id = $user->id;
-        $areaDistributor->ad_reference = $ad_reference;
-        $areaDistributor->name = $fullName;
-        $areaDistributor->store_code = $request->store_code;
-        $areaDistributor->email_address = $request->email_address;
-        $areaDistributor->contact_number = $normalizedContactNumber ?: $request->contact_number;
-        $areaDistributor->facebook = $request->facebook;
-        $areaDistributor->address = $request->address;
-        $areaDistributor->delivery_address = $needsDeliveryAddress
-            ? $request->delivery_address
-            : null;
-
-        $areaDistributor->street_address = $request->street_address;
-        $areaDistributor->location_region = $request->location_region;
-        $areaDistributor->location_province = $request->location_province;
-        $areaDistributor->location_city = $request->location_city;
-        $areaDistributor->location_barangay = $request->location_barangay;
-        $areaDistributor->zipcode = $request->zipcode;
-
-        $areaDistributor->business_name = $request->business_name;
-        $areaDistributor->business_type = $request->business_type;
-        $areaDistributor->has_service_vehicle = $isDistributorProfile
-            ? (bool) $request->input('has_service_vehicle')
-            : null;
-        $areaDistributor->business_years_operation = $isDistributorProfile
-            ? (int) $request->input('business_years_operation')
-            : null;
-        $areaDistributor->contract_attachments = $contractAttachments;
-        if (Schema::hasColumn($distributorTable, 'tin')) {
-            $areaDistributor->tin = trim((string) $request->tin) ?: null;
-        }
-        $areaDistributor->withholding_tax = $request->has('withholding_tax') ? 1 : 0;
-
-        $areaDistributor->latitude = $request->latitude;
-        $areaDistributor->longitude = $request->longitude;
-
-        if ($attachmentPath) {
-            $areaDistributor->attachment = $attachmentPath;
-        }
-
-        if ($storePicturePath && Schema::hasColumn($distributorTable, 'store_picture')) {
-            $areaDistributor->store_picture = $storePicturePath;
-        }
-
-        if ($imagePath) {
-            $areaDistributor->avatar = $imagePath;
-        }
-
-        $areaDistributor->status = "Active";
-        $areaDistributor->save();
+                $ad_reference = ($isProvincialDistributor ? 'PRPD' : 'PRP')
+                    . str_pad($number, 5, '0', STR_PAD_LEFT);
 
 
-        $joiningDates = $request->input('joining_date', []);
-        $awardedAreas = $request->input('area_name', []);
-        $maxRows = max(count($joiningDates), count($awardedAreas));
+                $attachmentPath = null;
+                if ($request->hasFile('attachment')) {
+                    $file = $request->file('attachment');
+                    $filename = time() . '_' . $file->getClientOriginalName();
+                    $file->move(public_path('uploads/attachments'), $filename);
+                    $attachmentPath = 'uploads/attachments/' . $filename;
+                }
 
-        for ($i = 0; $i < $maxRows; $i++) {
-            $areaName = $awardedAreas[$i] ?? null;
-            $date = $joiningDates[$i] ?? null;
+                $storePicturePath = null;
+                if ($request->hasFile('store_picture')) {
+                    $file = $request->file('store_picture');
+                    $filename = time() . '_' . $file->getClientOriginalName();
+                    $file->move(public_path('uploads/store_pictures'), $filename);
+                    $storePicturePath = 'uploads/store_pictures/' . $filename;
+                }
 
-            if ($areaName && !empty($projectTags)) {
-                foreach ($projectTags as $projectTag) {
-                    $areaAttributes = [
-                        'user_id' => $user->id,
-                        'area_name' => $areaName,
-                        'project_type' => $projectTag,
-                        'joining_date' => $date,
-                        'user_role' => $request->role,
+                $contractAttachments = $isDistributorProfile
+                    ? $this->storeContractAttachments($request)
+                    : [];
+
+                $areaDistributor = $distributorModel;
+                $distributorTable = $areaDistributor->getTable();
+                $areaDistributor->user_id = $user->id;
+                $areaDistributor->ad_reference = $ad_reference;
+                $areaDistributor->name = $fullName;
+                $areaDistributor->store_code = $request->store_code;
+                $areaDistributor->email_address = $request->email_address;
+                $areaDistributor->contact_number = $normalizedContactNumber ?: $request->contact_number;
+                $areaDistributor->facebook = $request->facebook;
+                $areaDistributor->address = $request->address;
+                $areaDistributor->delivery_address = $needsDeliveryAddress
+                    ? $request->delivery_address
+                    : null;
+
+                $areaDistributor->street_address = $request->street_address;
+                $areaDistributor->location_region = $request->location_region;
+                $areaDistributor->location_province = $request->location_province;
+                $areaDistributor->location_city = $request->location_city;
+                $areaDistributor->location_barangay = $request->location_barangay;
+                $areaDistributor->zipcode = $request->zipcode;
+
+                $areaDistributor->business_name = $request->business_name;
+                $areaDistributor->business_type = $request->business_type;
+                if ($isDistributorProfile) {
+                    $areaDistributor->nature_of_business = $request->input('nature_of_business');
+                }
+                $areaDistributor->has_service_vehicle = $isDistributorProfile
+                    ? (bool) $request->input('has_service_vehicle')
+                    : null;
+                $areaDistributor->business_years_operation = $isDistributorProfile
+                    ? (int) $request->input('business_years_operation')
+                    : null;
+                $areaDistributor->contract_attachments = $contractAttachments;
+                if (Schema::hasColumn($distributorTable, 'tin')) {
+                    $areaDistributor->tin = trim((string) $request->tin) ?: null;
+                }
+                $areaDistributor->withholding_tax = $request->has('withholding_tax') ? 1 : 0;
+
+                $areaDistributor->latitude = $request->latitude;
+                $areaDistributor->longitude = $request->longitude;
+
+                if ($attachmentPath) {
+                    $areaDistributor->attachment = $attachmentPath;
+                }
+
+                if ($storePicturePath && Schema::hasColumn($distributorTable, 'store_picture')) {
+                    $areaDistributor->store_picture = $storePicturePath;
+                }
+
+                if ($imagePath) {
+                    $areaDistributor->avatar = $imagePath;
+                }
+
+                $areaDistributor->status = "Active";
+                $areaDistributor->save();
+
+
+                $joiningDates = $request->input('joining_date', []);
+                $awardedAreas = $request->input('area_name', []);
+                foreach ($awardedAreas as $index => $areaName) {
+                    if (!$areaName) continue;
+                    $attributes = $isDistributorProfile ? $newAwardedAreas[$index] : [
+                        'area_name' => $areaName, 'joining_date' => $joiningDates[$index] ?? null,
                     ];
-
-                    if ($isProvincialDistributor) {
-                        ProvincialDistributorArea::create(array_merge($areaAttributes, [
-                            'provincial_distributor_id' => $areaDistributor->id,
-                        ]));
-                    } else {
-                        AreaAd::create([
-                            'ad_id' => $areaDistributor->id,
-                            'ad_user_id' => $user->id,
-                            'area_name' => $areaName,
+                    if ($isDistributorProfile && $request->hasFile("area_offer_sheet.{$index}")) {
+                        $file = $request->file("area_offer_sheet.{$index}");
+                        $path = $file->store('distributor-offer-sheets/' . $user->id, 'local');
+                        if (!$path) throw new \RuntimeException('Unable to store the awarded area offer sheet.');
+                        $offerSheetPaths[] = $path;
+                        $attributes['offer_sheet_path'] = $path;
+                        $attributes['offer_sheet_name'] = mb_substr(basename($file->getClientOriginalName()), 0, 255);
+                    }
+                    foreach ($projectTags ?: [null] as $projectTag) {
+                        $areaDistributor->areas()->create(array_merge($attributes, [
+                            $isProvincialDistributor ? 'user_id' : 'ad_user_id' => $user->id,
                             'project_type' => $projectTag,
-                            'joining_date' => $date,
                             'user_role' => $request->role,
-                        ]);
+                        ]));
                     }
                 }
-            } elseif ($areaName) {
-                if ($isProvincialDistributor) {
-                    ProvincialDistributorArea::create([
-                        'provincial_distributor_id' => $areaDistributor->id,
-                        'user_id' => $user->id,
-                        'area_name' => $areaName,
-                        'project_type' => null,
-                        'joining_date' => $date,
-                        'user_role' => $request->role,
-                    ]);
-                } else {
-                    AreaAd::create([
-                        'ad_id' => $areaDistributor->id,
-                        'ad_user_id' => $user->id,
-                        'area_name' => $areaName,
-                        'project_type' => null,
-                        'joining_date' => $date,
-                        'user_role' => $request->role,
-                    ]);
+
+                session()->forget('mobile_otp');
+
+                if ($request->expectsJson()) {
+                    session()->flash('success', 'Successfully encoded');
+                    return response()->json(['success' => true, 'redirect' => route('users')], 201);
                 }
-            }
+                return redirect()
+                    ->route('users')
+                    ->with('success', 'Successfully encoded');
+            });
+        } catch (\Throwable $error) {
+            if ($offerSheetPaths) Storage::disk('local')->delete($offerSheetPaths);
+            throw $error;
         }
-
-        session()->forget('mobile_otp');
-
-        return redirect()
-            ->route('users')
-            ->with('success', 'Successfully encoded');
     }
 
     public function sendMobileOtp(Request $request, SemaphoreSmsService $sms)
@@ -702,10 +689,10 @@ class UserController extends Controller
             $profile = Client::where('user_id',auth()->user()->id)->first();
             $transactions = TransactionDetail::where('client_id',$profile->id)->get();
         }
-       
+
        return view('view_profile',
             array(
-                'profile' => $profile,  
+                'profile' => $profile,
                 'transactions' => $transactions,
             )
         );

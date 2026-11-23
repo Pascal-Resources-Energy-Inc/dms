@@ -104,6 +104,7 @@
                         @endphp
                         @foreach ($products as $product)
                         @php
+                            $sellingPrices = $product->sellingPricesFor(auth()->user());
                             $bundleProductIds = collect($product->bundle_product_ids ?? [])->filter()->values();
                             $isBundle = ($product->item_type ?? optional($product->item)->item_type) === 'bundle' || $bundleProductIds->isNotEmpty();
                             $bundlePreviewProducts = $bundleProductIds
@@ -164,9 +165,9 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="product-price-column" data-label="Price" data-order="{{ $product->price }}"><span class="product-price">₱{{ number_format($product->price, 2) }}</span></td>
-                            <td class="product-price-column" data-label="Mega dealer" data-order="{{ $product->mega_dealer_price ?? $product->price }}"><span class="product-price">₱{{ number_format($product->mega_dealer_price ?? $product->price, 2) }}</span></td>
-                            <td class="product-price-column" data-label="Dealer" data-order="{{ $product->dealer_price ?? $product->price }}"><span class="product-price">₱{{ number_format($product->dealer_price ?? $product->price, 2) }}</span></td>
+                            <td class="product-price-column" data-label="Price" data-order="{{ $sellingPrices['price'] }}"><span class="product-price">₱{{ number_format($sellingPrices['price'], 2) }}</span></td>
+                            <td class="product-price-column" data-label="Mega dealer" data-order="{{ $sellingPrices['mega_dealer_price'] }}"><span class="product-price">₱{{ number_format($sellingPrices['mega_dealer_price'], 2) }}</span></td>
+                            <td class="product-price-column" data-label="Dealer" data-order="{{ $sellingPrices['dealer_price'] }}"><span class="product-price">₱{{ number_format($sellingPrices['dealer_price'], 2) }}</span></td>
 
                             <td class="product-status-column" data-search="{{ $product->status === 'Activate' ? 'Active' : 'Inactive' }}">
                                 @if($product->status == 'Activate')
@@ -184,10 +185,10 @@
                                         data-name="{{ $product->product_name }}"
                                         data-description="{{ $product->description }}"
                                         data-sku="{{ $product->sku }}"
-                                        data-price="{{ $product->price }}"
-                                        data-mega-dealer-price="{{ $product->mega_dealer_price ?? $product->price }}"
-                                        data-dealer-price="{{ $product->dealer_price ?? $product->price }}"
-                                        data-client-price="{{ $product->client_price ?? $product->price }}"
+                                        data-price="{{ $sellingPrices['price'] }}"
+                                        data-mega-dealer-price="{{ $sellingPrices['mega_dealer_price'] }}"
+                                        data-dealer-price="{{ $sellingPrices['dealer_price'] }}"
+                                        data-client-price="{{ $sellingPrices['client_price'] }}"
                                         data-deposit="{{ $product->deposit }}"
                                         data-status="{{ $product->status }}"
                                         data-item-type="{{ $isBundle ? 'bundle' : 'product' }}"
@@ -350,7 +351,8 @@
                                                     $productImage = $product->product_image && file_exists(public_path('uploads/products/' . $product->product_image))
                                                         ? asset('uploads/products/' . $product->product_image)
                                                         : asset('images/logo_nya.png');
-                                                    $bundlePrice = $product->client_price ?? $product->price ?? 0;
+                                                    $bundlePrices = $product->sellingPricesFor(auth()->user(), ['mega_dealer_price' => $product->mega_dealer_price ?? 0, 'dealer_price' => $product->dealer_price ?? 0]);
+                                                    $bundlePrice = $bundlePrices['client_price'] ?? 0;
                                                 @endphp
                                                 <div class="bundle-product-row js-bundle-row" role="button" tabindex="0" aria-pressed="false" data-checkbox-id="bundleProduct{{ $product->id }}" data-search="{{ strtolower($product->product_name . ' ' . ($product->sku ?: '')) }}">
                                                     <input type="checkbox"
@@ -360,8 +362,8 @@
                                                         value="{{ $product->id }}"
                                                         data-name="{{ $product->product_name }}"
                                                         data-price="{{ $bundlePrice }}"
-                                                        data-mega-dealer-price="{{ $product->mega_dealer_price ?? 0 }}"
-                                                        data-dealer-price="{{ $product->dealer_price ?? 0 }}"
+                                                        data-mega-dealer-price="{{ $bundlePrices['mega_dealer_price'] ?? 0 }}"
+                                                        data-dealer-price="{{ $bundlePrices['dealer_price'] ?? 0 }}"
                                                         data-image-src="{{ $productImage }}"
                                                         {{ in_array($product->id, old('bundle_product_ids', [])) ? 'checked' : '' }}
                                                         hidden>
@@ -531,7 +533,8 @@
                                                 $productImage = $product->product_image && file_exists(public_path('uploads/products/' . $product->product_image))
                                                     ? asset('uploads/products/' . $product->product_image)
                                                     : asset('images/logo_nya.png');
-                                                $bundlePrice = $product->client_price ?? $product->price ?? 0;
+                                                $bundlePrices = $product->sellingPricesFor(auth()->user(), ['mega_dealer_price' => $product->mega_dealer_price ?? 0, 'dealer_price' => $product->dealer_price ?? 0]);
+                                                $bundlePrice = $bundlePrices['client_price'] ?? 0;
                                             @endphp
                                             <div class="bundle-product-row js-edit-bundle-row" role="button" tabindex="0" aria-pressed="false" data-checkbox-id="editBundleProduct{{ $product->id }}" data-product-id="{{ $product->id }}" data-search="{{ strtolower($product->product_name . ' ' . ($product->sku ?: '')) }}">
                                                 <input type="checkbox"
@@ -541,8 +544,8 @@
                                                     value="{{ $product->id }}"
                                                     data-name="{{ $product->product_name }}"
                                                     data-price="{{ $bundlePrice }}"
-                                                    data-mega-dealer-price="{{ $product->mega_dealer_price ?? 0 }}"
-                                                    data-dealer-price="{{ $product->dealer_price ?? 0 }}"
+                                                    data-mega-dealer-price="{{ $bundlePrices['mega_dealer_price'] ?? 0 }}"
+                                                    data-dealer-price="{{ $bundlePrices['dealer_price'] ?? 0 }}"
                                                     data-image-src="{{ $productImage }}"
                                                     hidden>
                                                 <span class="bundle-selected-indicator">

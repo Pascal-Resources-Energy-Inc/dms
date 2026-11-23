@@ -174,6 +174,12 @@ class ProvincialDistributorController extends Controller
     public function update(Request $request, $id)
     {
         $profile = ProvincialDistributor::with('userAds')->findOrFail($id);
+        $businessDetails = $request->validate([
+            'nature_of_business' => ['required', 'string', Rule::in(config('distributors.natures_of_business'))],
+        ], [
+            'nature_of_business.required' => 'Please select the nature of business.',
+            'nature_of_business.in' => 'Please choose a nature of business from the available options.',
+        ]);
         $data = $this->validateProfile($request, $profile);
         $projectAreaChanges = $request->has('sync_project_areas')
             ? app(DistributorProjectAreas::class)->validate($request, $profile)
@@ -183,6 +189,7 @@ class ProvincialDistributorController extends Controller
             $request->merge(['delivery_address' => $request->address]);
         }
 
+        $areaOfferSheetPaths = [];
         DB::beginTransaction();
 
         try {
@@ -206,6 +213,7 @@ class ProvincialDistributorController extends Controller
 
             $payload = $this->profilePayload($request, $data);
             $payload['name'] = $fullName;
+            $payload['nature_of_business'] = $businessDetails['nature_of_business'];
             $payload['status'] = $request->input('status', $profile->status ?: 'Active');
             $payload['withholding_tax'] = $request->input('withholding_tax') ? 1 : 0;
             $payload['contract_attachments'] = $this->mergeContractAttachments($request, $profile);
@@ -224,15 +232,23 @@ class ProvincialDistributorController extends Controller
             $profile->update($payload);
 
             if ($projectAreaChanges !== null) {
-                app(DistributorProjectAreas::class)->sync($profile, $projectAreaChanges);
+                app(DistributorProjectAreas::class)->sync($profile, $projectAreaChanges, $areaOfferSheetPaths);
             }
 
             $this->syncLegacyProfile($profile->fresh('areas'));
             DB::commit();
+            if ($request->expectsJson()) {
+                session()->flash('success', 'Distributor updated successfully.');
+                return response()->json(['success' => true]);
+            }
 
             return back()->with('success', 'Provincial Distributor updated successfully.');
         } catch (\Throwable $exception) {
             DB::rollBack();
+            app(DistributorProjectAreas::class)->discardUploads($areaOfferSheetPaths);
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Unable to save the distributor. Please try again.'], 500);
+            }
 
             return back()->withInput()->with('error', $exception->getMessage());
         }
@@ -241,72 +257,20 @@ class ProvincialDistributorController extends Controller
     public function updateAreas(Request $request, $id)
     {
         $profile = ProvincialDistributor::findOrFail($id);
-        $request->validate([
-            'rows' => 'nullable|array',
-            'rows.*.id' => 'nullable|integer',
-            'rows.*.area_name' => 'nullable|string|max:255',
-            'rows.*.joining_date' => 'nullable|date',
-            'rows.*.package_amount' => 'nullable|numeric|min:0|max:9999999999.99',
-        ]);
-
-        $rows = collect($request->input('rows', []))->map(function ($row) {
-            return [
-                'id' => trim((string) ($row['id'] ?? '')) ?: null,
-                'area_name' => trim((string) ($row['area_name'] ?? '')) ?: null,
-                'joining_date' => trim((string) ($row['joining_date'] ?? '')) ?: null,
-                'package_amount' => isset($row['package_amount']) && $row['package_amount'] !== ''
-                    ? (float) $row['package_amount']
-                    : null,
-            ];
-        })->filter(function ($row) {
-            return $row['area_name'];
-        })->values();
-
-        $normalizedNames = $rows->pluck('area_name')->map(function ($name) {
-            return strtolower(trim((string) $name));
-        });
-
-        if ($normalizedNames->count() !== $normalizedNames->unique()->count()) {
-            return response()->json(['status' => false, 'message' => 'Each awarded area can be selected only once.'], 422);
-        }
-
+        $changes = app(\App\Services\ManageDistributorAreas::class)->validate($request, $profile);
+        $service = app(DistributorProjectAreas::class);
+        $uploadedPaths = [];
         DB::beginTransaction();
-
         try {
-            $submittedIds = [];
-
-            foreach ($rows as $row) {
-                $area = $row['id']
-                    ? ProvincialDistributorArea::where('provincial_distributor_id', $profile->id)->find($row['id'])
-                    : new ProvincialDistributorArea();
-
-                if (!$area) {
-                    continue;
-                }
-
-                $area->fill([
-                    'provincial_distributor_id' => $profile->id,
-                    'user_id' => $profile->user_id,
-                    'area_name' => $row['area_name'],
-                    'joining_date' => $row['joining_date'],
-                    'package_amount' => $row['package_amount'],
-                    'user_role' => User::ROLE_PROVINCIAL_DISTRIBUTOR,
-                ])->save();
-
-                $submittedIds[] = $area->id;
-            }
-
-            $areaQuery = ProvincialDistributorArea::where('provincial_distributor_id', $profile->id);
-            $submittedIds ? $areaQuery->whereNotIn('id', $submittedIds)->delete() : $areaQuery->delete();
-
+            $service->sync($profile, $changes, $uploadedPaths);
             $this->syncLegacyProfile($profile->fresh('areas'));
             DB::commit();
-
             return response()->json(['status' => true, 'message' => 'Provincial Distributor areas updated successfully.']);
         } catch (\Throwable $exception) {
             DB::rollBack();
-
-            return response()->json(['status' => false, 'message' => $exception->getMessage()], 500);
+            $service->discardUploads($uploadedPaths);
+            report($exception);
+            return response()->json(['status' => false, 'message' => 'Unable to save the awarded areas. Please try again.'], 500);
         }
     }
 
@@ -414,16 +378,24 @@ class ProvincialDistributorController extends Controller
 
         AreaAd::withTrashed()->where('ad_id', $legacy->id)->forceDelete();
 
-        foreach ($profile->areas as $area) {
-            AreaAd::create([
+        foreach ($profile->areas()->withTrashed()->get() as $area) {
+            $legacyArea = AreaAd::create([
                 'ad_id' => $legacy->id,
                 'ad_user_id' => $profile->user_id,
                 'project_type' => $area->project_type,
                 'area_name' => $area->area_name,
                 'joining_date' => $area->joining_date,
                 'package_amount' => $area->package_amount,
+                'business_name' => $area->business_name,
+                'business_type' => $area->business_type,
+                'offer_sheet_path' => $area->offer_sheet_path,
+                'offer_sheet_name' => $area->offer_sheet_name,
                 'user_role' => User::ROLE_PROVINCIAL_DISTRIBUTOR,
             ]);
+            if ($area->deleted_at) {
+                $legacyArea->deleted_at = $area->deleted_at;
+                $legacyArea->save();
+            }
         }
     }
 

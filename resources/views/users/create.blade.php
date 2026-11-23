@@ -2,7 +2,7 @@
     $restoreMfiForm = old('user_form') === 'new_user' && old('role') === 'MFI';
 @endphp
 <div id="new_users" class="modal fade modal-select2" tabindex="-1" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header d-flex align-items-center">
                 <h4 class="modal-title" id="myModalLabel">
@@ -212,6 +212,16 @@
                                 <option value="Wholesale">Wholesale</option>
                                 <option value="Grocery">Grocery</option>
                             </select>
+                        </div>
+                        <div class="col-12 mb-3 distributor-nature-field" style="display: none;">
+                            <label class="form-label" for="nature_of_business">Nature of Business <span class="text-danger">*</span></label>
+                            <select id="nature_of_business" name="nature_of_business" class="form-select select2" data-placeholder="Search or select nature of business" aria-describedby="natureOfBusinessHelp" disabled>
+                                <option value="">Search or select nature of business</option>
+                                @foreach(config('distributors.natures_of_business', []) as $nature)
+                                    <option value="{{ $nature }}" {{ old('nature_of_business') === $nature ? 'selected' : '' }}>{{ $nature }}</option>
+                                @endforeach
+                            </select>
+                            <small id="natureOfBusinessHelp" class="form-text text-muted">Select the main activity of this business.</small>
                         </div>
                         <div class="col-12 mb-3 distributor-profile-fields" style="display: none;">
                             <div class="border rounded-3 p-3 bg-light">
@@ -568,38 +578,35 @@
                         </div> --}}
                         <!-- Dynamic Area Section -->
                         <div id="dynamic-area-wrapper" class="col-md-12 business-fields" style="display:none;">
-                            <div class="card border-0 shadow-sm rounded-4">
-                                <div class="card-body" style="padding: 10px 10px">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 class="mb-0 fw-bold">
-                                            <i class="bi bi-map me-2"></i>Awarded Areas
-                                        </h6>
-                                        <button type="button" class="btn btn-sm btn-primary" id="addProjectRow">
-                                            <i class="bi bi-plus-lg"></i> Add Row
-                                        </button>
+                            <div class="new-user-awards">
+                                <div class="new-user-awards-heading">
+                                    <div>
+                                        <h6><i class="bi bi-map me-2" aria-hidden="true"></i>Awarded Areas <span id="awardedAreaCount" class="new-user-area-count">0</span></h6>
+                                        <p id="awardedAreaHelp">Add the business details and supporting offer sheet for each area.</p>
                                     </div>
-                                    <div id="projectRows"></div>
+                                    <button type="button" class="btn btn-outline-primary" id="addProjectRow">
+                                        <i class="bi bi-plus-lg" aria-hidden="true"></i> Add area
+                                    </button>
                                 </div>
+                                <div id="projectRows"></div>
                             </div>
                         </div>
                         <template id="project-row-template">
-                            <div class="row align-items-end project-row mb-3 border rounded-3 p-3 bg-white">
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold">
-                                        Joining Date&nbsp;<span class="text-danger">*</span>
-                                    </label>
-                                    <input type="date" name="joining_date[]" class="form-control" required>
+                            <div class="project-row new-user-area-card">
+                                <div class="new-user-area-heading">
+                                    <strong>Area <span class="area-row-number"></span></strong>
+                                    <button type="button" class="btn btn-outline-danger remove-row" aria-label="Remove awarded area"><i class="bi bi-trash" aria-hidden="true"></i><span>Remove</span></button>
                                 </div>
-                                <div class="col-md-8 project-area">
-                                    <label class="form-label fw-semibold">
+                                <div class="new-user-area-grid">
+                                <div class="project-area">
+                                    <label class="form-label fw-semibold" data-label-for="area_name">
                                         <i class="bi bi-geo-alt me-1 text-primary"></i>Awarded Area&nbsp;<span class="text-danger">*</span>
                                     </label>
                                     <div class="awarded-area-select">
-                                        <select name="area_name[]"
+                                        <select name="area_name[]" data-area-field="area_name"
                                                 class="form-control area_name select2"
                                                 data-placeholder="Search awarded areas..."
                                                 data-minimum-results-for-search="0"
-                                                data-dropdown-css-class="awarded-area-search-dropdown"
                                                 aria-label="Search and select awarded area"
                                                 required>
                                             <option value=""></option>
@@ -612,10 +619,43 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="col-md-1 text-center">
-                                    <button type="button" class="btn btn-sm btn-danger remove-row">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                <div>
+                                    <label class="form-label" data-label-for="joining_date">Joining date <span class="text-danger">*</span></label>
+                                    <input type="date" name="joining_date[]" data-area-field="joining_date" class="form-control" required>
+                                </div>
+                                <div class="area-distributor-detail">
+                                    <label class="form-label" data-label-for="package_amount">Package amount <span class="new-user-optional">(optional)</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₱</span>
+                                        <input type="number" data-area-field="package_amount" class="form-control" min="0" max="9999999999.99" step="0.01" inputmode="decimal" placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div class="area-distributor-detail new-user-area-business">
+                                    <label class="form-label" data-label-for="area_business_name">Business name <span class="text-danger">*</span></label>
+                                    <input type="text" data-area-field="area_business_name" class="form-control" maxlength="255" placeholder="Business name for this area" data-uppercase>
+                                    <label class="new-user-same-business" data-label-for="area_same_business_name">
+                                        <input type="checkbox" data-area-field="area_same_business_name" value="1" checked>
+                                        <span>Same as main business name</span>
+                                    </label>
+                                </div>
+                                <div class="area-distributor-detail new-user-area-business-type">
+                                    <label class="form-label" data-label-for="area_business_type">Business type</label>
+                                    <select class="form-select" data-area-field="area_business_type">
+                                        <option value="">Select business type</option>
+                                        @foreach(\App\Services\DistributorProjectAreas::BUSINESS_TYPES as $areaBusinessType)
+                                            <option value="{{ $areaBusinessType }}">{{ $areaBusinessType }}</option>
+                                        @endforeach
+                                    </select>
+                                    <label class="new-user-same-business" data-label-for="area_same_business_type">
+                                        <input type="checkbox" data-area-field="area_same_business_type" value="1" checked>
+                                        <span>Same as main business type</span>
+                                    </label>
+                                </div>
+                                <div class="area-distributor-detail new-user-area-offer">
+                                    <label class="form-label" data-label-for="area_offer_sheet">Offer sheet <span class="new-user-optional">(optional)</span></label>
+                                    <input type="file" data-area-field="area_offer_sheet" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                                    <small>PDF, Word, JPG or PNG · Up to 10 MB per area</small>
+                                </div>
                                 </div>
                             </div>
                         </template>
@@ -631,6 +671,46 @@
 </div>
 
 <style>
+    #new_users .modal-content { max-height: 100%; }
+    #new_users #newUserForm { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+    #new_users .modal-body { overflow-y: auto; overscroll-behavior: contain; }
+    #new_users .modal-header, #new_users .modal-footer { flex-shrink: 0; }
+    #new_users .new-user-awards { margin-top: 16px; border: 1px solid #dce5ef; border-radius: 12px; overflow: hidden; background: #f5f8fc; }
+    #new_users .new-user-awards-heading, #new_users .new-user-area-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    #new_users .new-user-awards-heading { padding: 18px; border-bottom: 1px solid #dce5ef; background: #fff; }
+    #new_users .new-user-awards-heading h6 { margin: 0 0 6px; font-size: 16px; color: #16324f; }
+    #new_users .new-user-awards-heading p { margin: 0; font-size: 13px; color: #566b80; }
+    #new_users .new-user-area-count { display: inline-block; padding: 3px 9px; border-radius: 16px; background: #eaf3ff; color: #1263ad; font-size: 12px; }
+    #new_users #projectRows { display: grid; gap: 14px; padding: 16px; }
+    #new_users .new-user-area-card { padding: 18px; background: #fff; border: 1px solid #dce5ef; border-radius: 10px; min-width: 0; }
+    #new_users .new-user-area-heading { margin-bottom: 16px; color: #16324f; }
+    #new_users .new-user-area-heading .remove-row { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; font-size: 12px; }
+    #new_users .new-user-area-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 18px 16px; }
+    #new_users .new-user-area-grid > div { min-width: 0; }
+    #new_users .new-user-area-business { grid-column: 1; }
+    #new_users .new-user-area-business-type { grid-column: 2 / -1; }
+    #new_users .new-user-area-offer { grid-column: 1 / -1; }
+    #new_users .new-user-area-grid .form-label { display: block; color: #243e58; font-weight: 600; font-size: 13px; margin-bottom: 7px; }
+    #new_users .new-user-area-grid .form-control, #new_users .new-user-area-grid .form-select, #new_users .new-user-area-grid .input-group-text { min-height: 42px; border-color: #cbd8e6; border-radius: 7px; }
+    #new_users .new-user-area-grid .input-group-text { border-radius: 7px 0 0 7px; background: #f3f7fb; }
+    #new_users .new-user-area-grid .input-group .form-control { border-radius: 0 7px 7px 0; }
+    #new_users .new-user-area-grid input[readonly], #new_users .new-user-area-grid select:disabled { background: #f5f8fc; color: #566b80; opacity: 1; }
+    #new_users .new-user-area-grid input[type=file] { max-width: 100%; font-size: 12px; }
+    #new_users .new-user-area-grid small, #new_users .new-user-optional { color: #607389; font-size: 12px; font-weight: 400; }
+    #new_users .new-user-area-grid small { display: block; margin-top: 8px; }
+    #new_users .new-user-same-business { display: flex; align-items: center; gap: 8px; margin-top: 9px; color: #42607c; font-size: 12px; cursor: pointer; }
+    #new_users .new-user-same-business input { width: 17px; height: 17px; flex-shrink: 0; accent-color: #1263ad; }
+    @media (max-width: 767.98px) {
+        #new_users .new-user-area-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        #new_users .new-user-area-grid .project-area, #new_users .new-user-area-business, #new_users .new-user-area-business-type, #new_users .new-user-area-offer { grid-column: 1 / -1; }
+        #new_users .new-user-awards-heading { align-items: flex-start; flex-wrap: wrap; padding: 14px; }
+        #new_users #projectRows { padding: 10px; }
+        #new_users .new-user-area-card { padding: 14px; }
+    }
+    @media (max-width: 399.98px) {
+        #new_users .new-user-area-grid { grid-template-columns: minmax(0, 1fr); }
+        #new_users .new-user-area-grid > div { grid-column: 1; }
+    }
     #location_map {
         height: 420px;
         width: 100%;
@@ -668,6 +748,12 @@
         transition: 0.25s ease;
         background: #fff;
     }
+
+    #new_users .distributor-nature-field { min-width: 0; }
+    #new_users .distributor-nature-field .select2-container { width: 100% !important; max-width: 100%; }
+    #new_users .distributor-nature-field .select2-selection--single { min-height: 44px; height: auto; border-radius: 7px; }
+    #new_users .distributor-nature-field .select2-selection__rendered { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; padding: 10px 36px 10px 12px; }
+    #new_users .distributor-nature-field .select2-selection__arrow { top: 50%; transform: translateY(-50%); }
 
     .project-card:hover {
         border-color: #0d6efd;
@@ -1969,7 +2055,7 @@
             panel.focus({ preventScroll: true });
         }
 
-        async function submitMfiUser() {
+        async function submitNewUser() {
             if (isSubmittingUser) return;
             const originalLabel = submitButton.textContent;
             isSubmittingUser = true;
@@ -2050,9 +2136,9 @@
 
                 syncDeliveryAddress();
 
-                if (roleSelect && roleSelect.value === 'MFI') {
+                if (roleSelect && ['MFI', 'Provincial Distributor', 'Area Distributor'].includes(roleSelect.value)) {
                     event.preventDefault();
-                    submitMfiUser();
+                    submitNewUser();
                     return;
                 }
 

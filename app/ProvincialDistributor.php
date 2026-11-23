@@ -32,6 +32,7 @@ class ProvincialDistributor extends Model implements Auditable
         'zipcode',
         'business_name',
         'business_type',
+        'nature_of_business',
         'has_service_vehicle',
         'business_years_operation',
         'contract_attachments',

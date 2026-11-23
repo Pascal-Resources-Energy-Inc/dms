@@ -871,10 +871,28 @@
             </div>
             <div class="sir-table-wrap">
                 <table class="sir-table" style="min-width: 820px">
-                    <thead><tr><th>Assigned AD Name</th><th>MFI Type</th><th>Center</th><th>Client Reference</th><th>Name</th><th>Date of Signing</th><th>Amount</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th width="25%">Assigned AD Name</th>
+                            <th width="10%">MFI</th>
+                            <th width="10%">Center</th>
+                            <th width="10%">Client Reference</th>
+                            <th width="25%">Name</th>
+                            <th width="10%">Date of Signing</th>
+                            <th width="10%">Amount</th>
+                        </tr>
+                    </thead>
                     <tbody>
                         @forelse($adReport['rows'] as $adRow)
-                            <tr><td>{{ $adRow['ad'] }}</td><td>{{ $adRow['mfi_type'] }}</td><td>{{ $adRow['center'] }}</td><td>{{ $adRow['reference'] }}</td><td>{{ $adRow['name'] }}</td><td>{{ $adRow['signing_date'] }}</td><td class="sir-number">₱{{ number_format($adRow['amount'], 2) }}</td></tr>
+                            <tr>
+                                <td>{{ $adRow['ad'] }}</td>
+                                <td>{{ $adRow['mfi_type'] }}</td>
+                                <td>{{ $adRow['center'] }}</td>
+                                <td>{{ $adRow['reference'] }}</td>
+                                <td>{{ $adRow['name'] }}</td>
+                                <td>{{ $adRow['signing_date'] }}</td>
+                                <td class="sir-number">₱{{ number_format($adRow['amount'], 2) }}</td>
+                            </tr>
                         @empty
                             <tr><td colspan="7" class="sir-empty-state">No signed client contracts were found for the selected period.</td></tr>
                         @endforelse

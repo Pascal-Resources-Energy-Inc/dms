@@ -121,7 +121,7 @@
             <div class="pricing-title-row">
                 <h4 class="pricing-title">Product Price Matrix</h4>
             </div>
-            <p class="pricing-subtitle">Show the item SRP and manage selling prices for Mega Dealer, Dealer, and Client.</p>
+            <p class="pricing-subtitle">View Item prices for SRP, Dealer, and Mega Dealer.{{ \App\Support\DistributorPricing::usesVisminPrice(auth()->user()) ? ' VisMin prices apply where set.' : '' }}</p>
         </div>
         <div class="pricing-actions">
             <input type="search" id="productSearch" class="form-control pricing-search" placeholder="Search product or SKU" aria-label="Search product or SKU">
@@ -146,10 +146,10 @@
     </div>
 
     <div class="price-legend">
-        <span class="legend-chip"><span class="role-dot srp"></span>SRP comes from the master item</span>
+        <span class="legend-chip"><span class="role-dot srp"></span>Cost from Items</span>
         <span class="legend-chip"><span class="role-dot mega"></span>Mega Dealer price</span>
         <span class="legend-chip"><span class="role-dot dealer"></span>Dealer price</span>
-        <span class="legend-chip"><span class="role-dot client"></span>Client price</span>
+        <span class="legend-chip"><span class="role-dot client"></span>SRP price</span>
     </div>
 
     <div class="pricing-table-wrap">
@@ -170,12 +170,13 @@
                 @foreach($items as $index => $item)
                     @php
                         $product = $productItems[$item->id] ?? null;
-                        $srpPrice = $item->dprice ?? null;
-                        $megaDealerPrice = $item->md_price ?? null;
-                        $dealerPrice = $item->dealer_price ?? null;
-                        $clientPrice = $item->price ?? null;
-                        $rowDealerPrice = $dealerPrice ?? $srpPrice;
-                        $rowClientPrice = $clientPrice ?? $srpPrice;
+                        $sellingPrices = $item->productPriceMatrixFor(auth()->user());
+                        $costPrice = $sellingPrices['dprice'];
+                        $megaDealerPrice = $sellingPrices['mega_dealer_price'];
+                        $dealerPrice = $sellingPrices['dealer_price'];
+                        $clientPrice = $sellingPrices['client_price'];
+                        $rowDealerPrice = $dealerPrice;
+                        $rowClientPrice = $clientPrice;
                         $sku = $product->sku ?? 'AD' . auth()->id() . '-ITEM' . $item->id;
                         $hasPrice = collect([$megaDealerPrice, $dealerPrice, $clientPrice])->filter(function ($price) {
                             return $price !== null && $price !== '' && (float) $price > 0;
@@ -213,7 +214,7 @@
                         <td class="srp-cell" data-label="Cost">
                             <div class="input-group price-input">
                                 <span class="input-group-text">PHP</span>
-                                <input type="number" class="form-control js-srp" name="items[{{ $index }}][dprice]" value="{{ $srpPrice }}" min="0" step="0.01" placeholder="0.00" readonly>
+                                <input type="number" class="form-control js-srp" name="items[{{ $index }}][dprice]" value="{{ $costPrice }}" min="0" step="0.01" placeholder="0.00" readonly>
                             </div>
                             <div class="srp-note">Reference only</div>
                         </td>
@@ -341,10 +342,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const percent = Math.abs((diff / srp) * 100).toFixed(1);
 
             if (diff >= 0) {
-                note.textContent = percent + '% below SRP';
+                note.textContent = percent + '% below cost';
                 note.classList.add('good');
             } else {
-                note.textContent = percent + '% above SRP';
+                note.textContent = percent + '% above cost';
                 note.classList.add('warn');
             }
         });

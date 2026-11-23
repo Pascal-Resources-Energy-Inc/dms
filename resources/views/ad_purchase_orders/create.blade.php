@@ -588,7 +588,7 @@
                         <div class="product-list" data-product-list>
                         @forelse($regularProducts as $product)
                             @php
-                                $unitPrice = $product->distributorPurchaseOrderPrice();
+                                $unitPrice = $product->distributorPurchaseOrderPrice(auth()->user());
                                 $oldQty = old('products.' . $product->id . '.qty', 0);
                                 $oldSelected = old('products.' . $product->id . '.selected') || (int) $oldQty > 0;
                                 $productName = $product->item ?: $product->product_name;
@@ -632,7 +632,7 @@
                                     <p class="product-desc">{{ \Illuminate\Support\Str::limit($productDescription, 100) }}</p>
                                     <div class="product-meta">
                                         <div>
-                                            <span class="product-price-label">Unit Price</span>
+                                            <span class="product-price-label">{{ $product->usesVisminPriceFor(auth()->user()) ? 'VisMin Price' : 'Unit Price' }}</span>
                                             <div class="product-price">PHP {{ number_format($unitPrice, 2) }}</div>
                                         </div>
                                         <div class="qty-group">
@@ -706,7 +706,7 @@
                                         <div class="product-list" data-product-list>
                                             @foreach($adProducts as $product)
                                                 @php
-                                                    $unitPrice = $product->distributorPurchaseOrderPrice();
+                                                    $unitPrice = $product->distributorPurchaseOrderPrice(auth()->user());
                                                     $oldQty = old('products.' . $product->id . '.qty', 0);
                                                     $oldSelected = old('products.' . $product->id . '.selected') || (int) $oldQty > 0;
                                                     $productName = $product->item ?: $product->product_name;
@@ -750,7 +750,7 @@
                                                         <p class="product-desc">{{ \Illuminate\Support\Str::limit($productDescription, 100) }}</p>
                                                         <div class="product-meta">
                                                             <div>
-                                                                <span class="product-price-label">Unit Price</span>
+                                                                <span class="product-price-label">{{ $product->usesVisminPriceFor(auth()->user()) ? 'VisMin Price' : 'Unit Price' }}</span>
                                                                 <div class="product-price">PHP {{ number_format($unitPrice, 2) }}</div>
                                                             </div>
                                                             <div class="qty-group">

@@ -19,11 +19,17 @@ class ProvincialDistributorArea extends Model implements Auditable
         'user_role',
         'joining_date',
         'package_amount',
+        'business_name',
+        'business_type',
+        'offer_sheet_path',
+        'offer_sheet_name',
     ];
 
     protected $casts = [
         'package_amount' => 'decimal:2',
     ];
+
+    protected $dates = ['deleted_at'];
 
     public function distributor()
     {

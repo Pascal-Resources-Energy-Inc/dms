@@ -31,6 +31,7 @@ class Product extends Model implements Auditable
     ];
 
     protected $casts = [
+        'is_new' => 'integer',
         'price' => 'decimal:2',
         'srp_price' => 'decimal:2',
         'mega_dealer_price' => 'decimal:2',
@@ -42,5 +43,19 @@ class Product extends Model implements Auditable
     public function item()
     {
         return $this->belongsTo(Item::class, 'item_id');
+    }
+
+    public function sellingPricesFor(?User $user, array $fallbacks = []): array
+    {
+        $prices = [
+            'price' => $this->price,
+            'client_price' => $this->client_price ?? $this->price,
+            'dealer_price' => $this->dealer_price ?? $this->price,
+            'mega_dealer_price' => $this->mega_dealer_price ?? $this->price,
+        ];
+
+        $prices = array_replace($prices, $fallbacks);
+
+        return $this->item ? $this->item->productPricesFor($user, $prices) : $prices;
     }
 }

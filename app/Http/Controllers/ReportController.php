@@ -1746,7 +1746,7 @@ class ReportController extends Controller
                         'mfi_type' => $mfiTypesByCenter[$this->normalizeSignupCenter($client->center ?? '')] ?? 'Unassigned',
                         'reference' => trim((string) ($client->client_reference ?? '')) ?: '—',
                         'name' => $name ?: 'Unnamed Client',
-                        'signing_date' => Carbon::parse($client->signing_date_value)->format('M d, Y'),
+                        'signing_date' => Carbon::parse($client->signing_date_value)->format('M. d, Y'),
                         'amount' => $rate,
                     ];
                 })->filter(function ($row) use ($mfiType, $allowedMfiTypes) {
@@ -2535,11 +2535,11 @@ class ReportController extends Controller
     public function adAwardedAreasReport(Request $request)
     {
         $this->authorizeSedpReports();
-        $request->validate(['package_amount' => 'nullable|numeric|min:0|max:9999999999.99']);
+        $this->validateAdAwardedAreasFilters($request);
 
         $search = trim((string) $request->input('search', ''));
         $projectType = trim((string) $request->input('project_type', ''));
-        $assignmentStatus = trim((string) $request->input('assignment_status', 'all'));
+        $assignmentStatus = trim((string) $request->input('assignment_status', 'all')) ?: 'all';
         $packageAmount = $request->input('package_amount');
         $perPage = in_array((int) $request->input('per_page', 25), [10, 25, 50, 100], true)
             ? (int) $request->input('per_page', 25)
@@ -2561,6 +2561,8 @@ class ReportController extends Controller
         $projectTypes = AreaAd::withTrashed()
             ->join('area_distributors as awarded_ad', 'awarded_ad.id', '=', 'ad_areas.ad_id')
             ->join('users as awarded_user', 'awarded_user.id', '=', 'awarded_ad.user_id')
+            ->whereRaw('LOWER(TRIM(awarded_user.role)) = ?', ['area distributor'])
+            ->whereRaw("TRIM(ad_areas.area_name) <> ''")
             ->select(DB::raw($this->adAwardedAreasProjectTagSource() . ' as project_tags'))
             ->distinct()
             ->get()
@@ -2586,11 +2588,11 @@ class ReportController extends Controller
     public function exportAdAwardedAreas(Request $request)
     {
         $this->authorizeSedpReports();
-        $request->validate(['package_amount' => 'nullable|numeric|min:0|max:9999999999.99']);
+        $this->validateAdAwardedAreasFilters($request);
 
         $search = trim((string) $request->input('search', ''));
         $projectType = trim((string) $request->input('project_type', ''));
-        $assignmentStatus = trim((string) $request->input('assignment_status', 'all'));
+        $assignmentStatus = trim((string) $request->input('assignment_status', 'all')) ?: 'all';
         $packageAmount = $request->input('package_amount');
         $awards = $this->adAwardedAreasQuery($search, $projectType, $assignmentStatus, $packageAmount)
             ->get()
@@ -2607,6 +2609,8 @@ class ReportController extends Controller
                 'Entry Date',
                 'Partner Name',
                 'Business / Store Name',
+                'Nature of Business',
+                'Business Type',
                 'Awarded Area #',
                 'Awarded Area',
                 'Package Amount (PHP)',
@@ -2621,14 +2625,17 @@ class ReportController extends Controller
                 'Project Affiliation',
                 'Assignment Status',
                 'Disengagement Date',
+                'Location Source',
             ]);
 
             foreach ($awards as $award) {
-                fputcsv($handle, [
+                $row = [
                     $award->partner_code,
                     $award->partner_started_display === '—' ? '' : $award->partner_started_display,
                     $award->partner_name,
                     $award->business_name === '—' ? '' : $award->business_name,
+                    $award->nature_of_business === '—' ? '' : $award->nature_of_business,
+                    $award->business_type === '—' ? '' : $award->business_type,
                     $award->award_reference,
                     $award->area_name,
                     $award->package_amount !== null ? number_format((float) $award->package_amount, 2, '.', '') : '',
@@ -2643,157 +2650,150 @@ class ReportController extends Controller
                     $award->project_type === '—' ? '' : $award->project_type,
                     $award->disengagement_date ? 'Disengaged' : 'Active',
                     $award->disengagement_date_display ?: '',
-                ]);
+                    $award->location_source,
+                ];
+                fputcsv($handle, array_map(function ($value) {
+                    return is_string($value) && preg_match('/^[\s]*[=+@-]/u', $value) ? "'" . $value : $value;
+                }, $row));
             }
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
+    private function validateAdAwardedAreasFilters(Request $request)
+    {
+        $request->validate([
+            'search' => 'nullable|string|max:255',
+            'project_type' => 'nullable|string|max:100',
+            'assignment_status' => 'nullable|in:all,active,disengaged',
+            'package_amount' => 'nullable|numeric|min:0|max:9999999999.99',
+            'per_page' => 'nullable|integer|in:10,25,50,100',
+            'page' => 'nullable|integer|min:1',
+        ]);
+    }
+
+    private function awardedAreaNameKey($column)
+    {
+        // Legacy area tables may use different character sets and collations.
+        return DB::connection()->getDriverName() === 'mysql'
+            ? "LOWER(TRIM(CONVERT({$column} USING utf8mb4))) COLLATE utf8mb4_unicode_ci"
+            : "LOWER(TRIM({$column}))";
+    }
+
     private function adAwardedAreasQuery($search, $projectType, $assignmentStatus, $packageAmount = null)
     {
-        $projectTagSource = $this->adAwardedAreasProjectTagSource();
         $schema = Schema::getConnection()->getSchemaBuilder();
-        $hasCoverageColumns = $schema->hasTable('area_geographic_coverages')
-            && $schema->hasColumn('area_geographic_coverages', 'area_id')
-            && $schema->hasColumn('area_geographic_coverages', 'barangay')
-            && $schema->hasColumn('area_geographic_coverages', 'city_municipality')
-            && $schema->hasColumn('area_geographic_coverages', 'province')
-            && $schema->hasColumn('area_geographic_coverages', 'region');
-        $coverageSummary = $hasCoverageColumns
-            ? DB::table('area_geographic_coverages')
-                ->select(
-                    'area_id',
-                    DB::raw("GROUP_CONCAT(DISTINCT NULLIF(TRIM(barangay), '') ORDER BY barangay SEPARATOR ' • ') as barangay"),
-                    DB::raw("GROUP_CONCAT(DISTINCT NULLIF(TRIM(city_municipality), '') ORDER BY city_municipality SEPARATOR ' • ') as city"),
-                    DB::raw("GROUP_CONCAT(DISTINCT NULLIF(TRIM(province), '') ORDER BY province SEPARATOR ' • ') as province"),
-                    DB::raw("GROUP_CONCAT(DISTINCT NULLIF(TRIM(region), '') ORDER BY region SEPARATOR ' • ') as region")
-                )
-                ->groupBy('area_id')
-            : null;
-
-        $coverageValue = function ($column, $legacyAreaColumn, $distributorColumn) use ($coverageSummary, $schema) {
-            $sources = [];
-
-            if ($coverageSummary) {
-                $sources[] = "NULLIF(TRIM(area_coverage.{$column}), '')";
+        $projectTagSource = $this->adAwardedAreasProjectTagSource();
+        $areaKey = $this->awardedAreaNameKey('areas.name');
+        $awardKey = $this->awardedAreaNameKey('ad_areas.area_name');
+        $hasDeletedAreas = $schema->hasColumn('areas', 'deleted_at');
+        $areaId = $hasDeletedAreas ? 'COALESCE(MAX(CASE WHEN deleted_at IS NULL THEN id END), MAX(id))' : 'MAX(id)';
+        // Resolve a name once, so duplicate catalog entries cannot multiply assignments.
+        $areaNames = DB::table('areas')->selectRaw("{$areaKey} as area_key, {$areaId} as area_id")->groupBy('area_key');
+        $coverageSummary = null;
+        if ($schema->hasTable('area_geographic_coverages')) {
+            $coverageKey = $this->awardedAreaNameKey('coverage_area.name');
+            $coverageSummary = DB::table('area_geographic_coverages as coverage')
+                ->join('areas as coverage_area', 'coverage_area.id', '=', 'coverage.area_id')
+                ->selectRaw("{$coverageKey} as area_key, COUNT(*) as coverage_count")
+                ->groupBy('area_key');
+            if ($hasDeletedAreas) $coverageSummary->whereNull('coverage_area.deleted_at');
+            foreach (['barangay' => 'barangay', 'city' => 'city_municipality', 'province' => 'province', 'region' => 'region'] as $alias => $column) {
+                $value = "NULLIF(TRIM(coverage.{$column}), '')";
+                $aggregate = DB::connection()->getDriverName() === 'mysql'
+                    ? "GROUP_CONCAT(DISTINCT {$value} ORDER BY {$value} SEPARATOR ' • ')"
+                    : "GROUP_CONCAT(DISTINCT {$value})";
+                $coverageSummary->selectRaw("{$aggregate} as {$alias}");
             }
+        }
+        $locationColumns = ['barangay' => ['barangay', 'location_barangay'], 'city' => ['city_municipality', 'location_city'],
+            'province' => ['province', 'location_province'], 'region' => ['region', 'location_region']];
+        $areaLocations = []; $profileLocations = [];
+        foreach ($locationColumns as $alias => $columns) {
+            $areaLocations[$alias] = $schema->hasColumn('areas', $columns[0]) ? "NULLIF(TRIM(awarded_area.{$columns[0]}), '')" : 'NULL';
+            $profileLocations[$alias] = $schema->hasColumn('area_distributors', $columns[1]) ? "NULLIF(TRIM(awarded_ad.{$columns[1]}), '')" : 'NULL';
+        }
+        $hasAreaLocation = 'COALESCE(' . implode(', ', $areaLocations) . ') IS NOT NULL';
+        $hasProfileLocation = 'COALESCE(' . implode(', ', $profileLocations) . ') IS NOT NULL';
+        $locations = [];
+        foreach ($locationColumns as $alias => $columns) {
+            // Use one geographic source for the whole location, never a mixture of two addresses.
+            $locations[$alias] = 'CASE '
+                . ($coverageSummary ? "WHEN area_coverage.coverage_count > 0 THEN COALESCE(area_coverage.{$alias}, '') " : '')
+                . "WHEN {$hasAreaLocation} THEN COALESCE({$areaLocations[$alias]}, '') "
+                . "ELSE COALESCE({$profileLocations[$alias]}, '') END";
+        }
+        $locationSource = 'CASE '
+            . ($coverageSummary ? "WHEN area_coverage.coverage_count > 0 THEN 'Area coverage' " : '')
+            . "WHEN {$hasAreaLocation} THEN 'Area record' WHEN {$hasProfileLocation} THEN 'Distributor address' ELSE 'Not recorded' END";
+        $businessName = $schema->hasColumn('ad_areas', 'business_name')
+            ? "COALESCE(NULLIF(TRIM(ad_areas.business_name), ''), awarded_ad.business_name)" : 'awarded_ad.business_name';
+        $natureOfBusiness = $schema->hasColumn('area_distributors', 'nature_of_business') ? 'awarded_ad.nature_of_business' : 'NULL';
+        $profileBusinessType = $schema->hasColumn('area_distributors', 'business_type') ? 'awarded_ad.business_type' : 'NULL';
+        $businessType = $schema->hasColumn('ad_areas', 'business_type')
+            ? "COALESCE(NULLIF(TRIM(ad_areas.business_type), ''), {$profileBusinessType})" : $profileBusinessType;
+        $sequence = '(SELECT COUNT(*) FROM ad_areas AS award_sequence WHERE award_sequence.ad_id = ad_areas.ad_id AND award_sequence.id <= ad_areas.id)';
+        $activeCount = '(SELECT COUNT(DISTINCT ' . $this->awardedAreaNameKey('active_award.area_name') . ") FROM ad_areas AS active_award WHERE active_award.ad_id = ad_areas.ad_id AND active_award.deleted_at IS NULL AND TRIM(active_award.area_name) <> '')";
 
-            if ($schema->hasColumn('areas', $legacyAreaColumn)) {
-                $sources[] = "NULLIF(TRIM(awarded_area.{$legacyAreaColumn}), '')";
-            }
-
-            if ($schema->hasColumn('area_distributors', $distributorColumn)) {
-                $sources[] = "NULLIF(TRIM(awarded_ad.{$distributorColumn}), '')";
-            }
-
-            $sources[] = "''";
-
-            return 'COALESCE(' . implode(', ', $sources) . ')';
-        };
-
-        return AreaAd::withTrashed()
+        $query = AreaAd::withTrashed()
             ->join('area_distributors as awarded_ad', 'awarded_ad.id', '=', 'ad_areas.ad_id')
-            ->leftJoin('users as awarded_user', 'awarded_user.id', '=', 'awarded_ad.user_id')
-            ->leftJoin('areas as awarded_area', function ($join) {
-                $join->on(
-                    DB::raw('LOWER(TRIM(awarded_area.name))'),
-                    '=',
-                    DB::raw('LOWER(TRIM(ad_areas.area_name))')
-                );
-            })
+            ->join('users as awarded_user', 'awarded_user.id', '=', 'awarded_ad.user_id')
+            ->whereRaw('LOWER(TRIM(awarded_user.role)) = ?', ['area distributor'])
+            ->whereRaw("TRIM(ad_areas.area_name) <> ''")
+            ->leftJoinSub($areaNames, 'area_names', function ($join) use ($awardKey) { $join->on('area_names.area_key', '=', DB::raw($awardKey)); })
+            ->leftJoin('areas as awarded_area', 'awarded_area.id', '=', 'area_names.area_id')
             ->when($coverageSummary, function ($builder) use ($coverageSummary) {
-                $builder->leftJoinSub($coverageSummary, 'area_coverage', function ($join) {
-                    $join->on('area_coverage.area_id', '=', 'awarded_area.id');
-                });
+                $builder->leftJoinSub($coverageSummary, 'area_coverage', function ($join) { $join->on('area_coverage.area_key', '=', 'area_names.area_key'); });
             })
             ->select([
-                'ad_areas.id',
-                'ad_areas.area_name',
-                DB::raw($projectTagSource . ' as project_tags'),
-                'ad_areas.package_amount',
-                'ad_areas.joining_date as awarded_date',
-                'ad_areas.deleted_at as disengagement_date',
-                'awarded_ad.store_code',
-                'awarded_ad.ad_reference',
-                'awarded_ad.name as partner_name',
-                'awarded_ad.business_name',
-                'awarded_ad.delivery_address',
-                'awarded_ad.contact_number',
+                'ad_areas.id', 'ad_areas.area_name', 'ad_areas.package_amount',
+                'ad_areas.joining_date as awarded_date', 'ad_areas.deleted_at as disengagement_date',
+                'awarded_ad.id as partner_id', 'awarded_ad.store_code', 'awarded_ad.ad_reference', 'awarded_ad.name as partner_name',
+                'awarded_ad.delivery_address', 'awarded_ad.contact_number',
                 'awarded_user.created_at as partner_started_at',
-                DB::raw($coverageValue('barangay', 'barangay', 'location_barangay') . ' as barangay'),
-                DB::raw($coverageValue('city', 'city_municipality', 'location_city') . ' as city'),
-                DB::raw($coverageValue('province', 'province', 'location_province') . ' as province'),
-                DB::raw($coverageValue('region', 'region', 'location_region') . ' as region'),
-                DB::raw('(SELECT COUNT(*) FROM ad_areas AS awarded_area_sequence WHERE awarded_area_sequence.ad_id = ad_areas.ad_id AND awarded_area_sequence.id <= ad_areas.id) as award_sequence'),
-            ])
-            ->when($assignmentStatus === 'active', function ($builder) {
-                $builder->whereNull('ad_areas.deleted_at');
-            })
-            ->when($assignmentStatus === 'disengaged', function ($builder) {
-                $builder->whereNotNull('ad_areas.deleted_at');
-            })
-            ->when($projectType !== '', function ($builder) use ($projectType, $projectTagSource) {
-                // Tags can be a JSON array or a legacy comma-separated list.
-                $builder->whereRaw(
-                    "CASE WHEN JSON_VALID({$projectTagSource}) THEN JSON_CONTAINS({$projectTagSource}, ?) " .
-                    "ELSE FIND_IN_SET(REPLACE(?, ' ', ''), REPLACE({$projectTagSource}, ' ', '')) END",
-                    [json_encode($projectType), $projectType]
-                );
-            })
-            ->when($packageAmount !== null && $packageAmount !== '', function ($builder) use ($packageAmount) {
-                $builder->where('ad_areas.package_amount', $packageAmount);
-            })
-            ->when($search !== '', function ($builder) use ($search, $coverageSummary, $schema, $projectTagSource) {
-                $builder->where(function ($searchQuery) use ($search, $coverageSummary, $schema, $projectTagSource) {
-                    $like = '%' . $search . '%';
-                    $searchQuery->where('awarded_ad.store_code', 'like', $like)
-                        ->orWhere('awarded_ad.ad_reference', 'like', $like)
-                        ->orWhere('awarded_ad.name', 'like', $like)
-                        ->orWhere('awarded_ad.business_name', 'like', $like)
-                        ->orWhere('ad_areas.area_name', 'like', $like)
-                        ->orWhereRaw($projectTagSource . ' LIKE ?', [$like]);
-
-                    foreach ([
-                        'barangay',
-                        'city_municipality',
-                        'province',
-                        'region',
-                    ] as $areaLocationColumn) {
-                        if ($schema->hasColumn('areas', $areaLocationColumn)) {
-                            $searchQuery->orWhere('awarded_area.' . $areaLocationColumn, 'like', $like);
-                        }
-                    }
-
-                    foreach ([
-                        'location_barangay',
-                        'location_city',
-                        'location_province',
-                        'location_region',
-                    ] as $distributorLocationColumn) {
-                        if ($schema->hasColumn('area_distributors', $distributorLocationColumn)) {
-                            $searchQuery->orWhere('awarded_ad.' . $distributorLocationColumn, 'like', $like);
-                        }
-                    }
-
-                    if ($coverageSummary) {
-                        $searchQuery->orWhere('area_coverage.barangay', 'like', $like)
-                            ->orWhere('area_coverage.city', 'like', $like)
-                            ->orWhere('area_coverage.province', 'like', $like)
-                            ->orWhere('area_coverage.region', 'like', $like);
-                    }
-                });
-            })
-            ->orderBy('awarded_ad.store_code')
-            ->orderBy('awarded_ad.ad_reference')
-            ->orderBy('ad_areas.id');
+                DB::raw($businessName . ' as business_name'),
+                DB::raw($natureOfBusiness . ' as nature_of_business'),
+                DB::raw($businessType . ' as business_type'),
+                DB::raw($projectTagSource . ' as project_tags'),
+                DB::raw($sequence . ' as award_sequence'), DB::raw($activeCount . ' as active_award_count'),
+                DB::raw($locationSource . ' as location_source'),
+            ]);
+        foreach ($locations as $alias => $expression) $query->selectRaw($expression . ' as ' . $alias);
+        if ($assignmentStatus === 'active') $query->whereNull('ad_areas.deleted_at');
+        if ($assignmentStatus === 'disengaged') $query->whereNotNull('ad_areas.deleted_at');
+        if ($projectType !== '') {
+            // Parse JSON arrays, JSON strings and legacy comma-separated tags consistently.
+            $matchingUsers = DB::table('users as awarded_user')->whereRaw('LOWER(TRIM(awarded_user.role)) = ?', ['area distributor'])
+                ->select('awarded_user.id')->selectRaw($projectTagSource . ' as project_tags')->get()
+                ->filter(function ($user) use ($projectType) { return in_array($projectType, $this->adAwardedAreasProjectTags($user->project_tags), true); })->pluck('id');
+            $query->whereIn('awarded_user.id', $matchingUsers);
+        }
+        if ($packageAmount !== null && $packageAmount !== '') $query->where('ad_areas.package_amount', $packageAmount);
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search, $locations, $businessName, $projectTagSource) {
+                $like = '%' . $search . '%';
+                $builder->where('awarded_ad.store_code', 'like', $like)->orWhere('awarded_ad.ad_reference', 'like', $like)
+                    ->orWhere('awarded_ad.name', 'like', $like)->orWhere('ad_areas.area_name', 'like', $like)
+                    ->orWhereRaw($businessName . ' LIKE ?', [$like])->orWhereRaw($projectTagSource . ' LIKE ?', [$like]);
+                foreach ($locations as $expression) $builder->orWhereRaw('(' . $expression . ') LIKE ?', [$like]);
+            });
+        }
+        return $query->orderBy('awarded_ad.store_code')->orderBy('awarded_ad.ad_reference')->orderBy('awarded_ad.id')->orderBy('ad_areas.id');
     }
 
     private function adAwardedAreasProjectTagSource()
     {
-        // The AD edit form writes users.type. An explicit [] must remain untagged,
-        // even when the older project_tag column still contains a previous value.
-        return "COALESCE(NULLIF(TRIM(awarded_user.type), ''), NULLIF(TRIM(awarded_user.project_tag), ''), '')";
+        // An explicit [] clears affiliation, even if project_tag has an older value.
+        $columns = [];
+        foreach (['type', 'project_tag'] as $column) {
+            if (!Schema::hasColumn('users', $column)) continue;
+            $expression = DB::connection()->getDriverName() === 'mysql'
+                ? "CONVERT(awarded_user.{$column} USING utf8mb4) COLLATE utf8mb4_unicode_ci" : "awarded_user.{$column}";
+            $columns[] = "NULLIF(TRIM({$expression}), '')";
+        }
+        $columns[] = "''";
+        return count($columns) > 1 ? 'COALESCE(' . implode(', ', $columns) . ')' : "''";
     }
 
     private function adAwardedAreasProjectTags($value)
@@ -2812,7 +2812,7 @@ class ReportController extends Controller
 
     private function formatAdAwardedArea($award)
     {
-        $partnerCode = trim((string) ($award->store_code ?: $award->ad_reference ?: 'AD-' . $award->id));
+        $partnerCode = trim((string) ($award->store_code ?: $award->ad_reference ?: 'AD-' . $award->partner_id));
         $award->partner_code = $partnerCode;
         $award->award_reference = $partnerCode . '-' . (int) $award->award_sequence;
         $award->barangay = trim((string) $award->barangay) ?: '—';
@@ -2826,42 +2826,40 @@ class ReportController extends Controller
             : '—';
         $award->partner_name = trim((string) $award->partner_name) ?: 'Unnamed Partner';
         $award->business_name = trim((string) $award->business_name) ?: '—';
+        $award->nature_of_business = trim((string) $award->nature_of_business) ?: '—';
+        $award->business_type = trim((string) $award->business_type) ?: '—';
         $award->delivery_address = trim((string) $award->delivery_address) ?: '—';
         $award->contact_number = trim((string) $award->contact_number) ?: '—';
-        $award->awarded_date_display = $award->awarded_date
-            ? Carbon::parse($award->awarded_date)->format('M d, Y')
-            : '—';
-        $award->partner_started_display = $award->partner_started_at
-            ? Carbon::parse($award->partner_started_at)->format('M d, Y')
-            : '—';
-        $award->disengagement_date_display = $award->disengagement_date
-            ? Carbon::parse($award->disengagement_date)->format('M d, Y')
-            : null;
+        $award->awarded_date_display = $this->adAwardedAreaDate($award->awarded_date) ?: '—';
+        $award->partner_started_display = $this->adAwardedAreaDate($award->partner_started_at) ?: '—';
+        $award->disengagement_date_display = $this->adAwardedAreaDate($award->disengagement_date);
 
         return $award;
     }
 
+    private function adAwardedAreaDate($date)
+    {
+        if (!$date || strpos((string) $date, '0000-00-00') === 0) return null;
+        try {
+            return Carbon::parse($date)->format('M d, Y');
+        } catch (\Throwable $exception) {
+            return null;
+        }
+    }
+
     private function philippineAreaForRegion($region)
     {
-        $region = strtolower(trim((string) $region));
-
-        if ($region === '') {
-            return '—';
+        $groups = [
+            'Luzon' => ['ncr', 'national capital region', 'car', 'cordillera administrative region', 'mimaropa', 'calabarzon', 'i', 'ii', 'iii', 'iv', 'iv-a', 'iv-b', 'iva', 'ivb', 'v', '1', '2', '3', '4', '5'],
+            'Visayas' => ['vi', 'vii', 'viii', '6', '7', '8'],
+            'Mindanao' => ['ix', 'x', 'xi', 'xii', 'xiii', 'barmm', 'armm', 'caraga', '9', '10', '11', '12', '13'],
+        ];
+        $matches = [];
+        foreach ($groups as $name => $tokens) {
+            $pattern = '/(?<![a-z0-9])(?:' . implode('|', array_map(function ($token) { return preg_quote($token, '/'); }, $tokens)) . ')(?![a-z0-9])/i';
+            if (preg_match($pattern, (string) $region)) $matches[] = $name;
         }
-
-        if (preg_match('/(^|[^a-z])(ncr|car|i\b|ii\b|iii\b|iv|v\b|1\b|2\b|3\b|4\b|5\b)/', $region)) {
-            return 'Luzon';
-        }
-
-        if (preg_match('/(^|[^a-z])(vi\b|vii\b|viii\b|6\b|7\b|8\b)/', $region)) {
-            return 'Visayas';
-        }
-
-        if (preg_match('/(^|[^a-z])(ix\b|x\b|xi\b|xii\b|xiii\b|barmm|9\b|10\b|11\b|12\b|13\b)/', $region)) {
-            return 'Mindanao';
-        }
-
-        return '—';
+        return $matches ? implode(' • ', $matches) : '—';
     }
 
     public function inventoryStockLevelReport(Request $request)

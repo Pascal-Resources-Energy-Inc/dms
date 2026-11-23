@@ -74,7 +74,7 @@ class ItemController extends Controller
 
     private function validatedData(Request $request, Item $item = null)
     {
-        $data = $request->validate([
+        $rules = [
             'item' => 'required|string|max:255',
             'item_description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
@@ -89,7 +89,24 @@ class ItemController extends Controller
             'stove_kit_color_availability' => 'nullable|array',
             'stove_kit_color_availability.*' => 'nullable|boolean',
             'item_image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:2048',
-        ]);
+        ];
+        $messages = [];
+        foreach (Item::PRICE_TIERS as $field => $label) {
+            $visminField = 'vismin_' . $field;
+            $rules[$visminField] = ['nullable', 'numeric', 'min:0', 'max:9999999999.99', 'regex:/^\d+(\.\d{1,2})?$/'];
+            $messages[$visminField . '.numeric'] = 'Enter a valid VisMin ' . $label . ' price.';
+            $messages[$visminField . '.min'] = 'VisMin ' . $label . ' price cannot be negative.';
+            $messages[$visminField . '.max'] = 'VisMin ' . $label . ' price must not exceed PHP 9,999,999,999.99.';
+            $messages[$visminField . '.regex'] = 'Enter a VisMin ' . $label . ' price with no more than two decimal places.';
+        }
+        $data = $request->validate($rules, $messages);
+
+        foreach (Item::PRICE_TIERS as $field => $label) {
+            $visminField = 'vismin_' . $field;
+            if (array_key_exists($visminField, $data) && $data[$visminField] === '') {
+                $data[$visminField] = null;
+            }
+        }
 
         $data['dealer_points'] = $data['dealer_points'] ?? 0;
         $data['customer_points'] = $data['customer_points'] ?? 0;

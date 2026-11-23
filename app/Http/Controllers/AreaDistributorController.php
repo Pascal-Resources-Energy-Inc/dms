@@ -16,6 +16,7 @@ use App\Services\DistributorProjectAreas;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AreaDistributorController extends Controller
 {
@@ -306,14 +307,19 @@ class AreaDistributorController extends Controller
 
         $request->validate([
             'delivery_address' => 'nullable|string|max:1000',
+            'nature_of_business' => ['required', 'string', Rule::in(config('distributors.natures_of_business'))],
             'has_service_vehicle' => 'required|boolean',
             'business_years_operation' => 'required|integer|min:0|max:200',
             'contract_attachments' => 'nullable|array|max:10',
             'contract_attachments.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
             // 'tin' => 'nullable|string|max:50',
             // 'store_picture' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+        ], [
+            'nature_of_business.required' => 'Please select the nature of business.',
+            'nature_of_business.in' => 'Please choose a nature of business from the available options.',
         ]);
 
+        $areaOfferSheetPaths = [];
         DB::beginTransaction();
 
         try {
@@ -423,6 +429,7 @@ class AreaDistributorController extends Controller
                 'zipcode' => $request->zipcode,
                 'business_name' => $request->business_name,
                 'business_type' => $request->business_type,
+                'nature_of_business' => $request->input('nature_of_business'),
                 'has_service_vehicle' => (bool) $request->input('has_service_vehicle'),
                 'business_years_operation' => (int) $request->input('business_years_operation'),
                 'contract_attachments' => $contractAttachments,
@@ -437,19 +444,27 @@ class AreaDistributorController extends Controller
             ]);
 
             if ($projectAreaChanges !== null) {
-                app(DistributorProjectAreas::class)->sync($ad, $projectAreaChanges);
+                app(DistributorProjectAreas::class)->sync($ad, $projectAreaChanges, $areaOfferSheetPaths);
             }
 
             DB::commit();
+            if ($request->expectsJson()) {
+                session()->flash('success', 'Distributor updated successfully.');
+                return response()->json(['success' => true]);
+            }
 
             return back()->with(
                 'success',
                 'Partner updated successfully.'
             );
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
 
             DB::rollBack();
+            app(DistributorProjectAreas::class)->discardUploads($areaOfferSheetPaths);
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Unable to save the distributor. Please try again.'], 500);
+            }
 
             return back()->with(
                 'error',
@@ -887,100 +902,20 @@ class AreaDistributorController extends Controller
 
     public function updateAreas(Request $request, $id)
     {
-        $ad = AreaDistributor::findOrFail($id);
-
-        $request->validate([
-            'rows' => 'nullable|array',
-            'rows.*.id' => 'nullable|integer',
-            'rows.*.area_name' => 'nullable|string|max:255',
-            'rows.*.joining_date' => 'nullable|date',
-            'rows.*.package_amount' => 'nullable|numeric|min:0|max:9999999999.99',
-        ]);
-
-        $rows = collect($request->input('rows', []))->map(function ($row) {
-            return [
-                'id' => isset($row['id']) ? trim($row['id']) : null,
-                'area_name' => isset($row['area_name']) ? trim($row['area_name']) : null,
-                'joining_date' => isset($row['joining_date']) ? trim($row['joining_date']) : null,
-                'package_amount' => isset($row['package_amount']) && $row['package_amount'] !== ''
-                    ? (float) $row['package_amount']
-                    : null,
-            ];
-        })->filter(function ($row) {
-            return !empty($row['area_name']);
-        });
-
-        $normalizedAreaNames = $rows->pluck('area_name')->map(function ($areaName) {
-            return strtolower(trim((string) $areaName));
-        });
-        $hasDuplicateAreas = $normalizedAreaNames->count() !== $normalizedAreaNames->unique()->count();
-
-        if ($hasDuplicateAreas) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Each awarded area can be selected only once.',
-            ], 422);
-        }
-
+        $profile = AreaDistributor::findOrFail($id);
+        $changes = app(\App\Services\ManageDistributorAreas::class)->validate($request, $profile);
+        $service = app(DistributorProjectAreas::class);
+        $uploadedPaths = [];
         DB::beginTransaction();
-
         try {
-            $submittedIds = [];
-
-            foreach ($rows as $row) {
-                if (!empty($row['id'])) {
-                    $area = AreaAd::where('ad_id', $ad->id)
-                        ->where('id', $row['id'])
-                        ->first();
-
-                    if ($area) {
-                        $area->update([
-                            'area_name' => $row['area_name'],
-                            'joining_date' => $row['joining_date'] ?: null,
-                            'package_amount' => $row['package_amount'],
-                        ]);
-
-                        $submittedIds[] = $area->id;
-                    }
-
-                    continue;
-                }
-
-                $new = AreaAd::create([
-                    'ad_id' => $ad->id,
-                    'ad_user_id' => $ad->user_id,
-                    'project_type' => null,
-                    'area_name' => $row['area_name'],
-                    'joining_date' => $row['joining_date'] ?: null,
-                    'package_amount' => $row['package_amount'],
-                    'user_role' => 'Area Distributor',
-                ]);
-
-                $submittedIds[] = $new->id;
-            }
-
-            if (count($submittedIds) > 0) {
-                AreaAd::where('ad_id', $ad->id)
-                    ->whereNotIn('id', $submittedIds)
-                    ->delete();
-            } else {
-                AreaAd::where('ad_id', $ad->id)->delete();
-            }
-
+            $service->sync($profile, $changes, $uploadedPaths);
             DB::commit();
-
-            return response()->json([
-                'status' => true,
-                'message' => 'Areas updated successfully!'
-            ]);
-
-        } catch (\Exception $e) {
+            return response()->json(['status' => true, 'message' => 'Areas updated successfully.']);
+        } catch (\Throwable $exception) {
             DB::rollBack();
-
-            return response()->json([
-                'status' => false,
-                'message' => $e->getMessage()
-            ], 500);
+            $service->discardUploads($uploadedPaths);
+            report($exception);
+            return response()->json(['status' => false, 'message' => 'Unable to save the awarded areas. Please try again.'], 500);
         }
     }
 
