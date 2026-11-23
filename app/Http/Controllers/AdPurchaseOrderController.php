@@ -366,6 +366,17 @@ class AdPurchaseOrderController extends Controller
             ->values();
 
         $products = Item::where('status', 'Activate')->orderBy('item')->get();
+        $prefillProductId = null;
+
+        if (request('prefill_product') === 'refurbished-store-signage') {
+            $prefillProduct = $products->first(function ($product) {
+                $productName = trim((string) ($product->item ?: $product->product_name));
+
+                return strcasecmp($productName, 'Mktg Collateral - AD Store Signage (Refurbished)') === 0;
+            });
+            $prefillProductId = optional($prefillProduct)->id;
+        }
+
         $favoriteProductIds = DB::table('adpo_product_favorites')
             ->where('user_id', $user->id)
             ->pluck('item_id')
@@ -382,7 +393,23 @@ class AdPurchaseOrderController extends Controller
             $user->province
         );
 
-        return view('ad_purchase_orders.create', compact('ad', 'products', 'favoriteProductIds', 'userVouchers', 'showPickupLubao', 'isAdmin', 'provincialDistributors', 'selectedOrderSource', 'selectedProvincialDistributorId', 'orderForUser', 'isProvincialDistributor', 'territoryOptions', 'requiresTaxSignature', 'taxProfile'));
+        return view('ad_purchase_orders.create', compact(
+            'ad', 
+            'products', 
+            'prefillProductId', 
+            'favoriteProductIds', 
+            'userVouchers', 
+            'showPickupLubao', 
+            'isAdmin', 
+            'provincialDistributors', 
+            'selectedOrderSource', 
+            'selectedProvincialDistributorId', 
+            'orderForUser', 
+            'isProvincialDistributor', 
+            'territoryOptions',
+            'requiresTaxSignature',
+            'taxProfile'
+        ));
     }
 
     public function toggleFavoriteProduct(Request $request, Item $item)
