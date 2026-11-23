@@ -999,11 +999,26 @@
         const areaSelect = $('#area_name');
         const businessName = $('#business_name');
         const businessType = $('#business_type');
+        const distributorBusinessTypes = @json(\App\Services\DistributorProjectAreas::BUSINESS_TYPES);
+        const otherBusinessTypes = businessType.find('option[value!=""]').map(function () { return this.value; }).get();
+        let businessTypeGroup = 'other';
+
+        function updateBusinessTypeOptions(role) {
+            const group = ['Provincial Distributor', 'Area Distributor'].includes(role) ? 'distributor' : 'other';
+            if (group === businessTypeGroup) return;
+            const values = group === 'distributor' ? distributorBusinessTypes : otherBusinessTypes;
+            const selected = businessType.val();
+            businessType.empty().append(new Option('Select Business Type', ''));
+            values.forEach(value => businessType.append(new Option(value, value)));
+            businessType.val(values.includes(selected) ? selected : '').trigger('change');
+            businessTypeGroup = group;
+        }
         const partnerCode = $('#store_code');
         const attachment = $('#attachment');
 
         const dynamicAreaWrapper = $('#dynamic-area-wrapper');
         const projectRows = $('#projectRows');
+        let awardedAreaRowId = 0;
         const areaRoles = ['Provincial Distributor', 'Area Distributor', 'Mega Dealer'];
 
         function canHaveAwardedAreas(role) {
@@ -1022,7 +1037,7 @@
 
         function clearProjectAreas() {
             projectRows.find('select').prop('required', false).val(null).trigger('change');
-            projectRows.find('input[name="joining_date[]"]').prop('required', false).val('');
+            projectRows.find('[data-area-field="joining_date"]').prop('required', false).val('');
             projectRows.html('');
             dynamicAreaWrapper.hide();
         }
@@ -1032,7 +1047,7 @@
 
             $rows.each(function () {
                 $(this).find('.project-area').show();
-                $(this).find('select[name="area_name[]"]').prop('required', true);
+                $(this).find('select.area_name').prop('required', true);
             });
         }
 
@@ -1064,8 +1079,7 @@
                         placeholder: $areaSelect.data('placeholder') || 'Search awarded areas...',
                         allowClear: true,
                         minimumResultsForSearch: 0,
-                        theme: 'bootstrap-5',
-                        dropdownCssClass: $areaSelect.data('dropdown-css-class') || ''
+                        theme: 'bootstrap-5'
                     });
 
                     if (selectedValue) {
@@ -1074,6 +1088,7 @@
 
                     $areaSelect.off('select2:open.awardedAreaSearch').on('select2:open.awardedAreaSearch', function () {
                         setTimeout(function () {
+                            $('.select2-container--open .select2-dropdown').addClass('awarded-area-search-dropdown');
                             $('.select2-container--open .select2-search__field')
                                 .attr('placeholder', 'Search awarded areas...')
                                 .trigger('focus');
@@ -1086,13 +1101,15 @@
 
         function updateAwardedAreaOptions(role) {
             const showAllAreas = role === 'Provincial Distributor';
+            const selected = projectRows.find('select.area_name').map(function () { return this.value; }).get().filter(Boolean);
 
-            projectRows.find('select[name="area_name[]"]').each(function () {
+            projectRows.find('select.area_name').each(function () {
                 const $select = $(this);
                 const selectedValue = $select.val();
 
-                $select.find('option[data-available-for-area-distributor="false"]').each(function () {
-                    const isAvailable = showAllAreas;
+                $select.find('option[value!=""]').each(function () {
+                    const isAvailable = (showAllAreas || $(this).data('available-for-area-distributor') !== false)
+                        && (this.value === selectedValue || !selected.includes(this.value));
                     $(this).prop('disabled', !isAvailable).prop('hidden', !isAvailable);
                 });
 
@@ -1109,7 +1126,9 @@
             const clone = template.content.cloneNode(true);
 
             const $row = $(clone).children('.project-row');
+            $row.attr('data-area-row-key', awardedAreaRowId++);
             projectRows.append($row);
+            refreshAreaDetails();
 
             updateAwardedAreaOptions(roleFilter.val());
             initializeAwardedAreaSearch($row);
@@ -1118,6 +1137,74 @@
         }
 
         let projectRowIsBeingAdded = false;
+
+        function syncAreaBusinessName($row) {
+            const $name = $row.find('[data-area-field="area_business_name"]');
+            const same = $row.find('[data-area-field="area_same_business_name"]').prop('checked');
+            $name.prop('readonly', same);
+            if (same) $name.val(businessName.val());
+        }
+
+        function syncAreaBusinessType($row) {
+            const isDistributor = ['Provincial Distributor', 'Area Distributor'].includes(roleFilter.val());
+            const same = $row.find('[data-area-field="area_same_business_type"]').prop('checked');
+            const $type = $row.find('[data-area-field="area_business_type"]');
+            $type.prop('disabled', !isDistributor || same);
+            if (same) $type.val(businessType.val() || '');
+        }
+
+        function refreshAreaDetails() {
+            const isDistributor = ['Provincial Distributor', 'Area Distributor'].includes(roleFilter.val());
+            const $rows = projectRows.find('.project-row');
+            $('#awardedAreaHelp').text(isDistributor
+                ? 'Add the business details and supporting offer sheet for each area.'
+                : 'Select the awarded areas and joining dates for this user.');
+            $('#awardedAreaCount').text($rows.length);
+            $rows.each(function (index) {
+                const $row = $(this);
+                $row.find('.area-row-number').text(index + 1);
+                $row.find('.remove-row').prop('disabled', $rows.length === 1);
+                $row.find('[data-area-field]').each(function () {
+                    const field = $(this).data('area-field');
+                    const id = 'new_user_' + field + '_' + $row.attr('data-area-row-key');
+                    $(this).attr({ name: field + '[' + index + ']', id: id });
+                    $row.find('[data-label-for="' + field + '"]').attr('for', id);
+                });
+                $row.find('.area-distributor-detail').toggle(isDistributor).find('input, select').prop('disabled', !isDistributor);
+                $row.find('[data-area-field="area_business_name"]').prop('required', isDistributor);
+                syncAreaBusinessName($row);
+                syncAreaBusinessType($row);
+            });
+        }
+
+        projectRows.on('change', 'select.area_name', function () { updateAwardedAreaOptions(roleFilter.val()); });
+        projectRows.on('change', '[data-area-field="area_same_business_name"]', function () {
+            const $row = $(this).closest('.project-row');
+            const $name = $row.find('[data-area-field="area_business_name"]');
+            if (this.checked) $name.data('custom-business-name', $name.val());
+            else $name.val($name.data('custom-business-name') || '');
+            syncAreaBusinessName($row);
+            if (!this.checked) $name.trigger('focus');
+        });
+        businessName.on('input change', function () {
+            projectRows.find('.project-row').each(function () { syncAreaBusinessName($(this)); });
+        });
+        projectRows.on('change', '[data-area-field="area_same_business_type"]', function () {
+            const $row = $(this).closest('.project-row');
+            const $type = $row.find('[data-area-field="area_business_type"]');
+            if (this.checked) $type.data('custom-business-type', $type.val());
+            else $type.val($type.data('custom-business-type') || '');
+            syncAreaBusinessType($row);
+            if (!this.checked) $type.trigger('focus');
+        });
+        businessType.on('change', function () {
+            projectRows.find('.project-row').each(function () { syncAreaBusinessType($(this)); });
+        });
+        projectRows.on('change', '[data-area-field="area_offer_sheet"]', function () {
+            this.setCustomValidity(this.files[0] && this.files[0].size > 10 * 1024 * 1024
+                ? 'The offer sheet must be no larger than 10 MB.' : '');
+            this.reportValidity();
+        });
 
         $('#addProjectRow').on('click', function (event) {
             event.preventDefault();
@@ -1134,12 +1221,13 @@
             });
         });
 
-        $(document).on('click', '.remove-row', function () {
-            if ($('.project-row').length > 1) {
-                $(this).closest('.project-row').remove();
-            } else {
-                alert('At least one row is required.');
-            }
+        projectRows.on('click', '.remove-row', function () {
+            if (projectRows.find('.project-row').length <= 1) return;
+            const $row = $(this).closest('.project-row');
+            $row.find('.select2-hidden-accessible').select2('destroy');
+            $row.remove();
+            refreshAreaDetails();
+            updateAwardedAreaOptions(roleFilter.val());
         });
 
         function refreshProjectVisibility() {
@@ -1148,24 +1236,30 @@
             const canShowAreas = canHaveAwardedAreas(role);
             const hasProjectTag = hasSelectedProjectTag();
 
-            if (!canShowAreas || !hasProjectTag) {
+            const isDistributor = ['Provincial Distributor', 'Area Distributor'].includes(role);
+            if (!canShowAreas || (!isDistributor && !hasProjectTag)) {
                 clearProjectAreas();
                 return;
             }
 
             dynamicAreaWrapper.show();
 
-            if ($('.project-row').length === 0) {
+            if (projectRows.find('.project-row').length === 0) {
                 addProjectRow();
             }
 
-            projectRows.find('input[name="joining_date[]"]').prop('required', true);
+            projectRows.find('[data-area-field="joining_date"]').prop('required', true);
+            refreshAreaDetails();
             toggleProjectAreas();
         }
 
         function toggleBusinessFields() {
 
             const selectedRole = roleFilter.val();
+            updateBusinessTypeOptions(selectedRole);
+            const hasNatureOfBusiness = ['Provincial Distributor', 'Area Distributor'].includes(selectedRole);
+            $('.distributor-nature-field').toggle(hasNatureOfBusiness);
+            $('#nature_of_business').prop('disabled', !hasNatureOfBusiness).prop('required', hasNatureOfBusiness).trigger('change.select2');
 
             if (!selectedRole) {
                 businessFields.hide();

@@ -630,7 +630,7 @@ class AdPurchaseOrderController extends Controller
                     continue;
                 }
 
-                $unitPrice = $product->distributorPurchaseOrderPrice();
+                $unitPrice = $product->distributorPurchaseOrderPrice($user);
                 $lineTotal = $unitPrice * $qty;
                 $subtotal += $lineTotal;
                 $totalQty += $qty;
@@ -928,7 +928,7 @@ class AdPurchaseOrderController extends Controller
                     continue;
                 }
 
-                $unitPrice = $product->distributorPurchaseOrderPrice();
+                $unitPrice = $product->distributorPurchaseOrderPrice($user);
                 $lineTotal = $unitPrice * $quantity;
                 $lockedOrder->items()->create([
                     'product_id' => $product->id,

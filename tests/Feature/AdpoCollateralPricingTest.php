@@ -24,13 +24,15 @@ class AdpoCollateralPricingTest extends TestCase
             'database.default' => 'adpo_pricing_test',
             'database.connections.adpo_pricing_test' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']]);
         Mail::fake();
-        DB::statement('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, role TEXT, email TEXT, withholding_tax INTEGER DEFAULT 0)');
+        DB::statement('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, role TEXT, email TEXT, region TEXT, warehouse TEXT, withholding_tax INTEGER DEFAULT 0)');
         DB::statement('CREATE TABLE area_distributors (id INTEGER PRIMARY KEY, user_id INTEGER, name TEXT,
             business_name TEXT, address TEXT, delivery_address TEXT, location_region TEXT, withholding_tax INTEGER DEFAULT 0, deleted_at TEXT)');
-        DB::statement('CREATE TABLE provincial_distributors (id INTEGER PRIMARY KEY, user_id INTEGER, withholding_tax INTEGER DEFAULT 0, deleted_at TEXT)');
+        DB::statement('CREATE TABLE provincial_distributors (id INTEGER PRIMARY KEY, user_id INTEGER, location_region TEXT, withholding_tax INTEGER DEFAULT 0, deleted_at TEXT)');
+        DB::statement('CREATE TABLE provincial_distributor_areas (id INTEGER PRIMARY KEY, provincial_distributor_id INTEGER, area_name TEXT, deleted_at TEXT)');
         DB::statement('CREATE TABLE ad_areas (id INTEGER PRIMARY KEY, ad_id INTEGER, area_name TEXT, deleted_at TEXT)');
         DB::statement('CREATE TABLE items (id INTEGER PRIMARY KEY, item TEXT, item_description TEXT, item_image TEXT,
-            item_type TEXT, status TEXT, price NUMERIC, dprice NUMERIC, for_ad INTEGER,
+            item_type TEXT, status TEXT, price NUMERIC, dprice NUMERIC, vismin_price NUMERIC,
+            vismin_dealer_price NUMERIC, vismin_md_price NUMERIC, vismin_dprice NUMERIC, for_ad INTEGER,
             created_at TEXT, updated_at TEXT, deleted_at TEXT)');
         DB::statement('CREATE TABLE ad_purchase_orders (id INTEGER PRIMARY KEY, po_number TEXT, ad_id INTEGER,
             ad_user_id INTEGER, order_source TEXT, provincial_distributor_id INTEGER, business_name TEXT,
@@ -173,5 +175,117 @@ class AdpoCollateralPricingTest extends TestCase
         $edit = $this->controller->edit($order->id)->render();
         $this->assertContains('data-price="175.5"', $edit);
         $this->assertContains('PHP 175.50 each', $edit);
+    }
+
+    private function setBuyerRegion($role, $region)
+    {
+        DB::table('users')->where('id', 1)->update(['role' => $role]);
+        if ($role === User::ROLE_PROVINCIAL_DISTRIBUTOR) {
+            DB::table('area_distributors')->delete();
+            DB::table('provincial_distributors')->insert(['id' => 1, 'user_id' => 1, 'location_region' => $region]);
+        } else {
+            DB::table('area_distributors')->where('id', 1)->update(['location_region' => $region]);
+        }
+        $this->actingAs(User::findOrFail(1));
+    }
+
+    public function test_vismin_price_is_used_for_color_and_size_quantities()
+    {
+        $this->setBuyerRegion(User::ROLE_AREA_DISTRIBUTOR, 'Region X (Northern Mindanao)');
+        $uniform = $this->product(['item' => 'Gaz Lite Authorized Retail Partner Uniform', 'vismin_price' => 199.25]);
+        $kit = $this->product(['item' => 'Gaz Lite Stove Kit', 'item_type' => 'bundle', 'for_ad' => 0, 'vismin_dprice' => 450]);
+        $order = $this->store([
+            $uniform->id => ['selected' => 1, 'qty' => 0, 'sizes' => ['small' => 2, 'large' => 3]],
+            $kit->id => ['selected' => 1, 'qty' => 0, 'colors' => ['white' => 2, 'green' => 1]],
+        ]);
+        $this->assertEquals([5, 3], $order->items->pluck('qty')->all());
+        $this->assertEquals([199.25, 450], $order->items->pluck('unit_price')->all());
+        $this->assertEquals(2346.25, $order->subtotal);
+    }
+
+    public function regionalBuyers()
+    {
+        return [
+            ['Area Distributor', 'Region VII (Central Visayas)', true],
+            ['Provincial Distributor', 'Region VII (Central Visayas)', true],
+            ['Area Distributor', 'Region XIII (Caraga)', true],
+            ['Provincial Distributor', 'Region XIII (Caraga)', true],
+            ['Area Distributor', 'Region III (Central Luzon)', false],
+            ['Provincial Distributor', 'Region III (Central Luzon)', false],
+        ];
+    }
+
+    /** @dataProvider regionalBuyers */
+    public function test_regional_submission_uses_saved_prices_and_ignores_submitted_prices_and_region($role, $region, $vismin)
+    {
+        $this->setBuyerRegion($role, $region);
+        $regular = $this->product(['for_ad' => 0, 'dprice' => 300.25, 'vismin_price' => 400, 'vismin_dealer_price' => 350, 'vismin_md_price' => 340, 'vismin_dprice' => 320.50]);
+        $collateral = $this->product(['vismin_price' => 199.25, 'vismin_dprice' => 150]);
+        $unset = $this->product(['for_ad' => 0, 'dprice' => 44, 'vismin_price' => 99, 'vismin_dprice' => null]);
+        $unsetCollateral = $this->product(['vismin_price' => null, 'vismin_dprice' => 25]);
+        $free = $this->product(['for_ad' => 0, 'dprice' => 999, 'vismin_price' => 999, 'vismin_dprice' => 0]);
+        $order = $this->store([
+            $regular->id => ['selected' => 1, 'qty' => 3, 'unit_price' => 1, 'vismin_price' => 1, 'vismin_dprice' => 1],
+            $collateral->id => ['selected' => 1, 'qty' => 2, 'unit_price' => 1],
+            $unset->id => ['selected' => 1, 'qty' => 4],
+            $unsetCollateral->id => ['selected' => 1, 'qty' => 1],
+            $free->id => ['selected' => 1, 'qty' => 2],
+        ], ['region' => $vismin ? 'Region III' : 'Region VII', 'location_region' => $vismin ? 'Region III' : 'Region VII',
+            'use_vismin_price' => !$vismin, 'subtotal' => 1, 'total_amount' => 1]);
+        $expected = $vismin ? [320.5, 199.25, 44, 175.5, 0] : [300.25, 175.5, 44, 175.5, 999];
+        $this->assertEquals($expected, $order->items->pluck('unit_price')->all());
+        $total = $expected[0]*3 + $expected[1]*2 + $expected[2]*4 + $expected[3] + $expected[4]*2;
+        $this->assertEquals($total, $order->subtotal);
+        $this->assertEquals($total, $order->total_amount);
+        $this->assertEquals(12, $order->total_qty);
+        Mail::assertNothingSent();
+    }
+
+    /** @dataProvider distributorRoles */
+    public function test_vismin_previews_and_added_products_match_saved_prices_while_existing_lines_keep_their_price($role)
+    {
+        $this->setBuyerRegion($role, 'Region XI (Davao Region)');
+        $this->viewRoot = storage_path('framework/testing/adpo-vismin-'.uniqid());
+        File::makeDirectory($this->viewRoot.'/layouts', 0755, true);
+        File::put($this->viewRoot.'/layouts/header.blade.php', '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/design/assets/css/styles.css">@yield("css")</head><body style="padding:20px;background:#e8f0f5">@yield("content")<script src="/design/assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>@yield("javascript")</body></html>');
+        app('view')->getFinder()->prependLocation($this->viewRoot);
+        app('events')->forget('composing: layouts.header');
+        app('view')->share('errors', new \Illuminate\Support\ViewErrorBag);
+        $regular = $this->product(['item' => 'Regular product', 'for_ad' => 0, 'dprice' => 60, 'vismin_price' => 110, 'vismin_dprice' => 72.35]);
+        $collateral = $this->product(['item' => 'Marketing poster', 'vismin_price' => 199.25]);
+        $html = view('ad_purchase_orders.create', [
+            'ad' => auth()->user()->ad, 'products' => collect([$regular, $collateral]), 'favoriteProductIds' => [],
+            'userVouchers' => collect(), 'showPickupLubao' => true, 'isAdmin' => false, 'provincialDistributors' => collect(),
+            'selectedOrderSource' => 'prei_warehouse', 'selectedProvincialDistributorId' => null,
+            'orderForUser' => auth()->user(), 'isProvincialDistributor' => $role === User::ROLE_PROVINCIAL_DISTRIBUTOR,
+            'territoryOptions' => collect(), 'requiresTaxSignature' => false, 'taxProfile' => null,
+        ])->render();
+        $this->assertContains('data-price="72.35"', $html);
+        $this->assertContains('data-price="199.25"', $html);
+        $this->assertContains('PHP 72.35', $html);
+        $this->assertSame(2, substr_count($html, '>VisMin Price</span>'));
+        $order = $this->store([$regular->id => ['selected' => 1, 'qty' => 2]]);
+        $regular->update(['vismin_dprice' => 999]);
+        $edit = $this->controller->edit($order->id)->render();
+        $this->assertContains('data-price="72.35"', $edit);
+        $this->assertContains('PHP 199.25 each', $edit);
+        $this->assertContains('VisMin price', $edit);
+        $this->controller->update(new Request([
+            'shipping_type' => 'delivered', 'payment_method' => 'cash',
+            'items' => [$order->items->first()->id => ['qty' => 3, 'unit_price' => 1]],
+            'new_products' => [$collateral->id => ['qty' => 2, 'unit_price' => 1]],
+        ]), $order->id);
+        $order = $order->fresh('items');
+        $this->assertEquals([72.35, 199.25], $order->items->pluck('unit_price')->all());
+        $this->assertEquals(615.55, $order->subtotal);
+        $this->assertEquals(615.55, $order->total_amount);
+        if (getenv('ADPO_VISMIN_UI') === '1') {
+            $folder = storage_path('app/qa-adpo-vismin');
+            if (!File::isDirectory($folder)) File::makeDirectory($folder, 0755, true);
+            $prefix = $role === User::ROLE_PROVINCIAL_DISTRIBUTOR ? 'pd' : 'ad';
+            File::put($folder.'/'.$prefix.'-create.html', $html);
+            File::put($folder.'/'.$prefix.'-edit.html', $edit);
+        }
+        Mail::assertNothingSent();
     }
 }

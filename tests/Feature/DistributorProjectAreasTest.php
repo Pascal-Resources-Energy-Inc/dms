@@ -27,7 +27,7 @@ class DistributorProjectAreasTest extends TestCase
         foreach (['area_distributors', 'provincial_distributors'] as $tableName) {
             Schema::create($tableName, function (Blueprint $table) {
                 $table->increments('id'); $table->unsignedInteger('user_id');
-                $table->string('name')->nullable(); $table->string('contract_attachments')->nullable();
+                $table->string('name')->nullable(); $table->string('contract_attachments')->nullable(); $table->string('business_name')->nullable();
                 $table->timestamps(); $table->softDeletes();
             });
         }
@@ -37,6 +37,7 @@ class DistributorProjectAreasTest extends TestCase
                 $table->unsignedInteger('user_id')->nullable(); $table->unsignedInteger('ad_user_id')->nullable();
                 $table->string('area_name'); $table->string('project_type')->nullable(); $table->string('user_role')->nullable();
                 $table->date('joining_date')->nullable(); $table->decimal('package_amount', 12, 2)->nullable();
+                foreach (['business_name', 'business_type', 'offer_sheet_path', 'offer_sheet_name'] as $column) $table->string($column)->nullable();
                 $table->timestamps(); $table->softDeletes();
             });
         }
@@ -194,7 +195,9 @@ class DistributorProjectAreasTest extends TestCase
     public function test_edit_form_loads_all_active_areas_with_their_selections($class)
     {
         $profile = $this->profile($class);
-        $this->award($profile, 'Area A');
+        $profile->business_type = 'Corporation';
+        $profile->nature_of_business = 'LPG TRADING';
+        $this->award($profile, 'Area A')->update(['business_type' => 'Corporation']);
         $this->award($profile, 'Area B', 'Regular')->update(['package_amount' => 0]);
         $this->award($profile, 'Area C', 'Project Rise')->update(['package_amount' => null]);
         $user = new User; $user->type = '["Regular"]';
@@ -205,7 +208,12 @@ class DistributorProjectAreasTest extends TestCase
             'updateRoute' => $profile instanceof ProvincialDistributor ? 'pds.update' : 'edit-ads',
         ])->render();
         $dom = new \DOMDocument; @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        foreach (iterator_to_array($dom->getElementsByTagName('template')) as $template) $template->parentNode->removeChild($template);
         $xpath = new \DOMXPath($dom);
+        $this->assertSame('Corporation', $xpath->query('//select[@name="business_type"]/option[@selected]')->item(0)->getAttribute('value'));
+        $this->assertSame('LPG TRADING', $xpath->query('//select[@name="nature_of_business"]/option[@selected]')->item(0)->getAttribute('value'));
+        $this->assertSame(1, $xpath->query('//input[contains(@class,"ad-row-same-business-type") and @checked]')->length);
+        $this->assertSame(1, $xpath->query('//select[contains(@class,"ad-row-business-type") and @disabled]')->length);
         $this->assertSame(3, $xpath->query('//*[@data-project-row]')->length);
         $this->assertSame(1, $xpath->query('//input[contains(@class,"ad-row-project-value") and @value="Regular"]')->length);
         $this->assertSame(1, $xpath->query('//input[contains(@class,"ad-row-project-value") and @value="Project Rise"]')->length);
@@ -231,12 +239,34 @@ class DistributorProjectAreasTest extends TestCase
         app('request')->setLaravelSession(app('session.store'));
         session()->flashInput([
             'distributor_form' => $class.':'.$profile->id,
-            'rows' => [['id' => $award->id, 'area_name' => 'Area A', 'package_amount' => '4321.09']],
+            'nature_of_business' => 'HARDWARE & CONSTRUCTION SUPPLY',
+            'rows' => [['id' => $award->id, 'area_name' => 'Area A', 'package_amount' => '4321.09', 'business_name' => 'Restored Area Business', 'business_type' => 'Nonprofit', 'same_business_name' => '0']],
         ]);
         $html = view('area_distributor.edit', ['ad' => $profile, 'areas' => collect(), 'centers' => collect(), 'errors' => new ViewErrorBag])->render();
         $dom = new \DOMDocument; @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
         $amount = (new \DOMXPath($dom))->query('//input[contains(@class,"ad-row-package-amount")]')->item(0);
         $this->assertSame('4321.09', $amount->getAttribute('value'));
+        $xpath = new \DOMXPath($dom);
+        $this->assertSame('Restored Area Business', $xpath->query('//input[contains(@class,"ad-row-business-name")]')->item(0)->getAttribute('value'));
+        $this->assertSame('HARDWARE & CONSTRUCTION SUPPLY', $xpath->query('//select[@name="nature_of_business"]/option[@selected]')->item(0)->getAttribute('value'));
+        $this->assertSame('Nonprofit', $xpath->query('//select[contains(@class,"ad-row-business-type")]/option[@selected]')->item(0)->getAttribute('value'));
         $this->assertSame('1234.50', $award->fresh()->package_amount);
+    }
+
+    /** @dataProvider distributorTypes */
+    public function test_edit_form_restores_checked_business_type_after_validation_error($class)
+    {
+        $profile = $this->profile($class); $award = $this->award($profile, 'Area A');
+        $profile->setRelation('userAds', new User)->load('areas', 'trashedAreas');
+        app('request')->setLaravelSession(app('session.store'));
+        session()->flashInput([
+            'distributor_form' => $class.':'.$profile->id, 'business_type' => 'Partnership',
+            'rows' => [['id' => $award->id, 'area_name' => 'Area A', 'same_business_type' => '1']],
+        ]);
+        $html = view('area_distributor.edit', ['ad' => $profile, 'areas' => collect(), 'centers' => collect(), 'errors' => new ViewErrorBag])->render();
+        $dom = new \DOMDocument; @$dom->loadHTML('<?xml encoding="UTF-8">'.$html); $xpath = new \DOMXPath($dom);
+        $this->assertSame('Partnership', $xpath->query('//select[contains(@class,"ad-row-business-type")]/option[@selected]')->item(0)->getAttribute('value'));
+        $this->assertTrue($xpath->query('//input[contains(@class,"ad-row-same-business-type")]')->item(0)->hasAttribute('checked'));
+        $this->assertTrue($xpath->query('//select[contains(@class,"ad-row-business-type")]')->item(0)->hasAttribute('disabled'));
     }
 }

@@ -19,6 +19,10 @@ class AreaAd extends Model implements Auditable
         'area_name',
         'joining_date',
         'package_amount',
+        'business_name',
+        'business_type',
+        'offer_sheet_path',
+        'offer_sheet_name',
         'user_role',
     ];
     protected $casts = [

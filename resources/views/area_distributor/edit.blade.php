@@ -1,5 +1,5 @@
 <div id="edit_area_distributor-{{ $ad->id }}" class="modal fade modal-select2 ad-edit-modal" tabindex="-1" aria-labelledby="editAreaDistributorTitle-{{ $ad->id }}" aria-hidden="true" style="display: none;">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header d-flex align-items-center">
                 <div class="ad-modal-heading">
@@ -26,7 +26,7 @@
                                 ? (array) old('type', [])
                                 : \App\Services\DistributorProjectAreas::projectTags($profileUser);
                             $projectAreaRows = $restoreProjectAreas
-                                ? collect(old('rows', []))->filter(function ($row) { return is_array($row); })->map(function ($row) { return (object) array_merge(['id' => null, 'project_type' => null, 'area_name' => '', 'joining_date' => null, 'package_amount' => null], $row); })->values()
+                                ? collect(old('rows', []))->filter(function ($row) { return is_array($row); })->map(function ($row) { return (object) array_merge(['id' => null, 'project_type' => null, 'area_name' => '', 'joining_date' => null, 'package_amount' => null, 'business_name' => null, 'business_type' => null], $row); })->values()
                                 : $ad->areas->values();
                             $profileNameParts = preg_split('/\s+/', trim((string) $ad->name), 3);
                             $profileFirstName = optional($profileUser)->first_name ?: ($profileNameParts[0] ?? '');
@@ -60,10 +60,10 @@
                             @foreach((array) old('removed_area_ids', []) as $removedAreaId)
                                 <input type="hidden" name="removed_area_ids[]" value="{{ $removedAreaId }}">
                             @endforeach
-                            @if($errors->any())
-                                <div class="col-12"><div class="alert alert-danger" role="alert"><strong>Please review the following:</strong><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div></div>
-                            @endif
                         @endif
+                        <div class="col-12 ad-edit-errors" role="alert" tabindex="-1" @if(!$restoreProjectAreas || !$errors->any()) hidden @endif>
+                            <div class="alert alert-danger"><strong>Please review the following:</strong><ul class="mb-0">@if($restoreProjectAreas) @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach @endif</ul></div>
+                        </div>
 
                         <div class="col-md-6 mb-3">
                             <div class="ad-section-card h-100">
@@ -239,19 +239,27 @@
                         </div>
                         <div class="col-md-6 mb-2">
                             <label class="form-label" for="business_name_{{ $ad->id }}">Business Name&nbsp;<span class="text-danger">*</span></label>
-                            <input type="text" class="form-control required" id="business_name_{{ $ad->id }}" name="business_name" placeholder="Enter Business Name" data-uppercase value="{{ $ad->business_name }}" required/>
+                            <input type="text" class="form-control required" id="business_name_{{ $ad->id }}" name="business_name" placeholder="Enter Business Name" data-uppercase value="{{ $restoreProjectAreas ? old('business_name', $ad->business_name) : $ad->business_name }}" required/>
                         </div>
                         <div class="col-md-6 mb-2">
                             <label class="form-label" for="business_type_{{ $ad->id }}">Business Type&nbsp;<span class="text-danger">*</span></label>
                             {{-- <input type="text" class="form-control required" id="business_type" name="business_type" placeholder="Enter Business Type" value="{{ $ad->business_type }}" required/> --}}
                             <select id="business_type_{{ $ad->id }}" name="business_type" class="form-select" data-placeholder="Select Business Type" required>
                                 <option value="">Select Business Type</option>
-                                <option value="Sari Sari Store" @if($ad->business_type == 'Sari Sari Store') selected @endif>Sari Sari Store</option>
-                                <option value="Mini Mart" @if($ad->business_type == 'Mini Mart') selected @endif>Mini Mart</option>
-                                <option value="Retail Shop" @if($ad->business_type == 'Retail Shop') selected @endif>Retail Shop</option>
-                                <option value="Wholesale" @if($ad->business_type == 'Wholesale') selected @endif>Wholesale</option>
-                                <option value="Grocery" @if($ad->business_type == 'Grocery') selected @endif>Grocery</option>
+                                @foreach(array_merge(\App\Services\DistributorProjectAreas::BUSINESS_TYPES, ['Sari Sari Store', 'Mini Mart', 'Retail Shop', 'Wholesale', 'Grocery']) as $profileBusinessType)
+                                    <option value="{{ $profileBusinessType }}" {{ ($restoreProjectAreas ? old('business_type', $ad->business_type) : $ad->business_type) === $profileBusinessType ? 'selected' : '' }}>{{ $profileBusinessType }}</option>
+                                @endforeach
                             </select>
+                        </div>
+                        <div class="col-12 mb-3 ad-nature-field">
+                            <label class="form-label" for="nature_of_business_{{ $ad->id }}">Nature of Business <span class="text-danger">*</span></label>
+                            <select id="nature_of_business_{{ $ad->id }}" name="nature_of_business" class="form-select select2" data-placeholder="Search or select nature of business" aria-describedby="natureOfBusinessHelp_{{ $ad->id }}" required>
+                                <option value="">Search or select nature of business</option>
+                                @foreach(config('distributors.natures_of_business', []) as $nature)
+                                    <option value="{{ $nature }}" {{ ($restoreProjectAreas ? old('nature_of_business', $ad->nature_of_business) : $ad->nature_of_business) === $nature ? 'selected' : '' }}>{{ $nature }}</option>
+                                @endforeach
+                            </select>
+                            <small id="natureOfBusinessHelp_{{ $ad->id }}" class="form-text text-muted">Select the main activity of this business.</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label" for="tin_{{ $ad->id }}">TIN</label>
@@ -366,62 +374,26 @@
                                         <i class="ti ti-map-pin"></i>
                                         <div>
                                             <span>Awarded Areas Per Project</span>
-                                            <small>Review awarded areas, package amounts, and joining dates. Project affiliation follows the partner tags above.</small>
+                                            <small>Manage the business details, package amount, and offer sheet for each area.</small>
                                         </div>
                                     </div>
                                     <button type="button"
                                             class="btn btn-sm btn-primary ad-add-project-row"
                                             data-ad-id="{{ $ad->id }}">
-                                        <i class="ti ti-plus"></i> Add Row
+                                        <i class="ti ti-plus"></i> Add area
                                     </button>
                                 </div>
                                 <div id="projectRows-{{ $ad->id }}" class="ad-project-rows">
                                     @foreach($projectAreaRows as $areaIndex => $area)
-                                        <div class="ad-project-row" data-project-row>
-                                            <input type="hidden" class="ad-row-id" name="rows[{{ $areaIndex }}][id]" value="{{ $area->id }}">
-                                            <input type="hidden" class="ad-row-project-value" name="rows[{{ $areaIndex }}][project_type]" value="{{ $area->project_type }}">
-                                            <div class="row align-items-end">
-                                                {{-- <div class="col-md-3 mb-2">
-                                                    <label class="form-label">Project Type</label>
-                                                    <select class="form-select ad-row-project-type" name="rows[{{ $areaIndex }}][project_type]">
-                                                        <option value="">No project assigned</option>
-                                                        @foreach(collect($selectedTypes)->push($area->project_type)->filter()->unique() as $rowProject)
-                                                            <option value="{{ $rowProject }}" {{ $area->project_type === $rowProject ? 'selected' : '' }}>{{ $rowProject }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                </div> --}}
-                                                <div class="col-md-5 mb-2">
-                                                    <label class="form-label">Awarded Area <span class="text-danger">*</span></label>
-                                                    <select class="form-select ad-row-area-name" name="rows[{{ $areaIndex }}][area_name]" required>
-                                                        <option value="">Select Area</option>
-                                                        @foreach($awardedAreaOptions as $areaOption)
-                                                            <option value="{{ $areaOption }}" {{ trim((string) $area->area_name) === $areaOption ? 'selected' : '' }}>{{ $areaOption }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    @if($awardedAreaOptions->isEmpty())
-                                                        <small class="text-danger d-block mt-1">No awarded area options found.</small>
-                                                    @endif
-                                                </div>
-                                                <div class="col-md-3 mb-2">
-                                                    <label class="form-label" for="ad_area_amount_{{ $ad->id }}_{{ $areaIndex }}">Package Amount</label>
-                                                    <div class="input-group">
-                                                        <span class="input-group-text">₱</span>
-                                                        <input type="number" class="form-control ad-row-package-amount" id="ad_area_amount_{{ $ad->id }}_{{ $areaIndex }}" name="rows[{{ $areaIndex }}][package_amount]" value="{{ $restoreProjectAreas ? $area->package_amount : ($area->package_amount !== null ? number_format((float) $area->package_amount, 2, '.', '') : '') }}" min="0" max="9999999999.99" step="0.01" inputmode="decimal" placeholder="Not set">
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-3 mb-2">
-                                                    <label class="form-label">Joining Date</label>
-                                                    <input type="date" class="form-control" name="rows[{{ $areaIndex }}][joining_date]" value="{{ $restoreProjectAreas ? $area->joining_date : ($area->joining_date ? \Carbon\Carbon::parse($area->joining_date)->format('Y-m-d') : '') }}">
-                                                </div>
-                                                <div class="col-md-1 mb-2">
-                                                    <button type="button" class="btn btn-outline-danger ad-remove-project-row" title="Remove area">
-                                                        <i class="ti ti-trash"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        @include('area_distributor.partials.awarded-area-row')
                                     @endforeach
                                 </div>
+                                <template id="ad-area-row-template-{{ $ad->id }}">
+                                    @include('area_distributor.partials.awarded-area-row', [
+                                        'areaIndex' => '__INDEX__', 'restoreProjectAreas' => false,
+                                        'area' => (object) ['id' => null, 'project_type' => null, 'area_name' => '', 'joining_date' => null, 'package_amount' => null, 'business_name' => null, 'business_type' => null],
+                                    ])
+                                </template>
                                 <div id="projectRowsEmpty-{{ $ad->id }}" class="ad-project-empty">
                                     <i class="ti ti-map-pin-off"></i>
                                     <span>No awarded area rows yet.</span>
@@ -581,6 +553,37 @@
 </div>
 
 <style>
+    .ad-edit-modal .ad-nature-field { min-width: 0; }
+    .ad-edit-modal .ad-nature-field .select2-container { width: 100% !important; max-width: 100%; }
+    .ad-edit-modal .ad-nature-field .select2-selection--single { position: relative; min-height: 44px; height: auto !important; border: 1px solid #cbd5e1; border-radius: 7px; }
+    .ad-edit-modal .ad-nature-field .select2-selection__rendered { height: auto !important; white-space: normal; overflow-wrap: anywhere; line-height: 1.5 !important; padding: 10px 58px 10px 12px; }
+    .ad-edit-modal .ad-nature-field .select2-selection__arrow { top: 50% !important; right: 8px !important; width: 20px !important; height: 26px !important; transform: translateY(-50%); }
+    .ad-edit-modal .ad-nature-field .select2-selection__clear { position: absolute; top: 50%; right: 32px; transform: translateY(-50%); line-height: 1; }
+    #edit_area_distributor-{{ $ad->id }} .modal-content { max-height: 100%; }
+    #edit_area_distributor-{{ $ad->id }} form { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+    #edit_area_distributor-{{ $ad->id }} .modal-body { overflow-y: auto; overscroll-behavior: contain; }
+    #edit_area_distributor-{{ $ad->id }} .modal-header, #edit_area_distributor-{{ $ad->id }} .modal-footer { flex-shrink: 0; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-heading small { display: block; font-size: 12px; color: #607389; margin-top: 4px; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-heading .ad-remove-project-row { width: auto; padding: 7px 10px; gap: 6px; font-size: 12px; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 18px 16px; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-fields > div { min-width: 0; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-business-type { grid-column: 2 / -1; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-offer { grid-column: 1 / -1; padding-top: 16px; border-top: 1px solid #e1e8f0; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-fields .form-control, #edit_area_distributor-{{ $ad->id }} .ad-area-fields .form-select { min-height: 42px; max-width: 100%; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-fields input[readonly], #edit_area_distributor-{{ $ad->id }} .ad-area-fields select:disabled { background-color: #f3f7fb; color: #566b80; opacity: 1; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-fields small { display: block; font-size: 12px; color: #607389; margin-top: 8px; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-same-name { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #42607c; margin-top: 9px; cursor: pointer; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-same-name input { width: 17px; height: 17px; accent-color: #1263ad; flex-shrink: 0; }
+    #edit_area_distributor-{{ $ad->id }} .ad-area-current-file { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; overflow-wrap: anywhere; font-size: 13px; }
+    @media (max-width: 767.98px) {
+        #edit_area_distributor-{{ $ad->id }} .ad-area-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        #edit_area_distributor-{{ $ad->id }} .ad-area-selection, #edit_area_distributor-{{ $ad->id }} .ad-area-business, #edit_area_distributor-{{ $ad->id }} .ad-area-business-type { grid-column: 1 / -1; }
+    }
+    @media (max-width: 399.98px) {
+        #edit_area_distributor-{{ $ad->id }} .ad-area-fields { grid-template-columns: minmax(0, 1fr); }
+        #edit_area_distributor-{{ $ad->id }} .ad-area-fields > div { grid-column: 1; }
+    }
     .location-map {
         height: 400px;
         width: 100%;
@@ -1017,7 +1020,6 @@
         const BASE_URL = 'https://psgc.cloud/api';
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
-        const areaOptions = @json($awardedAreaOptions);
         const saved = {
             region: @json($ad->location_region ?? ''),
             province: @json($ad->location_province ?? ''),
@@ -1117,15 +1119,6 @@
             select.disabled = disabled;
         }
 
-        function escapeHtml(value) {
-            return String(value === null || typeof value === 'undefined' ? '' : value)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
         function syncProjectAreaVisibility() {
             const wrapper = document.getElementById(`dynamic-area-wrapper-${adId}`);
             const empty = document.getElementById(`projectRowsEmpty-${adId}`);
@@ -1145,6 +1138,61 @@
 
             initializeDynamicSelects(wrapper);
         }
+
+        const mainBusinessName = modal.querySelector('[name="business_name"]');
+        const mainBusinessType = modal.querySelector('[name="business_type"]');
+        const areaBusinessTypes = @json(\App\Services\DistributorProjectAreas::BUSINESS_TYPES);
+        function syncAreaBusinessType(row) {
+            const checkbox = row.querySelector('.ad-row-same-business-type');
+            const select = row.querySelector('.ad-row-business-type');
+            if (!checkbox || !select || !mainBusinessType) return;
+            const validType = areaBusinessTypes.includes(mainBusinessType.value);
+            select.disabled = checkbox.checked;
+            if (checkbox.checked) select.value = validType ? mainBusinessType.value : '';
+            checkbox.setCustomValidity(checkbox.checked && !validType
+                ? 'Select a main business type from the six available types above, or uncheck this box to choose a type for this area.' : '');
+        }
+        if (mainBusinessType) {
+            mainBusinessType.addEventListener('change', () => {
+                modal.querySelectorAll('[data-project-row]').forEach(syncAreaBusinessType);
+            });
+        }
+        function syncAreaBusinessName(row) {
+            const checkbox = row.querySelector('.ad-row-same-business');
+            const input = row.querySelector('.ad-row-business-name');
+            if (!checkbox || !input) return;
+            input.readOnly = checkbox.checked;
+            if (checkbox.checked) input.value = mainBusinessName.value;
+        }
+        if (mainBusinessName) {
+            mainBusinessName.addEventListener('input', () => {
+                modal.querySelectorAll('[data-project-row]').forEach(syncAreaBusinessName);
+            });
+        }
+        modal.addEventListener('change', event => {
+            if (event.target.matches('.ad-row-same-business-type')) {
+                const row = event.target.closest('[data-project-row]');
+                const select = row.querySelector('.ad-row-business-type');
+                if (event.target.checked) select.dataset.customBusinessType = select.value;
+                else select.value = select.dataset.customBusinessType || '';
+                syncAreaBusinessType(row);
+                if (!event.target.checked) select.focus();
+                else event.target.reportValidity();
+            }
+            if (event.target.matches('.ad-row-same-business')) {
+                const row = event.target.closest('[data-project-row]');
+                const input = row.querySelector('.ad-row-business-name');
+                if (event.target.checked) input.dataset.customBusinessName = input.value;
+                else input.value = input.dataset.customBusinessName || '';
+                syncAreaBusinessName(row);
+                if (!event.target.checked) input.focus();
+            }
+            if (event.target.matches('.ad-row-offer-sheet')) {
+                const input = event.target;
+                input.setCustomValidity(input.files[0] && input.files[0].size > 10 * 1024 * 1024 ? 'The offer sheet must be no larger than 10 MB.' : '');
+                input.reportValidity();
+            }
+        });
 
         function initializeDynamicSelects(scope) {
             if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
@@ -1169,42 +1217,17 @@
             if (!container) return;
 
             const index = areaRowIndex++;
-            const areaOptionsHtml = areaOptions
-                .map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
-                .join('');
-
-            const template = document.createElement('div');
-            template.className = 'ad-project-row';
-            template.dataset.projectRow = 'true';
-            template.innerHTML = `
-                <input type="hidden" class="ad-row-id" name="rows[${index}][id]" value="">
-                <input type="hidden" class="ad-row-project-value" name="rows[${index}][project_type]" value="">
-                <div class="row align-items-end">
-                    <div class="col-md-5 mb-2">
-                        <label class="form-label">Awarded Area <span class="text-danger">*</span></label>
-                        <select class="form-select ad-row-area-name" name="rows[${index}][area_name]" required>
-                            <option value="">Select Area</option>
-                            ${areaOptionsHtml}
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <label class="form-label" for="ad_area_amount_${adId}_${index}">Package Amount</label>
-                        <div class="input-group">
-                            <span class="input-group-text">₱</span>
-                            <input type="number" class="form-control ad-row-package-amount" id="ad_area_amount_${adId}_${index}" name="rows[${index}][package_amount]" min="0" max="9999999999.99" step="0.01" inputmode="decimal" placeholder="Not set">
-                        </div>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <label class="form-label">Joining Date</label>
-                        <input type="date" class="form-control" name="rows[${index}][joining_date]">
-                    </div>
-                    <div class="col-md-1 mb-2">
-                        <button type="button" class="btn btn-outline-danger ad-remove-project-row" title="Remove area">
-                            <i class="ti ti-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
+            const source = document.getElementById(`ad-area-row-template-${adId}`);
+            const template = source.content.firstElementChild.cloneNode(true);
+            template.querySelectorAll('[name], [id], [for]').forEach(element => {
+                ['name', 'id', 'for'].forEach(attribute => {
+                    if (element.hasAttribute(attribute)) element.setAttribute(attribute, element.getAttribute(attribute).replace(/__INDEX__/g, index));
+                });
+            });
+            syncAreaBusinessName(template);
+            // The template was rendered with the saved profile; use the currently selected main type.
+            template.querySelector('.ad-row-same-business-type').checked = areaBusinessTypes.includes(mainBusinessType.value);
+            syncAreaBusinessType(template);
 
             container.appendChild(template);
             initializeDynamicSelects(template);
@@ -1613,6 +1636,7 @@
         });
 
         syncProjectAreaVisibility();
+        modal.querySelectorAll('[data-project-row]').forEach(syncAreaBusinessType);
 
         @if($restoreProjectAreas && $errors->any())
         window.addEventListener('load', function () {
@@ -1625,10 +1649,45 @@
         const form = modal.querySelector('form');
 
         if (form) {
-            form.addEventListener('submit', function () {
+            let saving = false;
+            form.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                if (saving) return;
                 syncProjectAreaVisibility();
                 updateFullAddress();
                 syncDeliveryAddress();
+                modal.querySelectorAll('[data-project-row]').forEach(syncAreaBusinessName);
+                modal.querySelectorAll('[data-project-row]').forEach(syncAreaBusinessType);
+                if (!form.reportValidity()) return;
+                const panel = modal.querySelector('.ad-edit-errors');
+                const list = panel.querySelector('ul');
+                const button = form.querySelector('[type="submit"]');
+                const label = button.innerHTML;
+                panel.hidden = true;
+                saving = true;
+                button.disabled = true;
+                button.textContent = 'Saving changes...';
+                form.setAttribute('aria-busy', 'true');
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json' }, body: new FormData(form)
+                    });
+                    const data = (response.headers.get('content-type') || '').includes('application/json') ? await response.json() : {};
+                    if (response.ok && data.success) { window.location.reload(); return; }
+                    const messages = response.status === 422 && data.errors
+                        ? Object.values(data.errors).reduce((all, errors) => all.concat(errors), [])
+                        : [response.status === 419 || response.status === 401 ? 'Your session expired. Refresh the page and sign in again.' : 'Unable to save changes. Please try again.'];
+                    list.textContent = '';
+                    messages.forEach(message => { const item = document.createElement('li'); item.textContent = message; list.appendChild(item); });
+                    panel.hidden = false;
+                } catch (error) {
+                    list.textContent = '';
+                    const item = document.createElement('li'); item.textContent = 'Unable to confirm the save. Check your connection and the distributor profile before retrying.'; list.appendChild(item);
+                    panel.hidden = false;
+                } finally {
+                    saving = false; button.disabled = false; button.innerHTML = label; form.removeAttribute('aria-busy');
+                    if (!panel.hidden) { panel.scrollIntoView({ block: 'nearest' }); panel.focus({ preventScroll: true }); }
+                }
             });
         }
     })();

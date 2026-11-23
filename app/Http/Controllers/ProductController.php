@@ -206,6 +206,10 @@ class ProductController extends Controller
                 $data['mega_dealer_price'] = $validated['mega_dealer_price'] ?? $price;
             }
 
+            if ($item) {
+                $data = $item->productPricesFor(auth()->user(), $data);
+            }
+
             // if (Schema::hasColumn('products', 'dealer_price')) {
             //     $data['dealer_price'] = $validated['dealer_price'] ?? null;
             // }
@@ -427,7 +431,7 @@ class ProductController extends Controller
 
     public function update(Request $request, $id)
     {
-        $product = Product::findOrFail($id);
+        $product = Product::with('item')->where('ad_user_id', auth()->id())->findOrFail($id);
 
         $validated = $request->validate([
             'selected_item_type' => 'nullable|in:product,bundle',
@@ -507,6 +511,10 @@ class ProductController extends Controller
 
         if (Schema::hasColumn('products', 'mega_dealer_price')) {
             $data['mega_dealer_price'] = $validated['mega_dealer_price'] ?? $validated['price'];
+        }
+
+        if ($product->item) {
+            $data = $product->item->productPricesFor(auth()->user(), $data);
         }
 
         if ($request->hasFile('product_image')) {
@@ -629,7 +637,8 @@ class ProductController extends Controller
                     continue;
                 }
 
-                $clientPrice = $item['client_price'] ?? $item['price'] ?? $masterItem->price ?? 0;
+                $matrixPrices = $masterItem->productPriceMatrixFor(auth()->user());
+                $clientPrice = $matrixPrices['client_price'];
                 $sku = !empty($item['sku']) ? $item['sku'] : ('AD' . $userId . '-ITEM' . $masterItem->id);
 
                 $data = [
@@ -647,11 +656,11 @@ class ProductController extends Controller
                 $data['item_id'] = $masterItem->id;
 
                 if (Schema::hasColumn('products', 'mega_dealer_price')) {
-                    $data['mega_dealer_price'] = $item['mega_dealer_price'] ?? null;
+                    $data['mega_dealer_price'] = $matrixPrices['mega_dealer_price'];
                 }
 
                 if (Schema::hasColumn('products', 'dealer_price')) {
-                    $data['dealer_price'] = $item['dealer_price'] ?? null;
+                    $data['dealer_price'] = $matrixPrices['dealer_price'];
                 }
 
                 if (Schema::hasColumn('products', 'client_price')) {

@@ -148,6 +148,7 @@ Route::post('/new-ad','AreaDistributorController@store')->name('new-ad');
 Route::put('edit-ads/{id}', 'AreaDistributorController@update')->name('edit-ads');
 Route::post('/geocode-location', 'AreaDistributorController@geocodeLocation')->name('geocode.location');
 Route::post('ad/{id}/areas/update', 'AreaDistributorController@updateAreas')->name('update.areas');
+Route::get('ad/{id}/areas/{area}/offer-sheet', 'DistributorOfferSheetController@area')->name('ad.areas.offer-sheet');
 
 
 // Provincial Distributor
@@ -157,6 +158,7 @@ Route::post('/pds', 'ProvincialDistributorController@store')->name('pds.store');
 Route::put('/pds/{id}', 'ProvincialDistributorController@update')->name('pds.update');
 Route::delete('/pds/{id}', 'ProvincialDistributorController@destroy')->name('pds.destroy');
 Route::post('/pds/{id}/areas', 'ProvincialDistributorController@updateAreas')->name('pds.areas.update');
+Route::get('/pds/{id}/areas/{area}/offer-sheet', 'DistributorOfferSheetController@provincial')->name('pds.areas.offer-sheet');
 
 // Dealers Area Distributor
 Route::get('/dealer-ads','AreaDistributorController@myDealer')->name('dealer-ads');
