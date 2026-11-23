@@ -152,6 +152,7 @@ class EnsureModuleAccess
             'isl' => ['reports', 'operations', $view, 'can_access_reports'],
             'monthly-sales' => ['reports', 'sales', $view, 'can_access_reports'],
             'voucher-history' => ['reports', 'operations', $view, 'can_access_reports'],
+            'surveys.reports' => ['reports', 'operations', $view, 'can_access_reports'],
             'signup-incentives' => ['reports', 'sedp', $view, 'can_access_reports'],
             'signup-incentives.export' => ['reports', 'sedp', $view, 'can_access_reports'],
             'signup-incentives.ad-export' => ['reports', 'sedp', $view, 'can_access_reports'],

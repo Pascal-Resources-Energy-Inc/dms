@@ -1958,20 +1958,29 @@
                             <i class="ti ti-chevron-down ms-auto"></i>
                         </a>
 
-                        <div class="collapse @if(in_array(Route::currentRouteName(), ['arf','ir','borrowing','layout','referral', 'application', 'training'])) show @endif"
+                        <div class="collapse @if(in_array(Route::currentRouteName(), ['arf','ir','borrowing','layout','referral', 'application', 'training', 'bmc.index', 'bmc.create', 'bmc.show', 'bmc.edit'])) show @endif"
                             id="formsMenu">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
+                                    <a href="/surveys/create" target="_blank" class="nav-link" style="font-size: 14px">Survey Form</a>
+                                    {{--<a href="https://docs.google.com/forms/d/e/1FAIpQLScJ3kuD2UiWAMXyvQe3r4AZHlvY39N5_2bz68jY868uqjCxyQ/viewform?usp=send_form" target="_blank" class="nav-link @if(Route::currentRouteName() == 'arf')active @endif" style="font-size: 14px">Survey Form</a>--}}
+                                <li class="nav-item">
                                     <a href="https://docs.google.com/forms/d/e/1FAIpQLScJ3kuD2UiWAMXyvQe3r4AZHlvY39N5_2bz68jY868uqjCxyQ/viewform?usp=send_form" target="_blank" class="nav-link @if(Route::currentRouteName() == 'arf')active @endif" style="font-size: 14px">Access Request Form</a>
+                                </li>
                                 </li>
                                 <li class="nav-item">
                                     <a href="https://docs.google.com/forms/d/e/1FAIpQLSdlOeSHBVOcAASbWkVOQpeVNbI1R36oVlEln-BctX7ekDlUnw/viewform" target="_blank" class="nav-link @if(Route::currentRouteName() == 'ir')active @endif" style="font-size: 14px">Incident Report</a>
                                 </li>
                                 <li class="nav-item">
-                                    <a href="https://form.jotform.com/241338243724050" target="_blank" class="nav-link @if(Route::currentRouteName() == 'borrowing') active @endif" style="font-size: 14px">Borrowing Marketing Collateral Form</a>
+                                    @if(in_array(auth()->user()->role, ['Area Distributor', 'Provincial Distributor'], true))
+                                        <a href="{{ route('bmc.index') }}" class="nav-link @if(in_array(Route::currentRouteName(), ['bmc.index', 'bmc.create', 'bmc.show', 'bmc.edit'])) active @endif" style="font-size: 14px">Borrowing Marketing Collateral</a>
+                                    @else
+                                        <a href="https://form.jotform.com/241338243724050" target="_blank" class="nav-link" style="font-size: 14px">Borrowing Marketing Collateral Form</a>
+                                    @endif
                                 </li>
                                 <li class="nav-item">
-                                    <a href="https://form.jotform.com/240291186323048" target="_blank" class="nav-link @if(Route::currentRouteName() == 'layout') active @endif" style="font-size: 14px">Layout Design Request Form</a>
+                                    <!-- <a href="https://form.jotform.com/240291186323048" target="_blank" class="nav-link @if(Route::currentRouteName() == 'layout') active @endif" style="font-size: 14px">Layout Design Request Form</a> -->
+                                    <a href="{{ route('layout.index') }}" class="nav-link @if(in_array(Route::currentRouteName(), ['layout.index', 'layout.create'])) active @endif" style="font-size: 14px">Layout Design Requests</a>
                                 </li>
                                 <li class="nav-item">
                                     <a href="https://docs.google.com/forms/d/e/1FAIpQLScDxCoJdMlFDfr12wcrFcG2K7F1djvSJl3JKs-aAozqAp8bww/viewform" target="_blank" class="nav-link @if(Route::currentRouteName() == 'referral') active @endif" style="font-size: 14px">Area Distributor Referral Sheet</a>

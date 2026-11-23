@@ -26,9 +26,38 @@ Route::get('password/otp', 'Auth\ForgotPasswordController@showOtpForm')->name('p
 Route::post('password/verify-otp', 'Auth\ForgotPasswordController@verifyOtp')->name('password.verify-otp');
 Route::get('password/reset/form', 'Auth\ForgotPasswordController@showResetForm')->name('password.reset.form');
 Route::post('password/update', 'Auth\ForgotPasswordController@reset')->name('password.update');
-
-
 Route::group(['middleware' => ['auth', 'module.access']], function () {
+
+Route::get('/bmc', 'BmcController@index')->name('bmc.index');
+Route::get('/bmc/create', 'BmcController@create')->name('bmc.create');
+Route::post('/bmc', 'BmcController@store')->name('bmc.store');
+Route::get('/bmc/{id}', 'BmcController@show')->name('bmc.show');
+Route::get('/bmc/{id}/edit', 'BmcController@edit')->name('bmc.edit');
+Route::patch('/bmc/{id}', 'BmcController@update')->name('bmc.update');
+Route::patch('/bmc/{id}/cancel', 'BmcController@cancel')->name('bmc.cancel');
+Route::post('/bmc/{id}/payment', 'BmcController@payment')->name('bmc.payment');
+Route::get('/bmc/{id}/payment-proof', 'BmcController@paymentProof')->name('bmc.payment-proof');
+Route::get('/bmc/{id}/refund-proof', 'BmcController@refundProof')->name('bmc.refund-proof');
+Route::get('/bmc/accountabilities/{id}', 'BmcController@accountability')->name('bmc.accountability');
+Route::get('/bmc/accountabilities/{id}/preview', 'BmcController@accountabilityPreview')->name('bmc.accountability.preview');
+Route::get('/bmc/accountabilities/{id}/signature-image', 'BmcController@signatureImage')->name('bmc.accountability.signature-image');
+Route::get('/bmc/accountabilities/{id}/payment-proof', 'BmcController@accountabilityPaymentProof')->name('bmc.accountability-payment-proof');
+Route::post('/bmc/accountabilities/{id}/signature', 'BmcController@signature')->name('bmc.signature');
+Route::post('/bmc/accountabilities/{id}/returns', 'BmcController@returnItems')->name('bmc.return');
+Route::post('/bmc/accountabilities/{id}/extensions', 'BmcController@extension')->name('bmc.extension');
+
+// ldr
+Route::get('/ldr', 'LayoutDesignController@index')->name('layout.index');
+Route::get('/ldr/create', 'LayoutDesignController@create')->name('layout.create');
+Route::post('/ldr', 'LayoutDesignController@store')->name('layout.store');
+Route::get('/ldr/{id}', 'LayoutDesignController@show')->name('layout.show');
+Route::get('/ldr/{id}/edit', 'LayoutDesignController@edit')->name('layout.edit');
+Route::put('/ldr/{id}', 'LayoutDesignController@update')->name('layout.update');
+Route::patch('/ldr/{id}/cancel', 'LayoutDesignController@cancel')->name('layout.cancel');
+
+// Partner survey
+Route::get('/surveys/create', 'SurveyController@create')->name('surveys.create');
+Route::post('/surveys', 'SurveyController@store')->name('surveys.store');
 
 Route::get('/home', 'HomeController@index')->name('home');
 Route::get('/transactions','TransactionController@index')->name('transactions');
@@ -272,6 +301,7 @@ Route::get('/reports/monthly-sales', 'ReportController@monthlySalesReport')->nam
 Route::get('/reports/monthly-sales/export', 'ReportController@exportMonthlySales')->name('monthly-sales.export');
 Route::get('/reports/voucher-history', 'ReportController@voucherHistoryReport')->name('voucher-history');
 Route::get('/reports/voucher-history/export', 'ReportController@exportVoucherHistory')->name('voucher-history.export');
+Route::get('/reports/partner-surveys', 'SurveyReportController@index')->name('surveys.reports');
 Route::get('/reports/signup-incentives', 'ReportController@signupIncentivesReport')->name('signup-incentives');
 Route::get('/reports/signup-incentives/clients', 'ReportController@signupIncentiveClients')->name('signup-incentives.clients');
 Route::get('/reports/signup-incentives/export', 'ReportController@exportSignupIncentives')->name('signup-incentives.export');
