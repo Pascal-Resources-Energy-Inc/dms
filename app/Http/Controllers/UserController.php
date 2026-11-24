@@ -328,7 +328,11 @@ class UserController extends Controller
                 $areaDistributor->user_id = $user->id;
                 $areaDistributor->ad_reference = $ad_reference;
                 $areaDistributor->name = $fullName;
-                $areaDistributor->store_code = $request->store_code;
+                // The preview can be stale when another distributor was saved
+                // while the form was open. Allocate the code during this save.
+                $areaDistributor->store_code = $isDistributorProfile
+                    ? $this->nextPartnerCode($request->role, true)
+                    : $request->store_code;
                 $areaDistributor->email_address = $request->email_address;
                 $areaDistributor->contact_number = $normalizedContactNumber ?: $request->contact_number;
                 $areaDistributor->facebook = $request->facebook;
@@ -703,51 +707,46 @@ class UserController extends Controller
 
     public function generatePartnerCode(Request $request)
     {
-        $role = $request->role;
-        $year = date('Y');
-
-        // Role Prefix Mapping
-        $prefixMap = [
-            'Provincial Distributor' => 'PD',
-            'Area Distributor' => 'AD',
-            'Mega Dealer' => 'MD',
-        ];
-
-        if (!isset($prefixMap[$role])) {
+        $code = $this->nextPartnerCode($request->input('role'));
+        if ($code === null) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid role selected.'
             ]);
         }
 
-        $prefix = $prefixMap[$role];
+        return response()->json([
+            'success' => true,
+            'code' => $code,
+        ]);
+    }
 
-        // Get latest code for this role
-        $latestUser = AreaDistributor::where('store_code', 'like', $prefix . '-' . $year . '-%')
-            ->orderBy('id', 'desc')
-            ->first();
+    private function nextPartnerCode($role, $lockForUpdate = false)
+    {
+        $prefixes = [
+            User::ROLE_PROVINCIAL_DISTRIBUTOR => 'PD',
+            User::ROLE_AREA_DISTRIBUTOR => 'AD',
+            'Mega Dealer' => 'MD',
+        ];
+        if (!is_string($role) || !isset($prefixes[$role])) return null;
 
-        $nextNumber = 1;
+        $prefix = $prefixes[$role] . '-' . now()->format('Y') . '-';
+        $table = $role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+            ? (new ProvincialDistributor)->getTable()
+            : (new AreaDistributor)->getTable();
 
-        if ($latestUser) {
-            $lastCode = $latestUser->store_code;
-
-            // Example: PD-2026-0007
-            $explode = explode('-', $lastCode);
-
-            if (isset($explode[2])) {
-                $nextNumber = intval($explode[2]) + 1;
+        // Include removed profiles so their codes are never reused. Use the
+        // largest numeric suffix; imported records may not be in code order.
+        $query = DB::table($table)->where('store_code', 'like', $prefix . '%');
+        if ($lockForUpdate) $query->lockForUpdate();
+        $lastNumber = 0;
+        foreach ($query->pluck('store_code') as $code) {
+            if (preg_match('/^' . preg_quote($prefix, '/') . '(\d+)$/i', $code, $matches)) {
+                $lastNumber = max($lastNumber, (int) $matches[1]);
             }
         }
 
-        $formattedNumber = str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
-
-        $generatedCode = $prefix . '-' . $year . '-' . $formattedNumber;
-
-        return response()->json([
-            'success' => true,
-            'code' => $generatedCode
-        ]);
+        return $prefix . str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
     }
 
     public function checkDuplicate(Request $request)

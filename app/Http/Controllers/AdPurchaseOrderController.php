@@ -334,12 +334,12 @@ class AdPurchaseOrderController extends Controller
                 ->route('ad-purchase-orders.index');
         }
 
-        $orderProfile = $ad ?: $user;
+        $orderProfile = $this->purchaseOrderProfile($user);
         $territoryOptions = $this->territoryOptions($orderProfile);
         $provincialDistributors = $this->provincialDistributorQueryFor($user, $ad)
             ->orderBy('name')
             ->get(['id', 'name']);
-        $storeCode = optional($ad)->store_code;
+        $storeCode = data_get($orderProfile, 'store_code');
         $authorizedAreas = $territoryOptions;
         $userVouchers = Voucher::where('name', $storeCode)
             ->where('is_active', 1)
@@ -385,9 +385,9 @@ class AdPurchaseOrderController extends Controller
             })
             ->all();
         $showPickupLubao = !$this->isRegionVText(
-            optional($ad)->address,
-            optional($ad)->delivery_address,
-            optional($ad)->location_region,
+            data_get($orderProfile, 'address'),
+            data_get($orderProfile, 'delivery_address'),
+            data_get($orderProfile, 'location_region'),
             $user->delivery_address,
             $user->region,
             $user->province
@@ -395,6 +395,7 @@ class AdPurchaseOrderController extends Controller
 
         return view('ad_purchase_orders.create', compact(
             'ad', 
+            'orderProfile',
             'products', 
             'prefillProductId', 
             'favoriteProductIds', 
@@ -468,7 +469,7 @@ class AdPurchaseOrderController extends Controller
             ]);
         }
 
-        $orderProfile = $ad ?: $user;
+        $orderProfile = $this->purchaseOrderProfile($user);
         $territoryOptions = $this->territoryOptions($orderProfile);
 
         $request->validate([
@@ -517,9 +518,9 @@ class AdPurchaseOrderController extends Controller
 
         $isRegionVAd = $this->isRegionVText(
             $request->delivery_address,
-            optional($ad)->address,
-            optional($ad)->delivery_address,
-            optional($ad)->location_region,
+            data_get($orderProfile, 'address'),
+            data_get($orderProfile, 'delivery_address'),
+            data_get($orderProfile, 'location_region'),
             $user->delivery_address,
             $user->region,
             $user->province
@@ -591,11 +592,11 @@ class AdPurchaseOrderController extends Controller
                 'ad_user_id' => $adUserId,
                 'order_source' => $request->order_source,
                 'provincial_distributor_id' => optional($supplyingProvincialDistributor)->id,
-                'business_name' => optional($ad)->business_name ?: data_get($orderProfile, 'business_name') ?: optional($ad)->name ?: $user->name,
+                'business_name' => data_get($orderProfile, 'business_name') ?: data_get($orderProfile, 'name') ?: $user->name,
                 'authorized_territory' => $authorizedTerritory,
-                'phone_number' => $request->phone_number ?: optional($ad)->contact_number ?: $user->mobile_number,
-                'email_address' => $request->email_address ?: optional($ad)->email_address ?: $user->email,
-                'delivery_address' => $request->delivery_address ?: optional($ad)->delivery_address ?: $user->delivery_address,
+                'phone_number' => $request->phone_number ?: data_get($orderProfile, 'contact_number') ?: $user->mobile_number,
+                'email_address' => $request->email_address ?: data_get($orderProfile, 'email_address') ?: $user->email,
+                'delivery_address' => $request->delivery_address ?: data_get($orderProfile, 'delivery_address') ?: $user->delivery_address,
                 'shipping_type' => $shippingType,
                 'payment_method' => $request->payment_method,
                 'bank_name' => $bankName,
@@ -667,7 +668,7 @@ class AdPurchaseOrderController extends Controller
 
                 foreach ($voucherCodes as $voucherCode) {
                     $voucher = Voucher::where('code', $voucherCode)
-                        ->where('name', optional($ad)->store_code)
+                        ->where('name', data_get($orderProfile, 'store_code'))
                         ->lockForUpdate()
                         ->first();
 
@@ -770,8 +771,8 @@ class AdPurchaseOrderController extends Controller
     {
         $user = auth()->user();
         $order = $this->pendingOrderForEditing($id, $user);
-        $orderProfile = $order->ad ?: optional(User::find($order->ad_user_id))->provincialDistributor;
-        $territoryOptions = $this->territoryOptions($orderProfile ?: User::find($order->ad_user_id));
+        $orderProfile = $this->purchaseOrderProfile($user);
+        $territoryOptions = $this->territoryOptions($orderProfile);
 
         if ($order->authorized_territory && !$territoryOptions->contains($order->authorized_territory)) {
             $territoryOptions->push($order->authorized_territory);
@@ -794,8 +795,8 @@ class AdPurchaseOrderController extends Controller
         $order = $this->pendingOrderForEditing($id, $user);
         $taxService = app(AdpoTaxService::class);
         $taxSigning = $taxService->validateSigning($request, $user, $taxService->required($user) || $order->taxCertificates()->exists());
-        $orderProfile = $order->ad ?: optional(User::find($order->ad_user_id))->provincialDistributor;
-        $territoryOptions = $this->territoryOptions($orderProfile ?: User::find($order->ad_user_id));
+        $orderProfile = $this->purchaseOrderProfile($user);
+        $territoryOptions = $this->territoryOptions($orderProfile);
 
         $request->validate([
             'phone_number' => 'nullable|string|max:50',
@@ -831,9 +832,9 @@ class AdPurchaseOrderController extends Controller
 
         if ($request->shipping_type === 'pickup_lubao' && $this->isRegionVText(
             $request->delivery_address,
-            optional($order->ad)->address,
-            optional($order->ad)->delivery_address,
-            optional($order->ad)->location_region
+            data_get($orderProfile, 'address'),
+            data_get($orderProfile, 'delivery_address'),
+            data_get($orderProfile, 'location_region')
         )) {
             throw ValidationException::withMessages([
                 'shipping_type' => 'Pick Up in Lubao Plant is not available for Region V or Albay addresses.',
@@ -2087,6 +2088,17 @@ class AdPurchaseOrderController extends Controller
         } while (AdPurchaseOrder::where('po_number', $number)->exists());
 
         return $number;
+    }
+
+    private function purchaseOrderProfile(User $user)
+    {
+        // Keep ad_id linked to the legacy AD table; only the submitter details
+        // and awarded areas come from the role's current distributor profile.
+        if ($user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR) {
+            return $user->provincialDistributor ?: $user->ad ?: $user;
+        }
+
+        return $user->ad ?: $user;
     }
 
     private function authorizedTerritory($ad)

@@ -71,6 +71,72 @@ class NewUserAwardedAreasTest extends TestCase
     }
 
     /** @dataProvider roles */
+    public function test_partner_code_preview_uses_the_correct_distributor_table_and_largest_suffix($role, $profileClass)
+    {
+        $prefix = ($role === 'Provincial Distributor' ? 'PD' : 'AD') . '-' . now()->format('Y') . '-';
+        $table = (new $profileClass)->getTable();
+        DB::table($table)->insert([
+            ['store_code' => $prefix . '0012'],
+            ['store_code' => $prefix . '0003'],
+            ['store_code' => $prefix . 'invalid'],
+            ['store_code' => str_replace(now()->format('Y'), now()->subYear()->format('Y'), $prefix) . '9000'],
+        ]);
+        $otherTable = $table === 'provincial_distributors' ? 'area_distributors' : 'provincial_distributors';
+        DB::table($otherTable)->insert(['store_code' => $prefix . '9999']);
+
+        $this->postJson('/generate-partner-code', ['role' => $role])
+            ->assertOk()->assertJson(['success' => true, 'code' => $prefix . '0013']);
+        $this->assertSame(0, User::count());
+        $this->assertSame(4, DB::table($table)->count());
+    }
+
+    /** @dataProvider roles */
+    public function test_partner_code_does_not_reuse_deleted_codes_or_truncate_large_numbers($role, $profileClass)
+    {
+        $prefix = ($role === 'Provincial Distributor' ? 'PD' : 'AD') . '-' . now()->format('Y') . '-';
+        $table = (new $profileClass)->getTable();
+        $this->postJson('/generate-partner-code', ['role' => $role])
+            ->assertOk()->assertJson(['code' => $prefix . '0001']);
+        DB::table($table)->insert(['store_code' => $prefix . '9999', 'deleted_at' => now()]);
+
+        $this->postJson('/generate-partner-code', ['role' => $role])
+            ->assertOk()->assertJson(['code' => $prefix . '10000']);
+    }
+
+    /** @dataProvider roles */
+    public function test_distributor_save_allocates_a_fresh_code_instead_of_trusting_the_preview($role, $profileClass)
+    {
+        $prefix = ($role === 'Provincial Distributor' ? 'PD' : 'AD') . '-' . now()->format('Y') . '-';
+        $table = (new $profileClass)->getTable();
+        DB::table($table)->insert(['store_code' => $prefix . '0007']);
+        $this->postJson('/generate-partner-code', ['role' => $role])->assertJson(['code' => $prefix . '0008']);
+        // Another saved profile takes the code while the modal is open.
+        DB::table($table)->insert(['store_code' => $prefix . '0008']);
+
+        $this->postJson('/new-user', $this->input($role, ['store_code' => $prefix . '0008']))
+            ->assertStatus(201);
+        $this->assertSame($prefix . '0009', $profileClass::where('email_address', 'qa@example.test')->firstOrFail()->store_code);
+
+        $this->postJson('/new-user', $this->input($role, [
+            'first_name' => 'Second', 'email_address' => 'second@example.test',
+            'area_name' => [0 => 'Area C'], 'store_code' => '',
+        ]))->assertStatus(201);
+        $this->assertSame($prefix . '0010', $profileClass::where('email_address', 'second@example.test')->firstOrFail()->store_code);
+    }
+
+    public function test_mega_dealer_preview_keeps_its_prefix_and_invalid_roles_do_not_generate_codes()
+    {
+        $prefix = 'MD-' . now()->format('Y') . '-';
+        DB::table('area_distributors')->insert(['store_code' => $prefix . '0004']);
+        $this->postJson('/generate-partner-code', ['role' => 'Mega Dealer'])
+            ->assertOk()->assertJson(['success' => true, 'code' => $prefix . '0005']);
+        foreach (['Admin', 'MFI', '', ['Provincial Distributor']] as $role) {
+            $this->postJson('/generate-partner-code', ['role' => $role])
+                ->assertOk()->assertJson(['success' => false]);
+        }
+    }
+
+    /** @dataProvider roles */
     public function test_super_admin_creates_distributors_with_awarded_areas_despite_saved_restrictions($role, $profileClass)
     {
         $admin = new User(['role' => 'Admin', 'name' => 'Super Administrator']);
