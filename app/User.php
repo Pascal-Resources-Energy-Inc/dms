@@ -35,7 +35,7 @@ class User extends Authenticatable implements Auditable
 
     public function isSuperAdmin(): bool
     {
-        return $this->role === 'Admin' && (int) $this->getKey() === 1;
+        return $this->role === 'Admin';
     }
 
     public function canManageUsers($action = 'add'): bool
