@@ -1237,7 +1237,7 @@
         display: grid;
         grid-template-columns: 46px minmax(0, 1fr) auto;
         align-items: stretch;
-        min-height: 46px;
+        /* min-height: 46px; */
         overflow: hidden;
         border: 1px solid #bfd1e4;
         border-radius: 9px;
