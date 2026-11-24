@@ -69,6 +69,40 @@ class DistributorPricingTest extends TestCase
         $this->assertSame(60.0, $product->distributorPurchaseOrderPrice());
     }
 
+    public function test_pd_prices_are_selected_by_role_and_saved_region()
+    {
+        $product = new Item(['dprice' => 60, 'pdprice' => 50.25, 'price' => 100,
+            'vismin_dprice' => 72.35, 'vismin_pdprice' => 65.45, 'vismin_price' => 110]);
+        foreach (['Region III' => [50.25, 60.0], 'Region VII' => [65.45, 72.35],
+            'Region XI' => [65.45, 72.35]] as $region => $expected) {
+            $this->assertSame($expected[0], $product->distributorPurchaseOrderPrice($this->buyer(User::ROLE_PROVINCIAL_DISTRIBUTOR, $region)));
+            $this->assertSame($expected[1], $product->distributorPurchaseOrderPrice($this->buyer(User::ROLE_AREA_DISTRIBUTOR, $region)));
+        }
+        $product->for_ad = true;
+        $this->assertSame(100.0, $product->distributorPurchaseOrderPrice($this->buyer(User::ROLE_PROVINCIAL_DISTRIBUTOR, 'Region III')));
+        $this->assertSame(110.0, $product->distributorPurchaseOrderPrice($this->buyer(User::ROLE_PROVINCIAL_DISTRIBUTOR, 'Region VII')));
+    }
+
+    public function test_missing_pd_regional_price_uses_standard_pd_price_and_zero_is_preserved()
+    {
+        $buyer = $this->buyer(User::ROLE_PROVINCIAL_DISTRIBUTOR, 'Region VII');
+        $product = new Item(['dprice' => 60, 'pdprice' => 50.25, 'vismin_dprice' => 72.35]);
+        $this->assertFalse($product->usesVisminPriceFor($buyer));
+        $this->assertSame(50.25, $product->distributorPurchaseOrderPrice($buyer));
+        $product->pdprice = 0;
+        $this->assertSame(0.0, $product->distributorPurchaseOrderPrice($buyer));
+        $product->pdprice = 50.25;
+        $product->vismin_pdprice = 0;
+        $this->assertTrue($product->usesVisminPriceFor($buyer));
+        $this->assertSame(0.0, $product->distributorPurchaseOrderPrice($buyer));
+        $product->pdprice = null;
+        $product->vismin_pdprice = null;
+        $this->assertSame(72.35, $product->distributorPurchaseOrderPrice($buyer));
+        $product->vismin_pdprice = 65.45;
+        $this->assertSame(65.45, $product->distributorPurchaseOrderPrice($buyer));
+        $this->assertSame(60.0, $product->distributorPurchaseOrderPrice($this->buyer(User::ROLE_PROVINCIAL_DISTRIBUTOR, 'Region III')));
+    }
+
     public function test_pd_profile_takes_priority_over_legacy_ad_and_user_locations()
     {
         $buyer = $this->buyer(User::ROLE_PROVINCIAL_DISTRIBUTOR, 'Region VII', 'Region III');

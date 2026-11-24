@@ -25,12 +25,13 @@
     .territory-select-wrap { position: relative; }
     .territory-select-wrap i { position: absolute; left: 12px; top: 50%; color: #98a2b3; transform: translateY(-50%); pointer-events: none; z-index: 1; }
     .territory-select-wrap .form-select { padding-left: 36px; min-height: 42px; font-weight: 700; color: #101828; }
-    .adpo-option { position: relative; display: flex; gap: 10px; padding: 13px; border: 1px solid #d9dee8; border-radius: 8px; background: #fff; cursor: pointer; transition: .16s ease; }
+    .adpo-option { position: relative; display: flex; align-items: center; gap: 10px; height: 100%; min-width: 0; padding: 13px; border: 1px solid #d9dee8; border-radius: 8px; background: #fff; cursor: pointer; transition: .16s ease; }
     .adpo-option:hover { border-color: #b8c0cc; background: #fafbfc; }
     .adpo-option:has(input:checked) { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, .10); }
-    .adpo-option input { margin-top: 4px; flex: 0 0 auto; }
+    .adpo-option input { margin: 0; flex: 0 0 auto; }
+    .adpo-option > span { min-width: 0; }
     .adpo-option strong { display: block; color: #111827; font-size: 13px; line-height: 1.3; }
-    .adpo-option small { color: #667085; line-height: 1.35; }
+    .adpo-option small { display: block; color: #667085; line-height: 1.35; }
     .voucher-picker { overflow: hidden; border: 1px solid #dfe4ea; border-radius: 10px; background: #fff; }
     .voucher-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 13px; border-bottom: 1px solid #edf0f5; background: #f8fafc; }
     .voucher-picker-head strong { color: #344054; font-size: 12px; }
@@ -228,7 +229,7 @@
 
 @section('content')
 @php
-    $profile = $ad ?: auth()->user();
+    $profile = $orderProfile ?? ($ad ?: auth()->user());
     $territoryOptions = collect($territoryOptions ?? [])->map(function ($territory) {
         if (is_array($territory)) {
             return $territory;
@@ -346,20 +347,20 @@
                             </div>
                             <div>
                                 <label class="form-label">Business Name</label>
-                                <input class="form-control" value="{{ old('business_name', optional($ad)->business_name ?: $profile->business_name ?: optional($ad)->name ?: auth()->user()->name) }}" readonly>
+                                <input class="form-control" value="{{ old('business_name', $profile->business_name ?: $profile->name ?: auth()->user()->name) }}" readonly>
                             </div>
                             <div>
                                 <label class="form-label">Email Address</label>
-                                <input type="email" name="email_address" class="form-control" value="{{ old('email_address', optional($ad)->email_address ?: auth()->user()->email) }}" placeholder="name@example.com" readonly>
+                                <input type="email" name="email_address" class="form-control" value="{{ old('email_address', $profile->email_address ?: auth()->user()->email) }}" placeholder="name@example.com" readonly>
                             </div>
                             <div>
                                 <label class="form-label">Phone Number</label>
                                 {{-- <input type="text" name="phone_number" class="form-control" value="{{ old('phone_number', optional($ad)->contact_number) }}" placeholder="09XX XXX XXXX"> --}}
-                                <input type="text" class="form-control" id="phone_number" name="phone_number" placeholder="09XX XXX XXXX" maxlength="11" pattern="09[0-9]{9}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '');" value="{{ old('phone_number', optional($ad)->contact_number ?: $profile->mobile_number) }}">
+                                <input type="text" class="form-control" id="phone_number" name="phone_number" placeholder="09XX XXX XXXX" maxlength="11" pattern="09[0-9]{9}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '');" value="{{ old('phone_number', $profile->contact_number ?: auth()->user()->mobile_number) }}">
                             </div>
                             <div>
                                 <label class="form-label">Business Type</label>
-                                <input type="text" name="business_type" class="form-control" value="{{ old('business_type', optional($ad)->business_type ?: $profile->business_type) }}" placeholder="Example: Retailer" readonly>
+                                <input type="text" name="business_type" class="form-control" value="{{ old('business_type', $profile->business_type) }}" placeholder="Example: Retailer" readonly>
                             </div>
                             {{-- <div class="col-md-6">
                                 <label class="form-label">Uniform Shirt Size</label>
@@ -367,7 +368,7 @@
                             </div> --}}
                             <div class="adpo-field-span">
                                 <label class="form-label">Delivery Address</label>
-                                <input class="form-control" name="delivery_address" value="{{ old('delivery_address', optional($ad)->delivery_address ?: $profile->delivery_address) }}" data-uppercase readonly>
+                                <input class="form-control" name="delivery_address" value="{{ old('delivery_address', $profile->delivery_address ?: auth()->user()->delivery_address) }}" data-uppercase readonly>
                             </div>
                             <div class="adpo-field-span">
                                 <label class="form-label">Authorized Territory <span class="text-danger">*</span></label>
@@ -489,21 +490,27 @@
                         <div class="col-lg-6">
                             <div class="adpo-section-head">
                                 <div>
-                                    <h6 class="adpo-section-title">Payment Method</h6>
-                                    <p class="adpo-section-copy">Select your preferred payment option for this order.</p>
+                                    <h6 class="adpo-section-title" id="paymentMethodLabel">Payment Method <span class="text-danger" aria-hidden="true">*</span></h6>
+                                    <p class="adpo-section-copy" id="paymentMethodHint">Required. Select one payment method to continue.</p>
                                 </div>
                             </div>
-                            <div class="row g-2">
-                                {{-- @foreach(['cash' => 'Cash', 'gcash' => 'GCash', 'bank_transfer' => 'Bank Transfer', 'credit' => 'Credit']as $value => $label) --}}
-                                @foreach(['cash' => 'Cash', 'gcash' => 'GCash', 'bank_transfer' => 'Bank Transfer'] as $value => $label)
+                            <div class="row g-2" role="radiogroup" aria-labelledby="paymentMethodLabel" aria-describedby="paymentMethodHint" aria-required="true">
+                                @foreach([
+                                    'cash' => ['label' => 'Cash' , 'description' => 'Pay with cash upon delivery or pick up.'],
+                                    'gcash' => ['label' => 'GCash', 'description' => 'Pay through GCash app.'],
+                                    'bank_transfer' => ['label' => 'Bank Transfer', 'description' => 'Pay through bank transfer.'],
+                                ] as $value => $option)
                                     <div class="col-sm-6">
                                         <label class="adpo-option">
-                                            <input type="radio" name="payment_method" value="{{ $value }}" @if(old('payment_method') === $value) checked @endif>
-                                            <span><strong>{{ $label }}</strong></span>
+                                            <input type="radio" name="payment_method" value="{{ $value }}" required @if(old('payment_method') === $value) checked @endif>
+                                            <span><strong>{{ $option['label'] }}</strong><small>{{ $option['description'] }}</small></span>
                                         </label>
                                     </div>
                                 @endforeach
                             </div>
+                            @if($errors->has('payment_method'))
+                                <p class="text-danger small mt-2 mb-0" role="alert">{{ $errors->first('payment_method') }}</p>
+                            @endif
                             @php
                                 $selectedBank = old('bank_name');
                                 $commonBanks = [
@@ -590,7 +597,7 @@
                         @forelse($regularProducts as $product)
                             @php
 
-                                $unitPrice = $product->distributorPurchaseOrderPrice();
+                                $unitPrice = $product->distributorPurchaseOrderPrice(auth()->user());
                                 $oldQty = old('products.' . $product->id . '.qty', (int) $prefillProductId === (int) $product->id ? 1 : 0);
                                 $oldSelected = old('products.' . $product->id . '.selected') || (int) $oldQty > 0;
                                 $productName = $product->item ?: $product->product_name;
@@ -709,8 +716,6 @@
                                             @foreach($adProducts as $product)
                                                 @php
                                                     $unitPrice = $product->distributorPurchaseOrderPrice(auth()->user());
-                                                    $oldQty = old('products.' . $product->id . '.qty', 0);
-                                                    $unitPrice = ($product->price !== null && $product->price !== '') ? (float) $product->price : 0;
                                                     $oldQty = old('products.' . $product->id . '.qty', (int) $prefillProductId === (int) $product->id ? 1 : 0);
                                                     $oldSelected = old('products.' . $product->id . '.selected') || (int) $oldQty > 0;
                                                     $productName = $product->item ?: $product->product_name;

@@ -1013,7 +1013,8 @@
             businessType.val(values.includes(selected) ? selected : '').trigger('change');
             businessTypeGroup = group;
         }
-        const partnerCode = $('#store_code');
+        const partnerCode = $('#newUserForm [name="store_code"]');
+        let partnerCodeRequestId = 0;
         const attachment = $('#attachment');
 
         const dynamicAreaWrapper = $('#dynamic-area-wrapper');
@@ -1415,14 +1416,14 @@
                 $('#same_as_delivery_address').prop('checked', false);
             }
 
-            if (!isAdminLike) {
-                generatePartnerCode();
-            }
+            generatePartnerCode();
         }
 
         function generatePartnerCode() {
 
             const role = roleFilter.val();
+            const requestId = ++partnerCodeRequestId;
+            partnerCode.val('');
 
             if (!role || role === 'Admin' || role === 'MFI') {
                 partnerCode.val('');
@@ -1437,9 +1438,11 @@
                     _token: "{{ csrf_token() }}"
                 },
                 success: function (res) {
+                    if (requestId !== partnerCodeRequestId || roleFilter.val() !== role) return;
                     partnerCode.val(res.success ? res.code : '');
                 },
                 error: function () {
+                    if (requestId !== partnerCodeRequestId || roleFilter.val() !== role) return;
                     partnerCode.val('');
                 }
             });

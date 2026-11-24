@@ -1692,17 +1692,21 @@ class HomeController extends Controller
     {
 
         $user = auth()->user();
-        $adId = optional($user->ad)->id; 
-        $orderTabs = $this->adOrderTabs($user, $adId);
+        $legacyAd = $user->ad;
+        $profile = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+            ? ($user->provincialDistributor ?: $legacyAd)
+            : $legacyAd;
+        $awardedAreas = collect(optional($profile)->areas);
+        $areas = $awardedAreas->pluck('area_name')->filter()->unique()->values()->all();
+
+        // Sales orders still reference area_distributors.id. A PD profile ID
+        // belongs to a different table and must not be used to look them up.
+        $adId = optional($legacyAd)->id;
+        $orderTabs = $this->adOrderTabs($user, $adId, $awardedAreas);
         $orders = $orderTabs->pluck('orders')->flatten(1);
         $completedOrders = $orders->filter(function ($order) {
             return strtolower((string) ($order->status ?? '')) === 'completed';
         })->values();
-
-        $areas = optional($user->ad)
-            ->areas
-            ? $user->ad->areas->pluck('area_name')->toArray()
-            : [];
 
         $product_sold = $completedOrders;
         $products = Product::where('ad_user_id', $user->id)->where('status', 'Activate')->whereNotNull('price')->get()->toBase()
@@ -1711,7 +1715,7 @@ class HomeController extends Controller
                 return strtolower(trim((string) ($product->product_name ?? $product->name ?? $product->id ?? '')));
             })
             ->values();
-        $adVouchers = Voucher::whereIn('name', array_filter([optional($user->ad)->store_code, $user->name]))->get();
+        $adVouchers = Voucher::whereIn('name', array_filter([optional($profile)->store_code, $user->name]))->get();
         $usedVoucherCount = $adVouchers->filter(function ($voucher) {
             return (int) $voucher->used_count > 0;
         })->count();
@@ -1719,15 +1723,12 @@ class HomeController extends Controller
             return (int) $voucher->used_count === 0;
         })->count();
         // dd($products);
-        $adUser = optional(auth()->user()->ad)->id;
         $pendingOrdersCount = $orders->filter(function ($order) {
             return strtolower((string) ($order->status ?? '')) === 'pending';
         })->count();
         $dealer = "";
         $customer = "";
         $threeDaysAgo = Carbon::now()->subDays(7)->toDateString();
-        $user = auth()->user();
-        $areas = $user->ad->areas->pluck('area_name')->toArray();
         
         $selectedYear = $request->get('year', Carbon::now()->year);
         $selectedMonth = $request->get('month', null);
@@ -1851,14 +1852,14 @@ class HomeController extends Controller
                 DB::raw('MAX(sku) as sku'),
                 DB::raw('SUM(qty) as stock_qty')
             )
-            ->where('ad_id', $adId)
+            ->where('ad_user_id', $user->id)
             ->where('movement_type', 'in')
             ->groupBy('item_name')
             ->get()
             ->keyBy('item_name');
          
 
-        $outByItem = collect([$this->localInventoryOutByItem($adId), $this->remoteInventoryOutByItem($adId)])
+        $outByItem = collect([$this->localInventoryOutByItem($user->id), $this->remoteInventoryOutByItem($adId, $user->id)])
             ->flatMap(function ($rows) {
                 return $rows->map(function ($qty, $item) {
                     return (object) [
@@ -2063,7 +2064,7 @@ class HomeController extends Controller
         );
     }
 
-    private function adOrderTabs($user, $adId)
+    private function adOrderTabs($user, $adId, Collection $awardedAreas)
     {
         $tabs = collect();
 
@@ -2074,9 +2075,7 @@ class HomeController extends Controller
         $decodedTypes = json_decode($user->type ?? '[]', true);
         $types = collect(is_array($decodedTypes) ? $decodedTypes : []);
 
-        $areaTypes = optional($user->ad)->areas
-            ? $user->ad->areas->pluck('project_type')
-            : collect();
+        $areaTypes = $awardedAreas->pluck('project_type');
 
         $availableTypes = $types
             ->merge($areaTypes)
@@ -2343,28 +2342,27 @@ class HomeController extends Controller
         })->values();
     }
 
-    private function localInventoryOutByItem($adId)
+    private function localInventoryOutByItem($adUserId)
     {
         return InventoryTransfer::select('item_name', DB::raw('SUM(qty) as out_qty'))
-            ->where('ad_id', $adId)
+            ->where('ad_user_id', $adUserId)
             ->where('movement_type', 'out')
             ->groupBy('item_name')
             ->pluck('out_qty', 'item_name');
     }
 
-    private function remoteInventoryOutByItem($adId)
+    private function remoteInventoryOutByItem($adId, $adUserId)
     {
-        if (!$adId) {
+        if (!$adUserId) {
             return collect();
         }
 
-        return collect($this->crmConnections)->flatMap(function ($connection) use ($adId) {
+        return collect($this->crmConnections)->flatMap(function ($connection) use ($adId, $adUserId) {
             try {
                 $schema = DB::connection($connection)->getSchemaBuilder();
 
                 if (
                     !$schema->hasTable('inventory_transfers') ||
-                    !$schema->hasColumn('inventory_transfers', 'ad_id') ||
                     !$schema->hasColumn('inventory_transfers', 'item_name') ||
                     !$schema->hasColumn('inventory_transfers', 'qty') ||
                     !$schema->hasColumn('inventory_transfers', 'movement_type')
@@ -2372,9 +2370,17 @@ class HomeController extends Controller
                     return collect();
                 }
 
-                return DB::connection($connection)->table('inventory_transfers')
+                $query = DB::connection($connection)->table('inventory_transfers');
+                if ($schema->hasColumn('inventory_transfers', 'ad_user_id')) {
+                    $query->where('ad_user_id', $adUserId);
+                } elseif ($adId && $schema->hasColumn('inventory_transfers', 'ad_id')) {
+                    $query->where('ad_id', $adId);
+                } else {
+                    return collect();
+                }
+
+                return $query
                     ->select('item_name', DB::raw('SUM(qty) as out_qty'))
-                    ->where('ad_id', $adId)
                     ->where('movement_type', 'out')
                     ->groupBy('item_name')
                     ->get();

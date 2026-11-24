@@ -81,6 +81,7 @@ class ItemController extends Controller
             'dealer_price' => 'required|numeric|min:0',
             'md_price' => 'required|numeric|min:0',
             'dprice' => 'required|numeric|min:0',
+            'pdprice' => 'required|numeric|min:0',
             'dealer_points' => 'nullable|integer|min:0',
             'customer_points' => 'nullable|integer|min:0',
             'status' => 'required|in:Activate,Deactivate',

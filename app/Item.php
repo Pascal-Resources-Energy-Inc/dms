@@ -15,7 +15,8 @@ class Item extends Model implements Auditable
         'price' => 'SRP',
         'dealer_price' => 'Dealer',
         'md_price' => 'Mega dealer',
-        'dprice' => 'Distributor',
+        'dprice' => 'Area Distributor',
+        'pdprice' => 'Provincial Distributor',
     ];
 
     const STOVE_KIT_COLORS = [
@@ -35,10 +36,12 @@ class Item extends Model implements Auditable
         'dealer_price',
         'md_price',
         'dprice',
+        'pdprice',
         'vismin_price',
         'vismin_dealer_price',
         'vismin_md_price',
         'vismin_dprice',
+        'vismin_pdprice',
         'item_image',
         'dealer_points',
         'customer_points',
@@ -53,10 +56,12 @@ class Item extends Model implements Auditable
         'dealer_price' => 'decimal:2',
         'md_price' => 'decimal:2',
         'dprice' => 'decimal:2',
+        'pdprice' => 'decimal:2',
         'vismin_price' => 'decimal:2',
         'vismin_dealer_price' => 'decimal:2',
         'vismin_md_price' => 'decimal:2',
         'vismin_dprice' => 'decimal:2',
+        'vismin_pdprice' => 'decimal:2',
         'dealer_points' => 'integer',
         'customer_points' => 'integer',
         'for_ad' => 'boolean',
@@ -65,21 +70,37 @@ class Item extends Model implements Auditable
 
     public function distributorPurchaseOrderPrice(?User $buyer = null): float
     {
+        $field = $this->purchaseOrderPriceField($buyer);
         if ($this->usesVisminPriceFor($buyer)) {
-            return (float) ($this->for_ad ? $this->vismin_price : $this->vismin_dprice);
+            return (float) $this->{'vismin_' . $field};
         }
 
-        // Marketing collateral uses its catalog price; regular products use DPO pricing.
-        return (float) ($this->for_ad ? $this->price : $this->dprice);
+        return (float) ($this->{$field} ?? ($field === 'pdprice' ? $this->dprice : 0));
     }
 
     public function usesVisminPriceFor(?User $buyer): bool
     {
         // Zero is a configured price; only a missing price uses the existing DPO rate.
-        $price = $this->for_ad ? $this->vismin_price : $this->vismin_dprice;
+        $price = $this->{'vismin_' . $this->purchaseOrderPriceField($buyer)};
 
         return $price !== null && $buyer !== null
             && \App\Support\DistributorPricing::usesVisminPrice($buyer);
+    }
+
+    private function purchaseOrderPriceField(?User $buyer): string
+    {
+        // Marketing collateral retains its catalog price for both distributor roles.
+        if ($this->for_ad) {
+            return 'price';
+        }
+
+        if ($buyer && $buyer->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+            && ($this->pdprice !== null || $this->vismin_pdprice !== null)) {
+            return 'pdprice';
+        }
+
+        // Older items without a PD tier retain their existing DPO rate.
+        return 'dprice';
     }
 
     public function productPricesFor(?User $user, array $prices): array
@@ -94,6 +115,7 @@ class Item extends Model implements Auditable
             'dealer_price' => 'vismin_dealer_price',
             'mega_dealer_price' => 'vismin_md_price',
             'dprice' => 'vismin_dprice',
+            'pdprice' => 'vismin_pdprice',
         ] as $productField => $itemField) {
             // Keep each existing tier independently when its regional price is unset.
             if (array_key_exists($productField, $prices) && $this->{$itemField} !== null) {
@@ -115,6 +137,7 @@ class Item extends Model implements Auditable
             'dealer_price' => $this->dealer_price ?? $this->dprice,
             'mega_dealer_price' => $this->md_price,
             'dprice' => $this->dprice,
+            'pdprice' => $this->pdprice,
         ]);
     }
 
