@@ -214,6 +214,7 @@ Route::post('/mega-dealer/update/{id}', 'DealerController@updateMegaDealer')->na
 Route::get('/get-zipcode1', [DealerController::class, 'getZipCode1']);
 
 Route::get('/customers','CustomerController@index')->name('customers');
+Route::get('/my-customers', 'CustomerController@myCustomers')->name('my-customers');
 Route::get('/customer','CustomerController@view')->name('customer');
 Route::get('/dashboard-customer','CustomerController@show')->name('customer');
 Route::get('/new-customer','CustomerController@newCustomer')->name('newcustomer');

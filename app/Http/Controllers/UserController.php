@@ -42,7 +42,7 @@ class UserController extends Controller
             })
             ->orderBy('name')
             ->get();
-        $centers = Center::orderBy('name')->get();
+        $centers = Center::orderBy('name')->where('deleted_at', '=', null)->get();
         $mfiTypes = $this->availableMfiTypes();
         $users = User::with([
                 'dealer:id,user_id,address,status',

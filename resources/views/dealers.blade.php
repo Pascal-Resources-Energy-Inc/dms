@@ -367,8 +367,8 @@
             </div>
         </div>
     </div>
-    @endsection
     @include('new_dealer')
+    @endsection
     @section('javascript')
     <script>
         $(document).ready(async function () {

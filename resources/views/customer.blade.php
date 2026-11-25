@@ -62,19 +62,29 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.6/dist/signature_pad.umd.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+@include('area_distributor.partials.customer-styles')
 @endsection
 @section('content')
 @php
     $isRemoteCustomer = $isRemoteCustomer ?? false;
     $sourceLabel = $customer->source_label ?? 'Local Database';
     $profileName = strtoupper($customer->display_name ?? ($customer->name ?? '-'));
-    $serialNumber = $customer->serial_number ?? ($customer->serial->serial_number ?? '-');
+    $serialNumber = optional($customer->serial)->serial_number ?: '-';
     $avatar = $customer->avatar ?? null;
     $avatarUrl = $avatar
         ? (preg_match('/^https?:\/\//i', $avatar) ? $avatar : asset($avatar))
         : asset('design/assets/images/profile/user-1.png');
 @endphp
 <section class="welcome">
+    @if(!empty($isDistributorCustomerPage))
+        <a href="{{ route('my-customers') }}" class="btn btn-outline-primary mb-3"><i class="ti ti-arrow-left"></i> Back to Customers</a>
+    @endif
+    @if($errors->any())
+        <div class="alert alert-danger" role="alert">
+            <strong>Unable to save the customer.</strong>
+            <ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+        </div>
+    @endif
      <!-- Customer Info Section -->
      <div class="row">
         <div class="col-md-4">
@@ -106,6 +116,9 @@
                     @endunless
                     <hr>
                     <div class="profile-info text-start">
+                        @if(!empty($isDistributorCustomerPage))
+                            <p><strong>Area:</strong> {{ $customer->area ?? '-' }}</p>
+                        @endif
                         @if($isRemoteCustomer)
                             <p><i class="bi bi-database"></i> {{ strtoupper($sourceLabel) }}</p>
                         @endif

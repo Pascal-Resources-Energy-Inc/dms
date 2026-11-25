@@ -1,13 +1,13 @@
 {{-- <div id="new_customer" class="modal fade" tabindex="-1" aria-labelledby="bs-example-modal-md" aria-hidden="true">
   <div class="modal-dialog modal-lg"> --}}
-<div id="new_customer" class="modal fade modal-select2" tabindex="-1">
-  <div class="modal-dialog modal-xl">
+<div id="new_customer" class="modal fade modal-select2 {{ !empty($isDistributorCustomerPage) ? 'distributor-customer-modal' : '' }}" tabindex="-1" aria-labelledby="myModalLabel">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header d-flex align-items-center">
         <h4 class="modal-title" id="myModalLabel">New Customer</h4>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form method='POST' action='{{url('new-customer')}}' onsubmit='show()' enctype="multipart/form-data" class="validation-wizard wizard-circle">
+      <form method='POST' action='{{url('new-customer')}}' enctype="multipart/form-data" class="validation-wizard wizard-circle">
         @csrf
         <input type="hidden" name="latitude" id="hidden_latitude">
         <input type="hidden" name="longitude" id="hidden_longitude">
@@ -18,10 +18,10 @@
             <div class="col-md-12">
               <div class="mb-3">
                 <label class="form-label" for="stoveId">Serial Number</label>
-                <select class="js-example-basic-single w-100 form-control renz required chosen-select" name='serial_number'>
+                <select id="stoveId" class="w-100 form-control {{ !empty($isDistributorCustomerPage) ? 'select2' : 'js-example-basic-single renz chosen-select' }}" name='serial_number'>
                   <option value="">Search Serial Number</option>
                   @foreach($stoves as $stove)
-                    <option value="{{$stove->id}}">{{$stove->serial_number}}</option>
+                    <option value="{{$stove->id}}" {{ old('serial_number') == $stove->id ? 'selected' : '' }}>{{$stove->serial_number}}</option>
                   @endforeach
                 </select>
               </div>
@@ -35,31 +35,31 @@
             <div class="col-md-4">
               <div class="mb-3">
                 <label class="form-label" for="first_name">First Name&nbsp;<span class="text-danger">*</span></label>
-                <input type="text" class="form-control required" id="first_name" name="first_name" placeholder="Enter First Name" data-uppercase required/>
+                <input type="text" class="form-control required" id="first_name" name="first_name" value="{{ old('first_name') }}" placeholder="Enter First Name" data-uppercase required/>
               </div>
             </div>
              <div class="col-md-4">
               <div class="mb-3">
-                <label class="form-label" for="middle_name">Middle Name&nbsp;<span class="text-danger">*</span></label>
-                <input type="text" class="form-control required" id="middle_name" name="middle_name" placeholder="Enter Middle Name" data-uppercase>
+                <label class="form-label" for="middle_name">Middle Name</label>
+                <input type="text" class="form-control" id="middle_name" name="middle_name" value="{{ old('middle_name') }}" placeholder="Enter Middle Name" data-uppercase>
               </div>
             </div>
              <div class="col-md-4">
               <div class="mb-3">
                 <label class="form-label" for="last_name">Last Name&nbsp;<span class="text-danger">*</span></label>
-                <input type="text" class="form-control required" id="last_name" name="last_name" placeholder="Enter Last Name" data-uppercase required/>
+                <input type="text" class="form-control required" id="last_name" name="last_name" value="{{ old('last_name') }}" placeholder="Enter Last Name" data-uppercase required/>
               </div>
             </div>
             <div class="col-md-6">
               <div class="mb-3">
                 <label class="form-label" for="wemailAddress2">Email Address&nbsp;<span class="text-danger">*</span></label>
-                <input type="email" class="form-control required" id="wemailAddress2" name="email_address" placeholder="Enter Email Address" required/>
+                <input type="email" class="form-control required" id="wemailAddress2" name="email_address" value="{{ old('email_address') }}" placeholder="Enter Email Address" required/>
               </div>
             </div>
             <div class="col-md-6">
               <div class="mb-3">
                 <label class="form-label" for="wphoneNumber2">Mobile Number&nbsp;<span class="text-danger">*</span></label>
-                <input type="text" class="form-control required" id="wphoneNumber2" maxlength="11" pattern="\d{11}" name="phone_number" placeholder="09xxxxxxxxx" required oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11);" />
+                <input type="text" class="form-control required" id="wphoneNumber2" maxlength="11" pattern="09[0-9]{9}" name="phone_number" value="{{ old('phone_number') }}" placeholder="09xxxxxxxxx" required oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11);" />
               </div>
             </div>
             <div class="col-md-6">
@@ -81,6 +81,18 @@
               </div>
             </div>
             <div class="fs-6 fw-bold col-md-12 mb-3"><i class="bi bi-geo-alt"></i> Location Details</div>
+            @if(!empty($isDistributorCustomerPage))
+            <div class="col-md-12 mb-3">
+              <label class="form-label" for="newCustomerArea">Awarded area <span class="text-danger">*</span></label>
+              <select id="newCustomerArea" name="area" class="form-control select2" required data-placeholder="Select awarded area">
+                <option value="">Select awarded area</option>
+                @foreach($customerAreaNames as $areaName)
+                  <option value="{{ $areaName }}" {{ old('area') === $areaName ? 'selected' : '' }}>{{ $areaName }}</option>
+                @endforeach
+              </select>
+              <small class="text-muted">This customer will belong to the selected area.</small>
+            </div>
+            @endif
             <div class="col-md-6">
               <div class="mb-3">
                 <label>Street Name, Building, House No. <span class="text-danger">*</span></label>
@@ -132,8 +144,8 @@
               </div>
             </div>
             <div class="col-md-6 mb-2">
-              <label class="form-label" for="center">Center&nbsp;<span class="text-danger">*</span></label>
-              <select class="form-control select2" id="center" name="center" required data-placeholder="Select Center">
+              <label class="form-label" for="center">Center @if(empty($isDistributorCustomerPage))<span class="text-danger">*</span>@else <small class="text-muted">(optional)</small>@endif</label>
+              <select class="form-control select2" id="center" name="center" {{ empty($isDistributorCustomerPage) ? 'required' : '' }} data-placeholder="Select Center">
                 <option value="">Select Center</option>
                 @foreach($centers ?? [] as $center)
                   <option value="{{ $center->name }}">{{ $center->name }}</option>
@@ -141,7 +153,7 @@
               </select>
             </div>
           </div>
-          <div class="col-md-12 mb-2 mt-3">
+          <div class="col-md-12 mb-2 mt-3 position-relative">
             <label class="form-label fw-semibold">
               <i class="bi bi-map"></i> Pin Location (Drag the marker)
             </label>
@@ -200,11 +212,7 @@
   </div>
 <!-- /.modal-dialog -->
 </div>
-<!-- jQuery FIRST -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<!-- Then Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+@push('page-scripts')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -527,3 +535,4 @@ $(document).ready(function() {
     $('#map').css('opacity', '1');
   }
 </script>
+@endpush

@@ -11,12 +11,16 @@ use RealRashid\SweetAlert\Facades\Alert;
 use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
     //
     public function index(Request $request)
     {
+        if ($this->isDistributor()) {
+            return $this->myCustomers($request);
+        }
         $isAdmin = auth()->user()->role === 'Admin';
         $centers = Center::get();
         $stoves = Stove::where('client_id',null)->get();
@@ -83,8 +87,111 @@ class CustomerController extends Controller
         );
     }
 
-    private function crmClients($connection, $label)
+    public function myCustomers(Request $request)
     {
+        abort_unless($this->isDistributor(), 403);
+
+        $areaNames = $this->customerAreaNames();
+        $regularCustomers = $this->scopeCustomerAreas(Client::with(['transactions', 'serial']), 'area', $areaNames)
+            ->orderBy('name')->get()->map(function ($customer) {
+                $customer->source = 'Regular';
+                $this->applyLocalCustomerPoints($customer);
+                return $customer;
+            });
+        $adminCrmCustomers = $this->crmClients('admin_crms', 'Project Rise', $areaNames);
+        $adminCrm2Customers = $this->crmClients('admin_crms2', 'Project Genesis', $areaNames);
+        // Use a base collection: different databases can contain the same customer ID.
+        $customers = collect($regularCustomers->all())->merge($adminCrmCustomers)->merge($adminCrm2Customers)
+            ->sortBy('name')->values()->map(function ($customer) {
+                $customer->display_name = auth()->user()->customerNameForDisplay($customer->name ?? '-');
+                return $customer;
+            });
+
+        return view('customers', [
+            'customers' => $customers,
+            'regularCustomers' => $regularCustomers,
+            'adminCrmCustomers' => $adminCrmCustomers,
+            'adminCrm2Customers' => $adminCrm2Customers,
+            'activeCustomers' => $customers->filter(function ($customer) {
+                return strcasecmp((string) $customer->status, 'Active') === 0;
+            })->count(),
+            'inactiveCustomers' => $customers->filter(function ($customer) {
+                return strcasecmp((string) $customer->status, 'Inactive') === 0;
+            })->count(),
+            'stoves' => Stove::whereNull('client_id')->get(),
+            'centers' => Center::orderBy('name')->get(),
+            'customerAreaNames' => $areaNames,
+            'isDistributorCustomerPage' => true,
+            'showCustomerFullName' => auth()->user()->canViewCustomerFullNames(),
+        ]);
+    }
+
+    private function isDistributor()
+    {
+        return auth()->check() && in_array(auth()->user()->role, [
+            User::ROLE_PROVINCIAL_DISTRIBUTOR, User::ROLE_AREA_DISTRIBUTOR,
+        ], true);
+    }
+
+    private function customerAreaNames()
+    {
+        $user = auth()->user();
+        $profile = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+            ? $user->provincialDistributor : $user->ad;
+
+        return $profile ? $profile->areas->filter(function ($award) {
+            return empty($award->deleted_at) && filled($award->area_name);
+        })->pluck('area_name')->map(function ($name) {
+            return trim($name);
+        })->filter()->unique()->values()->all() : [];
+    }
+
+    private function scopeCustomerAreas($query, $column, array $areaNames)
+    {
+        return $query->whereIn(DB::raw('LOWER(TRIM(' . $column . '))'), array_map(function ($name) {
+            return mb_strtolower(trim($name));
+        }, $areaNames));
+    }
+
+    private function authorizeDistributorCustomer($customer)
+    {
+        if (!$this->isDistributor()) {
+            return;
+        }
+        $area = mb_strtolower(trim((string) ($customer->area ?? '')));
+        $allowed = array_map(function ($name) { return mb_strtolower($name); }, $this->customerAreaNames());
+        abort_unless($area !== '' && in_array($area, $allowed, true), 403);
+    }
+
+    private function validateDistributorCustomer(Request $request, $customer = null)
+    {
+        if (!$this->isDistributor()) {
+            return;
+        }
+        $request->validate([
+            'area' => ['required', 'string', Rule::in($this->customerAreaNames())],
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'email_address' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($customer ? $customer->user_id : null)],
+            $customer ? 'number' : 'phone_number' => ['required', 'regex:/^09[0-9]{9}$/'],
+            'status' => 'nullable|in:Active,Inactive',
+            'serial_number' => ['nullable', 'integer', Rule::exists('stoves', 'id')->where(function ($query) use ($customer) {
+                $query->where(function ($available) use ($customer) {
+                    $available->whereNull('client_id');
+                    if ($customer) {
+                        $available->orWhere('client_id', $customer->id);
+                    }
+                });
+            })],
+        ], ['area.in' => 'Select one of your awarded areas.']);
+    }
+
+    private function crmClients($connection, $label, array $areaNames = null)
+    {
+        if ($areaNames === []) {
+            return collect();
+        }
         try {
             $schema = DB::connection($connection)->getSchemaBuilder();
             $table = $this->crmClientTable($connection);
@@ -95,6 +202,14 @@ class CustomerController extends Controller
 
             $query = DB::connection($connection)->table($table)
                 ->select($table . '.*');
+
+            if ($areaNames !== null) {
+                // A project without customer area data cannot be safely included.
+                if (!$schema->hasColumn($table, 'area')) {
+                    return collect();
+                }
+                $this->scopeCustomerAreas($query, $table . '.area', $areaNames);
+            }
 
             if (
                 $schema->hasTable('stoves') &&
@@ -230,44 +345,8 @@ class CustomerController extends Controller
                 return 0;
             }
 
-            $customerIds = collect([
-                    $customer->id ?? null,
-                    $customer->client_id ?? null,
-                    $customer->customer_id ?? null,
-                    $customer->user_id ?? null,
-                ])
-                ->filter(function ($value) {
-                    return $value !== null && $value !== '';
-                })
-                ->unique()
-                ->values()
-                ->all();
-
-            if (empty($customerIds)) {
-                return 0;
-            }
-
             $query = DB::connection($connection)->table('transaction_details');
-
-            $idColumns = collect(['client_id', 'customer_id', 'user_id'])
-                ->filter(function ($column) use ($schema) {
-                    return $schema->hasColumn('transaction_details', $column);
-                })
-                ->values();
-
-            if ($idColumns->isEmpty()) {
-                return 0;
-            }
-
-            $query->where(function ($inner) use ($idColumns, $customerIds) {
-                foreach ($idColumns as $index => $column) {
-                    if ($index === 0) {
-                        $inner->whereIn($column, $customerIds);
-                    } else {
-                        $inner->orWhereIn($column, $customerIds);
-                    }
-                }
-            });
+            $this->scopeCrmCustomerTransactions($query, $schema, $customer);
 
             if ($schema->hasColumn('transaction_details', 'deleted_at')) {
                 $query->whereNull('deleted_at');
@@ -277,6 +356,17 @@ class CustomerController extends Controller
         } catch (\Exception $exception) {
             return 0;
         }
+    }
+
+    private function scopeCrmCustomerTransactions($query, $schema, $customer)
+    {
+        foreach (['client_id', 'customer_id', 'user_id'] as $column) {
+            if ($schema->hasColumn('transaction_details', $column)) {
+                $id = $column === 'user_id' ? ($customer->user_id ?? null) : $customer->id;
+                return $id ? $query->where($column, $id) : $query->whereRaw('1 = 0');
+            }
+        }
+        return $query->whereRaw('1 = 0');
     }
 
     private function crmClientTransactions($connection, $customer)
@@ -289,20 +379,9 @@ class CustomerController extends Controller
             }
 
             $query = DB::connection($connection)->table('transaction_details');
-            $customerIds = collect([$customer->id ?? null, $customer->user_id ?? null])
-                ->filter()
-                ->unique()
-                ->values()
-                ->all();
-
-            if ($schema->hasColumn('transaction_details', 'client_id')) {
-                $query->whereIn('client_id', $customerIds);
-            } elseif ($schema->hasColumn('transaction_details', 'customer_id')) {
-                $query->whereIn('customer_id', $customerIds);
-            } elseif ($schema->hasColumn('transaction_details', 'user_id')) {
-                $query->whereIn('user_id', $customerIds);
-            } else {
-                return collect();
+            $this->scopeCrmCustomerTransactions($query, $schema, $customer);
+            if ($schema->hasColumn('transaction_details', 'deleted_at')) {
+                $query->whereNull('deleted_at');
             }
 
             if ($schema->hasColumn('transaction_details', 'id')) {
@@ -331,7 +410,7 @@ class CustomerController extends Controller
 
     public function viewAdminCrmCustomer(Request $request, $source, $id)
     {
-        abort_unless(auth()->user()->role === 'Admin', 403);
+        abort_unless(auth()->user()->role === 'Admin' || $this->isDistributor(), 403);
 
         $connections = [
             'admin_crms' => 'Project Rise',
@@ -347,6 +426,11 @@ class CustomerController extends Controller
         $query = DB::connection($source)->table($table)
             ->select($table . '.*')
             ->where($table . '.id', $id);
+
+        if ($this->isDistributor()) {
+            abort_unless($schema->hasColumn($table, 'area'), 403);
+            $this->scopeCustomerAreas($query, $table . '.area', $this->customerAreaNames());
+        }
 
         if (
             $schema->hasTable('stoves') &&
@@ -383,14 +467,16 @@ class CustomerController extends Controller
             'centers' => collect(),
             'stoves' => collect(),
             'isRemoteCustomer' => true,
+            'isDistributorCustomerPage' => $this->isDistributor(),
             'showCustomerFullName' => auth()->user()->canViewCustomerFullNames(),
         ]);
     }
 
     public function view(Request $request,$id)
     {
-        $transactions = TransactionDetail::where('client_id',$id)->orderBy('id','desc')->get();
         $customer = Client::with(['user', 'serial'])->findOrfail($id);
+        $this->authorizeDistributorCustomer($customer);
+        $transactions = TransactionDetail::where('client_id',$id)->orderBy('id','desc')->get();
         $rawCustomerName = trim(collect([
             optional($customer->user)->first_name,
             optional($customer->user)->middle_name,
@@ -409,6 +495,8 @@ class CustomerController extends Controller
                 'centers' => $centers,
                 'stoves' => $stoves,
                 'isRemoteCustomer' => false,
+                'isDistributorCustomerPage' => $this->isDistributor(),
+                'customerAreaNames' => $this->isDistributor() ? $this->customerAreaNames() : [],
                 'showCustomerFullName' => auth()->user()->canViewCustomerFullNames(),
                 
             )
@@ -420,6 +508,9 @@ class CustomerController extends Controller
     }
     public function newCustomer(Request $request)
     {
+        if ($this->isDistributor()) {
+            return redirect()->route('my-customers');
+        }
         $stoves = Stove::where('client_id',null)->get();
         return view('new-customer',
             array(
@@ -430,65 +521,73 @@ class CustomerController extends Controller
 
     public function saveCustomer(Request $request)
     {
-        $fullName = trim(collect([
-            $request->first_name,
-            $request->middle_name,
-            $request->last_name,
-        ])->filter()->implode(' '));
+        $this->validateDistributorCustomer($request);
+        $customer = DB::transaction(function () use ($request) {
+            $fullName = trim(collect([
+                $request->first_name,
+                $request->middle_name,
+                $request->last_name,
+            ])->filter()->implode(' '));
 
-        $user = new User;
-        // $user->name = $fullName;
-        $user->first_name = $request->first_name;
-        $user->middle_name = $request->middle_name;
-        $user->last_name = $request->last_name;
-        $user->email = $request->email_address;
-        $user->role = 'Client';
-        $user->birthdate = $request->birthdate;
-        $user->age = $request->age;
-        $user->password = bcrypt('12345678');
-        $user->save();
+            $user = new User;
+            $user->name = $fullName;
+            $user->first_name = $request->first_name;
+            $user->middle_name = $request->middle_name;
+            $user->last_name = $request->last_name;
+            $user->email = $request->email_address;
+            $user->role = 'Client';
+            $user->birthdate = $request->birthdate;
+            $user->age = $request->age;
+            $user->password = bcrypt('12345678');
+            $user->save();
 
-        // Generate Client Reference
-        $latestClient = Client::orderBy('id', 'desc')->first();
+            // Generate Client Reference
+            $latestClient = Client::orderBy('id', 'desc')->first();
 
-        if ($latestClient && $latestClient->client_reference) {
-            $number = intval(substr($latestClient->client_reference, 3)) + 1;
-        } else {
-            $number = 1;
-        }
+            if ($latestClient && $latestClient->client_reference) {
+                $number = intval(substr($latestClient->client_reference, 3)) + 1;
+            } else {
+                $number = 1;
+            }
 
-        $client_reference = 'PRC' . str_pad($number, 5, '0', STR_PAD_LEFT);
+            $client_reference = 'PRC' . str_pad($number, 5, '0', STR_PAD_LEFT);
 
-        $customer = new Client;
-        $customer->client_reference = $client_reference;
-        $customer->user_id = $user->id;
-        $customer->name = $fullName;
-        $customer->email_address = $request->email_address;
-        $customer->number = $request->phone_number;
-        $customer->facebook = $request->facebook;
-        $customer->address = $request->address;
-        $customer->serial_number = $request->serial_number;
-        $customer->location_region = $request->location_region;
-        $customer->location_province = $request->location_province;
-        $customer->location_city = $request->location_city;
-        $customer->location_barangay = $request->location_barangay;
-        $customer->postal_code = $request->postal_code;
-        $customer->street_address = $request->street_address;
-        $customer->spo = $request->spo;
-        $customer->center = $request->center;
-        $customer->status = $request->status;
-        if (Schema::hasColumn('clients', 'latitude')) {
-            $customer->latitude = $request->latitude;
-        }
-        if (Schema::hasColumn('clients', 'longitude')) {
-            $customer->longitude = $request->longitude;
-        }
-        $customer->save();
+            $customer = new Client;
+            $customer->client_reference = $client_reference;
+            $customer->user_id = $user->id;
+            $customer->name = $fullName;
+            $customer->email_address = $request->email_address;
+            $customer->number = $request->phone_number;
+            $customer->facebook = $request->facebook;
+            $customer->address = $request->address;
+            $customer->serial_number = $request->serial_number;
+            $customer->location_region = $request->location_region;
+            $customer->location_province = $request->location_province;
+            $customer->location_city = $request->location_city;
+            $customer->location_barangay = $request->location_barangay;
+            $customer->postal_code = $request->postal_code;
+            $customer->street_address = $request->street_address;
+            $customer->spo = $request->spo;
+            $customer->center = $request->center;
+            $customer->status = $request->input('status') ?: 'Active';
+            if ($this->isDistributor()) {
+                $customer->area = $request->area;
+            }
+            if (Schema::hasColumn('clients', 'latitude')) {
+                $customer->latitude = $request->latitude;
+            }
+            if (Schema::hasColumn('clients', 'longitude')) {
+                $customer->longitude = $request->longitude;
+            }
+            $customer->save();
 
-        $serial_number = Stove::findOrfail($request->serial_number);
-        $serial_number->client_id = $customer->id;
-        $serial_number->save();
-
+            if ($request->filled('serial_number')) {
+                $serial_number = Stove::findOrfail($request->serial_number);
+                $serial_number->client_id = $customer->id;
+                $serial_number->save();
+            }
+            return $customer;
+        });
 
         Alert::success('Successfully encoded')->persistent('Dismiss');
         return redirect('view-client/' . $customer->id);
@@ -497,62 +596,70 @@ class CustomerController extends Controller
     public function update(Request $request, $id)
     {
         $customer = Client::findOrFail($id);
+        $this->authorizeDistributorCustomer($customer);
+        $this->validateDistributorCustomer($request, $customer);
 
-        $fullName = trim(collect([
-            $request->first_name,
-            $request->middle_name,
-            $request->last_name,
-        ])->filter()->implode(' '));
+        DB::transaction(function () use ($request, $customer) {
 
-        if ($customer->user_id) {
-            User::where('id', $customer->user_id)->update([
-                'name' => $fullName ?: $customer->name,
-                'first_name' => $request->first_name,
-                'middle_name' => $request->middle_name,
-                'last_name' => $request->last_name,
-                'email' => $request->email_address,
-                'birthdate' => $request->birthdate,
-                'age' => $request->age,
-            ]);
-        }
+            $fullName = trim(collect([
+                $request->first_name,
+                $request->middle_name,
+                $request->last_name,
+            ])->filter()->implode(' '));
 
-        $newSerialId = $request->serial_number;
-        if ($newSerialId && (int) $newSerialId !== (int) $customer->serial_number) {
-            if ($customer->serial_number) {
-                $oldSerial = Stove::find($customer->serial_number);
-                if ($oldSerial && (int) $oldSerial->client_id === (int) $customer->id) {
-                    $oldSerial->client_id = null;
-                    $oldSerial->save();
-                }
+            if ($customer->user_id) {
+                User::where('id', $customer->user_id)->update([
+                    'name' => $fullName ?: $customer->name,
+                    'first_name' => $request->first_name,
+                    'middle_name' => $request->middle_name,
+                    'last_name' => $request->last_name,
+                    'email' => $request->email_address,
+                    'birthdate' => $request->birthdate,
+                    'age' => $request->age,
+                ]);
             }
 
-            $newSerial = Stove::findOrFail($newSerialId);
-            $newSerial->client_id = $customer->id;
-            $newSerial->save();
-            $customer->serial_number = $newSerialId;
-        }
+            $newSerialId = $request->serial_number;
+            if ($newSerialId && (int) $newSerialId !== (int) $customer->serial_number) {
+                if ($customer->serial_number) {
+                    $oldSerial = Stove::find($customer->serial_number);
+                    if ($oldSerial && (int) $oldSerial->client_id === (int) $customer->id) {
+                        $oldSerial->client_id = null;
+                        $oldSerial->save();
+                    }
+                }
 
-        $customer->name = $fullName ?: $customer->name;
-        $customer->email_address = $request->email_address;
-        $customer->number = $request->number;
-        $customer->facebook = $request->facebook;
-        $customer->address = $request->address;
-        $customer->location_region = $request->location_region;
-        $customer->location_province = $request->location_province;
-        $customer->location_city = $request->location_city;
-        $customer->location_barangay = $request->location_barangay;
-        $customer->postal_code = $request->postal_code;
-        $customer->street_address = $request->street_address;
-        $customer->spo = $request->spo;
-        $customer->center = $request->center;
-        $customer->status = $request->status;
-        if (Schema::hasColumn('clients', 'latitude')) {
-            $customer->latitude = $request->latitude;
-        }
-        if (Schema::hasColumn('clients', 'longitude')) {
-            $customer->longitude = $request->longitude;
-        }
-        $customer->save();
+                $newSerial = Stove::findOrFail($newSerialId);
+                $newSerial->client_id = $customer->id;
+                $newSerial->save();
+                $customer->serial_number = $newSerialId;
+            }
+
+            $customer->name = $fullName ?: $customer->name;
+            $customer->email_address = $request->email_address;
+            $customer->number = $request->number;
+            $customer->facebook = $request->facebook;
+            $customer->address = $request->address;
+            $customer->location_region = $request->location_region;
+            $customer->location_province = $request->location_province;
+            $customer->location_city = $request->location_city;
+            $customer->location_barangay = $request->location_barangay;
+            $customer->postal_code = $request->postal_code;
+            $customer->street_address = $request->street_address;
+            $customer->spo = $request->spo;
+            $customer->center = $request->center;
+            $customer->status = $request->status;
+            if ($this->isDistributor()) {
+                $customer->area = $request->area;
+            }
+            if (Schema::hasColumn('clients', 'latitude')) {
+                $customer->latitude = $request->latitude;
+            }
+            if (Schema::hasColumn('clients', 'longitude')) {
+                $customer->longitude = $request->longitude;
+            }
+            $customer->save();
+        });
 
         Alert::success('Success', 'Customer updated successfully!')->persistent('Dismiss');
         return redirect()->back();
@@ -561,6 +668,7 @@ class CustomerController extends Controller
     public function changeAvatar(Request $request, $id)
     {
         $customer = Client::findOrfail($id);
+        $this->authorizeDistributorCustomer($customer);
         
         $imageData = $request->image_data;
         
@@ -608,6 +716,7 @@ class CustomerController extends Controller
     {
         // dd($request->all());
         $customer = Client::findOrfail($id);
+        $this->authorizeDistributorCustomer($customer);
         $customer->valid_id = $request->valid_id_type;
         $customer->valid_id_number = $request->id_number;
 
@@ -628,6 +737,7 @@ class CustomerController extends Controller
         // dd($request->all());
 
         $customer = Client::findOrfail($id);
+        $this->authorizeDistributorCustomer($customer);
 
         $attachment = $request->file('contract_signature');
         $original_name = $attachment->getClientOriginalName();
@@ -648,6 +758,7 @@ class CustomerController extends Controller
    if($serials)
    {
    $client = Client::findOrfail($serials->client_id);
+   $this->authorizeDistributorCustomer($client);
     $user = User::find($client->user_id);
 
     if ($user) {
@@ -672,6 +783,7 @@ class CustomerController extends Controller
     public function sign($id)
     {
         $customer = Client::findOrfail($id);
+        $this->authorizeDistributorCustomer($customer);
 
         return view('signature',
         array(

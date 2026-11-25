@@ -12,7 +12,6 @@
         --border: #e4e7ec;
         display: grid;
         gap: 16px;
-        padding-top: 18px;
     }
     .ad-page-head, .ad-filter-head, .ad-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
     .ad-page-head { padding: 20px 22px; background: linear-gradient(135deg, #fff, #fff7f7); border: 1px solid #f1e4e4; border-radius: 14px; box-shadow: 0 10px 28px rgba(15, 23, 42, .05); }
