@@ -259,9 +259,10 @@
                         <div class="mb-3 js-movement-items">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div><label class="form-label mb-0">Products and Quantities</label><div class="form-text mt-0">Add one or more LPG products for this movement.</div></div>
-                                <button type="button" id="addMovementRow" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg me-1"></i>Add Row</button>
+                                
                             </div>
                             <div id="movementRows"></div>
+                            <button type="button" id="addMovementRow" class="btn btn-sm btn-outline-primary d-flex justify-content-end"><i class="bi bi-plus-lg me-1"></i>Add Row</button>
                         </div>
                         <div class="row js-pull-out-ris" style="display: none;">
                             <p class="small text-muted mb-2">All products share one Pull Out reference. The warehouse can release part of each product and process the remaining quantity later.</p>
