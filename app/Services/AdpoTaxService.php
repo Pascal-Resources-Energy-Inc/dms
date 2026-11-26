@@ -20,7 +20,7 @@ class AdpoTaxService
 
     public function templatePath()
     {
-        $path = resource_path('forms/bir-2307-jan-2018.pdf');
+        $path = resource_path('forms/bir-2307.pdf');
         abort_unless(is_file($path), 503,
             'The BIR 2307 template is unavailable. Please ask your administrator to restore the form.');
 

@@ -86,7 +86,7 @@ class AdPurchaseOrderController extends Controller
             'partial_received' => $orders->where('status', 'Partial Received')->count(),
             'completed' => $orders->where('status', 'Completed')->count(),
             'cancelled' => $orders->where('status', 'Cancelled')->count(),
-            'amount' => $orders->sum('total_amount'),
+            'amount' => $orders->where('status', '!=', 'Cancelled')->sum('total_amount')
         ];
 
         $favoriteSummary = [
