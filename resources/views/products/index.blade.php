@@ -299,16 +299,16 @@
                                     <div class="product-section-heading"><h6 id="productPricingHeading">Pricing</h6><span>Philippine peso (PHP)</span></div>
                                     <div class="product-pricing-grid">
                                     <div>
-                                        <label for="price" id="priceLabel" class="form-label">Price (PHP)&nbsp;<span class="text-danger">*</span></label>
+                                        <label for="price" id="priceLabel" class="form-label">End User Price (PHP)&nbsp;<span class="text-danger">*</span></label>
                                         <input type="number" id="price" name="price" class="form-control" value="{{ old('price') }}" step="0.01" min="0" required placeholder="0.00">
-                                    </div>
-                                    <div>
-                                        <label for="mega_dealer_price" class="form-label">Mega dealer price</label>
-                                        <input type="number" id="mega_dealer_price" name="mega_dealer_price" class="form-control" value="{{ old('mega_dealer_price') }}" step="0.01" min="0" placeholder="0.00">
                                     </div>
                                     <div>
                                         <label for="dealer_price" class="form-label">Dealer price</label>
                                         <input type="number" id="dealer_price" name="dealer_price" class="form-control" value="{{ old('dealer_price') }}" step="0.01" min="0" placeholder="0.00">
+                                    </div>
+                                    <div>
+                                        <label for="mega_dealer_price" class="form-label">Mega Dealer price</label>
+                                        <input type="number" id="mega_dealer_price" name="mega_dealer_price" class="form-control" value="{{ old('mega_dealer_price') }}" step="0.01" min="0" placeholder="0.00">
                                     </div>
                                     {{-- <div class="col-md-3">
                                         <label for="client_price" class="form-label">End User Price (PHP)</label>
@@ -484,16 +484,16 @@
                             <input type="text" id="edit_sku" class="form-control mb-2" required placeholder="Enter Stock Keeping Unit" data-uppercase>
                         </div>
                         <div class="col-md-6">
-                            <label for="edit_price" id="editPriceLabel" class="form-label">Price (PHP)&nbsp;<span class="text-danger">*</span></label>
+                            <label for="edit_price" id="editPriceLabel" class="form-label">End User Price (PHP)&nbsp;<span class="text-danger">*</span></label>
                             <input type="number" id="edit_price" class="form-control mb-2" step="0.01" min="0" required placeholder="0.00">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="edit_mega_dealer_price" class="form-label">Mega Dealer Price (PHP)</label>
-                            <input type="number" id="edit_mega_dealer_price" class="form-control mb-2" step="0.01" min="0" placeholder="0.00">
                         </div>
                         <div class="col-md-6">
                             <label for="edit_dealer_price" class="form-label">Dealer Price (PHP)</label>
                             <input type="number" id="edit_dealer_price" class="form-control mb-2" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_mega_dealer_price" class="form-label">Mega Dealer Price (PHP)</label>
+                            <input type="number" id="edit_mega_dealer_price" class="form-control mb-2" step="0.01" min="0" placeholder="0.00">
                         </div>
                         {{-- <div class="col-md-6">
                             <label for="edit_client_price" class="form-label">End User Price (PHP)</label>
@@ -718,7 +718,7 @@
                 if (editModeEls.submit) editModeEls.submit.textContent = isBundle ? 'Update Bundle' : 'Update Product';
                 if (editModeEls.nameLabel) editModeEls.nameLabel.innerHTML = (isBundle ? 'Bundle Name' : 'Product Name') + '&nbsp;<span class="text-danger">*</span>';
                 if (editModeEls.descriptionLabel) editModeEls.descriptionLabel.textContent = isBundle ? 'Bundle Description' : 'Product Description';
-                if (editModeEls.priceLabel) editModeEls.priceLabel.innerHTML = (isBundle ? 'Bundle Price (PHP)' : 'Price (PHP)') + '&nbsp;<span class="text-danger">*</span>';
+                if (editModeEls.priceLabel) editModeEls.priceLabel.innerHTML = (isBundle ? 'Bundle End User Price (PHP)' : 'End User Price (PHP)') + '&nbsp;<span class="text-danger">*</span>';
                 if (editModeEls.imageHelp) editModeEls.imageHelp.textContent = isBundle ? 'Optional override. If empty, a combined bundle image will be generated.' : 'JPG, PNG (Max: 2MB)';
             }
 
@@ -1259,7 +1259,7 @@
             }
 
             if (priceLabel) {
-                priceLabel.innerHTML = (isBundle ? 'Bundle Price (PHP)' : 'Price (PHP)') + '&nbsp;<span class="text-danger">*</span>';
+                priceLabel.innerHTML = (isBundle ? 'Bundle End User Price (PHP)' : 'End User Price (PHP)') + '&nbsp;<span class="text-danger">*</span>';
             }
 
             if (productImageHelp) {

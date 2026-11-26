@@ -8,8 +8,9 @@
         'percentage' => 'Percentage',
     ];
     $appliesToOptions = [
+        'mega_dealer' => 'Mega Dealer',
         'dealer' => 'Dealer',
-        'customer' => 'Customer',
+        // 'customer' => 'Customer',
     ];
     $selectedType = old('type', optional($charge)->type ?? 'charge');
     $selectedChargeType = old('charge_type', optional($charge)->charge_type ?? 'fixed');

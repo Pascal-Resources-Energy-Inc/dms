@@ -130,31 +130,80 @@
   </div>
 </div> --}}
 
-<div class="modal fade" id="editUserModal" tabindex="-1">
-  <div class="modal-dialog">
+<div class="modal fade modal-select2" id="editUserModal" tabindex="-1" aria-labelledby="editUserTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content">
 
       <div class="modal-header">
-        <h5>Edit User</h5>
+        <h5 class="modal-title" id="editUserTitle">Edit User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
 
+      <form id="editUserForm" novalidate>
       <div class="modal-body">
         <input type="hidden" id="edit_user_id">
-
-        <input type="text" id="edit_name" class="form-control mb-2" placeholder="Name">
-        <input type="email" id="edit_email" class="form-control mb-2" placeholder="Email">
-        <textarea id="edit_address" class="form-control" rows="3" placeholder="Address"></textarea>
+        <div id="editUserErrors" class="alert alert-danger" role="alert" tabindex="-1" hidden></div>
+        <div class="mb-3">
+          <label class="form-label" for="edit_name">Name <span class="text-danger">*</span></label>
+          <input type="text" id="edit_name" class="form-control" placeholder="Name" maxlength="255" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="edit_email">Email <span class="text-danger">*</span></label>
+          <input type="email" id="edit_email" class="form-control" placeholder="Email" maxlength="255" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="edit_address">Address</label>
+          <textarea id="edit_address" class="form-control" rows="3" placeholder="Address" maxlength="1000"></textarea>
+        </div>
+        <div id="editDistributorPersonnelSection" class="mb-3" hidden>
+          <label class="form-label" for="edit_user_role">Role Type</label>
+          <input type="text" id="edit_user_role" class="form-control mb-3" readonly>
+          <label class="distributor-personnel-card" for="edit_is_distributor_personnel">
+            <input type="checkbox" id="edit_is_distributor_personnel" value="1">
+            <span class="distributor-personnel-icon"><i class="bi bi-person-workspace" aria-hidden="true"></i></span>
+            <span class="distributor-personnel-copy"><strong>Distributor Personnel</strong><small>Assign this account to an existing distributor.</small></span>
+            <span class="distributor-personnel-check"><i class="bi bi-check-lg" aria-hidden="true"></i></span>
+          </label>
+          <div id="editPersonnelAssignment" class="personnel-assignment mt-3" hidden>
+            <label class="form-label fw-semibold" for="edit_assigned_distributor_user_id">Assign to distributor <span class="text-danger">*</span></label>
+            <select id="edit_assigned_distributor_user_id" class="form-select" aria-describedby="editPersonnelHelp" disabled>
+              <option value="">Search distributor name, code or area</option>
+            </select>
+            <small id="editPersonnelHelp" class="d-block text-muted mt-2"></small>
+            <div id="editPersonnelDistributorSummary" class="personnel-distributor-summary mt-3" hidden>
+              <div class="personnel-assignment-label">Selected distributor</div>
+              <strong data-personnel-summary="name"></strong>
+              <dl>
+                <div><dt>Store code</dt><dd data-personnel-summary="code"></dd></div>
+                <div><dt>Business</dt><dd data-personnel-summary="business_name"></dd></div>
+                <div><dt>Awarded areas</dt><dd data-personnel-summary="areas"></dd></div>
+              </dl>
+            </div>
+          </div>
+          <p id="editPersonnelAccountHelp" class="personnel-assignment-note mt-3 mb-0"></p>
+        </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-primary" id="saveUser">Save</button>
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveUser">Save changes</button>
       </div>
+      </form>
 
     </div>
   </div>
 </div>
 
 <style>
+#editUserModal #editUserForm { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+#editUserModal .modal-body { overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+#editUserModal .modal-footer { flex-shrink: 0; }
+#editUserModal [hidden] { display: none !important; }
+@media (max-width: 575.98px) {
+  #editUserModal .modal-body { padding: 16px; }
+  #editUserModal .modal-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #editUserModal .modal-footer .btn { margin: 0; width: 100%; }
+}
 .modal-body {
   padding: 1rem 1.5rem 0.5rem 1.5rem;
 }

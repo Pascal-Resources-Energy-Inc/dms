@@ -51,6 +51,13 @@ class ProvincialDistributor extends Model implements Auditable
         'withholding_tax' => 'boolean',
     ];
 
+    public function scopeWithoutPersonnel($query)
+    {
+        return $query->whereDoesntHave('userAds', function ($users) {
+            $users->where('is_distributor_personnel', true);
+        });
+    }
+
     public function areas()
     {
         return $this->hasMany(ProvincialDistributorArea::class, 'provincial_distributor_id');

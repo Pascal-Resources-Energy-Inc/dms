@@ -28,6 +28,7 @@ class User extends Authenticatable implements Auditable
     ];
 
     protected $casts = [
+        'is_distributor_personnel' => 'boolean',
         'email_verified_at' => 'datetime',
         'read_notifications' => 'array',
         'approval_types' => 'array',
@@ -86,6 +87,49 @@ class User extends Authenticatable implements Auditable
     {
         return $this->hasOne(ProvincialDistributor::class, 'user_id', 'id');
     }
+
+    // Personnel share the selected distributor's profile without owning another
+    // distributor or awarded-area record. Their user ID remains their own.
+    public function getAdAttribute()
+    {
+        if ($this->is_distributor_personnel && $this->assigned_distributor_user_id && $this->hasAreaDistributorAccess()) {
+            return $this->assignedDistributorProfile() ? $this->assignedDistributor->ad : null;
+        }
+
+        return $this->getRelationValue('ad');
+    }
+
+    public function getProvincialDistributorAttribute()
+    {
+        if ($this->is_distributor_personnel && $this->assigned_distributor_user_id && $this->role === self::ROLE_PROVINCIAL_DISTRIBUTOR) {
+            return $this->assignedDistributorProfile();
+        }
+
+        return $this->getRelationValue('provincialDistributor');
+    }
+
+    public function assignedDistributor()
+    {
+        return $this->belongsTo(self::class, 'assigned_distributor_user_id');
+    }
+
+    public function distributorPersonnel()
+    {
+        return $this->hasMany(self::class, 'assigned_distributor_user_id');
+    }
+
+    public function assignedDistributorProfile()
+    {
+        $owner = $this->assignedDistributor;
+        if (!$this->is_distributor_personnel || !$owner || $owner->is_distributor_personnel || $owner->role !== $this->role) {
+            return null;
+        }
+
+        $profile = $this->role === self::ROLE_PROVINCIAL_DISTRIBUTOR
+            ? $owner->provincialDistributor : $owner->ad;
+
+        return $profile && !$profile->deleted_at ? $profile : null;
+    }
     
     public function redeemedHistory()
     {
@@ -102,6 +146,16 @@ class User extends Authenticatable implements Auditable
             self::ROLE_AREA_DISTRIBUTOR,
             self::ROLE_PROVINCIAL_DISTRIBUTOR,
         ], true);
+    }
+
+    public function isDistributorPersonnel(): bool
+    {
+        return $this->hasAreaDistributorAccess() && (bool) $this->is_distributor_personnel;
+    }
+
+    public function supportsAccessControl(): bool
+    {
+        return in_array($this->role, ['Admin', 'MFI'], true) || $this->isDistributorPersonnel();
     }
 
     public function raffleEntries()

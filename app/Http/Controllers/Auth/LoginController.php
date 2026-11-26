@@ -91,6 +91,10 @@ class LoginController extends Controller
     protected function isUserInactive($user)
     {
         if ($user->hasAreaDistributorAccess()) {
+            if ($user->is_distributor_personnel && $user->assigned_distributor_user_id) {
+                $profile = $user->assignedDistributorProfile();
+                return !$profile || strcasecmp((string) $profile->status, 'Active') !== 0;
+            }
             $ad = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
                 ? ProvincialDistributor::where('user_id', $user->id)->first()
                 : AreaDistributor::where('user_id', $user->id)->first();
@@ -136,6 +140,16 @@ class LoginController extends Controller
 
     protected function redirectByRole($user)
     {
+        $permissions = json_decode($user->access_permissions ?? '{}', true);
+        if ($user->isDistributorPersonnel() && is_array($permissions) && !empty($permissions)) {
+            $navigation = \App\Support\ModulePermissions::personnelNavigation($user);
+            foreach ($navigation as $group) {
+                foreach ($group['links'] as $link) {
+                    if ($link['route']) return route($link['route'], [], false);
+                }
+            }
+            return route('access.unavailable', [], false);
+        }
         switch (strtolower($user->role)) {
             case 'admin':
             case 'mfi':

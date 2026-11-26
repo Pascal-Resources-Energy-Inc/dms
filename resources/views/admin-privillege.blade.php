@@ -24,6 +24,7 @@
                         </div>
                     </div>
                 </div>
+                <p id="accessPersonnelNote" class="small text-muted mb-3" hidden>These permissions apply only to this personnel account. The assigned distributor keeps its own access.</p>
 
                 <div class="access-section">
                     <div class="access-section-title">

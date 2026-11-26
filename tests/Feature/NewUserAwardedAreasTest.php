@@ -29,12 +29,15 @@ class NewUserAwardedAreasTest extends TestCase
             $table->increments('id');
             foreach (['first_name', 'middle_name', 'last_name', 'name', 'email', 'password', 'address', 'warehouse',
                 'territory', 'delivery_address', 'role', 'mfi_type', 'type', 'project_tag', 'birthdate', 'age',
-                'mothers_name', 'designation', 'employee_number', 'department', 'approval_types', 'access_permissions'] as $column) {
+                'mothers_name', 'designation', 'employee_number', 'department', 'approval_types', 'access_permissions', 'can_add', 'can_edit'] as $column) {
                 $table->string($column)->nullable();
             }
             $table->boolean('is_distributor_personnel')->default(false);
+            $table->rememberToken();
             $table->timestamps();
         });
+        require_once database_path('migrations/2026_11_26_000001_add_assigned_distributor_to_users.php');
+        (new \AddAssignedDistributorToUsers)->up();
         foreach ([new AreaDistributor, new ProvincialDistributor] as $profile) {
             Schema::create($profile->getTable(), function (Blueprint $table) use ($profile) {
                 $table->increments('id');
@@ -68,6 +71,360 @@ class NewUserAwardedAreasTest extends TestCase
     {
         return [['Area Distributor', AreaDistributor::class, AreaAd::class],
             ['Provincial Distributor', ProvincialDistributor::class, ProvincialDistributorArea::class]];
+    }
+
+    private function personnelOwner($role, $profileClass, array $attributes = [])
+    {
+        $owner = new User(['role' => $role, 'name' => 'Existing distributor', 'email' => 'owner-'.User::count().'@example.test']);
+        $owner->save();
+        return $profileClass::create(array_merge([
+            'user_id' => $owner->id, 'name' => 'Existing distributor', 'store_code' => 'EXISTING-001',
+            'business_name' => 'Existing store', 'status' => 'Active',
+        ], $attributes));
+    }
+
+    private function personnelInput($role, $owner, array $changes = [])
+    {
+        return array_replace([
+            'role' => $role, 'is_distributor_personnel' => '1', 'assigned_distributor_user_id' => $owner->user_id,
+            'first_name' => 'QA', 'last_name' => 'Personnel', 'email_address' => 'personnel@example.test',
+            'facebook' => 'qa-personnel',
+        ], $changes);
+    }
+
+    private function allowUserEditing()
+    {
+        auth()->user()->forceFill(['can_edit' => 'on']);
+    }
+
+    private function editPersonnelInput($user, array $changes = [])
+    {
+        return array_replace(['id' => $user->id, 'name' => 'Updated personnel', 'email' => $user->email,
+            'is_distributor_personnel' => '1', 'assigned_distributor_user_id' => $user->assigned_distributor_user_id], $changes);
+    }
+
+    /** @dataProvider roles */
+    public function test_personnel_access_can_be_saved_reloaded_and_cleared_without_changing_the_owner($role, $profileClass)
+    {
+        $owner = $this->personnelOwner($role, $profileClass);
+        $owner->userAds->forceFill(['access_permissions' => json_encode(['products' => ['catalog' => ['view', 'edit']]])])->save();
+        $this->postJson('/new-user', $this->personnelInput($role, $owner))->assertStatus(201);
+        $staff = User::where('email', 'personnel@example.test')->firstOrFail();
+        $this->postJson('/users/access-update', ['id' => $staff->id, 'access_permissions' => json_encode([
+            'products' => ['catalog' => ['view', 'execute']], 'inventory_transfers' => ['transfers' => ['view', 'add']],
+        ])])->assertOk()->assertJson(['success' => true]);
+        $saved = json_decode($staff->fresh()->access_permissions, true);
+        $this->assertSame(['view'], $saved['products']['catalog']);
+        $this->assertSame(['view', 'add'], $saved['inventory_transfers']['transfers']);
+        $this->assertSame([], $saved['customers']['records']);
+        $this->assertSame($role, $staff->fresh()->role);
+        $this->assertSame((int) $owner->user_id, (int) $staff->fresh()->assigned_distributor_user_id);
+        $this->assertSame(['view', 'edit'], json_decode($owner->userAds->fresh()->access_permissions, true)['products']['catalog']);
+        foreach (['dealers', 'clients'] as $tableName) {
+            Schema::create($tableName, function (Blueprint $table) {
+                $table->increments('id'); $table->integer('user_id');
+                $table->string('address')->nullable(); $table->string('status')->nullable();
+            });
+        }
+        $this->getJson('/users/'.$staff->id.'/show')->assertOk()->assertJson(['access_permissions' => $saved]);
+        $this->postJson('/users/access-update', ['id' => $staff->id, 'access_permissions' => '{}'])->assertOk();
+        $empty = json_decode($staff->fresh()->access_permissions, true);
+        $this->assertNotEmpty($empty);
+        foreach ($empty as $rows) foreach ($rows as $actions) $this->assertSame([], $actions);
+        $this->assertFalse(\App\Support\ModulePermissions::allows($staff->fresh(), 'products.catalog'));
+    }
+
+    /** @dataProvider roles */
+    public function test_personnel_access_button_is_available_only_on_supported_accounts_for_authorized_managers($role, $profileClass)
+    {
+        foreach (['dealers', 'clients'] as $tableName) {
+            Schema::create($tableName, function (Blueprint $table) {
+                $table->increments('id'); $table->integer('user_id');
+                $table->string('address')->nullable(); $table->string('status')->nullable();
+            });
+        }
+        $owner = $this->personnelOwner($role, $profileClass);
+        $this->postJson('/new-user', $this->personnelInput($role, $owner))->assertStatus(201);
+        $staff = User::where('email', 'personnel@example.test')->firstOrFail();
+        $response = $this->getJson('/users/data?draw=1')->assertOk();
+        $rows = collect($response->json('data'));
+        $this->assertContains('btn-access-user', $rows->firstWhere('id', $staff->id)['actions']);
+        $this->assertNotContains('btn-access-user', $rows->firstWhere('id', $owner->user_id)['actions']);
+        $this->postJson('/users/access-update', ['id' => $owner->user_id, 'access_permissions' => '{}'])->assertStatus(422);
+        $this->actingAs($staff);
+        $this->postJson('/users/access-update', ['id' => $staff->id, 'access_permissions' => '{"users":{"accounts":["edit"]}}'])->assertStatus(403);
+        $this->assertNull($staff->fresh()->access_permissions);
+    }
+
+    public function test_pd_personnel_fulfillment_permissions_apply_to_shared_order_detail_and_status_routes()
+    {
+        Schema::create('ad_purchase_orders', function (Blueprint $table) {
+            $table->increments('id'); $table->integer('provincial_distributor_id')->nullable();
+            $table->string('order_source'); $table->softDeletes();
+        });
+        $owner = $this->personnelOwner(User::ROLE_PROVINCIAL_DISTRIBUTOR, ProvincialDistributor::class);
+        $this->postJson('/new-user', $this->personnelInput(User::ROLE_PROVINCIAL_DISTRIBUTOR, $owner))->assertStatus(201);
+        $staff = User::where('email', 'personnel@example.test')->firstOrFail();
+        $staff->forceFill(['access_permissions' => json_encode(['purchase_orders' => ['provincial' => ['view', 'edit'], 'adpo' => []]])]);
+        DB::table('ad_purchase_orders')->insert([
+            ['id' => 1, 'provincial_distributor_id' => $owner->id, 'order_source' => 'provincial_distributor'],
+            ['id' => 2, 'provincial_distributor_id' => null, 'order_source' => 'prei_warehouse'],
+        ]);
+        $allowed = function ($id, $name) use ($staff) {
+            $request = \Illuminate\Http\Request::create('/ad-purchase-orders/'.$id);
+            $request->setUserResolver(function () use ($staff) { return $staff; });
+            $route = new \Illuminate\Routing\Route('GET', '/ad-purchase-orders/{id}', ['as' => $name]);
+            $route->bind($request);
+            $request->setRouteResolver(function () use ($route) { return $route; });
+            try {
+                return (new \App\Http\Middleware\EnsureModuleAccess)->handle($request, function () { return true; });
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+                $this->assertSame(403, $exception->getStatusCode());
+                return false;
+            }
+        };
+        $this->assertTrue($allowed(1, 'ad-purchase-orders.show'));
+        $this->assertTrue($allowed(1, 'ad-purchase-orders.updateStatus'));
+        $this->assertFalse($allowed(2, 'ad-purchase-orders.show'));
+        $this->assertFalse($allowed(2, 'ad-purchase-orders.updateStatus'));
+        $staff->access_permissions = json_encode(['purchase_orders' => ['provincial' => ['view'], 'adpo' => []]]);
+        $this->assertFalse($allowed(1, 'ad-purchase-orders.updateStatus'));
+    }
+
+    /** @dataProvider roles */
+    public function test_edit_loads_saved_personnel_assignment_and_active_options($role, $profileClass)
+    {
+        foreach (['dealers', 'clients'] as $tableName) {
+            Schema::create($tableName, function (Blueprint $table) {
+                $table->increments('id'); $table->integer('user_id');
+                $table->string('address')->nullable(); $table->string('status')->nullable();
+            });
+        }
+        $owner = $this->personnelOwner($role, $profileClass);
+        $this->postJson('/new-user', $this->personnelInput($role, $owner))->assertStatus(201);
+        $staff = User::where('email', 'personnel@example.test')->firstOrFail();
+        $this->getJson('/users/'.$staff->id.'/show')->assertOk()->assertJson([
+            'id' => $staff->id, 'role' => $role, 'is_distributor_personnel' => true,
+            'assigned_distributor_user_id' => $owner->user_id, 'has_distributor_profile' => false,
+        ])->assertJsonCount(1, 'personnel_distributors');
+        $owner->update(['status' => 'Inactive']);
+        $this->getJson('/users/'.$staff->id.'/show')->assertOk()->assertJson([
+            'assigned_distributor_user_id' => $owner->user_id, 'assigned_distributor_name' => 'Existing distributor',
+        ])->assertJsonCount(0, 'personnel_distributors');
+    }
+
+    /** @dataProvider roles */
+    public function test_edit_reassigns_personnel_without_mutating_distributor_profiles_or_areas($role, $profileClass, $areaClass)
+    {
+        $this->allowUserEditing();
+        $owner = $this->personnelOwner($role, $profileClass);
+        $secondOwner = $this->personnelOwner($role, $profileClass, ['business_name' => 'Second owner store']);
+        $this->postJson('/new-user', $this->personnelInput($role, $owner))->assertStatus(201);
+        $staff = User::where('email', 'personnel@example.test')->firstOrFail();
+        $this->postJson('/users/update', $this->editPersonnelInput($staff, [
+            'assigned_distributor_user_id' => $secondOwner->user_id, 'role' => 'Admin', 'address' => 'Updated address',
+        ]))->assertOk()->assertJson(['success' => true]);
+        $saved = $staff->fresh();
+        $this->assertTrue($saved->is_distributor_personnel);
+        $this->assertSame($role, $saved->role);
+        $this->assertSame((int) $secondOwner->user_id, (int) $saved->assigned_distributor_user_id);
+        $this->assertSame('Updated personnel', $saved->name);
+        $this->assertSame('Updated address', $saved->address);
+        $this->assertSame('qa-personnel', $saved->personnel_facebook);
+        $this->assertSame('Second owner store', $saved->assignedDistributorProfile()->business_name);
+        $this->assertSame('Existing store', $owner->fresh()->business_name);
+        $this->assertSame(2, $profileClass::count());
+        $this->assertSame(0, $areaClass::count());
+    }
+
+    /** @dataProvider roles */
+    public function test_edit_rejects_invalid_assignments_and_rolls_back_all_user_changes($role, $profileClass)
+    {
+        $this->allowUserEditing();
+        $owner = $this->personnelOwner($role, $profileClass);
+        $this->postJson('/new-user', $this->personnelInput($role, $owner))->assertStatus(201);
+        $staff = User::where('email', 'personnel@example.test')->firstOrFail();
+        foreach ([null, '', 'bad', 999999, $staff->id, [$owner->user_id]] as $id) {
+            $this->postJson('/users/update', $this->editPersonnelInput($staff, ['assigned_distributor_user_id' => $id]))
+                ->assertStatus(422)->assertJsonValidationErrors('assigned_distributor_user_id');
+        }
+        $otherRole = $role === User::ROLE_PROVINCIAL_DISTRIBUTOR ? User::ROLE_AREA_DISTRIBUTOR : User::ROLE_PROVINCIAL_DISTRIBUTOR;
+        $otherClass = $profileClass === ProvincialDistributor::class ? AreaDistributor::class : ProvincialDistributor::class;
+        $wrongOwner = $this->personnelOwner($otherRole, $otherClass);
+        $this->postJson('/users/update', $this->editPersonnelInput($staff, ['assigned_distributor_user_id' => $wrongOwner->user_id]))
+            ->assertStatus(422)->assertJsonValidationErrors('assigned_distributor_user_id');
+        $owner->update(['status' => 'Inactive']);
+        $this->postJson('/users/update', $this->editPersonnelInput($staff))->assertStatus(422);
+        $this->assertSame('QA Personnel', $staff->fresh()->name);
+        $this->assertSame((int) $owner->user_id, (int) $staff->fresh()->assigned_distributor_user_id);
+    }
+
+    /** @dataProvider roles */
+    public function test_edit_can_toggle_owner_personnel_and_restore_its_preserved_profile($role, $profileClass, $areaClass)
+    {
+        $this->allowUserEditing();
+        $owner = $this->personnelOwner($role, $profileClass);
+        $targetProfile = $this->personnelOwner($role, $profileClass, ['business_name' => 'Preserved business']);
+        $target = $targetProfile->userAds;
+        $this->postJson('/users/update', $this->editPersonnelInput($target, ['assigned_distributor_user_id' => $owner->user_id]))
+            ->assertOk();
+        $this->assertTrue($target->fresh()->is_distributor_personnel);
+        $this->assertFalse($profileClass::withoutPersonnel()->where('id', $targetProfile->id)->exists());
+        $this->assertSame('Preserved business', $targetProfile->fresh()->business_name);
+        $this->assertSame(2, $profileClass::count());
+        $this->postJson('/users/update', $this->editPersonnelInput($target, ['is_distributor_personnel' => '0']))->assertOk();
+        $saved = $target->fresh();
+        $this->assertFalse($saved->is_distributor_personnel);
+        $this->assertNull($saved->assigned_distributor_user_id);
+        $this->assertTrue($profileClass::withoutPersonnel()->where('id', $targetProfile->id)->exists());
+        $this->assertSame('Preserved business', $targetProfile->fresh()->business_name);
+        $this->assertSame(0, $areaClass::count());
+    }
+
+    /** @dataProvider roles */
+    public function test_edit_cannot_uncheck_personnel_without_own_profile_or_create_a_personnel_chain($role, $profileClass)
+    {
+        $this->allowUserEditing();
+        $owner = $this->personnelOwner($role, $profileClass);
+        $other = $this->personnelOwner($role, $profileClass);
+        $this->postJson('/new-user', $this->personnelInput($role, $owner))->assertStatus(201);
+        $staff = User::where('email', 'personnel@example.test')->firstOrFail();
+        $this->postJson('/users/update', $this->editPersonnelInput($staff, ['is_distributor_personnel' => '0']))
+            ->assertStatus(422)->assertJsonValidationErrors('is_distributor_personnel');
+        $this->postJson('/users/update', $this->editPersonnelInput($owner->userAds, ['assigned_distributor_user_id' => $other->user_id]))
+            ->assertStatus(422)->assertJsonValidationErrors('is_distributor_personnel');
+        $this->assertTrue($staff->fresh()->is_distributor_personnel);
+        $this->assertFalse((bool) $owner->userAds->fresh()->is_distributor_personnel);
+        $this->assertSame('QA Personnel', $staff->fresh()->name);
+    }
+
+    /** @dataProvider roles */
+    public function test_edit_without_personnel_fields_keeps_saved_assignment_and_requires_edit_permission($role, $profileClass)
+    {
+        $owner = $this->personnelOwner($role, $profileClass);
+        $this->postJson('/new-user', $this->personnelInput($role, $owner))->assertStatus(201);
+        $staff = User::where('email', 'personnel@example.test')->firstOrFail();
+        $input = ['id' => $staff->id, 'name' => 'Updated only name', 'email' => $staff->email];
+        $this->postJson('/users/update', $input)->assertStatus(403);
+        $this->allowUserEditing();
+        $this->postJson('/users/update', $input)->assertOk();
+        $this->assertTrue($staff->fresh()->is_distributor_personnel);
+        $this->assertSame((int) $owner->user_id, (int) $staff->fresh()->assigned_distributor_user_id);
+    }
+
+    /** @dataProvider roles */
+    public function test_personnel_are_linked_to_existing_distributor_without_creating_distributors_or_areas($role, $profileClass, $areaClass)
+    {
+        $owner = $this->personnelOwner($role, $profileClass);
+        $before = [$profileClass::count(), AreaDistributor::count(), ProvincialDistributor::count(), $areaClass::count()];
+        $this->postJson('/new-user', $this->personnelInput($role, $owner, [
+            'business_name' => 'Forged business', 'store_code' => 'FORGED', 'area_name' => ['Area A'], 'type' => ['Project Rise'],
+        ]))->assertStatus(201)->assertJson(['success' => true]);
+        $staff = User::where('email', 'personnel@example.test')->firstOrFail();
+        $this->assertTrue($staff->is_distributor_personnel);
+        $this->assertSame($role, $staff->role);
+        $this->assertSame($owner->user_id, (int) $staff->assigned_distributor_user_id);
+        $this->assertSame('qa-personnel', $staff->personnel_facebook);
+        $this->assertSame($before, [$profileClass::count(), AreaDistributor::count(), ProvincialDistributor::count(), $areaClass::count()]);
+        $this->assertSame('Existing store', $owner->fresh()->business_name);
+        $this->assertSame($owner->id, $staff->assignedDistributorProfile()->id);
+        $relation = $role === User::ROLE_PROVINCIAL_DISTRIBUTOR ? 'provincialDistributor' : 'ad';
+        $this->assertSame($owner->id, $staff->{$relation}->id);
+        $this->assertSame($owner->id, User::with($relation)->findOrFail($staff->id)->{$relation}->id);
+        $this->assertFalse(User::where('id', $staff->id)->has($relation)->exists());
+        $this->assertSame($owner->user_id, $owner->fresh()->userAds->id);
+        $this->assertSame(0, $profileClass::where('user_id', $staff->id)->count());
+        $this->assertSame('[]', $staff->type);
+    }
+
+    /** @dataProvider roles */
+    public function test_personnel_requires_matching_active_owner_and_rejects_personnel_as_owner($role, $profileClass)
+    {
+        $owner = $this->personnelOwner($role, $profileClass);
+        $input = $this->personnelInput($role, $owner);
+        foreach ([null, '', 999999, 'bad', [$owner->user_id]] as $value) {
+            $this->postJson('/new-user', array_replace($input, ['assigned_distributor_user_id' => $value]))
+                ->assertStatus(422)->assertJsonValidationErrors('assigned_distributor_user_id');
+        }
+        $otherRole = $role === User::ROLE_PROVINCIAL_DISTRIBUTOR ? User::ROLE_AREA_DISTRIBUTOR : User::ROLE_PROVINCIAL_DISTRIBUTOR;
+        $this->postJson('/new-user', array_replace($input, ['role' => $otherRole]))->assertStatus(422);
+        $owner->update(['status' => 'Inactive']);
+        $this->postJson('/new-user', $input)->assertStatus(422);
+        $owner->update(['status' => 'Active']);
+        $owner->userAds->forceFill(['is_distributor_personnel' => true])->save();
+        $this->postJson('/new-user', $input)->assertStatus(422);
+        $this->assertSame(1, User::count());
+        $this->assertSame(1, $profileClass::count());
+    }
+
+    /** @dataProvider roles */
+    public function test_personnel_login_uses_assigned_distributor_status($role, $profileClass)
+    {
+        $owner = $this->personnelOwner($role, $profileClass);
+        $this->postJson('/new-user', $this->personnelInput($role, $owner))->assertStatus(201);
+        \Auth::guard()->setUser(User::where('email', 'personnel@example.test')->firstOrFail());
+        \Auth::logout();
+        $this->postJson('/login', ['email' => 'personnel@example.test', 'password' => '12345678', 'selected_role' => $role])
+            ->assertOk()->assertJson(['success' => true, 'redirect' => '/ad-dashboard']);
+        \Auth::logout();
+        $owner->update(['status' => 'Inactive']);
+        $this->postJson('/login', ['email' => 'personnel@example.test', 'password' => '12345678', 'selected_role' => $role])
+            ->assertStatus(422)->assertJson(['success' => false, 'message' => 'Your account is inactive.']);
+        $this->assertGuest();
+    }
+
+    /** @dataProvider roles */
+    public function test_distributor_creation_does_not_become_personnel_from_stale_assignment($role, $profileClass)
+    {
+        $owner = $this->personnelOwner($role, $profileClass);
+        $this->postJson('/new-user', $this->input($role, [
+            'is_distributor_personnel' => '0', 'assigned_distributor_user_id' => $owner->user_id,
+        ]))->assertStatus(201);
+        $created = User::where('email', 'qa@example.test')->firstOrFail();
+        $this->assertFalse($created->is_distributor_personnel);
+        $this->assertNull($created->assigned_distributor_user_id);
+        $this->assertSame(1, $profileClass::where('user_id', $created->id)->count());
+    }
+
+    public function test_new_users_selection_contains_both_owner_types_and_excludes_inactive_deleted_and_personnel_profiles()
+    {
+        Schema::create('stoves', function (Blueprint $table) {
+            $table->increments('id'); $table->string('serial_number'); $table->integer('client_id')->nullable();
+        });
+        Schema::create('centers', function (Blueprint $table) {
+            $table->increments('id'); $table->string('name'); $table->softDeletes();
+        });
+        foreach (['dealers', 'clients'] as $tableName) {
+            Schema::create($tableName, function (Blueprint $table) {
+                $table->increments('id'); $table->integer('user_id');
+                $table->string('address')->nullable(); $table->string('status')->nullable();
+            });
+        }
+        $ad = $this->personnelOwner('Area Distributor', AreaDistributor::class);
+        $pd = $this->personnelOwner('Provincial Distributor', ProvincialDistributor::class);
+        $ad->areas()->create(['area_name' => 'Area A', 'ad_user_id' => $ad->user_id, 'user_role' => 'Area Distributor']);
+        $retiredArea = $ad->areas()->create(['area_name' => 'Area B', 'ad_user_id' => $ad->user_id, 'user_role' => 'Area Distributor']);
+        $retiredArea->delete();
+        $inactive = $this->personnelOwner('Area Distributor', AreaDistributor::class, ['status' => 'Inactive']);
+        $deleted = $this->personnelOwner('Provincial Distributor', ProvincialDistributor::class);
+        $deleted->delete();
+        $staff = $this->personnelOwner('Area Distributor', AreaDistributor::class);
+        $staff->userAds->forceFill(['is_distributor_personnel' => true])->save();
+        $view = (new \App\Http\Controllers\UserController)->index(\Illuminate\Http\Request::create('/users'));
+        $options = $view->getData()['personnelDistributors'];
+        $this->assertCount(2, $options);
+        $this->assertSame([$pd->user_id, $ad->user_id], $options->pluck('user_id')->all());
+        $this->assertSame(['Area A'], $options->last()['areas']);
+    }
+
+    /** @dataProvider roles */
+    public function test_existing_unassigned_personnel_flags_keep_their_existing_profile($role, $profileClass)
+    {
+        $owner = $this->personnelOwner($role, $profileClass);
+        $user = $owner->userAds;
+        $user->forceFill(['is_distributor_personnel' => true])->save();
+        $relation = $role === User::ROLE_PROVINCIAL_DISTRIBUTOR ? 'provincialDistributor' : 'ad';
+        $this->assertSame($owner->id, User::with($relation)->findOrFail($user->id)->{$relation}->id);
     }
 
     /** @dataProvider roles */

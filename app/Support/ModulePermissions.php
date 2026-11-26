@@ -75,4 +75,46 @@ class ModulePermissions
         $definition = self::modules()[$key] ?? null;
         return $definition && $definition['legacy'] && ($user->{$definition['legacy']} ?? null) === 'on';
     }
+
+    public static function personnelNavigation($user)
+    {
+        // Use the distributor portal's routes for its shared permission rows.
+        $portalRoutes = [
+            'dashboard.overview' => 'ad-dashboard',
+            'transactions.customer_overview' => 'customer-ads',
+            'products.catalog' => 'products',
+            'charges.records' => 'charges',
+            'inventory_transfers.transfers' => 'inventory-transfers.index',
+            'dealers.records' => 'dealer-ads',
+            'dealers.mega' => 'md-ads',
+            'customers.records' => 'my-customers',
+            'orders.sales_orders' => 'orders',
+            'orders.guest' => 'guest-order',
+            'purchase_orders.adpo' => 'ad-purchase-orders.index',
+            'inventory.stock' => 'stock-inventory',
+            'forms.borrowing' => 'bmc.index',
+            'forms.layout' => 'layout.index',
+        ];
+        if ($user->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR) {
+            $portalRoutes['distributors.records'] = 'ads';
+            $portalRoutes['purchase_orders.provincial'] = 'provincial-distributor.purchase-orders';
+        }
+        $groups = [];
+        foreach (config('user_access_modules', []) as $key => $group) {
+            $links = [];
+            foreach ($group['modules'] as $definition) {
+                if (!self::allows($user, $definition['key'])) continue;
+                if (isset($portalRoutes[$definition['key']])) {
+                    $definition['route'] = $portalRoutes[$definition['key']];
+                } elseif (in_array($key, ['reports', 'forms'], true)) {
+                    $definition['route'] = $definition['routes']['view'][0] ?? null;
+                } else {
+                    continue;
+                }
+                $links[] = $definition;
+            }
+            if ($links) $groups[] = ['key' => $key, 'label' => $group['label'], 'links' => $links];
+        }
+        return collect($groups);
+    }
 }
