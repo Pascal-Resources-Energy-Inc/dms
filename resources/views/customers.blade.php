@@ -347,17 +347,20 @@
 
     }
 </style>
+@include('area_distributor.partials.customer-styles')
 @endsection
 
 @section('content')
 @php
     $isAdminCustomerPage = auth()->user()->role === 'Admin';
+    $isDistributorCustomerPage = $isDistributorCustomerPage ?? false;
+    $hasProjectTabs = $isAdminCustomerPage || $isDistributorCustomerPage;
     $adminCrmCustomers = $adminCrmCustomers ?? collect();
     $adminCrm2Customers = $adminCrm2Customers ?? collect();
     $regularCustomers = $regularCustomers ?? collect();
     $totalCustomers = $customers->count();
 
-    if ($isAdminCustomerPage) {
+    if ($hasProjectTabs) {
         $customerTabs = collect([
             ['key' => 'Regular', 'label' => 'Regular', 'icon' => 'ti ti-users', 'count' => $regularCustomers->count()],
             ['key' => 'admin_crms', 'label' => 'Project Rise', 'icon' => 'ti ti-database', 'count' => $adminCrmCustomers->count()],
@@ -377,19 +380,31 @@
     $initialCustomerCount = $initialCustomerTab['count'] ?? 0;
 @endphp
 
-<section class="customer-page">
+<section class="customer-page {{ $isDistributorCustomerPage ? 'distributor-customers' : '' }}">
     <div class="customer-head">
         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
             <div>
                 <div class="customer-eyebrow">Customer Network</div>
                 <h4 class="mb-1 mt-2">Customers</h4>
-                <div class="text-muted">Monitor customer status, serials, territories, and reward points.</div>
+                <div class="text-muted">{{ $isDistributorCustomerPage ? 'Manage customers in your awarded areas, their profiles, and purchase history.' : 'Monitor customer status, serials, territories, and reward points.' }}</div>
             </div>
+            @if(!$isDistributorCustomerPage || count($customerAreaNames))
             <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#new_customer">
                 <i class="ti ti-plus"></i> Add Customer
             </button>
+            @endif
         </div>
     </div>
+
+    @if($isDistributorCustomerPage && !count($customerAreaNames))
+        <div class="alert alert-info">No active awarded areas are assigned to your account. Customers will appear here once an area is assigned.</div>
+    @endif
+    @if($errors->any())
+        <div class="alert alert-danger" role="alert">
+            <strong>Unable to save the customer.</strong>
+            <ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+        </div>
+    @endif
 
     <div class="customer-stat-grid">
         <div class="customer-stat">
@@ -449,7 +464,7 @@
                             <th>Serial Number</th>
                             <th>Address</th>
                             <th>Total Points</th>
-                            <th>Center</th>
+                            <th>{{ $isDistributorCustomerPage ? 'Area' : 'Center' }}</th>
                             <th>SPO</th>
                             <th>Status</th>
                             <th>View</th>
@@ -458,8 +473,8 @@
                     <tbody id="customerBody">
                         @foreach($customers as $customer)
                             @php
-                                $customerTabKey = $isAdminCustomerPage ? ($customer->source ?? 'Regular') : 'All';
-                                $isRemoteCustomer = $isAdminCustomerPage && $customerTabKey !== 'Regular';
+                                $customerTabKey = $hasProjectTabs ? ($customer->source ?? 'Regular') : 'All';
+                                $isRemoteCustomer = $hasProjectTabs && $customerTabKey !== 'Regular';
                                 $address = strtoupper(trim(implode(', ', array_filter([
                                     $customer->street_address,
                                     $customer->location_barangay,
@@ -474,25 +489,25 @@
                                     : url('view-client/' . $customer->id);
                             @endphp
                             <tr data-customer-tab-key="{{ $customerTabKey }}" data-customer-status="{{ $status }}">
-                                <td><span class="customer-ref">{{ strtoupper($customer->client_reference) }}</span></td>
-                                <td>
+                                <td data-label="Reference"><span class="customer-ref">{{ strtoupper($customer->client_reference) }}</span></td>
+                                <td data-label="Customer">
                                     <a href="{{ $customerViewUrl }}" class="customer-link">
                                         {{ strtoupper($customer->display_name ?? $customer->name) }}
                                     </a>
                                 </td>
-                                <td>{{ $customer->number ?: '-' }}</td>
-                                <td>{{ strtoupper($customer->email_address ?: '-') }}</td>
-                                <td>{{ $serialNumber }}</td>
-                                <td><div class="customer-muted">{{ $address ?: '-' }}</div></td>
-                                <td><span class="customer-points">{{ number_format($points) }}</span></td>
-                                <td>{{ strtoupper($customer->center ?: '-') }}</td>
-                                <td>{{ strtoupper($customer->spo ?: '-') }}</td>
-                                <td>
+                                <td data-label="Contact">{{ $customer->number ?: '-' }}</td>
+                                <td data-label="Email">{{ strtoupper($customer->email_address ?: '-') }}</td>
+                                <td data-label="Serial number">{{ $serialNumber }}</td>
+                                <td data-label="Address"><div class="customer-muted">{{ $address ?: ($customer->address ?? '-') }}</div></td>
+                                <td data-label="Points"><span class="customer-points">{{ number_format($points) }}</span></td>
+                                <td data-label="{{ $isDistributorCustomerPage ? 'Area' : 'Center' }}">{{ strtoupper(($isDistributorCustomerPage ? ($customer->area ?? '') : $customer->center) ?: '-') }}</td>
+                                <td data-label="SPO">{{ strtoupper($customer->spo ?: '-') }}</td>
+                                <td data-label="Status">
                                     <span class="customer-status {{ $status === 'Active' ? 'is-active' : 'is-inactive' }}">
                                         {{ $status }}
                                     </span>
                                 </td>
-                                <td>
+                                <td data-label="Actions">
                                     <a href="{{ $customerViewUrl }}"
                                         class="customer-action-btn"
                                         title="View customer">
@@ -505,30 +520,21 @@
                     </tbody>
                 </table>
             </div>
-        @else
-            <div class="customer-empty">
-                <strong>No customers found</strong>
-                <span class="d-block mt-1">Add a customer to populate this list.</span>
-            </div>
         @endif
     </div>
 </section>
-
+@include('new_customer')
 @endsection
 
-@include('new_customer')
-
 @section('javascript')
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
 
 <script>
 $(document).ready(async function() {
     const $customerTable = $('#customerTable');
-    const isAdminCustomerPage = {{ $isAdminCustomerPage ? 'true' : 'false' }};
+    const isAdminCustomerPage = {{ $hasProjectTabs ? 'true' : 'false' }};
     const initialCustomerKey = "{{ $initialCustomerKey }}";
 
     function loadCustomerScript(src) {
@@ -713,6 +719,13 @@ $(document).ready(async function() {
         });
 
         setCustomerEmptyState($('.customer-tab.active').data('customer-label') || activeCustomerTab, matchingCustomerRows().length);
+    } else {
+        $('.customer-tab').on('click', function () {
+            $('.customer-tab').removeClass('active').attr('aria-selected', 'false');
+            $(this).addClass('active').attr('aria-selected', 'true');
+            $('#customerTableTitle').text($(this).data('customer-label'));
+            $('#customerEmptyState strong').text('No ' + String($(this).data('customer-label')).toLowerCase() + ' customers found');
+        });
     }
 
     $('#new_customer').on('shown.bs.modal', function () {

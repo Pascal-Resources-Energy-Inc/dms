@@ -1,5 +1,5 @@
-<div class="modal fade modal-select2" id="editCustomerModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
+<div class="modal fade modal-select2 {{ !empty($isDistributorCustomerPage) ? 'distributor-customer-modal' : '' }}" id="editCustomerModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Edit Customer Information</h5>
@@ -14,7 +14,7 @@
                         <div class="fs-6 fw-bold col-md-12 mb-3"><i class="bi bi-person"></i> Personal Information</div>
                         <div class="col-md-12 mb-2">
                             <label class="form-label">Serial Number</label>
-                            <select class="form-control select2" name="serial_number" required>
+                            <select class="form-control select2" name="serial_number">
                                 <option value="">Select Serial Number</option>
                                 @foreach($stoves as $stove)
                                     <option value="{{ $stove->id }}" {{ (int) $customer->serial_number === (int) $stove->id ? 'selected' : '' }}>
@@ -79,6 +79,17 @@
                         </div>
 
                         <div class="fs-6 fw-bold col-md-12 mt-2 mb-3"><i class="bi bi-geo-alt"></i> Location Details</div>
+                        @if(!empty($isDistributorCustomerPage))
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label" for="editCustomerArea">Awarded area <span class="text-danger">*</span></label>
+                            <select id="editCustomerArea" name="area" class="form-control select2" required>
+                                <option value="">Select awarded area</option>
+                                @foreach($customerAreaNames as $areaName)
+                                    <option value="{{ $areaName }}" {{ strcasecmp(trim(old('area', $customer->area)), $areaName) === 0 ? 'selected' : '' }}>{{ $areaName }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
                         <div class="col-md-6 mb-2">
                             <label>Street Name, Building, House No.</label>
                             <input type="text" class="form-control" name="street_address" id="edit_customer_street_address" value="{{ old('street_address', $customer->street_address) }}" data-uppercase>

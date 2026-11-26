@@ -9,9 +9,6 @@
 
     <title>{{ config('app.name', 'Laravel') }}</title>
 
-    <!-- Scripts -->
-    <script src="{{ asset('js/app.js') }}" defer></script>
-
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet" type="text/css">
@@ -1882,10 +1879,9 @@
                                 <li class="nav-item">
                                     <a href="{{url('/dealer-ads')}}" class="nav-link @if(Route::currentRouteName() == 'dealer-ads')active @endif" style="font-size: 14px">Dealer</a>
                                 </li>
-                                {{-- <li class="nav-item">
-                                    <a href="{{url('/my-customers')}}" class="nav-link @if(Route::currentRouteName() == 'my-customers')active @endif" style="font-size: 14px">My Customers</a>
-                                </li> --}}
-                                
+                                <li class="nav-item">
+                                    <a href="{{url('/my-customers')}}" class="nav-link @if(Route::currentRouteName() == 'my-customers')active @endif" style="font-size: 14px"> Customers</a>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -2791,7 +2787,7 @@
                     </div>
                 </div>
                 <div class="dropdown">
-                    <button class="profile-dropdown" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="profile-dropdown" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu">
                         <img src="{{auth()->user()->avatar}}" onerror="this.src='{{url('design/assets/images/profile/user-1.png')}}';" alt="Profile" class="profile-img">
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -2996,6 +2992,7 @@
         });
     </script>
 
+    @stack('page-scripts')
     @yield('javascript')
 
     <script>
