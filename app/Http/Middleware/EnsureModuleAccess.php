@@ -14,12 +14,18 @@ class EnsureModuleAccess
             return $next($request);
         }
 
-        if (! $user || ! in_array($user->role, ['Admin', 'MFI'], true)) {
+        if (! $user || !$user->supportsAccessControl()) {
             return $next($request);
         }
 
         $permissions = json_decode($user->access_permissions ?? '{}', true);
         $permissions = is_array($permissions) ? $permissions : [];
+
+        // Existing personnel retain their portal access until permissions are
+        // explicitly configured. Saved permissions apply to this user only.
+        if ($user->isDistributorPersonnel() && empty($permissions)) {
+            return $next($request);
+        }
 
         // Admins are unrestricted until a detailed permission list is saved.
         if ($user->role === 'Admin' && empty($permissions)) {
@@ -36,6 +42,18 @@ class EnsureModuleAccess
         if (strpos((string) $controllerAction, 'DealerController@newDealer') !== false
             || $routeName === 'check.dealer.duplicate') {
             $access = ['dealers', $request->input('partner_role') === 'Mega Dealer' ? 'mega' : 'records', 'add', 'can_access_dealers'];
+        }
+
+        // The two purchase-order desks share their detail and status endpoints.
+        // Incoming PD orders use the PD desk permission, not replenishment access.
+        if ($user->isDistributorPersonnel() && $user->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR
+            && in_array($routeName, ['ad-purchase-orders.show', 'ad-purchase-orders.updateStatus'], true)
+            && $request->route('id')) {
+            $profile = $user->provincialDistributor;
+            if ($profile && \App\AdPurchaseOrder::where('id', $request->route('id'))
+                ->where('order_source', 'provincial_distributor')->where('provincial_distributor_id', $profile->id)->exists()) {
+                $access = ['purchase_orders', 'provincial', $routeName === 'ad-purchase-orders.show' ? 'view' : 'edit', 'can_access_purchase_orders'];
+            }
         }
 
         if (! $access) {

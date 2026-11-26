@@ -53,7 +53,37 @@ class UserController extends Controller
             ->latest()
             ->paginate(20); // ✅ IMPORTANT
 
-        return view('users.index', compact('stoves', 'users', 'areas', 'allAreas', 'centers', 'mfiTypes'));
+        $personnelDistributors = $this->personnelDistributorOptions();
+
+        return view('users.index', compact('stoves', 'users', 'areas', 'allAreas', 'centers', 'mfiTypes', 'personnelDistributors'));
+    }
+
+    private function personnelDistributorQuery($role)
+    {
+        $model = $role === User::ROLE_PROVINCIAL_DISTRIBUTOR ? new ProvincialDistributor : new AreaDistributor;
+
+        return $model->newQuery()->where('status', 'Active')->whereNull('deleted_at')
+            ->whereHas('userAds', function ($query) use ($role) {
+                $query->where('role', $role)->where(function ($query) {
+                    $query->where('is_distributor_personnel', false)->orWhereNull('is_distributor_personnel');
+                });
+            });
+    }
+
+    private function personnelDistributorOptions()
+    {
+        return collect([User::ROLE_PROVINCIAL_DISTRIBUTOR, User::ROLE_AREA_DISTRIBUTOR])
+            ->flatMap(function ($role) {
+                return $this->personnelDistributorQuery($role)->with('areas')->orderBy('name')->get()
+                    ->map(function ($profile) use ($role) {
+                        return [
+                            'user_id' => (int) $profile->user_id, 'role' => $role, 'name' => $profile->name,
+                            'code' => $profile->store_code, 'business_name' => $profile->business_name,
+                            'address' => $profile->address,
+                            'areas' => $profile->areas->pluck('area_name')->filter()->unique()->values()->all(),
+                        ];
+                    });
+            })->values();
     }
 
     public function store(Request $request)
@@ -64,12 +94,26 @@ class UserController extends Controller
        $isAdmin = $request->role === 'Admin';
        $isSedp = $request->role === 'MFI';
        $isAdminLike = $isAdmin || $isSedp;
+       $request->validate(['is_distributor_personnel' => 'nullable|boolean']);
+       $isPersonnel = filter_var($request->input('is_distributor_personnel', false), FILTER_VALIDATE_BOOLEAN)
+            && in_array($request->role, [User::ROLE_PROVINCIAL_DISTRIBUTOR, User::ROLE_AREA_DISTRIBUTOR], true);
+       $assignedDistributor = null;
+       if ($isPersonnel) {
+            $request->validate(['assigned_distributor_user_id' => 'required|integer|min:1']);
+            $assignedDistributor = $this->personnelDistributorQuery($request->role)
+                ->where('user_id', $request->assigned_distributor_user_id)->first();
+            if (!$assignedDistributor) {
+                throw ValidationException::withMessages([
+                    'assigned_distributor_user_id' => 'Please select an active distributor matching the selected Role Type.',
+                ]);
+            }
+       }
        $isProvincialDistributor = $request->role === User::ROLE_PROVINCIAL_DISTRIBUTOR;
        $isDistributorProfile = in_array($request->role, [
             User::ROLE_PROVINCIAL_DISTRIBUTOR,
             User::ROLE_AREA_DISTRIBUTOR,
-       ], true);
-       $needsDeliveryAddress = in_array($request->role, ['Area Distributor', 'Provincial Distributor'], true);
+       ], true) && !$isPersonnel;
+       $needsDeliveryAddress = $isDistributorProfile;
        $normalizedContactNumber = $this->normalizeMobileNumber($request->contact_number);
        $newAwardedAreas = $isDistributorProfile ? (new NewUserAwardedAreas)->validate($request) : [];
 
@@ -96,7 +140,7 @@ class UserController extends Controller
             ->filter()
             ->unique();
 
-       $unavailableAreaKeys = $requestedAreaKeys->isEmpty() || $request->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+       $unavailableAreaKeys = $isPersonnel || $requestedAreaKeys->isEmpty() || $request->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
             ? collect()
             : $requestedAreaKeys->intersect($this->activeAdAreaKeys());
 
@@ -131,7 +175,7 @@ class UserController extends Controller
             // 'store_picture' => 'nullable|image|max:2048',
         ];
 
-       if ($isSedp || $isDistributorProfile) {
+       if ($isSedp || $isDistributorProfile || $isPersonnel) {
             $rules += [
                 'first_name' => 'required|string|max:255',
                 'middle_name' => 'nullable|string|max:255',
@@ -206,11 +250,16 @@ class UserController extends Controller
             ->values()
             ->all();
 
+        if ($isPersonnel) {
+            // Business/project fields belong to the existing distributor.
+            $projectTags = [];
+        }
+
 
         $offerSheetPaths = [];
         try {
             return DB::transaction(function () use ($request, $isAdmin, $isSedp, $isAdminLike, $isProvincialDistributor,
-                $isDistributorProfile, $needsDeliveryAddress, $normalizedContactNumber, $projectTags, $newAwardedAreas, &$offerSheetPaths) {
+                $isDistributorProfile, $isPersonnel, $assignedDistributor, $needsDeliveryAddress, $normalizedContactNumber, $projectTags, $newAwardedAreas, &$offerSheetPaths) {
                 $imagePath = null;
                 if ($request->hasFile('avatar')) {
                     $file = $request->file('avatar');
@@ -224,6 +273,13 @@ class UserController extends Controller
                     $request->middle_name,
                     $request->last_name,
                 ])->filter()->implode(' '));
+
+                if ($isPersonnel && !$this->personnelDistributorQuery($request->role)
+                    ->where('user_id', $assignedDistributor->user_id)->lockForUpdate()->first()) {
+                    throw ValidationException::withMessages([
+                        'assigned_distributor_user_id' => 'This distributor is no longer available. Please choose another distributor.',
+                    ]);
+                }
 
                 $user = new User();
                 $user->first_name = $request->first_name;
@@ -243,6 +299,15 @@ class UserController extends Controller
                 if (Schema::hasColumn('users', 'is_distributor_personnel')) {
                     $user->is_distributor_personnel = in_array($request->role, ['Provincial Distributor', 'Area Distributor', 'Mega Dealer'], true)
                         && filter_var($request->input('is_distributor_personnel', false), FILTER_VALIDATE_BOOLEAN);
+                }
+                if (Schema::hasColumn('users', 'assigned_distributor_user_id')) {
+                    $user->assigned_distributor_user_id = $isPersonnel ? $assignedDistributor->user_id : null;
+                    if ($isPersonnel) {
+                        $user->personnel_contact_number = $normalizedContactNumber ?: null;
+                        $user->personnel_facebook = $request->facebook;
+                    }
+                } elseif ($isPersonnel) {
+                    throw new \RuntimeException('Please run the distributor personnel migration before creating personnel accounts.');
                 }
                 if (Schema::hasColumn('users', 'mfi_type')) {
                     $user->mfi_type = $isSedp ? $request->mfi_type : null;
@@ -273,7 +338,7 @@ class UserController extends Controller
 
                 $user->save();
 
-                if ($isAdminLike) {
+                if ($isAdminLike || $isPersonnel) {
                     session()->forget('mobile_otp');
 
                     if ($request->expectsJson()) {
@@ -868,6 +933,17 @@ class UserController extends Controller
                 'name' => $user->name ?? '',
                 'email' => $user->email ?? '',
                 'role' => $user->role ?? '',
+                'is_distributor_personnel' => (bool) $user->is_distributor_personnel,
+                'assigned_distributor_user_id' => $user->assigned_distributor_user_id,
+                'has_distributor_profile' => $user->hasAreaDistributorAccess()
+                    && ($user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+                        ? ProvincialDistributor::where('user_id', $user->id)->exists()
+                        : AreaDistributor::where('user_id', $user->id)->whereNull('deleted_at')->exists()),
+                'personnel_distributors' => $user->hasAreaDistributorAccess()
+                    ? $this->personnelDistributorOptions()->reject(function ($option) use ($user) {
+                        return $option['user_id'] === (int) $user->id;
+                    })->values() : [],
+                'assigned_distributor_name' => optional($user->assignedDistributor)->name,
                 'can_edit' => $user->can_edit,
                 'can_add' => $user->can_add,
                 'can_delete' => $user->can_delete,
@@ -904,46 +980,88 @@ class UserController extends Controller
 
     public function update(Request $request)
     {
+        abort_unless($request->user() && $request->user()->canManageUsers('edit'), 403,
+            'You do not have permission to edit users.');
+
+        $request->validate([
+            'id' => 'required|integer|exists:users,id',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $request->id,
+            'address' => 'nullable|string|max:1000',
+            'is_distributor_personnel' => 'nullable|boolean',
+        ]);
+
         try {
-            $request->validate([
-                'id' => 'required|exists:users,id',
-                'name' => 'required|string|max:255',
-                'email' => 'required|email|unique:users,email,' . $request->id,
-            ]);
+            DB::transaction(function () use ($request) {
+                $user = User::where('id', $request->id)->lockForUpdate()->firstOrFail();
+                $isPersonnel = $request->has('is_distributor_personnel')
+                    ? filter_var($request->input('is_distributor_personnel'), FILTER_VALIDATE_BOOLEAN)
+                    : (bool) $user->is_distributor_personnel;
 
-            $user = User::findOrFail($request->id);
+                if ($request->has('is_distributor_personnel') && $user->hasAreaDistributorAccess()) {
+                    if ($isPersonnel) {
+                        $request->validate(['assigned_distributor_user_id' => 'required|integer|min:1']);
+                        if ((int) $request->assigned_distributor_user_id === (int) $user->id) {
+                            throw ValidationException::withMessages([
+                                'assigned_distributor_user_id' => 'A user cannot be assigned to themselves.',
+                            ]);
+                        }
+                        if ($user->distributorPersonnel()->exists()) {
+                            throw ValidationException::withMessages([
+                                'is_distributor_personnel' => 'Reassign this distributor\'s personnel before making this account personnel.',
+                            ]);
+                        }
+                        $owner = $this->personnelDistributorQuery($user->role)
+                            ->where('user_id', $request->assigned_distributor_user_id)->lockForUpdate()->first();
+                        if (!$owner) {
+                            throw ValidationException::withMessages([
+                                'assigned_distributor_user_id' => 'Please select an active distributor matching this user\'s Role Type.',
+                            ]);
+                        }
+                        $user->assigned_distributor_user_id = $owner->user_id;
+                    } else {
+                        $ownProfile = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR
+                            ? ProvincialDistributor::where('user_id', $user->id)->exists()
+                            : AreaDistributor::where('user_id', $user->id)->whereNull('deleted_at')->exists();
+                        if ($user->is_distributor_personnel && !$ownProfile) {
+                            throw ValidationException::withMessages([
+                                'is_distributor_personnel' => 'This account has no distributor profile. Keep Distributor Personnel checked and select its distributor. Use New Users to create a distributor account.',
+                            ]);
+                        }
+                        $user->assigned_distributor_user_id = null;
+                    }
+                    $user->is_distributor_personnel = $isPersonnel;
+                } elseif ($request->has('is_distributor_personnel') && $isPersonnel) {
+                    throw ValidationException::withMessages([
+                        'is_distributor_personnel' => 'Distributor Personnel is available only for Provincial Distributor and Area Distributor accounts.',
+                    ]);
+                }
 
-            DB::beginTransaction();
-
-            $user->name = $request->name;
-            $user->email = $request->email;
-            $user->save();
-
-            // OPTIONAL: update related tables
-            if ($user->role === 'Dealer' && $user->dealer) {
-                $user->dealer->address = $request->address ?? $user->dealer->address;
-                $user->dealer->save();
-            }
-
-            if ($user->role === 'Client' && $user->client) {
-                $user->client->address = $request->address ?? $user->client->address;
-                $user->client->save();
-            }
-
-            if ($user->role === 'Admin') {
-                $user->address = $request->address ?? $user->address;
+                $user->name = $request->name;
+                $user->email = $request->email;
+                if ($user->role === 'Admin' || ($user->hasAreaDistributorAccess() && $isPersonnel)) {
+                    $user->address = $request->address ?? $user->address;
+                }
                 $user->save();
-            }
 
-            DB::commit();
+                if ($user->role === 'Dealer' && $user->dealer) {
+                    $user->dealer->address = $request->address ?? $user->dealer->address;
+                    $user->dealer->save();
+                }
+                if ($user->role === 'Client' && $user->client) {
+                    $user->client->address = $request->address ?? $user->client->address;
+                    $user->client->save();
+                }
+            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'User updated successfully'
             ]);
 
-        } catch (\Exception $e) {
-            DB::rollBack();
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
 
             \Log::error('Update error: ' . $e->getMessage());
 
@@ -956,6 +1074,9 @@ class UserController extends Controller
 
     public function updateAccess(Request $request)
     {
+        abort_unless(auth()->user() && (auth()->user()->canManageUsers('edit') || auth()->user()->canManageUsers('add')), 403,
+            'You do not have permission to change user access.');
+
         $request->validate([
             'id' => 'required|exists:users,id',
             'can_edit' => 'nullable|in:on,off',
@@ -978,10 +1099,10 @@ class UserController extends Controller
 
         $user = User::findOrFail($request->id);
 
-        if (!in_array($user->role, ['Admin', 'MFI'], true)) {
+        if (!$user->supportsAccessControl()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Access can only be assigned to Admin or MFI users.'
+                'message' => 'Access can only be assigned to Admin, MFI, or distributor personnel accounts.'
             ], 422);
         }
 
@@ -1007,6 +1128,14 @@ class UserController extends Controller
         }
 
         $permissions = $this->sanitizeAccessPermissions($decodedPermissions);
+        if ($user->isDistributorPersonnel()) {
+            // Save explicit empty rows too, so Clear All means no module access
+            // rather than returning personnel to their original default access.
+            foreach (\App\Support\ModulePermissions::modules() as $key => $definition) {
+                list($module, $submodule) = explode('.', $key, 2);
+                if (!isset($permissions[$module][$submodule])) $permissions[$module][$submodule] = [];
+            }
+        }
 
         $hasPermission = function ($module, $submodule = null, $action = null) use ($permissions) {
             if (!isset($permissions[$module]) || !is_array($permissions[$module])) {
@@ -1104,7 +1233,8 @@ class UserController extends Controller
             'dealer:id,user_id,address,status',
             'client:id,user_id,address,status',
             'ad',
-            'provincialDistributor'
+            'provincialDistributor',
+            'assignedDistributor'
         ])->select('users.*');
 
         if ($request->role) {
@@ -1136,6 +1266,11 @@ class UserController extends Controller
                     $roleClass = 'is-dealer';
                 } elseif (in_array($user->role, ['Area Distributor', 'Provincial Distributor', 'Mega Dealer'], true)) {
                     $roleClass = 'is-distributor';
+                }
+
+                if ($user->is_distributor_personnel && $user->hasAreaDistributorAccess()) {
+                    return '<span class="user-pill '.$roleClass.'">'.e($role).' PERSONNEL</span>'
+                        . '<small class="d-block text-muted mt-1">Assigned to: '.e(optional($user->assignedDistributor)->name ?: 'Unassigned').'</small>';
                 }
 
                 return '<span class="user-pill '.$roleClass.'">'.$role.'</span>';
@@ -1206,7 +1341,7 @@ class UserController extends Controller
                     $buttons[] = '<button type="button" class="btn-custom btn-edit-custom btn-edit-user" data-id="'.$user->id.'" title="Edit User"><i class="fas fa-edit"></i></button>';
                 }
 
-                if (in_array($user->role, ['Admin', 'MFI'], true) && ($canEdit || $canAdd)) {
+                if ($user->supportsAccessControl() && ($canEdit || $canAdd)) {
                     $buttons[] = '<button type="button" class="btn-custom btn-access-custom btn-access-user" data-id="'.$user->id.'" title="Access Control"><i class="fas fa-key"></i></button>';
                 }
 

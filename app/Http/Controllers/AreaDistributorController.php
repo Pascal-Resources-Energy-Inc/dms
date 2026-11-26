@@ -59,7 +59,7 @@ class AreaDistributorController extends Controller
             });
         };
 
-        $baseQuery = AreaDistributor::whereHas('userAds', function ($query) {
+        $baseQuery = AreaDistributor::withoutPersonnel()->whereHas('userAds', function ($query) {
             $query->where('role', 'Area Distributor');
         });
         $limitToProvincialDistributorAreas($baseQuery);
@@ -90,7 +90,7 @@ class AreaDistributorController extends Controller
             ->orderBy('project_type')
             ->pluck('project_type');
 
-        $adsQuery = AreaDistributor::with(['areas' => function ($query) use ($isProvincialDistributor, $provincialDistributorAreas) {
+        $adsQuery = AreaDistributor::withoutPersonnel()->with(['areas' => function ($query) use ($isProvincialDistributor, $provincialDistributorAreas) {
                 $query->when($isProvincialDistributor, function ($areaQuery) use ($provincialDistributorAreas) {
                     $areaQuery->whereIn('area_name', $provincialDistributorAreas);
                 })->orderBy('project_type')->orderBy('area_name');

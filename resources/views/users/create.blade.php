@@ -42,10 +42,27 @@
                                 <span class="distributor-personnel-icon"><i class="bi bi-person-workspace"></i></span>
                                 <span class="distributor-personnel-copy">
                                     <strong>Distributor Personnel</strong>
-                                    <small>Identify this user as personnel assigned to the selected distributor.</small>
+                                    <small>Create a personnel account under an existing distributor.</small>
                                 </span>
                                 <span class="distributor-personnel-check"><i class="bi bi-check-lg"></i></span>
                             </label>
+                            <div id="personnelAssignment" class="personnel-assignment mt-3" style="display:none;">
+                                <label class="form-label fw-semibold" for="assigned_distributor_user_id">Assign to distributor <span class="text-danger">*</span></label>
+                                <select id="assigned_distributor_user_id" name="assigned_distributor_user_id" class="form-select" aria-describedby="personnelAssignmentHelp" disabled>
+                                    <option value="">Search distributor name, code or area</option>
+                                </select>
+                                <small id="personnelAssignmentHelp" class="d-block text-muted mt-2">Select the distributor this personnel belongs to.</small>
+                                <div id="personnelDistributorSummary" class="personnel-distributor-summary mt-3" hidden>
+                                    <div class="personnel-assignment-label">Selected distributor</div>
+                                    <strong data-personnel-summary="name"></strong>
+                                    <dl>
+                                        <div><dt>Store code</dt><dd data-personnel-summary="code"></dd></div>
+                                        <div><dt>Business</dt><dd data-personnel-summary="business_name"></dd></div>
+                                        <div><dt>Awarded areas</dt><dd data-personnel-summary="areas"></dd></div>
+                                    </dl>
+                                </div>
+                                <div class="personnel-assignment-note mt-3"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Personnel will appear in Users. This will not create another distributor or awarded-area record.</span></div>
+                            </div>
                             <label class="form-label fw-semibold business-fields project-tag-fields">Project Tag</label>
                             <div class="border rounded p-2 bg-light business-fields project-tag-fields">
                                 <label class="project-card">
@@ -194,7 +211,7 @@
                                 User with same First Name, Last Name, and Mother's Name already exists.
                             </div>
                         </div>
-                        <div class="fs-6 fw-bold col-md-12 mb-3">
+                        <div class="fs-6 fw-bold col-md-12 mb-3 personnel-business-heading">
                             <i class="bi bi-building-fill"></i> Business Information
                         </div>
                         <div class="col-md-6 mb-3 business-fields">
@@ -671,6 +688,21 @@
 </div>
 
 <style>
+    :is(#new_users, #editUserModal) .personnel-assignment { border: 1px solid #d6e4f2; border-radius: 10px; padding: 16px; background: #f8fbff; min-width: 0; }
+    :is(#new_users, #editUserModal) .personnel-assignment .select2-container { width: 100% !important; max-width: 100%; }
+    :is(#new_users, #editUserModal) .personnel-assignment .select2-selection--single { min-height: 44px; height: auto; border-radius: 7px; }
+    :is(#new_users, #editUserModal) .personnel-assignment .select2-selection__rendered { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 10px 32px 10px 12px; line-height: 1.5; }
+    :is(#new_users, #editUserModal) .personnel-distributor-summary { padding: 14px; border: 1px solid #e0e8f1; border-radius: 8px; background: #fff; overflow-wrap: anywhere; }
+    :is(#new_users, #editUserModal) .personnel-assignment-label { color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+    :is(#new_users, #editUserModal) .personnel-distributor-summary dl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0 0; }
+    :is(#new_users, #editUserModal) .personnel-distributor-summary dl > div:last-child { grid-column: 1 / -1; }
+    :is(#new_users, #editUserModal) .personnel-distributor-summary dt { color: #64748b; font-size: 12px; font-weight: 500; }
+    :is(#new_users, #editUserModal) .personnel-distributor-summary dd { margin: 3px 0 0; font-size: 13px; }
+    :is(#new_users, #editUserModal) .personnel-assignment-note { display: flex; align-items: flex-start; gap: 8px; color: #52677e; font-size: 12px; line-height: 1.5; }
+    @media (max-width: 575.98px) {
+        :is(#new_users, #editUserModal) .personnel-assignment { padding: 12px; }
+        :is(#new_users, #editUserModal) .personnel-distributor-summary dl { grid-template-columns: 1fr; }
+    }
     #new_users .modal-content { max-height: 100%; }
     #new_users #newUserForm { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
     #new_users .modal-body { overflow-y: auto; overscroll-behavior: contain; }

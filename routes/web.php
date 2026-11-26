@@ -13,8 +13,8 @@
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\DealerController;
 
-Route::get('/', 'HomeController@index')->name('home');
-Route::get('/ad-dashboard', 'HomeController@adDashboard')->name('ad-dashboard');
+Route::get('/', 'HomeController@index')->middleware(['auth', 'module.access'])->name('home');
+Route::get('/ad-dashboard', 'HomeController@adDashboard')->middleware(['auth', 'module.access'])->name('ad-dashboard');
 Route::get('/guest-order', 'OrderController@guestOrder')->middleware(['auth', 'module.access'])->name('guest-order');
 Route::post('/guest-order', 'OrderController@storeGuest')->middleware(['auth', 'module.access'])->name('guest-order.store');
 
@@ -27,6 +27,8 @@ Route::post('password/verify-otp', 'Auth\ForgotPasswordController@verifyOtp')->n
 Route::get('password/reset/form', 'Auth\ForgotPasswordController@showResetForm')->name('password.reset.form');
 Route::post('password/update', 'Auth\ForgotPasswordController@reset')->name('password.update');
 Route::group(['middleware' => ['auth', 'module.access']], function () {
+
+Route::view('/access-unavailable', 'users.no-access')->name('access.unavailable');
 
 Route::get('/bmc', 'BmcController@index')->name('bmc.index');
 Route::get('/bmc/create', 'BmcController@create')->name('bmc.create');
@@ -85,7 +87,7 @@ Route::delete('/mfis/{mfi}', 'MfiController@destroy')->name('mfis.destroy');
 Route::get('/products', 'ProductController@index')->name('products');
 Route::get('/products/create', 'ProductController@create')->name('products.create');
 Route::post('/products', 'ProductController@store')->name('products.store');
-Route::put('/products/{id}', 'ProductController@update');
+Route::put('/products/{id}', 'ProductController@update')->name('products.update');
 Route::delete('/products/{product}', 'ProductController@destroy')->name('products.destroy');
 Route::post('/products/bulk-update', 'ProductController@storeBulk')
     ->name('products.storeBulk');

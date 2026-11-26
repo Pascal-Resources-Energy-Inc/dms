@@ -1795,6 +1795,9 @@
             @endphp
 
             <div class="nav-section">
+                @if($sidebarUser->isDistributorPersonnel() && $hasDetailedSidebarAccess)
+                    @include('users.partials.personnel-sidebar')
+                @else
                 <div class="nav-section-title">HOME</div>
                 @if($sidebarIsAdmin || ($sidebarIsSedp && $canAccessDashboard))
                 <div class="nav-item">
@@ -2280,7 +2283,7 @@
                             <div class="collapse" id="accessFormsMenu">
                                 <ul class="nav flex-column ms-3">
                                     @foreach($accessForms as $definition)
-                                        <li class="nav-item"><a href="{{ $definition['url'] }}" target="_blank" rel="noopener noreferrer" class="nav-link" style="font-size: 14px">{{ $definition['label'] }}</a></li>
+                                        <li class="nav-item"><a href="{{ $definition['url'] ?? route($definition['routes']['view'][0]) }}" target="_blank" rel="noopener noreferrer" class="nav-link" style="font-size: 14px">{{ $definition['label'] }}</a></li>
                                     @endforeach
                                 </ul>
                             </div>
@@ -2506,6 +2509,7 @@
                         </div>
                     </div> --}}
                 @endif
+                @endif
             </div>
         </div>
 
@@ -2537,7 +2541,7 @@
                 </div>
             </div>
             <div class="topbar-right">
-                @if(auth()->user()->hasAreaDistributorAccess())
+                @if(auth()->user()->hasAreaDistributorAccess() && (!$sidebarUser->isDistributorPersonnel() || !$hasDetailedSidebarAccess || \App\Support\ModulePermissions::allows($sidebarUser, 'orders.guest')))
                     <a href="{{ route('guest-order') }}" class="guest-order-link topbar-action" target="_blank" rel="noopener" aria-label="Open guest order" title="Guest Order">
                         <i class="ti ti-shopping-cart-plus"></i>
                         <span>Guest Order</span>

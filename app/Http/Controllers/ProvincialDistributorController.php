@@ -19,11 +19,11 @@ class ProvincialDistributorController extends Controller
 {
     public function index(Request $request)
     {
-        $baseQuery = ProvincialDistributor::query();
+        $baseQuery = ProvincialDistributor::withoutPersonnel();
         $totalAds = (clone $baseQuery)->count();
         $activeAds = (clone $baseQuery)->where('status', 'Active')->count();
         $inactiveAds = (clone $baseQuery)->where('status', 'Inactive')->count();
-        $totalAwardedAreas = ProvincialDistributorArea::query()->count();
+        $totalAwardedAreas = ProvincialDistributorArea::whereIn('provincial_distributor_id', (clone $baseQuery)->select('id'))->count();
 
         $regions = (clone $baseQuery)
             ->whereNotNull('location_region')
@@ -32,14 +32,14 @@ class ProvincialDistributorController extends Controller
             ->orderBy('location_region')
             ->pluck('location_region');
 
-        $projectTypes = ProvincialDistributorArea::query()
+        $projectTypes = ProvincialDistributorArea::whereIn('provincial_distributor_id', (clone $baseQuery)->select('id'))
             ->whereNotNull('project_type')
             ->where('project_type', '<>', '')
             ->distinct()
             ->orderBy('project_type')
             ->pluck('project_type');
 
-        $ads = ProvincialDistributor::with([
+        $ads = ProvincialDistributor::withoutPersonnel()->with([
                 'areas' => function ($query) {
                     $query->orderBy('project_type')->orderBy('area_name');
                 },

@@ -14,6 +14,56 @@ use Tests\TestCase;
 
 class UserAccessModulesTest extends TestCase
 {
+    public function personnelRoles()
+    {
+        return [[User::ROLE_AREA_DISTRIBUTOR], [User::ROLE_PROVINCIAL_DISTRIBUTOR]];
+    }
+
+    private function personnel(array $permissions, $role)
+    {
+        return $this->user($permissions, $role)->forceFill(['is_distributor_personnel' => true]);
+    }
+
+    /** @dataProvider personnelRoles */
+    public function test_personnel_saved_permissions_control_module_views_and_mutations($role)
+    {
+        $user = $this->personnel(['products' => ['catalog' => ['view']],
+            'customers' => ['records' => ['view', 'edit']],
+            'dealers' => ['records' => [], 'mega' => ['view']], 'purchase_orders' => ['adpo' => []]], $role);
+        foreach (['products', 'my-customers', 'client.view', 'customer.update', 'md-ads'] as $route) {
+            $this->assertTrue($this->allowed($user, $route), $route);
+        }
+        foreach (['products.store', 'products.update', 'products.destroy', 'saveCustomer', 'dealer-ads',
+            'ad-purchase-orders.index', 'ad-purchase-orders.updateStatus', 'orders', 'ad-dashboard'] as $route) {
+            $this->assertFalse($this->allowed($user, $route), $route);
+        }
+        $this->assertTrue($this->allowed($this->personnel([], $role), 'orders'));
+        $this->assertTrue($this->allowed($this->user([], $role), 'products.destroy'));
+    }
+
+    /** @dataProvider personnelRoles */
+    public function test_personnel_sidebar_uses_distributor_routes_and_hides_unselected_modules($role)
+    {
+        $user = $this->personnel(['products' => ['catalog' => ['view']], 'customers' => ['records' => ['view']],
+            'dealers' => ['mega' => ['view']], 'forms' => ['incident' => ['view']]], $role);
+        $html = view('users.partials.personnel-sidebar', ['sidebarUser' => $user])->render();
+        foreach (['/products', '/my-customers', '/md-ads', 'Incident Report'] as $value) $this->assertContains($value, $html);
+        foreach (['/dealer-ads', '/ad-dashboard', '/ad-purchase-orders', '/users'] as $value) $this->assertNotContains('href="'.url($value).'"', $html);
+        $this->assertFalse($user->canManageUsers('edit'));
+    }
+
+    /** @dataProvider personnelRoles */
+    public function test_personnel_login_uses_permitted_module_or_access_information_page($role)
+    {
+        $method = new \ReflectionMethod(\App\Http\Controllers\Auth\LoginController::class, 'redirectByRole');
+        $method->setAccessible(true);
+        $controller = new \App\Http\Controllers\Auth\LoginController;
+        $this->assertSame('/products', $method->invoke($controller, $this->personnel(['products' => ['catalog' => ['view']]], $role)));
+        $this->assertSame('/ad-dashboard', $method->invoke($controller, $this->personnel([], $role)));
+        $this->assertSame('/access-unavailable', $method->invoke($controller, $this->personnel(['products' => ['catalog' => []]], $role)));
+        $this->assertFalse($this->allowed($this->personnel(['products' => ['catalog' => []]], $role), 'ad-dashboard'));
+    }
+
     private function user(array $permissions, $role = 'Admin')
     {
         $user = new User(['role' => $role, 'name' => 'Permission Test']);
@@ -25,9 +75,9 @@ class UserAccessModulesTest extends TestCase
     {
         $request = Request::create('/permission-test', 'POST', $input);
         $request->setUserResolver(function () use ($user) { return $user; });
-        $request->setRouteResolver(function () use ($name, $controller) {
-            return new Route('POST', '/permission-test', ['as' => $name, 'uses' => $controller ?: 'TestController@index', 'controller' => $controller ?: 'TestController@index']);
-        });
+        $route = new Route('POST', '/permission-test', ['as' => $name, 'uses' => $controller ?: 'TestController@index', 'controller' => $controller ?: 'TestController@index']);
+        $route->bind($request);
+        $request->setRouteResolver(function () use ($route) { return $route; });
         try {
             return (new EnsureModuleAccess)->handle($request, function () { return true; });
         } catch (HttpException $exception) {
@@ -172,6 +222,9 @@ class UserAccessModulesTest extends TestCase
         DB::statement('CREATE TABLE clients (id INTEGER PRIMARY KEY, user_id INTEGER, status TEXT, address TEXT)');
         DB::table('users')->insert(['id' => 7, 'name' => 'Test MFI', 'role' => 'MFI']);
         $controller = new UserController;
+        $manager = new User(['role' => 'Admin', 'name' => 'Access manager']);
+        $manager->id = 1;
+        $this->actingAs($manager);
         $permissions = ['settings' => ['mfis' => ['view', 'edit'], 'campaigns' => ['view'], 'areas' => []],
             'forms' => ['incident' => ['view']], 'reports' => ['monthly' => ['view'], 'sales' => []]];
         $response = $controller->updateAccess(new Request(['id' => 7, 'access_permissions' => json_encode($permissions)]));

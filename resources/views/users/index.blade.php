@@ -837,36 +837,133 @@
             syncAccessToggles();
         });
 
+        const editPersonnelCheckbox = $('#edit_is_distributor_personnel');
+        const editDistributorSelect = $('#edit_assigned_distributor_user_id');
+        let editUserData = null;
+        let editUserRequestId = 0;
+        let savingEditUser = false;
+
+        function showEditUserErrors(messages) {
+            const errors = $('#editUserErrors').empty().prop('hidden', false);
+            $('<strong>').text('Unable to save this user.').appendTo(errors);
+            const list = $('<ul class="mb-0 mt-2">').appendTo(errors);
+            messages.forEach(message => $('<li>').text(message).appendTo(list));
+            errors.trigger('focus');
+        }
+
+        function showEditDistributorSummary() {
+            const option = (editUserData.personnel_distributors || []).find(row => row.role === editUserData.role && String(row.user_id) === String(editDistributorSelect.val()));
+            const summary = $('#editPersonnelDistributorSummary').prop('hidden', !option);
+            $('#editPersonnelHelp').text(option ? 'Search active distributors matching this user’s Role Type.'
+                : (editDistributorSelect.val() ? 'The saved distributor is no longer available. Choose an active distributor before saving.'
+                    : 'Select the distributor this personnel belongs to.'));
+            if (!option) return;
+            summary.find('[data-personnel-summary]').each(function () {
+                const key = $(this).data('personnel-summary');
+                $(this).text(key === 'areas' ? (option.areas.join(', ') || 'No active awarded areas') : (option[key] || '—'));
+            });
+        }
+
+        function syncEditPersonnelMode() {
+            const active = editUserData && ['Provincial Distributor', 'Area Distributor'].includes(editUserData.role) && editPersonnelCheckbox.prop('checked');
+            $('#editPersonnelAssignment').prop('hidden', !active);
+            editDistributorSelect.prop('disabled', !active).prop('required', active).trigger('change.select2');
+            $('#editPersonnelDistributorSummary').prop('hidden', !active);
+            $('#editPersonnelAccountHelp').text(active
+                ? 'This account will appear as personnel in Users and will use the selected distributor’s profile.'
+                : (editUserData && editUserData.is_distributor_personnel && !editUserData.has_distributor_profile
+                    ? 'This account has no distributor profile. Keep Distributor Personnel checked and select its distributor. Use New Users to create a distributor account.'
+                    : 'This account will use its own distributor profile. Existing business and awarded-area records are preserved.'));
+            if (active) showEditDistributorSummary();
+        }
+
+        editPersonnelCheckbox.on('change', syncEditPersonnelMode);
+        editDistributorSelect.on('change', function () {
+            if (editUserData) showEditDistributorSummary();
+        });
+
         $(document).on('click', '.btn-edit-user', function () {
-
-            let id = $(this).data('id');
-
-            $.get('/users/' + id + '/show', function (res) {
-
+            if (savingEditUser) return;
+            const requestId = ++editUserRequestId;
+            const id = $(this).data('id');
+            $.get('/users/' + id + '/show').done(function (res) {
+                if (requestId !== editUserRequestId) return;
+                editUserData = res;
+                $('#editUserErrors').empty().prop('hidden', true);
                 $('#edit_user_id').val(res.id);
                 $('#edit_name').val(res.name);
                 $('#edit_email').val(res.email);
                 $('#edit_address').val(res.address);
-
+                const isDistributor = ['Provincial Distributor', 'Area Distributor'].includes(res.role);
+                $('#editDistributorPersonnelSection').prop('hidden', !isDistributor);
+                $('#edit_user_role').val(res.role);
+                editPersonnelCheckbox.prop('checked', !!res.is_distributor_personnel).prop('disabled', !isDistributor);
+                editDistributorSelect.empty().append(new Option('Search distributor name, code or area', ''));
+                const options = (res.personnel_distributors || []).filter(row => row.role === res.role && String(row.user_id) !== String(res.id));
+                options.forEach(row => editDistributorSelect.append(new Option(
+                    [row.name, row.code, row.business_name, row.areas.join(', ')].filter(Boolean).join(' · '), row.user_id
+                )));
+                const assignedId = res.assigned_distributor_user_id;
+                const currentIsAvailable = options.some(row => String(row.user_id) === String(assignedId));
+                if (assignedId && !currentIsAvailable) {
+                    editDistributorSelect.append(new Option((res.assigned_distributor_name || 'Saved distributor') + ' · Unavailable — choose an active distributor', assignedId));
+                }
+                editDistributorSelect.val(assignedId || '');
+                $('#editPersonnelHelp').text(assignedId && !currentIsAvailable
+                    ? 'The saved distributor is no longer available. Choose an active distributor before saving.'
+                    : 'Search active distributors matching this user’s Role Type.');
+                syncEditPersonnelMode();
                 showModal('#editUserModal');
+                if ($.fn.select2 && !editDistributorSelect.hasClass('select2-hidden-accessible')) {
+                    editDistributorSelect.select2({width: '100%', dropdownParent: $('#editUserModal'),
+                        placeholder: 'Search distributor name, code or area', allowClear: true, minimumResultsForSearch: 0, theme: 'bootstrap-5'});
+                }
+            }).fail(function () {
+                if (requestId !== editUserRequestId) return;
+                Swal.fire({icon: 'error', title: 'Unable to open user', text: 'Please refresh and try again.'});
             });
         });
 
-        $('#saveUser').click(function () {
-
-            $.post('/users/update', {
-                id: $('#edit_user_id').val(),
-                name: $('#edit_name').val(),
-                email: $('#edit_email').val(),
-                address: $('#edit_address').val()
-            }, function (res) {
-
+        $('#editUserForm').on('submit', function (event) {
+            event.preventDefault();
+            if (!editUserData || savingEditUser) return;
+            $('#editUserErrors').empty().prop('hidden', true);
+            const isDistributor = ['Provincial Distributor', 'Area Distributor'].includes(editUserData.role);
+            const isPersonnel = isDistributor && editPersonnelCheckbox.prop('checked');
+            if (isPersonnel && !editDistributorSelect.val()) {
+                showEditUserErrors(['Please select the distributor this personnel belongs to.']);
+                if ($.fn.select2) editDistributorSelect.select2('open');
+                else editDistributorSelect.trigger('focus');
+                return;
+            }
+            if (!this.reportValidity()) return;
+            const data = {
+                id: $('#edit_user_id').val(), name: $('#edit_name').val(),
+                email: $('#edit_email').val(), address: $('#edit_address').val()
+            };
+            if (isDistributor) {
+                data.is_distributor_personnel = isPersonnel ? 1 : 0;
+                data.assigned_distributor_user_id = isPersonnel ? editDistributorSelect.val() : null;
+            }
+            savingEditUser = true;
+            $('#saveUser').prop('disabled', true).text('Saving…');
+            $('#editUserForm').attr('aria-busy', 'true');
+            $.post('/users/update', data).done(function (res) {
                 if (res.success) {
                     hideModal('#editUserModal');
                     $('#example').DataTable().ajax.reload(null, false);
                 } else {
-                    alert(res.message);
+                    showEditUserErrors([res.message || 'Unable to save this user. Please try again.']);
                 }
+            }).fail(function (xhr) {
+                const response = xhr.responseJSON || {};
+                const messages = response.errors ? Object.keys(response.errors).reduce((all, key) => all.concat(response.errors[key]), [])
+                    : [response.message || 'Unable to save this user. Please try again.'];
+                showEditUserErrors(messages);
+            }).always(function () {
+                savingEditUser = false;
+                $('#saveUser').prop('disabled', false).text('Save changes');
+                $('#editUserForm').removeAttr('aria-busy');
             });
         });
 
@@ -879,7 +976,8 @@
                 $('#access_user_id').val(res.id);
                 $('#accessUserName').text(res.name || 'Unnamed user');
                 $('#accessUserEmail').text(res.email || 'No email');
-                $('#accessUserRole').text(res.role || 'Role');
+                $('#accessUserRole').text((res.role || 'Role') + (res.is_distributor_personnel ? ' Personnel' : ''));
+                $('#accessPersonnelNote').prop('hidden', !res.is_distributor_personnel);
                 $('#accessUserInitials').text(userInitials(res.name));
 
                 setAccessFieldsFromResponse(res);
@@ -992,6 +1090,75 @@
         const distributorDeliveryRequiredFields = $('.distributor-delivery-required');
         const distributorPersonnelField = $('.distributor-personnel-field');
         const distributorPersonnelInput = $('#is_distributor_personnel');
+        const personnelAssignment = $('#personnelAssignment');
+        const personnelDistributorSelect = $('#assigned_distributor_user_id');
+        const personnelDistributors = @json($personnelDistributors ?? []);
+        const personnelOwnerFields = $('#newUserForm').find('.business-fields, .attachment-field, .distributor-nature-field, .distributor-profile-fields, .distributor-delivery-fields, .personnel-business-heading');
+
+        function isDistributorPersonnel() {
+            return ['Provincial Distributor', 'Area Distributor'].includes(roleFilter.val()) && distributorPersonnelInput.prop('checked');
+        }
+
+        function restorePersonnelFields() {
+            personnelOwnerFields.find('input,select,textarea').each(function () {
+                if (!this.hasAttribute('data-personnel-disabled')) return;
+                this.disabled = this.getAttribute('data-personnel-disabled') === 'true';
+                this.required = this.getAttribute('data-personnel-required') === 'true';
+                this.removeAttribute('data-personnel-disabled');
+                this.removeAttribute('data-personnel-required');
+            });
+            $('.personnel-business-heading').show();
+        }
+
+        function showPersonnelDistributorSummary() {
+            const selected = personnelDistributors.find(row => String(row.user_id) === String(personnelDistributorSelect.val()) && row.role === roleFilter.val());
+            const summary = $('#personnelDistributorSummary');
+            summary.prop('hidden', !selected);
+            if (!selected) return;
+            summary.find('[data-personnel-summary]').each(function () {
+                const key = $(this).data('personnel-summary');
+                $(this).text(key === 'areas' ? (selected.areas.join(', ') || 'No active awarded areas') : (selected[key] || '—'));
+            });
+        }
+
+        function syncPersonnelAssignment() {
+            const active = isDistributorPersonnel();
+            personnelAssignment.toggle(active);
+            personnelDistributorSelect.prop('disabled', !active).prop('required', active);
+            if (active) {
+                const previous = personnelDistributorSelect.val();
+                const distributors = personnelDistributors.filter(row => row.role === roleFilter.val());
+                personnelDistributorSelect.empty().append(new Option('Search distributor name, code or area', ''));
+                distributors.forEach(row => personnelDistributorSelect.append(new Option(
+                    [row.name, row.code, row.business_name, row.areas.join(', ')].filter(Boolean).join(' · '), row.user_id
+                )));
+                personnelDistributorSelect.val(distributors.some(row => String(row.user_id) === String(previous)) ? previous : '');
+                $('#personnelAssignmentHelp').text(distributors.length
+                    ? 'Select an active ' + roleFilter.val().toLowerCase() + ' for this personnel.'
+                    : 'No active ' + roleFilter.val().toLowerCase() + ' is available. Create the distributor first.');
+                if ($.fn.select2 && !personnelDistributorSelect.hasClass('select2-hidden-accessible')) {
+                    personnelDistributorSelect.select2({width: '100%', dropdownParent: $('#new_users'),
+                        placeholder: 'Search distributor name, code or area', allowClear: true, minimumResultsForSearch: 0, theme: 'bootstrap-5'});
+                }
+                personnelOwnerFields.hide().find('input,select,textarea').each(function () {
+                    this.setAttribute('data-personnel-disabled', String(this.disabled));
+                    this.setAttribute('data-personnel-required', String(this.required));
+                    this.disabled = true;
+                    this.required = false;
+                });
+                clearProjectAreas();
+            } else {
+                personnelDistributorSelect.val('');
+            }
+            personnelDistributorSelect.trigger('change.select2');
+            showPersonnelDistributorSummary();
+        }
+
+        personnelDistributorSelect.on('change', showPersonnelDistributorSummary);
+        distributorPersonnelInput.on('change', function () {
+            toggleBusinessFields();
+            refreshProjectVisibility();
+        });
         const distributorProfileFields = $('.distributor-profile-fields');
         const distributorProfileInputs = distributorProfileFields.find('.distributor-profile-input');
         const areaField = $('.project-area-field');
@@ -1233,6 +1400,11 @@
 
         function refreshProjectVisibility() {
 
+            if (isDistributorPersonnel()) {
+                clearProjectAreas();
+                return;
+            }
+
             const role = roleFilter.val();
             const canShowAreas = canHaveAwardedAreas(role);
             const hasProjectTag = hasSelectedProjectTag();
@@ -1255,6 +1427,8 @@
         }
 
         function toggleBusinessFields() {
+
+            restorePersonnelFields();
 
             const selectedRole = roleFilter.val();
             updateBusinessTypeOptions(selectedRole);
@@ -1305,6 +1479,7 @@
                 $('#delivery_address').val('').prop('readonly', false);
                 $('#same_as_address').prop('checked', false);
                 $('#same_as_delivery_address').prop('checked', false);
+                syncPersonnelAssignment();
                 return;
             }
 
@@ -1313,7 +1488,7 @@
             const isAdminLike = isAdmin || isSedp;
             const isProvincialDistributor = selectedRole === 'Provincial Distributor';
             const isAreaDistributor = selectedRole === 'Area Distributor';
-            const isDistributorRole = ['Provincial Distributor', 'Area Distributor', 'Mega Dealer'].includes(selectedRole);
+            const isDistributorRole = ['Provincial Distributor', 'Area Distributor'].includes(selectedRole);
             const canShowAreas = canHaveAwardedAreas(selectedRole);
             const needsDeliveryAddress = isProvincialDistributor || isAreaDistributor;
 
@@ -1416,6 +1591,7 @@
                 $('#same_as_delivery_address').prop('checked', false);
             }
 
+            syncPersonnelAssignment();
             generatePartnerCode();
         }
 
@@ -1425,7 +1601,7 @@
             const requestId = ++partnerCodeRequestId;
             partnerCode.val('');
 
-            if (!role || role === 'Admin' || role === 'MFI') {
+            if (!role || role === 'Admin' || role === 'MFI' || isDistributorPersonnel()) {
                 partnerCode.val('');
                 return;
             }
