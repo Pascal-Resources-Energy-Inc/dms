@@ -233,7 +233,7 @@
     $warehouseOrderSource = $warehouseOrderSource ?? app(\App\Services\AdpoRouting::class)->sourceFor(auth()->user());
     $isPlantOrder = $isPlantOrder ?? (auth()->user()->hasAreaDistributorAccess() && $warehouseOrderSource === 'prei_plant');
     $lockOrderSource = $lockOrderSource ?? (($isProvincialDistributor ?? false) || $isPlantOrder);
-    $selectedOrderSource = $lockOrderSource ? $warehouseOrderSource : old('order_source', $selectedOrderSource);
+    $selectedOrderSource = $lockOrderSource ? $selectedOrderSource : old('order_source', $selectedOrderSource);
     $territoryOptions = collect($territoryOptions ?? [])->map(function ($territory) {
         if (is_array($territory)) {
             return $territory;
@@ -266,7 +266,9 @@
     $showPickupLubao = $showPickupLubao ?? true;
     $selectedShippingType = old('shipping_type', 'delivered');
 
-    if ($selectedShippingType === 'pickup') {
+    if ($selectedOrderSource === 'provincial_distributor' && strpos($selectedShippingType, 'pickup') === 0) {
+        $selectedShippingType = 'pickup';
+    } elseif ($selectedShippingType === 'pickup') {
         $selectedShippingType = $showPickupLubao ? 'pickup_lubao' : 'pickup_guinobatan';
     }
 
@@ -325,12 +327,12 @@
                             <div class="adpo-field-span">
                                 <label class="form-label" for="orderSource">Order From <span class="text-danger">*</span></label>
                                 @if($lockOrderSource)
-                                    <input type="hidden" name="order_source" value="{{ $warehouseOrderSource }}">
+                                    <input type="hidden" id="orderSource" name="order_source" value="{{ $selectedOrderSource }}">
                                     <div class="form-control bg-light d-flex align-items-center gap-2 py-3" aria-label="Order source">
                                         <i class="bi bi-building" aria-hidden="true"></i>
-                                        <div><strong>{{ $isPlantOrder ? 'PREI Plant' : 'PREI Warehouse' }}</strong></div>
+                                        <div><strong id="orderSourceLabel">{{ $selectedOrderSource === 'provincial_distributor' ? 'Provincial Distributor' : ($isPlantOrder ? 'PREI Plant' : 'PREI Warehouse') }}</strong></div>
                                     </div>
-                                    <small class="text-muted d-block mt-1">{{ $isPlantOrder ? 'Orders from distributors outside Region V are fulfilled by PREI Plant in Lubao.' : 'Provincial Distributor replenishment orders are supplied by PREI Warehouse.' }}</small>
+                                    <small class="text-muted d-block mt-1" id="orderSourceHelp">{{ $selectedOrderSource === 'provincial_distributor' ? 'Automatically routed to a Provincial Distributor serving your authorized territory.' : ($isPlantOrder ? 'Supplied by PREI Plant in Lubao, Pampanga.' : 'Supplied by PREI Warehouse in Guinobatan.') }}</small>
                                 @else
                                     <select id="orderSource" name="order_source" class="form-select">
                                         <option value="prei_warehouse" {{ $selectedOrderSource === 'prei_warehouse' ? 'selected' : '' }}>PREI Warehouse</option>
@@ -348,7 +350,7 @@
                                     @else
                                         <option value="">Select Provincial Distributor</option>
                                         @foreach($provincialDistributors as $provincialDistributor)
-                                            <option value="{{ $provincialDistributor->id }}" {{ (int) old('provincial_distributor_id', $selectedProvincialDistributorId) === (int) $provincialDistributor->id ? 'selected' : '' }}>{{ $provincialDistributor->name }}</option>
+                                            <option value="{{ $provincialDistributor->id }}" {{ (int) $selectedProvincialDistributorId === (int) $provincialDistributor->id ? 'selected' : '' }}>{{ $provincialDistributor->name }}</option>
                                         @endforeach
                                     @endif
                                 </select>
@@ -420,21 +422,29 @@
                                         <span><strong>Delivered</strong><small>Ship to authorized area</small></span>
                                     </label>
                                 </div>
-                                @if($showPickupLubao)
-                                    <div class="col-sm-6">
+                                @if($warehouseOrderSource === 'prei_plant' || $isAdmin)
+                                    <div class="col-sm-6" data-shipping-source="prei_plant" @if($selectedOrderSource !== 'prei_plant') hidden @endif>
                                         <label class="adpo-option">
-                                            <input type="radio" name="shipping_type" value="pickup_lubao" required @if($selectedShippingType === 'pickup_lubao') checked @endif>
+                                            <input type="radio" name="shipping_type" value="pickup_lubao" required @if($selectedShippingType === 'pickup_lubao') checked @endif @if($selectedOrderSource !== 'prei_plant') disabled @endif>
                                             <span><strong>Pick Up</strong><small>Pick Up in Lubao Plant - Type &quot;PICKUP&quot; in coupon for 2% discount on LPG Refill</small></span>
                                         </label>
                                     </div>
                                 @endif
-                                @if(!$isPlantOrder)
-                                <div class="col-sm-6">
+                                @if($warehouseOrderSource === 'prei_warehouse' || $isAdmin)
+                                <div class="col-sm-6" data-shipping-source="prei_warehouse" @if($selectedOrderSource !== 'prei_warehouse') hidden @endif>
                                     <label class="adpo-option">
-                                        <input type="radio" name="shipping_type" value="pickup_guinobatan" required @if($selectedShippingType === 'pickup_guinobatan') checked @endif>
+                                        <input type="radio" name="shipping_type" value="pickup_guinobatan" required @if($selectedShippingType === 'pickup_guinobatan') checked @endif @if($selectedOrderSource !== 'prei_warehouse') disabled @endif>
                                         <span><strong>Pick Up</strong><small>Pick Up in Guinobatan Warehouse</small></span>
                                     </label>
                                 </div>
+                                @endif
+                                @if($provincialDistributors->isNotEmpty())
+                                    <div class="col-sm-6" data-shipping-source="provincial_distributor" @if($selectedOrderSource !== 'provincial_distributor') hidden @endif>
+                                        <label class="adpo-option">
+                                            <input type="radio" name="shipping_type" value="pickup" required @if($selectedShippingType === 'pickup') checked @endif @if($selectedOrderSource !== 'provincial_distributor') disabled @endif>
+                                            <span><strong>Pick Up</strong><small>Pick up from your Provincial Distributor</small></span>
+                                        </label>
+                                    </div>
                                 @endif
                             </div>
                             {{-- <label class="form-label mt-3">Delivery Fee</label>
@@ -907,7 +917,7 @@
     <div class="adpo-loading-box">
         <div class="adpo-loading-spinner"></div>
         <p class="adpo-loading-title">Submitting purchase order</p>
-        <p class="adpo-loading-copy">Please wait while we save your ADPO and notify the warehouse.</p>
+        <p class="adpo-loading-copy">Please wait while we save and route your purchase order.</p>
     </div>
 </div>
 @endsection
@@ -919,13 +929,50 @@ document.addEventListener('DOMContentLoaded', function () {
     const provincialDistributorWrap = document.getElementById('provincialDistributorWrap');
     const provincialDistributorId = document.getElementById('provincialDistributorId');
     if (orderSource && provincialDistributorWrap && provincialDistributorId) {
+        const automaticSource = @json(auth()->user()->role === \App\User::ROLE_AREA_DISTRIBUTOR && $lockOrderSource);
+        const supplierAreas = @json($provincialDistributorAreas ?? []);
+        const fallbackSource = @json($warehouseOrderSource);
+        const sourceTerritory = document.querySelector('[name="authorized_territory"]');
         const syncOrderSource = function () {
+            if (automaticSource) {
+                const area = sourceTerritory ? sourceTerritory.value : '';
+                const eligible = Array.from(provincialDistributorId.options).filter(function (option) {
+                    if (!option.value) return false;
+                    const matches = !area || (supplierAreas[option.value] || []).includes(area);
+                    option.disabled = !matches;
+                    option.hidden = !matches;
+                    return matches;
+                });
+                if (!eligible.some(function (option) { return option.value === provincialDistributorId.value; })) {
+                    provincialDistributorId.value = eligible.length ? eligible[0].value : '';
+                }
+                orderSource.value = eligible.length ? 'provincial_distributor' : fallbackSource;
+            }
             const provincial = orderSource.value === 'provincial_distributor';
             provincialDistributorWrap.classList.toggle('d-none', !provincial);
             provincialDistributorId.required = provincial;
             provincialDistributorId.disabled = !provincial;
+            const label = document.getElementById('orderSourceLabel');
+            if (label) label.textContent = provincial ? 'Provincial Distributor' : (orderSource.value === 'prei_plant' ? 'PREI Plant' : 'PREI Warehouse');
+            const help = document.getElementById('orderSourceHelp');
+            if (help) help.textContent = provincial ? 'Automatically routed to a Provincial Distributor serving your authorized territory.'
+                : (orderSource.value === 'prei_plant' ? 'Supplied by PREI Plant in Lubao, Pampanga.' : 'Supplied by PREI Warehouse in Guinobatan.');
+            document.querySelectorAll('[data-shipping-source]').forEach(function (group) {
+                const available = group.dataset.shippingSource === orderSource.value;
+                group.hidden = !available;
+                group.querySelectorAll('input').forEach(function (input) {
+                    input.disabled = !available;
+                    if (!available && input.checked) {
+                        input.checked = false;
+                        const delivery = document.querySelector('[name="shipping_type"][value="delivered"]');
+                        delivery.checked = true;
+                        delivery.dispatchEvent(new Event('change', {bubbles: true}));
+                    }
+                });
+            });
         };
         orderSource.addEventListener('change', syncOrderSource);
+        if (sourceTerritory) sourceTerritory.addEventListener('change', syncOrderSource);
         syncOrderSource();
     }
     const form = document.getElementById('adpoForm');

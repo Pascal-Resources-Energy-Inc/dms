@@ -24,13 +24,13 @@ class AdpoCollateralPricingTest extends TestCase
             'database.default' => 'adpo_pricing_test',
             'database.connections.adpo_pricing_test' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']]);
         Mail::fake();
-        DB::statement('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, role TEXT, email TEXT, region TEXT, warehouse TEXT, withholding_tax INTEGER DEFAULT 0)');
+        DB::statement('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, role TEXT, email TEXT, region TEXT, warehouse TEXT, withholding_tax INTEGER DEFAULT 0, is_distributor_personnel INTEGER DEFAULT 0)');
         DB::statement('CREATE TABLE area_distributors (id INTEGER PRIMARY KEY, user_id INTEGER, name TEXT,
             business_name TEXT, business_type TEXT, contact_number TEXT, email_address TEXT, store_code TEXT,
-            address TEXT, delivery_address TEXT, location_region TEXT, withholding_tax INTEGER DEFAULT 0, deleted_at TEXT)');
+            address TEXT, delivery_address TEXT, location_region TEXT, status TEXT DEFAULT "Active", withholding_tax INTEGER DEFAULT 0, deleted_at TEXT)');
         DB::statement('CREATE TABLE provincial_distributors (id INTEGER PRIMARY KEY, user_id INTEGER, name TEXT,
             business_name TEXT, business_type TEXT, contact_number TEXT, email_address TEXT, store_code TEXT,
-            address TEXT, delivery_address TEXT, location_region TEXT, withholding_tax INTEGER DEFAULT 0, deleted_at TEXT)');
+            address TEXT, delivery_address TEXT, location_region TEXT, status TEXT DEFAULT "Active", withholding_tax INTEGER DEFAULT 0, deleted_at TEXT)');
         DB::statement('CREATE TABLE provincial_distributor_areas (id INTEGER PRIMARY KEY, provincial_distributor_id INTEGER, area_name TEXT, deleted_at TEXT)');
         DB::statement('CREATE TABLE ad_areas (id INTEGER PRIMARY KEY, ad_id INTEGER, area_name TEXT, deleted_at TEXT)');
         DB::statement('CREATE TABLE items (id INTEGER PRIMARY KEY, item TEXT, item_description TEXT, item_image TEXT,

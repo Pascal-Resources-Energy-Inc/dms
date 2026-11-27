@@ -333,13 +333,28 @@ class AdPurchaseOrderController extends Controller
 
         $orderProfile = $this->purchaseOrderProfile($user);
         $warehouseOrderSource = app(AdpoRouting::class)->sourceFor($user);
-        $isPlantOrder = $user->hasAreaDistributorAccess() && $warehouseOrderSource === AdpoRouting::PLANT;
-        $lockOrderSource = $isProvincialDistributor || $isPlantOrder;
-        if ($lockOrderSource) $selectedOrderSource = $warehouseOrderSource;
         $territoryOptions = $this->territoryOptions($orderProfile);
         $provincialDistributors = $this->provincialDistributorQueryFor($user, $ad)
-            ->orderBy('name')
+            ->with(['provincialDistributor.areas', 'ad.areas'])->orderBy('name')->orderBy('id')
             ->get(['id', 'name']);
+        $provincialDistributorAreas = $provincialDistributors->mapWithKeys(function ($supplier) use ($territoryOptions) {
+            $profile = $supplier->provincialDistributor ?: $supplier->ad;
+            return [$supplier->id => $this->territoryOptions($profile)->intersect($territoryOptions)->values()->all()];
+        });
+        $selectedTerritory = old('authorized_territory', $territoryOptions->count() === 1 ? $territoryOptions->first() : '');
+        $eligibleSuppliers = $provincialDistributors->filter(function ($supplier) use ($selectedTerritory, $provincialDistributorAreas, $isAdmin) {
+            return $isAdmin || !$selectedTerritory || in_array($selectedTerritory, $provincialDistributorAreas->get($supplier->id, []), true);
+        });
+        $lockOrderSource = $user->hasAreaDistributorAccess();
+        if ($lockOrderSource) {
+            $selectedOrderSource = $user->role === User::ROLE_AREA_DISTRIBUTOR && $eligibleSuppliers->isNotEmpty()
+                ? AdpoRouting::PROVINCIAL : $warehouseOrderSource;
+        }
+        $selectedProvincialDistributorId = (int) old('provincial_distributor_id', $selectedProvincialDistributorId);
+        if (!$eligibleSuppliers->contains('id', $selectedProvincialDistributorId)) {
+            $selectedProvincialDistributorId = (int) optional($eligibleSuppliers->first())->id;
+        }
+        $isPlantOrder = $selectedOrderSource === AdpoRouting::PLANT;
         $storeCode = data_get($orderProfile, 'store_code');
         $authorizedAreas = $territoryOptions;
         $userVouchers = Voucher::where('name', $storeCode)
@@ -385,7 +400,7 @@ class AdPurchaseOrderController extends Controller
                 return (int) $id;
             })
             ->all();
-        $showPickupLubao = $warehouseOrderSource === AdpoRouting::PLANT;
+        $showPickupLubao = $selectedOrderSource === AdpoRouting::PLANT;
 
         return view('ad_purchase_orders.create', compact(
             'ad', 
@@ -400,6 +415,7 @@ class AdPurchaseOrderController extends Controller
             'lockOrderSource',
             'isAdmin', 
             'provincialDistributors', 
+            'provincialDistributorAreas',
             'selectedOrderSource', 
             'selectedProvincialDistributorId', 
             'orderForUser', 
@@ -459,16 +475,30 @@ class AdPurchaseOrderController extends Controller
 
         $orderProfile = $this->purchaseOrderProfile($user);
         $warehouseOrderSource = app(AdpoRouting::class)->sourceFor($user);
-        $isPlantOrder = $user->hasAreaDistributorAccess() && $warehouseOrderSource === AdpoRouting::PLANT;
-        if ($isProvincialDistributor || $isPlantOrder) {
-            // Replenishment outside Region V is always supplied by the Lubao plant.
+        $territoryOptions = $this->territoryOptions($orderProfile);
+        $request->validate([
+            'authorized_territory' => ($territoryOptions->isNotEmpty() ? 'required' : 'nullable') . '|string|max:255',
+        ]);
+        if ($request->filled('authorized_territory') && $territoryOptions->isNotEmpty() && !$territoryOptions->contains($request->authorized_territory)) {
+            return back()->withInput()->withErrors(['authorized_territory' => 'Please select a valid authorized territory.']);
+        }
+
+        if ($user->role === User::ROLE_AREA_DISTRIBUTOR) {
+            $suppliers = $this->provincialDistributorQueryFor($user, $ad, $request->authorized_territory)
+                ->orderBy('name')->orderBy('id')->get(['id', 'name']);
+            $supplier = $suppliers->firstWhere('id', (int) $request->provincial_distributor_id) ?: $suppliers->first();
+            // Resolve again at submission: source and supplier cannot bypass the area's current assignment.
+            $request->merge([
+                'order_source' => $supplier ? AdpoRouting::PROVINCIAL : $warehouseOrderSource,
+                'provincial_distributor_id' => optional($supplier)->id,
+            ]);
+        } elseif ($isProvincialDistributor) {
             $request->merge([
                 'order_source' => $warehouseOrderSource,
                 'provincial_distributor_id' => null,
             ]);
         }
-
-        $territoryOptions = $this->territoryOptions($orderProfile);
+        $isPlantOrder = $request->order_source === AdpoRouting::PLANT;
 
         $request->validate([
             'order_source' => $isPlantOrder || $user->role === 'Admin'
@@ -477,7 +507,6 @@ class AdPurchaseOrderController extends Controller
             'provincial_distributor_id' => 'nullable|required_if:order_source,provincial_distributor|integer',
             'phone_number' => 'nullable|string|max:50',
             'email_address' => 'nullable|email|max:255',
-            'authorized_territory' => ($territoryOptions->isNotEmpty() ? 'required' : 'nullable') . '|string|max:255',
             'shipping_type' => 'required|in:delivered,pickup,pickup_lubao,pickup_guinobatan',
             'use_rebate_voucher' => 'required|in:yes,no',
             'voucher_codes' => 'nullable|required_if:use_rebate_voucher,yes|array|min:1',
@@ -500,7 +529,7 @@ class AdPurchaseOrderController extends Controller
 
         $supplyingProvincialDistributor = null;
         if ($request->order_source === 'provincial_distributor') {
-            $supplyingProvincialDistributor = $this->provincialDistributorQueryFor($user, $ad)
+            $supplyingProvincialDistributor = $this->provincialDistributorQueryFor($user, $ad, $request->authorized_territory)
                 ->whereKey($request->provincial_distributor_id)
                 ->first();
             if (!$supplyingProvincialDistributor) {
@@ -508,15 +537,7 @@ class AdPurchaseOrderController extends Controller
             }
         }
 
-        if ($request->filled('authorized_territory') && $territoryOptions->isNotEmpty() && !$territoryOptions->contains($request->authorized_territory)) {
-            Alert::error('ADPO Error', 'Please select a valid authorized territory.');
-
-            return back()
-                ->withInput()
-                ->withErrors(['authorized_territory' => 'Please select a valid authorized territory.']);
-        }
-
-        $isRegionVAd = $request->order_source !== AdpoRouting::PLANT && $warehouseOrderSource === AdpoRouting::WAREHOUSE;
+        $isRegionVAd = $request->order_source === AdpoRouting::WAREHOUSE && $warehouseOrderSource === AdpoRouting::WAREHOUSE;
 
         if ($request->shipping_type === 'pickup_lubao' && $isRegionVAd) {
             Alert::error('ADPO Error', 'Pick Up in Lubao Plant is not available for Region V or Albay addresses.');
@@ -567,7 +588,8 @@ class AdPurchaseOrderController extends Controller
             : null;
         $shippingType = $request->shipping_type;
         if (strpos($shippingType, 'pickup') === 0) {
-            $shippingType = $isRegionVAd ? 'pickup_guinobatan' : 'pickup_lubao';
+            $shippingType = $request->order_source === AdpoRouting::PROVINCIAL
+                ? 'pickup' : ($isRegionVAd ? 'pickup_guinobatan' : 'pickup_lubao');
         }
 
         $po = DB::transaction(function () use ($request, $user, $ad, $orderProfile, $supplyingProvincialDistributor, $selectedProducts, $products, $authorizedTerritory, $shippingType, $bankName, $requiresTaxSignature, $taxSigning, $taxService) {
@@ -795,7 +817,8 @@ class AdPurchaseOrderController extends Controller
             'email_address' => 'nullable|email|max:255',
             'authorized_territory' => 'nullable|string|max:255',
             'delivery_address' => 'nullable|string|max:1000',
-            'shipping_type' => 'required|in:delivered,pickup_lubao,pickup_guinobatan',
+            'shipping_type' => $order->order_source === AdpoRouting::PROVINCIAL
+                ? 'required|in:delivered,pickup' : 'required|in:delivered,pickup_lubao,pickup_guinobatan',
             'payment_method' => 'required|in:voucher,cash,gcash,bank_transfer,credit',
             'bank_name' => 'nullable|required_if:payment_method,bank_transfer|string|max:255',
             'remarks' => 'nullable|string|max:2000',
@@ -2133,21 +2156,38 @@ class AdPurchaseOrderController extends Controller
      * Area Distributors may submit an order to a Provincial Distributor only
      * when both accounts are assigned to at least one of the same areas.
      */
-    private function provincialDistributorQueryFor(User $user, $ad)
+    private function provincialDistributorQueryFor(User $user, $ad, $territory = null)
     {
-        $query = User::query()->where('role', User::ROLE_PROVINCIAL_DISTRIBUTOR);
+        $query = User::query()->where('role', User::ROLE_PROVINCIAL_DISTRIBUTOR)
+            ->where(function ($owners) {
+                $owners->whereNull('is_distributor_personnel')->orWhere('is_distributor_personnel', false);
+            });
 
-        if ($user->role !== User::ROLE_AREA_DISTRIBUTOR) {
-            return $query;
-        }
+        if (!in_array($user->role, [User::ROLE_AREA_DISTRIBUTOR, 'Admin'], true)) return $query->whereRaw('1 = 0');
 
-        $areaNames = $this->territoryOptions($ad);
-        if ($areaNames->isEmpty()) {
+        $areaNames = $territory ? collect([$territory]) : $this->territoryOptions($ad);
+        if ($user->role !== 'Admin' && $areaNames->isEmpty()) {
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereHas('ad.areas', function ($areaQuery) use ($areaNames) {
-            $areaQuery->whereIn('area_name', $areaNames->all());
+        $matchingProfile = function ($profile) use ($user, $areaNames) {
+            $profile->where('status', 'Active');
+            if ($user->role !== 'Admin') {
+                $profile->whereHas('areas', function ($areas) use ($areaNames) {
+                    $areas->whereIn('area_name', $areaNames->all());
+                });
+            }
+        };
+        return $query->where(function ($profiles) use ($matchingProfile) {
+            $profiles->whereHas('provincialDistributor', $matchingProfile)
+                ->orWhere(function ($legacy) use ($matchingProfile) {
+                    // Use the old AD profile only when no dedicated PD profile exists, even a deleted one.
+                    $legacy->whereDoesntHave('provincialDistributor', function ($profile) { $profile->withTrashed(); })
+                        ->whereHas('ad', function ($profile) use ($matchingProfile) {
+                            $profile->whereNull('deleted_at');
+                            $matchingProfile($profile);
+                        });
+                });
         });
     }
 
