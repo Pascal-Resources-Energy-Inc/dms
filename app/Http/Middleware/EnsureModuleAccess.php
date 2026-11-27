@@ -38,6 +38,17 @@ class EnsureModuleAccess
 
         $access = $this->routeAccess($routeName);
 
+        if ($user->role === 'Admin' && in_array(strtolower(trim((string) $user->warehouse)), ['lubao', 'guinobatan'], true)) {
+            $deskActions = [
+                'ad-purchase-orders.show' => 'view', 'ad-purchase-orders.updateStatus' => 'edit',
+                'ad-purchase-orders.verification-incomplete' => 'edit', 'ad-purchase-orders.verification-complete' => 'edit',
+                'ad-purchase-orders.destroy' => 'delete',
+            ];
+            if (isset($deskActions[$routeName])) {
+                $access = ['purchase_orders', strtolower(trim((string) $user->warehouse)) === 'lubao' ? 'plant' : 'region_v', $deskActions[$routeName], 'can_access_purchase_orders'];
+            }
+        }
+
         $controllerAction = optional($request->route())->getActionName();
         if (strpos((string) $controllerAction, 'DealerController@newDealer') !== false
             || $routeName === 'check.dealer.duplicate') {

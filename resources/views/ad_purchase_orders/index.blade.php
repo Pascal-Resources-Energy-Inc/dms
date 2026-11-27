@@ -247,7 +247,7 @@
     $sourceBadge = function ($order) {
         return $order->order_source === 'provincial_distributor'
             ? ['label' => 'Source: Provincial Distributor', 'class' => 'is-pd']
-            : ['label' => 'Source: PREI Warehouse', 'class' => ''];
+            : ['label' => 'Source: ' . $order->source_label, 'class' => ''];
     };
     $taskColumns = [
         'Pending' => ['label' => 'Pending', 'dot' => 'pending'],
@@ -451,6 +451,7 @@
                     <select name="order_source" class="form-select form-select-sm">
                         <option value="">All Sources</option>
                         <option value="prei_warehouse" @if(request('order_source') === 'prei_warehouse') selected @endif>PREI Warehouse</option>
+                        <option value="prei_plant" @if(request('order_source') === 'prei_plant') selected @endif>PREI Plant</option>
                         <option value="provincial_distributor" @if(request('order_source') === 'provincial_distributor') selected @endif>Provincial Distributor</option>
                     </select>
                     <select name="shipping_type" class="form-select form-select-sm">
@@ -518,7 +519,7 @@
                                         <div class="task-business">{{ $order->business_name ?: 'Area Distributor' }}</div>
                                         <div class="task-ad">
                                             <i class="ti ti-id-badge"></i>
-                                            <span>{{ optional($order->ad)->name ?: optional($order->ad)->business_name ?: 'N/A' }}</span>
+                                            <span>{{ optional($order->distributorUser)->name ?: optional($order->ad)->name ?: optional($order->ad)->business_name ?: 'N/A' }}</span>
                                         </div>
                                         <span class="source-badge {{ $orderSourceBadge['class'] }}"><i class="ti ti-building-warehouse"></i>{{ $orderSourceBadge['label'] }}</span>
                                         <div class="task-address" title="{{ $order->delivery_address ?: $order->authorized_territory ?: 'No delivery address' }}">
@@ -608,7 +609,7 @@
                                 </td>
                                 <td>
                                     <div class="business-name">{{ $order->business_name ?: 'Area Distributor' }}</div>
-                                    <span class="ad-name">AD: {{ optional($order->ad)->name ?: optional($order->ad)->business_name ?: 'N/A' }}</span>
+                                    <span class="ad-name">Distributor: {{ optional($order->distributorUser)->name ?: optional($order->ad)->name ?: optional($order->ad)->business_name ?: 'N/A' }}</span>
                                     <span class="territory-text" title="{{ $order->authorized_territory ?: 'No territory set' }}">
                                         {{ $order->authorized_territory ?: 'No territory set' }}
                                     </span>

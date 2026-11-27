@@ -26,8 +26,9 @@ class AdPurchaseOrdersExport implements FromCollection, ShouldAutoSize, WithHead
     {
         return [
             'PO Number',
+            'Source',
             'Business',
-            'Area Distributor',
+            'Distributor',
             'Authorized Territory',
             'Delivery Address',
             'Shipping Type',
@@ -53,8 +54,9 @@ class AdPurchaseOrdersExport implements FromCollection, ShouldAutoSize, WithHead
 
         return [
             $order->po_number,
+            $order->source_label,
             $order->business_name ?: 'Area Distributor',
-            optional($order->ad)->name ?: optional($order->ad)->business_name ?: 'N/A',
+            optional($order->distributorUser)->name ?: optional($order->ad)->name ?: optional($order->ad)->business_name ?: 'N/A',
             $order->authorized_territory,
             $order->delivery_address,
             ucwords(str_replace('_', ' ', $order->shipping_type)),

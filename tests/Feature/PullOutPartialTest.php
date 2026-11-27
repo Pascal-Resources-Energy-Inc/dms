@@ -29,10 +29,14 @@ class PullOutPartialTest extends TestCase
         File::makeDirectory($this->uploadRoot);
         $this->app->instance('path.public', $this->uploadRoot);
         DB::statement('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, role TEXT, warehouse TEXT)');
+        foreach (['area_distributors', 'provincial_distributors'] as $profileTable) {
+            DB::statement('CREATE TABLE ' . $profileTable . ' (id INTEGER PRIMARY KEY, user_id INTEGER,
+                location_region TEXT, address TEXT, delivery_address TEXT, deleted_at TEXT)');
+        }
         DB::statement('CREATE TABLE products (id INTEGER PRIMARY KEY, sku TEXT, product_name TEXT, ad_user_id INTEGER)');
         DB::statement('CREATE TABLE ad_areas (ad_id INTEGER, area_name TEXT, deleted_at TEXT)');
         DB::statement('CREATE TABLE ad_purchase_orders (id INTEGER PRIMARY KEY, ad_id INTEGER, ad_user_id INTEGER, status TEXT, authorized_territory TEXT,
-            order_source TEXT, po_number TEXT, dr_number TEXT, delivery_date TEXT, deleted_at TEXT)');
+            order_source TEXT, po_number TEXT, dr_number TEXT, delivery_date TEXT, delivery_address TEXT, shipping_type TEXT, deleted_at TEXT)');
         DB::statement('CREATE TABLE ad_purchase_order_items (ad_purchase_order_id INTEGER, product_id INTEGER, product_name TEXT, qty INTEGER)');
         DB::statement('CREATE TABLE inventory_transfers (id INTEGER PRIMARY KEY, product_id INTEGER, ad_id INTEGER,
             ad_user_id INTEGER, movement_type TEXT, out_type TEXT, approval_status TEXT, qty INTEGER,
@@ -260,11 +264,13 @@ class PullOutPartialTest extends TestCase
         $this->deliveryOrder(55, ['dr_number' => '   ']);
         $this->deliveryOrder(56, ['deleted_at' => '2026-11-05 10:00:00']);
         $this->deliveryOrder(57, ['dr_number' => null]);
+        $this->deliveryOrder(58, ['order_source' => 'prei_plant']);
         $this->actingAs($this->warehouse);
         $url = route('warehouse-pull-outs.delivery-receipts', $first->id);
         $receipts = $this->getJson($url)->assertStatus(200)->json('delivery_receipts');
-        $this->assertCount(1, $receipts);
-        $this->assertEquals(['id' => 50, 'dr_number' => 'DR-050', 'po_number' => 'ADPO-50', 'delivery_date' => 'Nov 05, 2026'], $receipts[0]);
+        $this->assertCount(2, $receipts);
+        $this->assertEquals([58, 50], array_column($receipts, 'id'));
+        $this->assertEquals(['id' => 50, 'dr_number' => 'DR-050', 'po_number' => 'ADPO-50', 'delivery_date' => 'Nov 05, 2026'], $receipts[1]);
         $queue = $this->controller->warehousePullOutsData()->getData(true)['data'];
         $this->assertEquals($url, $queue[0]['delivery_receipts_url']);
         $this->warehouse->warehouse = 'guinobatan';

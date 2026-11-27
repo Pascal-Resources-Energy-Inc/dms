@@ -95,6 +95,21 @@ class AdPurchaseOrder extends Model implements Auditable
         return $this->belongsTo(AreaDistributor::class, 'ad_id');
     }
 
+    public function distributorUser()
+    {
+        return $this->belongsTo(User::class, 'ad_user_id');
+    }
+
+    public function scopeForWarehouse($query, $warehouse)
+    {
+        return app(\App\Services\AdpoRouting::class)->forWarehouse($query, $warehouse);
+    }
+
+    public function getSourceLabelAttribute()
+    {
+        return app(\App\Services\AdpoRouting::class)->sourceLabel($this);
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');

@@ -206,6 +206,12 @@
         $isSupplyingProvincialDistributor = auth()->user()->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR
             && $order->order_source === 'provincial_distributor'
             && (int) $order->provincial_distributor_id === (int) auth()->id();
+        $orderListRoute = $isSupplyingProvincialDistributor ? 'provincial-distributor.purchase-orders' : 'ad-purchase-orders.index';
+        if (auth()->user()->role === 'Admin') {
+            $orderDeskWarehouse = strtolower(trim((string) auth()->user()->warehouse));
+            if ($orderDeskWarehouse === 'lubao') $orderListRoute = 'warehouse-ad-purchase-orders.plant';
+            if ($orderDeskWarehouse === 'guinobatan') $orderListRoute = 'warehouse-ad-purchase-orders.region-v';
+        }
         $availableStatuses = $order->status === 'Pending'
             ? ['Pending', 'SO Created', 'Cancelled']
             : ['Pending', 'SO Created', 'For Verification', 'For Delivery', 'Partial Received', 'Completed'];
@@ -278,7 +284,7 @@
     @endphp
 
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <a href="{{ $isSupplyingProvincialDistributor ? route('provincial-distributor.purchase-orders') : route('ad-purchase-orders.index') }}" class="btn btn-sm btn-outline-secondary">
+        <a href="{{ route($orderListRoute) }}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Back to ADPO
         </a>
         @if($order->status === 'Pending' && auth()->user()->hasAreaDistributorAccess() && (int) $order->ad_user_id === (int) auth()->id())
@@ -448,6 +454,7 @@
                 <img src="{{ asset('images/logo_mo.png') }}" class="receipt-logo" alt="Gaz Lite">
                 <h4 class="receipt-title">Distributor Purchase Order</h4>
                 <div class="text-muted">(DPO)</div>
+                <div class="small text-muted mt-2"><i class="bi bi-building"></i> Source: <strong>{{ $order->source_label }}</strong></div>
             </div>
             <div class="text-md-end">
                 <div class="text-muted small">PO Number</div>

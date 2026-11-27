@@ -159,6 +159,23 @@ class UserAccessModulesTest extends TestCase
         $this->assertFalse($this->allowed($user, 'center-chief-incentives'));
     }
 
+    public function test_plant_permissions_apply_to_shared_fulfillment_endpoints()
+    {
+        $user = $this->user(['purchase_orders' => ['adpo' => [], 'plant' => ['view']]])->forceFill(['warehouse' => 'lubao']);
+        foreach (['warehouse-ad-purchase-orders.plant', 'warehouse-ad-purchase-orders.plant.export', 'ad-purchase-orders.show'] as $route) {
+            $this->assertTrue($this->allowed($user, $route), $route);
+        }
+        foreach (['ad-purchase-orders.updateStatus', 'ad-purchase-orders.verification-complete', 'ad-purchase-orders.verification-incomplete'] as $route) {
+            $this->assertFalse($this->allowed($user, $route), $route);
+        }
+        $user->access_permissions = json_encode(['purchase_orders' => ['adpo' => [], 'plant' => ['view', 'edit']]]);
+        $this->assertTrue($this->allowed($user, 'ad-purchase-orders.updateStatus'));
+        $this->assertTrue($this->allowed($user, 'ad-purchase-orders.verification-complete'));
+        $user->access_permissions = json_encode(['purchase_orders' => ['adpo' => ['view', 'edit']]]);
+        $this->assertTrue($this->allowed($user, 'warehouse-ad-purchase-orders.plant'));
+        $this->assertTrue($this->allowed($user, 'ad-purchase-orders.updateStatus'));
+    }
+
     public function test_mega_dealer_creation_uses_its_own_permission_on_the_shared_endpoint()
     {
         $user = $this->user(['dealers' => ['mega' => ['view', 'add'], 'records' => []]]);

@@ -12,7 +12,7 @@
         </div>
 
         <div style="padding:24px;">
-            <p style="margin-top:0;">A purchase order with a Region V delivery address has been submitted and needs Guinobatan warehouse attention.</p>
+            <p style="margin-top:0;">A distributor purchase order has been submitted to {{ $order->source_label }} and needs {{ $order->source_label === 'PREI Plant' ? 'Lubao plant' : 'Guinobatan warehouse' }} attention.</p>
 
             <table style="width:100%; border-collapse:collapse; font-size:14px;">
                 <tr>

@@ -2028,48 +2028,7 @@
                     </div>
                 @endif
                 @if($sidebarIsAdmin && $sidebarWarehouse === 'guinobatan')
-                    @php
-                        $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')
-                            ->where('order_source', 'prei_warehouse')
-                            ->where(function ($query) {
-                                $regionVNeedles = [
-                                    'region v',
-                                    'region 5',
-                                    'region-5',
-                                    'region-v',
-                                    'bicol',
-                                    'albay',
-                                    'camarines norte',
-                                    'camarines sur',
-                                    'catanduanes',
-                                    'masbate',
-                                    'sorsogon',
-                                ];
-
-                                foreach ($regionVNeedles as $needle) {
-                                    $query->orWhereRaw('LOWER(delivery_address) LIKE ?', ['%' . $needle . '%'])
-                                        ->orWhereHas('ad', function ($adQuery) use ($needle) {
-                                            $adQuery->whereRaw('LOWER(delivery_address) LIKE ?', ['%' . $needle . '%'])
-                                                ->orWhereRaw('LOWER(location_region) LIKE ?', ['%' . $needle . '%']);
-                                        });
-                                }
-                            })
-                            ->count();
-                    @endphp
-                    <div class="nav-item">
-                        <a href="{{ route('warehouse-ad-purchase-orders.region-v') }}"
-                            class="nav-link @if(in_array(Route::currentRouteName(), ['warehouse-ad-purchase-orders.region-v','ad-purchase-orders.show'])) active @endif position-relative">
-                            <div class="nav-icon position-relative">
-                                <i class="ti ti-receipt"></i>
-                                @if($pendingAdPurchaseOrdersCount > 0)
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                        {{ $pendingAdPurchaseOrdersCount > 99 ? '99+' : $pendingAdPurchaseOrdersCount }}
-                                    </span>
-                                @endif
-                            </div>
-                            <span class="nav-text">Purchase Orders</span>
-                        </a>
-                    </div>
+                    @include('ad_purchase_orders.partials.warehouse-sidebar-link')
                     <div class="nav-item">
                         <a href="{{url('warehouse/pull-out-requests')}}" class="nav-link @if(Route::currentRouteName() == 'warehouse-pull-outs.index')active @endif">
                             <div class="nav-icon position-relative">
@@ -2109,25 +2068,7 @@
                         </div>
                     </div>
                 @elseif($sidebarIsAdmin && $sidebarWarehouse === 'lubao')
-                    @php
-                        $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')
-                            ->where('order_source', 'prei_warehouse')
-                            ->count();
-                    @endphp
-                    <div class="nav-item">
-                        <a href="{{ route('ad-purchase-orders.index') }}"
-                            class="nav-link @if(in_array(Route::currentRouteName(), ['ad-purchase-orders.index','ad-purchase-orders.create','ad-purchase-orders.show'])) active @endif position-relative">
-                            <div class="nav-icon position-relative">
-                                <i class="ti ti-receipt"></i>
-                                @if($pendingAdPurchaseOrdersCount > 0)
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                        {{ $pendingAdPurchaseOrdersCount > 99 ? '99+' : $pendingAdPurchaseOrdersCount }}
-                                    </span>
-                                @endif
-                            </div>
-                            <span class="nav-text">Purchase Orders</span>
-                        </a>
-                    </div>
+                    @include('ad_purchase_orders.partials.warehouse-sidebar-link')
                     <div class="nav-item">
                         <a href="{{url('warehouse/pull-out-requests')}}" class="nav-link @if(Route::currentRouteName() == 'warehouse-pull-outs.index')active @endif">
                             <div class="nav-icon position-relative">
@@ -2167,7 +2108,10 @@
                         </div>
                     </div>
                 @endif
-                @if($sidebarIsSedp && $canAccessPurchaseOrders)
+                @if($sidebarIsRestrictedAdmin && in_array($sidebarWarehouse, ['lubao', 'guinobatan'], true))
+                    @include('ad_purchase_orders.partials.warehouse-sidebar-link')
+                @endif
+                @if($sidebarIsSedp && $canAccessPurchaseOrders && !($sidebarIsRestrictedAdmin && in_array($sidebarWarehouse, ['lubao', 'guinobatan'], true)))
                     @php
                         $pendingAdPurchaseOrdersCount = \App\AdPurchaseOrder::where('status', 'Pending')->count();
                     @endphp

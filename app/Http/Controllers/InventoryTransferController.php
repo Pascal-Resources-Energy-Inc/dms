@@ -24,9 +24,13 @@ class InventoryTransferController extends Controller
 
     public function index(Request $request)
     {
-        $user = auth()->user();
-        $ad = $user->ad;
-        $areas = $ad ? $ad->areas->pluck('area_name')->filter()->values() : collect();
+        return view('inventory_transfers.index', $this->inventorySnapshot(auth()->user()));
+    }
+
+    private function inventorySnapshot(User $user)
+    {
+        $ad = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR ? ($user->provincialDistributor ?: $user->ad) : $user->ad;
+        $areas = $ad ? $ad->areas->pluck('area_name')->filter()->unique()->values() : collect();
         $canTransfer = $areas->count() > 1;
         $singleArea = $areas->count() === 1 ? $areas->first() : null;
 
@@ -87,7 +91,7 @@ class InventoryTransferController extends Controller
             ->get();
 
         $dealerOrderDeductions = $this->completedDealerOrderDeductions(
-            $ad ? $ad->id : null,
+            optional($user->ad)->id,
             $inventoryProducts
         );
 
@@ -140,16 +144,6 @@ class InventoryTransferController extends Controller
             ];
         })->sortBy('area')->values();
 
-        // $productSummaries = $balances->groupBy('product_id')->map(function ($rows) {
-        //     $first = $rows->first();
-
-        //     return (object) [
-        //         'sku' => $first->sku,
-        //         'item_name' => $first->item_name,
-        //         'qty' => $rows->sum('qty'),
-        //         'area_count' => $rows->count(),
-        //     ];
-        // })->sortBy('item_name')->values();
         $productSummaries = $balances
             ->filter(function ($balance) {
                 return $balance->product_id;
@@ -169,18 +163,6 @@ class InventoryTransferController extends Controller
             ->sortBy('product_name')
             ->values();
         
-        $movementQuery = $this->movementHistoryQuery($request)->with('product');
-        $movements = $movementQuery
-            ->orderBy('transfer_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->paginate(25)
-            ->appends($request->query());
-        $batchNumbers = $movements->getCollection()->pluck('batch_number')->filter();
-        $batchItems = $batchNumbers->isEmpty() ? collect() : InventoryTransfer::where('ad_user_id', $user->id)
-            ->whereIn('batch_number', $batchNumbers)->orderBy('id')->get()->groupBy(function ($line) {
-                return $line->batch_number . '|' . $line->movement_type;
-            });
-
         $balanceLookup = collect();
         $availableBalanceProductOptions = $balances
             ->filter(function ($balance) {
@@ -211,13 +193,11 @@ class InventoryTransferController extends Controller
             }
         }
 
-        return view('inventory_transfers.index', compact(
+        return compact(
             'areas',
             'canTransfer',
             'singleArea',
             'products',
-            'movements',
-            'batchItems',
             'balances',
             'summary',
             'balanceLookup',
@@ -228,7 +208,7 @@ class InventoryTransferController extends Controller
             'adProductOptions',
             'stockProducts',
             'adItems'
-        ));
+        );
     }
 
     private function movementHistoryQuery(Request $request)
@@ -245,14 +225,24 @@ class InventoryTransferController extends Controller
         if ($request->filled('date_from')) $query->whereDate('transfer_date', '>=', $request->date_from);
         if ($request->filled('date_to')) $query->whereDate('transfer_date', '<=', $request->date_to);
 
-        $representatives = (clone $query)->whereNotNull('batch_number')->selectRaw('MIN(id)')->groupBy('batch_number');
+        $search = trim((string) $request->input('search.value', ''));
+        if ($search !== '') {
+            $query->where(function ($keywords) use ($search) {
+                foreach (['item_name', 'sku', 'reference_no', 'movement_type', 'out_type', 'from_area', 'to_area', 'remarks', 'transfer_date'] as $column) {
+                    $keywords->orWhere($column, 'like', '%' . $search . '%');
+                }
+            });
+        }
+        $representatives = (clone $query)->whereRaw("TRIM(COALESCE(batch_number, '')) <> ''")->selectRaw('MIN(id)')->groupBy('batch_number');
         return $query->where(function ($batches) use ($representatives) {
-            $batches->whereNull('batch_number')->orWhereIn('id', $representatives->toBase());
+            $batches->whereRaw("TRIM(COALESCE(batch_number, '')) = ''")->orWhereIn('id', $representatives->toBase());
         });
     }
 
     public function movementHistoryData(Request $request)
     {
+        $request->validate(['search.value' => 'nullable|string|max:255', 'date_from' => 'nullable|date', 'date_to' => 'nullable|date']);
+        $request->merge(['length' => min(100, max(1, (int) $request->input('length', 25)))]);
         $query = $this->movementHistoryQuery($request);
         $lines = [];
         $itemsFor = function ($movement) use (&$lines) {
@@ -266,6 +256,14 @@ class InventoryTransferController extends Controller
         };
 
         return \Yajra\DataTables\Facades\DataTables::of($query)
+            ->setTotalRecords($this->movementHistoryQuery(new Request)->count())
+            ->filter(function () { /* Search and filters apply before selecting batch representatives. */ })
+            ->order(function ($query) use ($request) {
+                $columns = ['transfer_date', 'movement_type', null, 'from_area', 'to_area', 'reference_no'];
+                $column = $columns[(int) $request->input('order.0.column', 0)] ?? 'transfer_date';
+                $direction = $request->input('order.0.dir') === 'asc' ? 'asc' : 'desc';
+                $query->orderBy($column ?: 'transfer_date', $direction)->orderBy('id', 'desc');
+            })
             ->editColumn('transfer_date', function ($movement) {
                 return $movement->transfer_date ? Carbon::parse($movement->transfer_date)->format('M d, Y') : '—';
             })
@@ -290,11 +288,46 @@ class InventoryTransferController extends Controller
             ->make(true);
     }
 
+    public function stockBalancesData(Request $request)
+    {
+        $request->validate(['search.value' => 'nullable|string|max:255', 'stock_status' => 'nullable|in:good,low,none']);
+        $snapshot = $this->inventorySnapshot(auth()->user());
+        $rows = $snapshot['balances']->map(function ($balance) {
+            $available = (float) ($balance->available_qty ?? $balance->qty);
+            return [
+                'area' => $balance->area, 'product_name' => $balance->product_name, 'sku' => $balance->sku,
+                'stock_after_movement' => (float) $balance->stock_after_movement,
+                'ordered_qty' => (float) $balance->ordered_qty, 'available_qty' => $available,
+                'status' => $available <= 0 ? 'none' : ($available <= 10 ? 'low' : 'good'),
+            ];
+        });
+        $total = $rows->count();
+        $search = mb_strtolower(trim((string) $request->input('search.value', '')));
+        $rows = $rows->filter(function ($row) use ($request, $search) {
+            return (!$request->filled('stock_status') || $row['status'] === $request->input('stock_status'))
+                && ($search === '' || mb_strpos(mb_strtolower($row['area'] . ' ' . $row['product_name'] . ' ' . $row['sku']), $search) !== false);
+        });
+        $filtered = $rows->count();
+        $columns = ['area', 'product_name', 'stock_after_movement', 'ordered_qty', 'available_qty', 'status'];
+        $column = $columns[(int) $request->input('order.0.column', 0)] ?? 'area';
+        $descending = $request->input('order.0.dir') === 'desc';
+        $rows = $rows->sort(function ($left, $right) use ($column, $descending) {
+            $compared = is_numeric($left[$column]) && is_numeric($right[$column])
+                ? $left[$column] <=> $right[$column] : strnatcasecmp((string) $left[$column], (string) $right[$column]);
+            if ($compared === 0) $compared = strnatcasecmp($left['area'] . $left['sku'], $right['area'] . $right['sku']);
+            return $descending ? -$compared : $compared;
+        });
+        $length = min(100, max(1, (int) $request->input('length', 25)));
+        return response()->json(['draw' => max(0, (int) $request->input('draw')), 'recordsTotal' => $total,
+            'recordsFiltered' => $filtered, 'data' => $rows->slice(max(0, (int) $request->input('start')), $length)->values()]);
+    }
+
     public function store(Request $request)
     {
         $user = auth()->user();
         $ad = $user->ad;
-        $areas = $ad ? $ad->areas->pluck('area_name')->filter()->values()->toArray() : [];
+        $areaProfile = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR ? ($user->provincialDistributor ?: $ad) : $ad;
+        $areas = $areaProfile ? $areaProfile->areas->pluck('area_name')->filter()->unique()->values()->toArray() : [];
 
         // A single-area AD always uses their assigned area. This also covers
         // submissions made without the browser-side form behaviour.
@@ -1996,7 +2029,7 @@ class InventoryTransferController extends Controller
     private function pullOutDeliveryOrders(InventoryTransfer $movement)
     {
         return AdPurchaseOrder::where('ad_user_id', $movement->ad_user_id)
-            ->where('order_source', 'prei_warehouse')
+            ->forWarehouse($movement->warehouse)
             ->where('status', 'For Delivery')
             ->whereRaw("TRIM(COALESCE(dr_number, '')) <> ''");
     }

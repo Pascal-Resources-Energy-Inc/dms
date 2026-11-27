@@ -35,6 +35,8 @@
         .dealer-metric, .dealer-status { display: inline-flex; align-items: center; justify-content: center; min-height: 26px; padding: 3px 9px; border-radius: 999px; font-size: .73rem; font-weight: 800; }
         .dealer-metric.is-stock { color: #155e75; background: #e6f7fb; }
         .dealer-metric.is-sold { color: #5b3a9a; background: #f1ebff; }
+        .dealer-metric.is-remaining { color: #087443; background: #e7f8ee; }
+        .dealer-metric.is-deficit { color: #b42318; background: #fff0ed; }
         .dealer-status.is-active { color: #16713a; background: #e7f8ec; }
         .dealer-status.is-inactive { color: #a14b10; background: #fff1dd; }
         .dealer-action-btn { width: 34px; height: 34px; display: inline-grid; place-items: center; color: #0f6ba8; background: #e7f5ff; border-radius: 9px; text-decoration: none; }
@@ -234,8 +236,9 @@
                                         <th>Store Name</th>
                                         <th>Store Type</th>
                                         <th>Number</th>
-                                        <th>Qty Stock</th>
-                                        <th>Qty Sold</th>
+                                        <th title="Total quantity received from completed incoming orders">Qty Stock</th>
+                                        <th title="{{ $isMegaDealerPage ? 'Completed dealer orders plus customer sales' : 'Recorded customer sales' }}">Qty Sold</th>
+                                        <th title="Qty Stock minus Qty Sold">Remaining Stock</th>
                                         <th>Address</th>
                                         <th>Sales Territory</th>
                                         <th>Status</th>
@@ -250,8 +253,9 @@
                                         $dealerTabKey = !empty($dealer->is_remote)
                                             ? ($dealer->source ?? 'admin_crms')
                                             : ($isAdminDealerPage ? ($dealer->source ?? 'Regular') : $dealerType);
-                                        $stockQty = $dealer->stock_qty ?? $dealer->orders->sum('qty') ?? $dealer->orders->sum('total_qty') ?? 0;
-                                        $soldQty = $dealer->sold_qty ?? $dealer->sales->sum('qty') ?? $dealer->sales->sum('total_qty') ?? 0;
+                                        $stockQty = $dealer->stock_qty ?? collect($dealer->orders ?? [])->sum(function ($row) { return $row->qty ?? $row->total_qty ?? 0; });
+                                        $soldQty = $dealer->sold_qty ?? collect($dealer->sales ?? [])->sum(function ($row) { return $row->qty ?? $row->total_qty ?? 0; });
+                                        $remainingQty = $dealer->remaining_qty ?? ($stockQty - $soldQty);
                                         $adminDealerViewUrl = $isAdminDealerPage
                                             ? ($dealerTabKey === 'Regular'
                                                 ? url('view-dealer/' . $dealer->id)
@@ -291,6 +295,7 @@
                                         <td data-label="Contact number" scope="col">{{ strtoupper($dealer->number ?? '-') }}</td>
                                         <td data-label="Stock quantity" scope="col"><span class="dealer-metric is-stock">{{ number_format($stockQty) }}</span></td>
                                         <td data-label="Quantity sold" scope="col"><span class="dealer-metric is-sold">{{ number_format($soldQty) }}</span></td>
+                                        <td data-label="Remaining stock"><span class="dealer-metric {{ $remainingQty < 0 ? 'is-deficit' : 'is-remaining' }}">{{ number_format($remainingQty) }}</span></td>
                                         <td data-label="Address" scope="col"><div class="dealer-muted">{{ strtoupper($dealer->address ?? '-') }}</div></td>
                                         <td data-label="Sales territory" scope="col"><div class="dealer-muted">{{ strtoupper($dealer->area ?? '-') }}</div></td>
                                         <td data-label="Status">
@@ -457,13 +462,14 @@
                         {data: 'number', name: 'number'},
                         {data: 'stock_qty', name: 'stock_qty', searchable: false},
                         {data: 'sold_qty', name: 'sold_qty', searchable: false},
+                        {data: 'remaining_qty', name: 'remaining_qty', searchable: false},
                         {data: 'address', name: 'address'},
                         {data: 'area', name: 'area'},
                         {data: 'status', name: 'status'},
                         {data: 'action', name: 'action', orderable: false, searchable: false}
                     ],
                     createdRow: function (row) {
-                        const labels = ['Reference', 'Mega Dealer name', 'Store name', 'Store type', 'Contact number', 'Stock quantity', 'Quantity sold', 'Address', 'Sales territory', 'Status', 'View'];
+                        const labels = ['Reference', 'Mega Dealer name', 'Store name', 'Store type', 'Contact number', 'Stock quantity', 'Quantity sold', 'Remaining stock', 'Address', 'Sales territory', 'Status', 'View'];
                         $('td', row).each(function (index) {
                             $(this).attr('data-label', labels[index] || '');
                         });

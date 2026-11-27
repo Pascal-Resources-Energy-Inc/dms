@@ -1,23 +1,17 @@
 @extends('layouts.header')
 
-@section('header')
-<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+@section('css')
+<link rel="stylesheet" href="{{ asset('design/vendors/datatables.net-bs4/dataTables.bootstrap4.css') }}">
+<link rel="stylesheet" href="{{ asset('design/vendors/bootstrap-select/bootstrap-select.min.css') }}">
+<link rel="stylesheet" href="{{ asset('design/assets/css/inventory-movement.css') }}">
 @endsection
 
 @section('content')
-    <div class="inventory-head d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
-        <div>
-            <div class="inventory-eyebrow">Inventory Transfer</div>
-            <h4 class="mb-1 fw-bold">Out and Area-to-Area Stock Movement</h4>
-            <div class="text-muted small">Manage LPG SKU inventory for every area assigned to this account.</div>
-        </div>
-        <div class="inventory-head-actions mt-3 mt-lg-0">
-            <span class="badge bg-light text-dark border px-3 py-2">{{ $areas->count() }} Area{{ $areas->count() == 1 ? '' : 's' }}</span>
-            <span class="badge bg-light text-dark border px-3 py-2">{{ $adItems->count() }} Product{{ $adItems->count() == 1 ? '' : 's' }}</span>
-            <span class="badge bg-primary px-3 py-2">{{ date('M d, Y') }}</span>
-        </div>
-    </div>
-
+<div class="inventory-module">
+    <header class="inventory-head">
+        <div class="inventory-heading"><div><h4>Inventory Movement</h4><p>Review stock movements and available quantities by area.</p></div></div>
+        <button type="button" class="btn btn-primary" id="openMovementForm" data-bs-toggle="modal" data-bs-target="#newMovementModal"><i class="ti ti-plus" aria-hidden="true"></i> New Movement</button>
+    </header>
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
@@ -32,45 +26,43 @@
         </div>
     @endif
 
-    <div class="row g-3 mb-3">
-        {{-- <div class="col-lg-3 col-md-6">
-            <div class="inventory-kpi p-3 d-flex align-items-center">
-                <span class="inventory-icon bg-success me-3"><i class="ti ti-arrow-down fs-4"></i></span>
-                <div>
-                    <h4 class="mb-0 fw-bold">{{ number_format($summary['total_in'] ?? 0) }}</h4>
-                    <div class="small text-muted">Total In</div>
-                </div>
-            </div>
-        </div> --}}
-        <div class="col-lg-3 col-md-6">
-            <div class="inventory-kpi p-3 d-flex align-items-center">
-                <span class="inventory-icon bg-danger me-3"><i class="ti ti-arrow-up fs-4"></i></span>
-                <div>
-                    <h4 class="mb-0 fw-bold">{{ number_format($summary['total_out'] ?? 0) }}</h4>
-                    <div class="small text-muted">Total Out</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="inventory-kpi p-3 d-flex align-items-center">
-                <span class="inventory-icon bg-primary me-3"><i class="ti ti-arrows-transfer-up fs-4"></i></span>
-                <div>
-                    <h4 class="mb-0 fw-bold">{{ number_format($summary['total_transfer'] ?? 0) }}</h4>
-                    <div class="small text-muted">Total Transferred</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="inventory-kpi p-3 d-flex align-items-center">
-                <span class="inventory-icon bg-dark me-3"><i class="ti ti-package fs-4"></i></span>
-                <div>
-                    <h4 class="mb-0 fw-bold">{{ number_format($summary['ending_stock'] ?? 0) }}</h4>
-                    <div class="small text-muted">Total Ending Stock</div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <dl class="inventory-summary" aria-label="Inventory totals">
+        @foreach([
+            ['total_in', 'Stock in'],
+            ['total_out', 'Stock out'],
+            ['total_transfer', 'Transferred'],
+            ['ending_stock', 'Available stock'],
+        ] as $metric)
+            <div class="inventory-metric"><dt>{{ $metric[1] }}</dt><dd>{{ number_format($summary[$metric[0]] ?? 0) }}</dd></div>
+        @endforeach
+    </dl>
 
+    <section class="inventory-card inventory-history" aria-labelledby="movementHistoryHeading">
+        <div class="card-header">
+            <div class="inventory-panel-heading"><div><h5 id="movementHistoryHeading">Movement History</h5><p>View products and progress for each transaction.</p></div></div>
+            <form id="movementHistoryFilters" class="inventory-filters" method="GET" action="{{ route('inventory-transfers.index') }}">
+                <div class="filter-wide"><label for="historySearch">Search movements</label><input type="search" id="historySearch" class="form-control" placeholder="Reference, product, SKU or area"></div>
+                <div><label for="historyMovementType">Movement type</label><select name="movement_type" id="historyMovementType" class="form-select"><option value="">All types</option>@foreach(['in'=>'Stock in','out'=>'Stock out','transfer'=>'Transfer'] as $value=>$label)<option value="{{ $value }}" {{ request('movement_type') === $value ? 'selected' : '' }}>{{ $label }}</option>@endforeach</select></div>
+                <div class="filter-wide"><label for="historyProduct">Product</label><select name="product_id" id="historyProduct" class="form-select"><option value="">All products</option>@foreach($stockProducts->concat($products)->unique('id')->sortBy('product_name') as $product)<option value="{{ $product->id }}" {{ (string)request('product_id') === (string)$product->id ? 'selected' : '' }}>{{ $product->product_name }}{{ $product->sku ? ' · '.$product->sku : '' }}</option>@endforeach</select></div>
+                <div><label for="historyArea">Area</label><select name="area" id="historyArea" class="form-select"><option value="">All areas</option>@foreach($areas as $area)<option value="{{ $area }}" {{ request('area') === $area ? 'selected' : '' }}>{{ $area }}</option>@endforeach</select></div>
+                <div class="filter-wide"><label for="historyDateFrom">From date</label><input type="date" name="date_from" id="historyDateFrom" class="form-control" value="{{ request('date_from') }}"></div>
+                <div class="filter-wide"><label for="historyDateTo">To date</label><input type="date" name="date_to" id="historyDateTo" class="form-control" value="{{ request('date_to') }}"></div>
+                <div class="filter-actions filter-wide"><button type="submit" class="btn btn-primary"><i class="bi bi-funnel me-1"></i> Apply filters</button><button type="button" class="btn btn-outline-secondary" id="clearMovementFilters">Clear</button></div>
+            </form>
+        </div>
+        <div class="inventory-table-error" id="movementHistoryError" role="alert" hidden>Movement history could not be loaded. <button type="button" class="btn btn-sm btn-outline-primary" data-retry-table="history">Retry</button></div>
+        <div class="inventory-table-container"><table class="table inventory-table align-middle" id="movementHistoryTable" aria-label="Movement history"><thead><tr><th>Date</th><th>Type</th><th>Products / Quantity</th><th>From</th><th>To</th><th>Reference No.</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+    </section>
+
+    <section class="inventory-card" aria-labelledby="stockBalanceHeading">
+        <div class="card-header">
+            <div class="inventory-panel-heading"><div><h5 id="stockBalanceHeading">Current Stock by Area</h5><p>Stock from completed orders and recorded movements.</p></div><span class="inventory-panel-meta">{{ $areas->count() }} assigned {{ $areas->count() === 1 ? 'area' : 'areas' }}</span></div>
+            <div class="balance-tools"><div><label for="balanceSearch">Search stock</label><input type="search" id="balanceSearch" class="form-control" placeholder="Area, product or SKU"></div><div><label for="balanceStatusFilter">Stock status</label><select id="balanceStatusFilter" class="form-select"><option value="">All stock levels</option><option value="good">Good stock</option><option value="low">Low stock</option><option value="none">No stock</option></select></div></div>
+        </div>
+        <div class="inventory-table-error" id="stockBalanceError" role="alert" hidden>Stock balances could not be loaded. <button type="button" class="btn btn-sm btn-outline-primary" data-retry-table="stock">Retry</button></div>
+        <div class="inventory-table-container"><table class="table inventory-table align-middle" id="stockBalanceTable" aria-label="Current stock by area"><thead><tr><th>Area</th><th>Product</th><th>Stock after movement</th><th>Sales orders</th><th>Available</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+    </section>
+    <details class="inventory-insights"><summary><span>Stock insights</span><span class="small text-muted">Area and product breakdown <i class="ti ti-chevron-down ms-2" aria-hidden="true"></i></span></summary><div class="inventory-insights-body">
     <div class="stock-overview mb-3">
         <div class="row g-0">
             <div class="col-lg-3 col-md-6">
@@ -158,384 +150,15 @@
         </div>
     </div>
 
-    <div class="row g-3">
-        <div class="col-lg-4">
-            <div class="inventory-card sticky-form">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">New Movement</h5>
-                    <div class="small text-muted">Save one stock movement to the ledger.</div>
-                </div>
-                <div class="card-body">
-                    <div class="soft-note mb-3">
-                        Use IN to establish or correct stock, OUT for pull-out or return, and TRANSFER to move stock between assigned areas.
-                    </div>
-                    <form method="POST" action="{{ route('inventory-transfers.store') }}" id="newMovementForm" enctype="multipart/form-data">
-                        @csrf
 
-                        <div class="mb-3">
-                            <label class="form-label">Movement Type</label>
-                            @php
-                                $transferDisabled = !$canTransfer;
-                                $oldMovementType = old('movement_type', 'in');
-                                $oldMovementType = $transferDisabled && $oldMovementType === 'transfer' ? 'in' : $oldMovementType;
-                            @endphp
-                            <div class="movement-type-grid" id="movementTypeGrid">
-                                <label class="movement-type-option {{ $oldMovementType == 'in' ? 'active' : '' }}">
-                                    <input type="radio" name="movement_type" value="in" {{ $oldMovementType == 'in' ? 'checked' : '' }}>
-                                    <div class="fw-bold text-success">IN</div>
-                                    <div class="small text-muted">Add stock to an area</div>
-                                </label>
-                                <label class="movement-type-option {{ $oldMovementType == 'out' ? 'active' : '' }}">
-                                    <input type="radio" name="movement_type" value="out" {{ $oldMovementType == 'out' ? 'checked' : '' }}>
-                                    <div class="fw-bold text-danger">OUT</div>
-                                    <div class="small text-muted">Remove stock from area</div>
-                                </label>
-                                <label class="movement-type-option {{ $oldMovementType == 'transfer' ? 'active' : '' }} {{ $transferDisabled ? 'is-disabled' : '' }}" @if($transferDisabled) title="Transfer requires at least two assigned areas." aria-disabled="true" @endif>
-                                    <input type="radio" name="movement_type" value="transfer" {{ $oldMovementType == 'transfer' ? 'checked' : '' }} {{ $transferDisabled ? 'disabled' : '' }}>
-                                    <div class="fw-bold text-primary">TRANSFER</div>
-                                    <div class="small text-muted">{{ $transferDisabled ? 'Requires 2 assigned areas' : 'Move area to area' }}</div>
-                                </label>
-                            </div>
-                            @if($transferDisabled)
-                                <div class="movement-type-help">Transfer becomes available when a second area is assigned to your account.</div>
-                            @endif
-                        </div>
-
-                        <div class="mb-3 js-single-product">
-                            <label class="form-label">LPG SKU / Product</label>
-                            <select name="product_id" id="productSelect" class="form-control select2" data-selected-value="{{ old('product_id') }}" required>
-                                <option value="">Select product</option>
-                                @forelse($stockProducts as $product)
-                                    <option value="{{ $product->id }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>
-                                        {{ $product->sku ? $product->sku . ' - ' : '' }}{{ $product->product_name }}
-                                    </option>
-                                @empty
-                                    <option value="" disabled>No stock products available</option>
-                                @endforelse
-                            </select>
-                        </div>
-
-                        <div class="mb-3 js-from-area">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <label class="form-label">From Area</label>
-                                <span class="available-pill" id="availableQty" hidden>Available: 0</span>
-                            </div>
-                            @php
-                                $defaultFromArea = old('from_area') ?: ($areas->count() === 1 ? $areas->first() : null);
-                            @endphp
-                            <select name="from_area" id="fromAreaSelect" class="form-control select2">
-                                <option value="">Select source area</option>
-                                @foreach($areas as $area)
-                                    <option value="{{ $area }}" {{ $defaultFromArea === $area ? 'selected' : '' }}>{{ $area }}</option>
-                                @endforeach
-                            </select>
-                            <div class="stock-warning" id="stockWarning"></div>
-                        </div>
-
-                        <div class="mb-3 js-to-area">
-                            <label class="form-label">To Area</label>
-                            @php
-                                $defaultToArea = old('to_area') ?: ($areas->count() === 1 ? $areas->first() : null);
-                            @endphp
-                            <select name="to_area" id="toAreaSelect" class="form-control select2">
-                                <option value="">Select receiving area</option>
-                                @foreach($areas as $area)
-                                    <option value="{{ $area }}" {{ $defaultToArea === $area ? 'selected' : '' }}>{{ $area }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="mb-3 js-movement-reason">
-                            <label class="form-label" id="movementReasonLabel">Movement Type</label>
-                            <select name="out_type" id="outTypeSelect" class="form-control select2" data-selected-value="{{ old('out_type') }}"></select>
-                            <div class="form-text" id="movementReasonHelp"></div>
-                        </div>
-                        <div class="alert alert-warning py-2 small js-out-adjustment-note" style="display: none;">
-                            <i class="bi bi-dash-circle me-1"></i> This adjustment deducts stock from the selected source area.
-                        </div>
-                        <div class="alert alert-info py-2 small js-return-refund-note" style="display: none;">
-                            <i class="bi bi-arrow-return-left me-1"></i>
-                            <strong>One Return and Refund request:</strong> add all products below. They share one reference number and stay together in the request and report. Submit to Sir Dennis for approval and RIS documents.
-                        </div>
-                        <div class="mb-3 js-movement-items">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div><label class="form-label mb-0">Products and Quantities</label><div class="form-text mt-0">Add one or more LPG products for this movement.</div></div>
-                                
-                            </div>
-                            <div id="movementRows"></div>
-                            <button type="button" id="addMovementRow" class="btn btn-sm btn-outline-primary d-flex justify-content-end"><i class="bi bi-plus-lg me-1"></i>Add Row</button>
-                        </div>
-                        <div class="row js-pull-out-ris" style="display: none;">
-                            <p class="small text-muted mb-2">All products share one Pull Out reference. The warehouse can release part of each product and process the remaining quantity later.</p>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" for="pullOutRisNumber">RIS Number <span class="text-danger">*</span></label>
-                                <input type="text" name="ris_number" id="pullOutRisNumber" class="form-control" value="{{ old('ris_number') }}" placeholder="Enter RIS number" disabled>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label" for="pullOutRisDate">RIS Date <span class="text-danger">*</span></label>
-                                <input type="date" name="ris_date" id="pullOutRisDate" class="form-control" value="{{ old('ris_date', date('Y-m-d')) }}" disabled>
-                            </div>
-                        </div>
-                        <div class="mb-3 js-pull-out-attachments" style="display: none;">
-                            <label class="form-label" for="pullOutAttachments">Pull-out attachments <span class="text-danger">*</span></label>
-                            <input type="file" name="pull_out_attachments[]" id="pullOutAttachments" class="form-control" accept=".jpg,.jpeg,.png,.pdf" multiple disabled>
-                            <div class="form-text"><strong>Attach a clear picture of the signed RIS.</strong> You may include other pull-out proof files. JPG, PNG, or PDF; maximum 5 files, 5 MB each.</div>
-                        </div>
-                        <div class="mb-3 js-transfer-date">
-                            <label class="form-label">Date</label>
-                            <input type="date" name="transfer_date" id="transferDateInput" class="form-control" value="{{ old('transfer_date', date('Y-m-d')) }}">
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Remarks</label>
-                            <textarea name="remarks" class="form-control" rows="3">{{ old('remarks') }}</textarea>
-                        </div>
-
-                        <div class="movement-preview mb-3">
-                            <div class="small text-muted mb-1">Movement Preview</div>
-                            <div class="fw-semibold" id="movementPreview">Select product, area, and quantity.</div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary w-100" id="saveMovementButton">
-                            Save Movement
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-8">
-            <div class="inventory-card mb-3 card">
-                <div class="card-header bg-white">
-                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
-                        <div class="stock-section-title">
-                            <span class="stock-section-icon"><i class="bi bi-boxes"></i></span>
-                            <div>
-                            <h5 class="mb-0">Current Stock by Area</h5>
-                            <div class="small text-muted">
-                                @if(auth()->user()->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR)
-                                    Available stock deducts completed Area Distributor purchase orders in the same area.
-                                @else
-                                    Available stock deducts completed dealer orders in the same area.
-                                @endif
-                            </div>
-                            </div>
-                        </div>
-                        <span class="stock-ledger-badge mt-2 mt-lg-0"><i class="bi bi-journal-check"></i> Ledger balance</span>
-                    </div>
-                    <div class="balance-tools mt-3">
-                        <input type="text" id="balanceSearch" class="form-control" placeholder="Search area, SKU, or product">
-                        <select id="balanceStatusFilter" class="form-control">
-                            <option value="">All Status</option>
-                            <option value="good">Good</option>
-                            <option value="low">Low</option>
-                            <option value="none">No stock</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="card-body p-3">
-                    <div class="table-responsive">
-                        <table class="table inventory-table align-middle mb-0" id="stockBalanceTable">
-                            <thead>
-                                <tr>
-                                    <th>Area</th>
-                                    <th>Product</th>
-                                    <th class="text-end">Stock After Movement</th>
-                                    <th class="text-end">Sales Orders</th>
-                                    <th class="text-end">Available</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($balances as $balance)
-                                    @php
-                                        $orderedQty = (float) ($balance->ordered_qty ?? 0);
-                                        $stockAfterMovement = (float) ($balance->stock_after_movement ?? ((float) $balance->qty + $orderedQty));
-                                        $availableQty = (float) ($balance->available_qty ?? ($stockAfterMovement - $orderedQty));
-                                        $balanceStatus = $availableQty <= 0 ? 'none' : ($availableQty <= 10 ? 'low' : 'good');
-                                    @endphp
-                                    <tr class="js-balance-row" data-search="{{ strtolower($balance->area . ' ' . ($balance->sku ?? '') . ' ' . $balance->product_name) }}" data-status="{{ $balanceStatus }}">
-                                        <td data-label="Area">
-                                            <div class="fw-bold text-dark">{{ $balance->area }}</div>
-                                            <div class="small text-muted">Area stock</div>
-                                        </td>
-                                        <td data-label="Product">
-                                            <div class="fw-semibold">{{ strtoupper($balance->product_name) }}</div>
-                                            <div class="small text-muted">{{ strtoupper($balance->sku ?? 'No SKU') }}</div>
-                                        </td>
-                                        <td class="text-end" data-label="Stock after movement">
-                                            <span class="stock-pill stock-pill-in">{{ number_format($stockAfterMovement) }} pcs</span>
-                                        </td>
-                                        <td class="text-end" data-label="Sales orders">
-                                            @if($orderedQty > 0)
-                                                <span class="stock-pill stock-pill-order">{{ number_format($orderedQty) }} pcs</span>
-                                            @else
-                                                <span class="stock-pill stock-pill-muted">0 pcs</span>
-                                            @endif
-                                        </td>
-                                        <td class="text-end" data-label="Available stock">
-                                            <span class="remaining-qty {{ $availableQty < 0 ? 'text-danger' : '' }}">{{ number_format($availableQty) }} <small>pcs</small></span>
-                                        </td>
-                                        <td data-label="Status">
-                                            @if($availableQty <= 0)
-                                                <span class="status-badge status-none">No stock</span>
-                                            @elseif($availableQty <= 10)
-                                                <span class="status-badge status-low">Low</span>
-                                            @else
-                                                <span class="status-badge status-good">Good</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @empty
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="inventory-card card">
-                <div class="card-header bg-white">
-                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
-                        <div>
-                            <h5 class="mb-0">Movement History</h5>
-                            <div class="small text-muted">
-                                Showing {{ number_format($movements->firstItem() ?? 0) }}-{{ number_format($movements->lastItem() ?? 0) }}
-                                of {{ number_format($movements->total()) }} record{{ $movements->total() == 1 ? '' : 's' }}
-                            </div>
-                        </div>
-                        <a href="{{ route('inventory-transfers.index') }}" class="btn btn-sm btn-outline-secondary mt-2 mt-lg-0">Reset Filters</a>
-                    </div>
-                    <form method="GET" action="{{ route('inventory-transfers.index') }}" class="row g-2 mt-3" id="movementHistoryFilters">
-                        <div class="col-lg-2 col-md-4">
-                            <select name="movement_type" class="form-control">
-                                <option value="">All Types</option>
-                                <option value="in" {{ request('movement_type') == 'in' ? 'selected' : '' }}>IN</option>
-                                <option value="out" {{ request('movement_type') == 'out' ? 'selected' : '' }}>OUT</option>
-                                <option value="transfer" {{ request('movement_type') == 'transfer' ? 'selected' : '' }}>TRANSFER</option>
-                            </select>
-                        </div>
-                        <div class="col-lg-3 col-md-4">
-                            <select name="product_id" class="form-control">
-                                <option value="">All Products</option>
-                                @foreach($products as $product)
-                                    <option value="{{ $product->id }}" {{ request('product_id') == $product->id ? 'selected' : '' }}>
-                                        {{ $product->sku ? $product->sku . ' - ' : '' }}{{ $product->product_name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-lg-2 col-md-4">
-                            <select name="area" class="form-control">
-                                <option value="">All Areas</option>
-                                @foreach($areas as $area)
-                                    <option value="{{ $area }}" {{ request('area') == $area ? 'selected' : '' }}>{{ $area }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-lg-2 col-md-4">
-                            <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
-                        </div>
-                        <div class="col-lg-2 col-md-4">
-                            <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
-                        </div>
-                        <div class="col-lg-1 col-md-4">
-                            <button class="btn btn-primary">Filter</button>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-body p-3">
-                    <div class="table-responsive">
-                        <table class="table inventory-table align-middle mb-0" id="movementHistoryTable">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Type</th>
-                                    <th>Products / Quantity</th>
-                                    <th>From</th>
-                                    <th>To</th>
-                                    {{-- <th class="text-center">Unit Cost</th> --}}
-                                    <th>Reference No.</th>
-                                    {{-- <th>Attachments</th>
-                                    <th class="text-center">Remarks</th> --}}
-                                    <th class="text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($movements as $movement)
-                                    <tr>
-                                        <td data-label="Date">{{ $movement->transfer_date ? $movement->transfer_date->format('M d, Y') : '-' }}</td>
-                                        <td data-label="Type">
-                                            @if($movement->movement_type == 'in')
-                                                <span class="badge bg-success movement-badge">IN</span>
-                                                <span class="movement-type-detail">{{ $movement->out_type ?: 'Stock In' }}</span>
-                                            @elseif($movement->movement_type == 'out')
-                                                <span class="badge bg-danger movement-badge">OUT</span>
-                                                <span class="movement-type-detail">{{ $movement->out_type ?: 'Stock Out' }}</span>
-                                            @else
-                                                <span class="badge bg-primary movement-badge">TRANSFER</span>
-                                                <span class="movement-type-detail">{{ ($movement->from_area ?: 'Source area') . ' to ' . ($movement->to_area ?: 'Receiving area') }}</span>
-                                            @endif
-                                        </td>
-                                        <td data-label="Products / Quantity">
-                                            @php
-                                                $historyItems = $movement->batch_number
-                                                    ? ($batchItems->get($movement->batch_number . '|' . $movement->movement_type) ?: collect([$movement]))
-                                                    : collect([$movement]);
-                                            @endphp
-                                            @include('inventory_transfers.partials.history_products')
-                                        </td>
-                                        <td data-label="From">{{ $movement->from_area ?? '-' }}</td>
-                                        <td data-label="To">{{ $movement->to_area ?? '-' }}</td>
-                                        {{-- <td data-label="Unit cost" class="text-center">
-                                            @if($movement->unit_cost !== null)
-                                                <span class="movement-unit-cost">₱{{ number_format($movement->unit_cost, 2) }}</span>
-                                            @else
-                                                <span class="movement-cost-empty">Not set</span>
-                                            @endif
-                                        </td> --}}
-                                        <td data-label="Reference">{{ $movement->reference_no ?? '-' }}</td>
-                                        {{-- <td data-label="Attachments">
-                                            @forelse($movement->pull_out_attachments ?: [] as $attachment)
-                                                @php
-                                                    $attachmentPath = is_array($attachment) ? ($attachment['path'] ?? null) : $attachment;
-                                                    $attachmentName = is_array($attachment) ? ($attachment['name'] ?? basename($attachmentPath)) : basename($attachmentPath);
-                                                @endphp
-                                                @if($attachmentPath)
-                                                    <a href="{{ asset($attachmentPath) }}" target="_blank" rel="noopener noreferrer" class="d-block small mb-1">
-                                                        <i class="bi bi-paperclip"></i> {{ $attachmentName }}
-                                                    </a>
-                                                @endif
-                                            @empty
-                                                <span class="text-muted">-</span>
-                                            @endforelse
-                                        </td>
-                                        <td data-label="Remarks" class="text-center">
-                                            @if(trim((string) $movement->remarks) !== '')
-                                                <div class="movement-remarks">{{ $movement->remarks }}</div>
-                                            @else
-                                                <span class="text-muted">-</span>
-                                            @endif
-                                        </td> --}}
-                                        <td data-label="Action" class="text-center">
-                                            @include('inventory_transfers.partials.history_action')
-                                        </td>
-                                    </tr>
-                                @empty
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
+</div></details>
+    @include('inventory_transfers.partials.new_movement_modal')
     <div class="modal fade movement-details-modal" id="movementDetailsModal" tabindex="-1" role="dialog" aria-labelledby="movementDetailsModalTitle" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
             <div class="modal-content">
                 <div class="modal-header movement-modal-header">
-                    <div><div class="movement-modal-eyebrow">Inventory Ledger</div><h5 class="modal-title text-white" id="movementDetailsModalTitle"><i class="bi bi-journal-text me-1"></i> Movement Details</h5></div>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <div><div class="movement-modal-eyebrow">Inventory Ledger</div><h5 class="modal-title" id="movementDetailsModalTitle"><i class="bi bi-journal-text me-1"></i> Movement Details</h5></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body movement-modal-body">
                     <div class="movement-modal-reference"><span>Reference No.</span><strong id="movementDetailReference">—</strong></div>
@@ -565,485 +188,18 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
     </div>
+</div>
 @endsection
 
-<style>
-    .inventory-head,
-    .inventory-card {
-        background: #fff;
-        border: 1px solid #edf0f5;
-        border-radius: 8px;
-        box-shadow: 0 8px 24px rgba(31, 41, 55, .06);
-    }
-
-    .inventory-head {
-        padding: 20px 22px;
-        margin-bottom: 18px;
-        border-left: 5px solid #2563eb;
-    }
-
-    .inventory-eyebrow {
-        color: #6b7280;
-        font-size: 12px;
-        font-weight: 800;
-        letter-spacing: 0;
-        text-transform: uppercase;
-    }
-
-    .inventory-head-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        justify-content: flex-end;
-    }
-
-    .inventory-kpi {
-        min-height: 100px;
-        border: 1px solid #edf0f5;
-        border-radius: 8px;
-        background: #fff;
-        box-shadow: 0 8px 24px rgba(31, 41, 55, .06);
-        transition: transform .15s ease, box-shadow .15s ease;
-    }
-
-    .inventory-kpi:hover,
-    .inventory-card:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 12px 28px rgba(31, 41, 55, .08);
-    }
-
-    .inventory-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        flex-shrink: 0;
-    }
-
-    .inventory-table th {
-        background: #f3f6fa;
-        font-size: 12px;
-        text-transform: uppercase;
-        white-space: nowrap;
-        color: #4b5563;
-        border-bottom: 1px solid #e5e7eb;
-    }
-
-    .inventory-table td {
-        border-color: #edf0f5;
-        vertical-align: middle;
-    }
-
-    .inventory-table tbody tr:hover {
-        background: #f8fafc;
-    }
-
-    .dataTables_wrapper {
-        padding: 14px;
-    }
-
-    .dataTables_wrapper .row:first-child {
-        align-items: center;
-        margin-bottom: 8px;
-    }
-
-    .dataTables_filter input,
-    .dataTables_length select {
-        border: 1px solid #dbe2ea;
-        border-radius: 7px;
-        min-height: 36px;
-        padding: 4px 8px;
-    }
-
-    .dataTables_wrapper .dataTables_paginate .paginate_button {
-        padding: 0 !important;
-        margin-left: 4px;
-    }
-
-    table.dataTable {
-        margin-top: 0 !important;
-        margin-bottom: 0 !important;
-    }
-
-    .movement-badge {
-        min-width: 72px;
-        display: inline-block;
-    }
-    .movement-type-detail { display: block; margin-top: 4px; color: #64748b; font-size: 11px; font-weight: 700; line-height: 1.3; }
-
-    .movement-qty { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; min-height: 30px; padding: 4px 9px; color: #1d4ed8; border-radius: 8px; background: #eff6ff; font-size: 13px; font-weight: 900; }
-
-    .movement-unit-cost { display: inline-flex; align-items: center; justify-content: center; min-width: 88px; min-height: 30px; padding: 4px 9px; color: #0f766e; border: 1px solid #99f6e4; border-radius: 8px; background: #f0fdfa; font-size: 13px; font-weight: 900; white-space: nowrap; }
-
-    .movement-cost-empty { color: #94a3b8; font-size: 12px; font-style: italic; }
-
-    .stock-section-title { display: flex; align-items: center; gap: 11px; }
-
-    .stock-section-icon { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; color: #1d4ed8; border-radius: 10px; background: #dbeafe; font-size: 18px; }
-
-    .stock-ledger-badge { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 6px 10px; color: #475569; border: 1px solid #dbe4ef; border-radius: 999px; background: #f8fafc; font-size: 11px; font-weight: 800; white-space: nowrap; }
-
-    .balance-tools .form-control { min-height: 42px; border-color: #dbe4ef; border-radius: 8px; }
-
-    .balance-tools .form-control:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, .11); }
-
-    .movement-remarks {
-        max-width: 260px;
-        min-width: 160px;
-        color: #374151;
-        font-size: 13px;
-        line-height: 1.35;
-        white-space: normal;
-        word-break: break-word;
-    }
-
-    .stock-pill,
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 28px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 800;
-        padding: 4px 10px;
-        white-space: nowrap;
-    }
-
-    .stock-pill {
-        min-width: 78px;
-        border: 1px solid #e5e7eb;
-        background: #f8fafc;
-        color: #374151;
-    }
-
-    .stock-pill-in {
-        border-color: #bbf7d0;
-        background: #f0fdf4;
-        color: #166534;
-    }
-
-    .stock-pill-order {
-        border-color: #fed7aa;
-        background: #fff7ed;
-        color: #9a3412;
-    }
-
-    .stock-pill-muted {
-        color: #6b7280;
-        background: #f9fafb;
-    }
-
-    .remaining-qty {
-        display: inline-flex;
-        align-items: baseline;
-        gap: 4px;
-        min-width: 62px;
-        font-size: 18px;
-        font-weight: 800;
-        color: #111827;
-    }
-
-    .remaining-qty small { color: #64748b; font-size: 10px; font-weight: 800; text-transform: uppercase; }
-
-    .status-badge {
-        min-width: 78px;
-    }
-
-    .status-good {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .status-low {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .status-none {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .movement-type-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-    }
-
-    .movement-type-option {
-        border: 1px solid #dbe2ea;
-        border-radius: 8px;
-        padding: 10px;
-        cursor: pointer;
-        background: #fff;
-        min-height: 76px;
-        transition: border-color .15s ease, background .15s ease, transform .15s ease;
-    }
-
-    .movement-type-option:hover {
-        transform: translateY(-1px);
-        border-color: #93c5fd;
-    }
-
-    .movement-type-option.active {
-        border-color: #2563eb;
-        background: #eff6ff;
-    }
-
-    .movement-type-option.is-disabled {
-        cursor: not-allowed;
-        background: #f8fafc;
-        border-color: #e2e8f0;
-        opacity: .7;
-    }
-
-    .movement-type-option.is-disabled:hover {
-        transform: none;
-        border-color: #e2e8f0;
-    }
-
-    .movement-type-option input {
-        display: none;
-    }
-
-    .movement-type-help {
-        color: #64748b;
-        font-size: 12px;
-        margin-top: 8px;
-    }
-
-    .movement-preview {
-        border-radius: 8px;
-        background: #f8fafc;
-        border: 1px dashed #cbd5e1;
-        padding: 12px;
-    }
-
-    .available-pill {
-        display: inline-flex;
-        align-items: center;
-        min-height: 28px;
-        border-radius: 999px;
-        background: #f3f4f6;
-        color: #374151;
-        font-size: 12px;
-        font-weight: 700;
-        padding: 4px 10px;
-    }
-
-    .available-pill.is-good {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .available-pill.is-low {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .available-pill.is-empty {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .stock-warning {
-        display: none;
-        margin-top: 8px;
-        border-radius: 8px;
-        background: #fff7ed;
-        border: 1px solid #fed7aa;
-        color: #9a3412;
-        font-size: 13px;
-        padding: 8px 10px;
-    }
-
-    .stock-warning.show {
-        display: block;
-    }
-
-    .stock-overview {
-        border: 1px solid #edf0f5;
-        border-radius: 8px;
-        background: #fff;
-        box-shadow: 0 8px 24px rgba(31, 41, 55, .06);
-    }
-
-    .stock-overview-item {
-        padding: 14px 16px;
-        border-right: 1px solid #edf0f5;
-        min-height: 86px;
-    }
-
-    .stock-overview-item:last-child {
-        border-right: 0;
-    }
-
-    .balance-tools {
-        display: grid;
-        grid-template-columns: 1fr 180px;
-        gap: 10px;
-    }
-
-    .summary-list {
-        display: grid;
-        gap: 10px;
-    }
-
-    .summary-row {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 12px;
-        align-items: center;
-        padding: 12px;
-        border: 1px solid #edf0f5;
-        border-radius: 8px;
-        background: #fff;
-    }
-
-    .summary-row .name {
-        font-weight: 700;
-        line-height: 1.25;
-    }
-
-    .summary-row .meta {
-        font-size: 12px;
-        color: #6b7280;
-    }
-
-    .sticky-form {
-        position: sticky;
-        padding: 20px;
-    }
-
-    .soft-note {
-        border: 1px solid #dbeafe;
-        background: #eff6ff;
-        color: #1e3a8a;
-        border-radius: 8px;
-        padding: 10px 12px;
-        font-size: 13px;
-    }
-
-    @media (max-width: 575px) {
-        .movement-type-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .balance-tools {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @media (max-width: 991px) {
-        .inventory-head-actions {
-            justify-content: flex-start;
-        }
-
-        .sticky-form {
-            position: static;
-        }
-
-        .stock-overview-item {
-            border-right: 0;
-            border-bottom: 1px solid #edf0f5;
-        }
-    }
-
-    @media (max-width: 767.98px) {
-        .inventory-card .card-header { padding: 16px; }
-        .inventory-card .card-header form { margin-top: 14px !important; }
-        .inventory-card .card-header .btn { min-height: 40px; }
-        .inventory-card .table-responsive { overflow: visible; }
-        #movementHistoryTable,
-        #movementHistoryTable tbody,
-        #movementHistoryTable tr,
-        #movementHistoryTable td { display: block; width: 100%; min-width: 0; }
-        #movementHistoryTable thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-        #movementHistoryTable tbody { display: grid; gap: 12px; padding: 0 12px 12px; }
-        #movementHistoryTable tbody tr { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 5px 16px rgba(15, 23, 42, .05); }
-        #movementHistoryTable tbody td { display: grid; grid-template-columns: minmax(105px, .82fr) minmax(0, 1.18fr); align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #edf0f5; text-align: left !important; white-space: normal; }
-        #movementHistoryTable tbody td::before { content: attr(data-label); color: #64748b; font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
-        #movementHistoryTable tbody td[data-label="Product"] { display: block; padding: 14px; background: #f8fafc; }
-        #movementHistoryTable tbody td[data-label="Product"]::before { display: none; }
-        #movementHistoryTable tbody td[data-label="Remarks"] { align-items: start; }
-        #movementHistoryTable tbody td[data-label="Action"] { border-bottom: 0; }
-        #movementHistoryTable .movement-remarks { min-width: 0; max-width: none; }
-        #movementHistoryTable .movement-badge,
-        #movementHistoryTable .movement-qty,
-        #movementHistoryTable .movement-unit-cost { justify-self: start; }
-
-        #stockBalanceTable,
-        #stockBalanceTable tbody,
-        #stockBalanceTable tr,
-        #stockBalanceTable td { display: block; width: 100%; min-width: 0; }
-        #stockBalanceTable thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-        #stockBalanceTable tbody { display: grid; gap: 12px; }
-        #stockBalanceTable tbody tr { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 5px 16px rgba(15, 23, 42, .05); }
-        #stockBalanceTable tbody td { display: grid; grid-template-columns: minmax(118px, .88fr) minmax(0, 1.12fr); align-items: center; gap: 10px; padding: 10px 13px; border-bottom: 1px solid #edf0f5; text-align: left !important; white-space: normal; }
-        #stockBalanceTable tbody td::before { content: attr(data-label); color: #64748b; font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
-        #stockBalanceTable tbody td[data-label="Product"] { display: block; padding: 14px; background: #f8fafc; }
-        #stockBalanceTable tbody td[data-label="Product"]::before { display: none; }
-        #stockBalanceTable .stock-pill,
-        #stockBalanceTable .remaining-qty,
-        #stockBalanceTable .status-badge { justify-self: start; }
-        .stock-section-icon { width: 36px; height: 36px; flex-basis: 36px; font-size: 16px; }
-    }
-
-    @media (max-width: 420px) {
-        #movementHistoryTable tbody { padding: 0 8px 8px; }
-        #movementHistoryTable tbody td { grid-template-columns: minmax(90px, .75fr) minmax(0, 1.25fr); gap: 8px; padding: 10px 12px; }
-        #stockBalanceTable tbody td { grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr); gap: 8px; padding: 10px 12px; }
-        .stock-section-title { align-items: flex-start; }
-    }
-
-    .movement-item-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 110px 48px;
-        gap: 12px;
-        align-items: start;
-        margin: 0 0 10px;
-        padding: 12px;
-        border: 1px solid #e1e8ef;
-        border-radius: 10px;
-        background: #fff;
-    }
-
-    .movement-item-grid .form-label {
-        margin-bottom: 6px;
-        font-size: .78rem;
-        font-weight: 700;
-    }
-
-    .movement-item-grid .form-control { min-width: 0; }
-    .movement-item-action { padding-top: 25px; }
-    .movement-item-action .btn { width: 48px; height: 40px; padding: 0; border-radius: 10px; }
-    .movement-item-grid.border-danger { border-color: #dc3545 !important; }
-
-    @media (max-width: 420px) {
-        .movement-item-grid { grid-template-columns: minmax(0, 1fr) 88px 44px; gap: 8px; padding: 10px; }
-        .movement-item-action .btn { width: 44px; }
-    }
-
-    .movement-details-modal .modal-content { overflow: hidden; border: 0; border-radius: 16px; box-shadow: 0 18px 45px rgba(15, 23, 42, .22); }
-    .movement-modal-header { align-items: flex-start; padding: 20px 24px; color: #fff; border: 0; background: linear-gradient(135deg, #0f2d52, #136f7a); }
-    .movement-modal-header .close { color: #fff; opacity: .9; text-shadow: none; }.movement-modal-eyebrow { margin-bottom: 4px; color: #bfe7e9; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }.movement-modal-header .modal-title { font-weight: 800; }
-    .movement-modal-body { padding: 24px; background: #f8fafc; }.movement-modal-reference { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; padding: 11px 14px; color: #1e3a5f; border: 1px solid #dbeafe; border-radius: 10px; background: #eff6ff; }.movement-modal-reference span, .movement-detail-field small { display: block; color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }.movement-modal-reference strong { font-size: 13px; }.movement-details-grid { row-gap: 12px; }.movement-detail-field { height: 100%; min-height: 66px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }.movement-detail-field strong { display: block; margin-top: 6px; color: #1e293b; font-size: 13px; overflow-wrap: anywhere; }
-    .movement-detail-section { margin-top: 4px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 11px; background: #fff; }.movement-detail-section-title { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; color: #334155; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }.movement-detail-section-title i { color: #0f766e; font-size: 14px; }.movement-detail-products { overflow: hidden; border: 1px solid #edf0f5; border-radius: 8px; }.movement-detail-product { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #edf0f5; }.movement-detail-product:last-child { border-bottom: 0; }.movement-detail-product strong, .movement-detail-product small { display: block; }.movement-detail-product strong { color: #1e293b; font-size: 13px; }.movement-detail-product small { margin-top: 2px; color: #64748b; font-size: 11px; }.movement-detail-qty { padding: 4px 8px; color: #075985; font-size: 11px; font-weight: 800; white-space: nowrap; border-radius: 999px; background: #e0f2fe; }.movement-detail-copy { color: #475569; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }.movement-detail-attachments { display: grid; gap: 7px; }.movement-detail-attachment { display: inline-flex; align-items: center; gap: 6px; width: fit-content; color: #2563eb; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }.replacement-workflow { border-color: #bfdbfe; background: #f8fbff; }
-    @media (max-width: 575.98px) { .movement-modal-header, .movement-modal-body { padding: 17px; }.movement-modal-reference { align-items: flex-start; flex-direction: column; gap: 4px; }.movement-detail-product { align-items: flex-start; flex-direction: column; gap: 7px; } }
-</style>
-
 @section('javascript')
-<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
+<script src="{{ asset('design/vendors/datatables.net/jquery.dataTables.js') }}"></script>
+<script src="{{ asset('design/vendors/datatables.net-bs4/dataTables.bootstrap4.js') }}"></script>
+<script src="{{ asset('design/vendors/bootstrap-select/bootstrap-select.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const balanceLookup = @json($balanceLookup ?? []);
@@ -1080,27 +236,17 @@
         const balanceStatusFilter = document.getElementById('balanceStatusFilter');
         const appUrl = @json(url('/'));
         let stockBalanceTable = null;
+        let historyTable = null;
+        let balanceSearchTimer;
+        let historySearchTimer;
         let syncingMovementFields = false;
         let activeProducts = [];
         let renderedProductKey = null;
+        let movementRowSequence = 0;
         const movementReasons = {
             in: ['Beginning Balance', 'Inventory Adjustment'],
             out: ['Return and Refund', 'Pull Out', 'Replace', 'Inventory Adjustment']
         };
-
-        if (window.jQuery && window.jQuery.fn.DataTable) {
-            stockBalanceTable = window.jQuery('#stockBalanceTable').DataTable({
-                pageLength: 10,
-                order: [[0, 'asc'], [1, 'asc']],
-                autoWidth: false,
-                language: {
-                    search: 'Search stock:',
-                    lengthMenu: 'Show _MENU_ stock rows',
-                    emptyTable: 'No inventory balance yet. Add an IN movement to start.'
-                }
-            });
-
-        }
 
         function selectedType() {
             const checked = document.querySelector('input[name="movement_type"]:checked');
@@ -1114,63 +260,133 @@
             });
         }
 
-        function initializeMovementHistoryTable() {
-            if (!window.jQuery || !window.jQuery.fn.DataTable) return;
+        function escapeCell(value) {
+            const span = document.createElement('span');
+            span.textContent = value == null ? '' : String(value);
+            return span.innerHTML;
+        }
 
-            const historyLabels = ['Date', 'Type', 'Products / Quantity', 'From', 'To', 'Reference No.', 'Action'];
-            const $historyTable = window.jQuery('#movementHistoryTable');
-            if (!$historyTable.length) return;
-            if (window.jQuery.fn.DataTable.isDataTable('#movementHistoryTable')) {
-                $historyTable.DataTable().destroy();
+        function showInventoryModal(id) {
+            const modal = document.getElementById(id);
+            if (window.bootstrap && window.bootstrap.Modal) {
+                window.bootstrap.Modal.getOrCreateInstance(modal).show();
+            } else if (window.jQuery && window.jQuery.fn.modal) {
+                window.jQuery(modal).modal('show');
             }
-            const historyTable = $historyTable.DataTable({
-                processing: true,
-                serverSide: true,
-                deferRender: true,
-                searchDelay: 350,
-                pageLength: 25,
-                lengthMenu: [[25, 50, 100], [25, 50, 100]],
-                order: [[0, 'desc']],
+        }
+
+        function tableFailure(id, tableId) {
+            document.getElementById(id).hidden = false;
+            const wrapper = document.getElementById(tableId + '_wrapper');
+            if (wrapper) wrapper.querySelectorAll('.dataTables_processing').forEach(function (node) { node.style.display = 'none'; });
+            document.getElementById(tableId).setAttribute('aria-busy', 'false');
+        }
+
+        function initializeInventoryTables() {
+            if (!window.jQuery || !window.jQuery.fn.DataTable) {
+                tableFailure('movementHistoryError', 'movementHistoryTable');
+                tableFailure('stockBalanceError', 'stockBalanceTable');
+                return;
+            }
+            const $ = window.jQuery;
+            const commonOptions = {
+                processing: true, serverSide: true, deferRender: true, autoWidth: false,
+                pageLength: 25, lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+                searchDelay: 350, pagingType: 'simple_numbers',
+                dom: 'rt<"inventory-table-footer"<"inventory-table-meta"li>p>',
                 language: {
-                    processing: '<i class="bi bi-arrow-repeat me-1"></i> Loading movement history...',
-                    search: 'Search movements:',
-                    lengthMenu: 'Show _MENU_ movements',
-                    emptyTable: 'No movements found.',
-                    zeroRecords: 'No matching movements found.'
-                },
+                    processing: '<span class="inventory-loading" role="status"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span>Loading records…</span>',
+                    lengthMenu: '_MENU_ per page', info: '_START_–_END_ of _TOTAL_ records',
+                    infoEmpty: '0 records', infoFiltered: '(filtered from _MAX_)',
+                    emptyTable: 'No records yet.', zeroRecords: 'No matching records. Try changing your filters.',
+                    paginate: { previous: 'Previous', next: 'Next' }
+                }
+            };
+            const historyLabels = ['Date', 'Type', 'Products / Quantity', 'From', 'To', 'Reference No.', 'Action'];
+            historyTable = $('#movementHistoryTable').DataTable($.extend(true, {}, commonOptions, {
+                order: [[0, 'desc']],
                 ajax: {
                     url: '{{ route('inventory-transfers.data') }}',
                     data: function (data) {
-                        data.movement_type = window.jQuery('#movementHistoryFilters [name="movement_type"]').val();
-                        data.product_id = window.jQuery('#movementHistoryFilters [name="product_id"]').val();
-                        data.area = window.jQuery('#movementHistoryFilters [name="area"]').val();
-                        data.date_from = window.jQuery('#movementHistoryFilters [name="date_from"]').val();
-                        data.date_to = window.jQuery('#movementHistoryFilters [name="date_to"]').val();
-                    }
+                        ['movement_type', 'product_id', 'area', 'date_from', 'date_to'].forEach(function (field) {
+                            data[field] = $('#movementHistoryFilters [name="' + field + '"]').val();
+                        });
+                        document.getElementById('movementHistoryError').hidden = true;
+                    },
+                    error: function () { tableFailure('movementHistoryError', 'movementHistoryTable'); }
                 },
                 columns: [
-                    { data: 'transfer_date', name: 'inventory_transfers.transfer_date' },
-                    { data: 'movement_type_display', name: 'inventory_transfers.movement_type', orderable: false },
-                    { data: 'products', orderable: false, searchable: false },
-                    { data: 'from_area', name: 'inventory_transfers.from_area' },
-                    { data: 'to_area', name: 'inventory_transfers.to_area' },
-                    { data: 'reference_no', name: 'inventory_transfers.reference_no' },
-                    { data: 'action', orderable: false, searchable: false }
+                    {data:'transfer_date', name:'inventory_transfers.transfer_date'},
+                    {data:'movement_type_display', name:'inventory_transfers.movement_type'},
+                    {data:'products', orderable:false, searchable:false},
+                    {data:'from_area', name:'inventory_transfers.from_area', defaultContent:'—'},
+                    {data:'to_area', name:'inventory_transfers.to_area', defaultContent:'—'},
+                    {data:'reference_no', name:'inventory_transfers.reference_no', defaultContent:'—'},
+                    {data:'action', orderable:false, searchable:false}
                 ],
                 createdRow: function (row) {
-                    window.jQuery(row).find('td').each(function (index) {
-                        this.setAttribute('data-label', historyLabels[index]);
-                    });
+                    $(row).find('td').each(function (index) { this.setAttribute('data-label', historyLabels[index]); });
                 }
+            }));
+            const stockLabels = ['Area', 'Product', 'Stock after movement', 'Sales orders', 'Available', 'Status'];
+            const quantityCell = function (value, type) {
+                return type === 'display' ? '<span class="stock-pill">' + Number(value || 0).toLocaleString() + ' pcs</span>' : value;
+            };
+            stockBalanceTable = $('#stockBalanceTable').DataTable($.extend(true, {}, commonOptions, {
+                order: [[0, 'asc']],
+                ajax: {
+                    url: '{{ route('inventory-transfers.stock-data') }}',
+                    data: function (data) {
+                        data.stock_status = balanceStatusFilter.value;
+                        document.getElementById('stockBalanceError').hidden = true;
+                    },
+                    error: function () { tableFailure('stockBalanceError', 'stockBalanceTable'); }
+                },
+                columns: [
+                    {data:'area', render:$.fn.dataTable.render.text()},
+                    {data:'product_name', render:function (value, type, row) {
+                        return type === 'display' ? '<strong>' + escapeCell(value) + '</strong><div class="small text-muted mt-1">' + escapeCell(row.sku || 'No SKU') + '</div>' : value;
+                    }},
+                    {data:'stock_after_movement', className:'inventory-number', render:quantityCell},
+                    {data:'ordered_qty', className:'inventory-number', render:quantityCell},
+                    {data:'available_qty', className:'inventory-number', render:function (value, type) {
+                        return type === 'display' ? '<span class="remaining-qty' + (Number(value) < 0 ? ' text-danger' : '') + '">' + Number(value || 0).toLocaleString() + '<small>pcs</small></span>' : value;
+                    }},
+                    {data:'status', render:function (value, type) {
+                        const labels = {good:'Good stock', low:'Low stock', none:'No stock'};
+                        return type === 'display' ? '<span class="status-badge status-' + value + '">' + labels[value] + '</span>' : value;
+                    }}
+                ],
+                createdRow: function (row) {
+                    $(row).find('td').each(function (index) { this.setAttribute('data-label', stockLabels[index]); });
+                }
+            }));
+            $('#movementHistoryTable, #stockBalanceTable').on('processing.dt', function (event, settings, processing) {
+                this.setAttribute('aria-busy', processing ? 'true' : 'false');
             });
-
-            window.jQuery('#movementHistoryFilters').on('submit', function (event) {
-                event.preventDefault();
-                historyTable.ajax.reload();
+            $('#movementHistoryFilters').on('submit', function (event) {
+                event.preventDefault(); historyTable.search(document.getElementById('historySearch').value).draw();
+            });
+            document.getElementById('historySearch').addEventListener('input', function () {
+                clearTimeout(historySearchTimer);
+                historySearchTimer = setTimeout(function () { historyTable.search(document.getElementById('historySearch').value).draw(); }, 350);
+            });
+            document.getElementById('clearMovementFilters').addEventListener('click', function () {
+                document.getElementById('historySearch').value = '';
+                document.querySelectorAll('#movementHistoryFilters select, #movementHistoryFilters input[type="date"]').forEach(function (field) { field.value = ''; });
+                historyTable.search('').draw();
+            });
+            document.querySelectorAll('[data-retry-table]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const table = button.dataset.retryTable === 'history' ? historyTable : stockBalanceTable;
+                    if (table) table.ajax.reload();
+                });
             });
         }
-
-        initializeMovementHistoryTable();
+        initializeInventoryTables();
+        @if($errors->any())
+            showInventoryModal('newMovementModal');
+        @endif
 
         function optionText(product) {
             return (product.sku ? product.sku + ' - ' : '') + product.name;
@@ -1354,10 +570,15 @@
         }
 
         function updatePreview() {
-            const type = selectedType();
-            const product = selectedProduct();
-            const productName = product ? ((product.sku ? product.sku + ' - ' : '') + product.name) : 'selected product';
-            movementPreview.textContent = 'Add one or more product rows with their quantities.';
+            const selected = Array.from(movementRows.querySelectorAll('.js-movement-row')).filter(function (row) {
+                return Boolean(row.querySelector('[name$="[product_id]"]').value);
+            });
+            const quantity = selected.reduce(function (total, row) {
+                return total + Math.max(0, Number(row.querySelector('[name$="[qty]"]').value || 0));
+            }, 0);
+            movementPreview.textContent = selected.length
+                ? selected.length + (selected.length === 1 ? ' product' : ' products') + ' · ' + quantity.toLocaleString() + (quantity === 1 ? ' unit' : ' units')
+                : 'Select products and quantities.';
         }
 
         function refreshMovementRows() {
@@ -1380,18 +601,19 @@
                 const invalid = requiresStock && Number(qtyField.value || 0) > available;
 
                 qtyField.disabled = !hasProduct;
-                qtyField.placeholder = hasProduct ? 'Qty' : 'Select product first';
+                qtyField.placeholder = '0';
 
                 availability.innerHTML = !hasProduct
-                    ? '<i class="bi bi-info-circle me-1"></i>Select a product to view available stock.'
+                    ? 'Select a product.'
                     : requiresStock
-                    ? '<i class="bi bi-box-seam me-1"></i>Available: <strong>' + available.toLocaleString() + ' pcs</strong>'
-                    : '<i class="bi bi-box-arrow-in-down me-1"></i>Stock will be added to the receiving area.';
+                    ? 'Available: <strong>' + available.toLocaleString() + ' pcs</strong>'
+                    : 'Stock will be added to the receiving area.';
                 availability.className = 'form-text js-row-availability ' + (!hasProduct ? 'text-muted' : (invalid ? 'text-danger fw-semibold' : 'text-success'));
                 row.classList.toggle('border-danger', invalid);
                 row.classList.toggle('bg-danger-subtle', invalid);
                 qtyField.setCustomValidity(invalid ? 'Quantity exceeds available stock.' : '');
             });
+            updatePreview();
         }
 
         function syncMovementRowProductOptions() {
@@ -1401,6 +623,8 @@
 
             movementRows.querySelectorAll('[name$="[product_id]"]').forEach(function (select) {
                 const selectedValue = select.value;
+                // Recreate the picker so removed stock options cannot remain in its cache.
+                destroyMovementProductPicker(select);
                 select.innerHTML = '';
                 options.forEach(function (option) {
                     const element = document.createElement('option');
@@ -1412,6 +636,52 @@
                 select.value = Array.prototype.some.call(select.options, function (option) {
                     return option.value === selectedValue;
                 }) ? selectedValue : '';
+                initializeMovementProductPicker(select);
+            });
+        }
+
+        function closeMovementProductPicker(select) {
+            if (!window.jQuery) return;
+            const picker = window.jQuery(select).data('selectpicker');
+            if (!picker) return;
+            if (picker.dropdown && typeof picker.dropdown.hide === 'function') picker.dropdown.hide();
+            else picker.close();
+        }
+
+        function destroyMovementProductPicker(select) {
+            if (!window.jQuery) return;
+            const $select = window.jQuery(select);
+            const picker = $select.data('selectpicker');
+            if (!picker) return;
+            closeMovementProductPicker(select);
+            if (picker.dropdown && typeof picker.dropdown.dispose === 'function') picker.dropdown.dispose();
+            $select.selectpicker('destroy');
+        }
+
+        function initializeMovementProductPicker(select) {
+            if (!window.jQuery || !window.jQuery.fn.selectpicker) return;
+
+            const emptyOption = select.querySelector('option[value=""]');
+            if (emptyOption) emptyOption.hidden = true;
+            const $select = window.jQuery(select);
+            if ($select.data('selectpicker')) return;
+            $select.addClass('selectpicker').selectpicker({
+                liveSearch: true,
+                liveSearchNormalize: true,
+                liveSearchPlaceholder: 'Search product name or SKU',
+                noneResultsText: 'No products found for {0}',
+                title: 'Select product',
+                container: '#newMovementModal',
+                width: '100%',
+                size: 'auto',
+                windowPadding: 16,
+                style: 'btn-movement-product',
+                hideDisabled: true
+            });
+            $select.data('selectpicker').$button.attr({ 'aria-label': 'Product', 'aria-required': 'true' });
+            $select.on('shown.bs.select', function () {
+                const picker = $select.data('selectpicker');
+                picker.$searchbox.attr('aria-label', 'Search product name or SKU').trigger('focus');
             });
         }
 
@@ -1419,13 +689,15 @@
             const row = document.createElement('div');
             row.className = 'js-movement-row movement-item-grid';
             const index = movementRows.querySelectorAll('.js-movement-row').length;
-            const options = Array.prototype.map.call(productSelect.options, function (option) {
-                return '<option value="' + option.value + '">' + option.textContent + '</option>';
-            }).join('');
-            row.innerHTML = '<div><label class="form-label">LPG SKU / Product</label><select name="items[' + index + '][product_id]" class="form-control" required>' + options + '</select><div class="form-text js-row-availability"></div></div>' +
-                '<div><label class="form-label">Quantity</label><input type="number" name="items[' + index + '][qty]" min="1" class="form-control text-center" placeholder="Qty" required></div>' +
-                '<div class="movement-item-action"><button type="button" class="btn btn-outline-danger js-delete-movement-row" aria-label="Remove product row" title="Remove row"><i class="bi bi-trash"></i></button></div>';
+            const rowId = 'movement-product-' + (++movementRowSequence);
+            row.innerHTML = '<div class="movement-item-product"><label class="form-label" for="' + rowId + '">Product</label><select id="' + rowId + '" name="items[' + index + '][product_id]" class="form-control selectpicker js-movement-product-select" data-live-search="true" required></select><div class="form-text js-row-availability"></div></div>' +
+                '<div class="movement-item-quantity"><label class="form-label" for="' + rowId + '-qty">Quantity</label><input id="' + rowId + '-qty" type="number" name="items[' + index + '][qty]" min="1" step="1" inputmode="numeric" class="form-control" placeholder="0" required></div>' +
+                '<div class="movement-item-action"><button type="button" class="btn btn-outline-danger js-delete-movement-row" aria-label="Remove product row" title="Remove product"><i class="ti ti-trash" aria-hidden="true"></i></button></div>';
+            const rowSelect = row.querySelector('select');
+            Array.from(productSelect.options).forEach(function (option) { rowSelect.appendChild(option.cloneNode(true)); });
+            rowSelect.value = '';
             row.querySelector('.js-delete-movement-row').addEventListener('click', function () {
+                destroyMovementProductPicker(rowSelect);
                 row.remove();
                 Array.prototype.forEach.call(movementRows.querySelectorAll('.js-movement-row'), function (movementRow, rowIndex) {
                     movementRow.querySelectorAll('[name]').forEach(function (field) {
@@ -1437,6 +709,7 @@
             row.querySelector('[name$="[product_id]"]').addEventListener('change', updateMovementRowAvailability);
             row.querySelector('[name$="[qty]"]').addEventListener('input', updateMovementRowAvailability);
             movementRows.appendChild(row);
+            initializeMovementProductPicker(rowSelect);
             refreshMovementRows();
         }
 
@@ -1508,41 +781,7 @@
         }
 
         function filterBalanceRows() {
-            const search = (balanceSearch.value || '').toLowerCase();
-            const status = balanceStatusFilter.value;
-
-            if (stockBalanceTable) {
-                window.jQuery.fn.dataTable.ext.search = window.jQuery.fn.dataTable.ext.search.filter(function (filterFn) {
-                    return !filterFn.inventoryBalanceFilter;
-                });
-
-                const inventoryFilter = function (settings, data, dataIndex) {
-                    if (settings.nTable.id !== 'stockBalanceTable') {
-                        return true;
-                    }
-
-                    const row = settings.aoData[dataIndex] ? settings.aoData[dataIndex].nTr : null;
-                    const rowSearch = row ? (row.getAttribute('data-search') || '') : '';
-                    const rowStatus = row ? (row.getAttribute('data-status') || '') : '';
-                    const matchesSearch = !search || rowSearch.indexOf(search) !== -1;
-                    const matchesStatus = !status || rowStatus === status;
-
-                    return matchesSearch && matchesStatus;
-                };
-
-                inventoryFilter.inventoryBalanceFilter = true;
-                window.jQuery.fn.dataTable.ext.search.push(inventoryFilter);
-                stockBalanceTable.draw();
-                return;
-            }
-
-            document.querySelectorAll('.js-balance-row').forEach(function (row) {
-                const rowSearch = row.getAttribute('data-search') || '';
-                const rowStatus = row.getAttribute('data-status') || '';
-                const matchesSearch = !search || rowSearch.indexOf(search) !== -1;
-                const matchesStatus = !status || rowStatus === status;
-                row.style.display = matchesSearch && matchesStatus ? '' : 'none';
-            });
+            if (stockBalanceTable) stockBalanceTable.search(balanceSearch.value).draw();
         }
 
         movementInputs.forEach(function (input) {
@@ -1665,10 +904,15 @@
         // delegated handler always prepares the modal from the clicked row.
         document.addEventListener('click', function (event) {
             const button = event.target.closest('#movementHistoryTable .js-view-movement');
-            if (button) populateMovementDetails(button);
+            if (button) { populateMovementDetails(button); showInventoryModal('movementDetailsModal'); }
         });
 
         if (window.jQuery) {
+            window.jQuery('#newMovementModal').on('hide.bs.modal', function () {
+                window.jQuery(movementRows).find('select.js-movement-product-select').each(function () {
+                    closeMovementProductPicker(this);
+                });
+            });
             window.jQuery(productSelect).on('change select2:select select2:clear', refreshAreaFields);
             window.jQuery(fromAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
             window.jQuery(toAreaSelect).on('change select2:select select2:clear', refreshAreaFields);
@@ -1731,14 +975,13 @@
             saveMovementButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span><span>Saving Movement...</span>';
         });
 
-        balanceSearch.addEventListener('keyup', filterBalanceRows);
+        balanceSearch.addEventListener('input', function () { clearTimeout(balanceSearchTimer); balanceSearchTimer = setTimeout(filterBalanceRows, 350); });
         balanceStatusFilter.addEventListener('change', filterBalanceRows);
 
         refreshAreaFields();
         if (!movementRows.querySelector('.js-movement-row')) {
             addMovementProductRow();
         }
-        filterBalanceRows();
     });
 </script>
 @endsection

@@ -43,7 +43,7 @@
             <div class="dpo-edit-card-body">
                 <div class="row g-3">
                     <div class="col-md-6"><label class="form-label">Business / Store</label><input class="form-control" value="{{ $order->business_name }}" readonly></div>
-                    <div class="col-md-6"><label class="form-label">Source</label><input class="form-control" value="{{ $order->order_source === 'provincial_distributor' ? 'Provincial Distributor' : 'PREI Warehouse' }}" readonly></div>
+                    <div class="col-md-6"><label class="form-label">Source</label><input class="form-control" value="{{ $order->source_label }}" readonly></div>
                     <div class="col-md-6"><label class="form-label" for="editPhoneNumber">Phone Number</label><input class="form-control" id="editPhoneNumber" name="phone_number" value="{{ old('phone_number', $order->phone_number) }}" maxlength="50"></div>
                     <div class="col-md-6"><label class="form-label" for="editEmailAddress">Email Address</label><input type="email" class="form-control" id="editEmailAddress" name="email_address" value="{{ old('email_address', $order->email_address) }}"></div>
                     <div class="col-md-6">
@@ -56,7 +56,7 @@
                             <input class="form-control" id="editTerritory" name="authorized_territory" value="{{ old('authorized_territory', $order->authorized_territory) }}">
                         @endif
                     </div>
-                    <div class="col-md-6"><label class="form-label" for="editShippingType">Shipping</label><select class="form-select" id="editShippingType" name="shipping_type" required>@foreach(['delivered'=>'Delivered','pickup_lubao'=>'Pick Up — Lubao Plant','pickup_guinobatan'=>'Pick Up — Guinobatan Plant'] as $value=>$label)<option value="{{ $value }}" {{ old('shipping_type', $order->shipping_type) === $value ? 'selected' : '' }}>{{ $label }}</option>@endforeach</select></div>
+                    <div class="col-md-6"><label class="form-label" for="editShippingType">Shipping</label><select class="form-select" id="editShippingType" name="shipping_type" required>@foreach(['delivered'=>'Delivered'] + (app(\App\Services\AdpoRouting::class)->warehouseFor($order) === 'lubao' ? ['pickup_lubao'=>'Pick Up — Lubao Plant'] : ['pickup_guinobatan'=>'Pick Up — Guinobatan Warehouse']) as $value=>$label)<option value="{{ $value }}" {{ old('shipping_type', $order->shipping_type) === $value ? 'selected' : '' }}>{{ $label }}</option>@endforeach</select></div>
                     <div class="col-12"><label class="form-label" for="editDeliveryAddress">Delivery Address</label><textarea class="form-control" id="editDeliveryAddress" name="delivery_address" rows="2">{{ old('delivery_address', $order->delivery_address) }}</textarea></div>
                     <div class="col-md-4"><label class="form-label" for="editPaymentMethod">Payment Method</label><select class="form-select" id="editPaymentMethod" name="payment_method" required>@foreach(['cash'=>'Cash','gcash'=>'GCash','bank_transfer'=>'Bank Transfer','credit'=>'Credit','voucher'=>'Voucher'] as $value=>$label)<option value="{{ $value }}" {{ old('payment_method', $order->payment_method) === $value ? 'selected' : '' }}>{{ $label }}</option>@endforeach</select></div>
                     <div class="col-md-4" id="editBankNameWrap"><label class="form-label" for="editBankName">Bank Name</label><input class="form-control" id="editBankName" name="bank_name" value="{{ old('bank_name', $order->bank_name) }}" maxlength="255"></div>

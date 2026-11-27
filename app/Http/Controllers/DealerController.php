@@ -10,6 +10,8 @@ use App\AreaDistributor;
 use App\TransactionDetail;
 use App\Item;
 use App\Area;
+use App\Services\MegaDealerQuantities;
+use App\Services\DealerQuantities;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -30,10 +32,14 @@ class DealerController extends Controller
         $adminCrm2Dealers = collect();
         $adminRegularDealers = collect();
 
+        $localDealerQuery = (new DealerQuantities)->addTo(
+            Dealer::query()->with('user')->select('dealers.*'), config('database.default'), 'dealers', 'dealers'
+        );
+
         if ($isAdmin) {
             $adminCrmDealers = $this->crmDealers('admin_crms', 'Admin CRM 1');
             $adminCrm2Dealers = $this->crmDealers('admin_crms2', 'Admin CRM 2');
-            $adminRegularDealers = Dealer::with(['user', 'orders', 'sales'])
+            $adminRegularDealers = $localDealerQuery
                 ->where(function ($query) {
                     $query->where('dealer_type', 'Regular')
                         ->orWhere('dealer_type', 'regular');
@@ -42,7 +48,7 @@ class DealerController extends Controller
                 ->map(function ($dealer) {
                     $dealer->source = 'Regular';
                     $dealer->source_label = 'Regular';
-                    $this->applyLocalDealerMetrics($dealer);
+                    $this->normalizeDealerMetrics($dealer);
 
                     return $dealer;
                 });
@@ -51,9 +57,9 @@ class DealerController extends Controller
                 ->merge($adminRegularDealers)
                 ->values();
         } else {
-            $dealers = Dealer::with(['user', 'orders', 'sales'])->get()
+            $dealers = $localDealerQuery->get()
                 ->map(function ($dealer) {
-                    $this->applyLocalDealerMetrics($dealer);
+                    $this->normalizeDealerMetrics($dealer);
 
                     return $dealer;
                 });
@@ -104,10 +110,10 @@ class DealerController extends Controller
                 $query->orderByDesc('created_at');
             }
 
+            $query = (new DealerQuantities)->addTo($query->select('dealers.*'), $connection, 'dealers', 'dealers');
             return $query->get()
                 ->map(function ($dealer) use ($connection, $label) {
                     $dealer = $this->normalizeCrmDealer($dealer, $connection, $label);
-                    $this->applyCrmDealerMetrics($dealer, $connection);
 
                     return $dealer;
                 });
@@ -151,84 +157,16 @@ class DealerController extends Controller
         $dealer->sales = collect();
         $dealer->stock_qty = (float) ($dealer->stock_qty ?? 0);
         $dealer->sold_qty = (float) ($dealer->sold_qty ?? 0);
+        $dealer->remaining_qty = (float) ($dealer->remaining_qty ?? ($dealer->stock_qty - $dealer->sold_qty));
 
         return $dealer;
     }
 
-    private function applyLocalDealerMetrics($dealer)
+    private function normalizeDealerMetrics($dealer)
     {
-        $dealer->stock_qty = (float) $dealer->orders->sum('qty');
-        $dealer->sold_qty = (float) $dealer->sales->sum('qty');
-    }
-
-    private function applyCrmDealerMetrics($dealer, $connection)
-    {
-        $stockQty = $this->crmDealerQtySum($connection, 'order_details', $dealer);
-        $soldQty = $this->crmDealerQtySum($connection, 'transaction_details', $dealer);
-
-        $dealer->stock_qty = $stockQty;
-        $dealer->sold_qty = $soldQty;
-        $dealer->orders = collect([(object) ['qty' => $stockQty]]);
-        $dealer->sales = collect([(object) ['qty' => $soldQty]]);
-    }
-
-    private function crmDealerQtySum($connection, $table, $dealer)
-    {
-        try {
-            $schema = DB::connection($connection)->getSchemaBuilder();
-
-            if (!$schema->hasTable($table)) {
-                return 0;
-            }
-
-            $qtyColumn = collect(['qty', 'quantity'])
-                ->first(function ($column) use ($schema, $table) {
-                    return $schema->hasColumn($table, $column);
-                });
-
-            if (!$qtyColumn) {
-                return 0;
-            }
-
-            $dealerIds = collect([
-                    $dealer->user_id ?? null,
-                    $dealer->dealer_id ?? null,
-                    $dealer->id ?? null,
-                ])
-                ->filter(function ($value) {
-                    return $value !== null && $value !== '';
-                })
-                ->unique()
-                ->values()
-                ->all();
-
-            if (empty($dealerIds)) {
-                return 0;
-            }
-
-            $query = DB::connection($connection)->table($table);
-
-            if ($schema->hasColumn($table, 'dealer_id') && $schema->hasColumn($table, 'user_id')) {
-                $query->where(function ($inner) use ($dealerIds) {
-                    $inner->whereIn('dealer_id', $dealerIds)
-                        ->orWhereIn('user_id', $dealerIds);
-                });
-            } elseif ($schema->hasColumn($table, 'dealer_id')) {
-                $query->whereIn('dealer_id', $dealerIds);
-            } elseif ($schema->hasColumn($table, 'user_id')) {
-                $query->whereIn('user_id', $dealerIds);
-            } else {
-                return 0;
-            }
-
-            if ($schema->hasColumn($table, 'deleted_at')) {
-                $query->whereNull('deleted_at');
-            }
-
-            return (float) $query->sum($qtyColumn);
-        } catch (\Exception $exception) {
-            return 0;
-        }
+        $dealer->stock_qty = (float) $dealer->stock_qty;
+        $dealer->sold_qty = (float) $dealer->sold_qty;
+        $dealer->remaining_qty = (float) $dealer->remaining_qty;
     }
 
     private function crmTransactions($connection, $dealer, array $megaDealerMetadata = null)
@@ -424,11 +362,9 @@ class DealerController extends Controller
             return $this->formatMegaDealerDataTable(DataTables::of($query), $source, $metadata);
         }
 
-        $completedOrders = $user->role === 'Admin' ? '' : " AND order_details.status = 'Completed'";
         $query = $this->megaDealerQueryForAuthUser()
-            ->select('mega_dealers.*')
-            ->selectRaw('(SELECT COALESCE(SUM(order_details.qty), 0) FROM order_details WHERE order_details.dealer_id = mega_dealers.user_id' . $completedOrders . ') AS stock_qty')
-            ->selectRaw('(SELECT COALESCE(SUM(transaction_details.qty), 0) FROM transaction_details WHERE transaction_details.dealer_id = mega_dealers.user_id) AS sold_qty');
+            ->select('mega_dealers.*');
+        $query = (new MegaDealerQuantities)->addTo($query, config('database.default'), 'mega_dealers', 'mega_dealers');
 
         return $this->formatMegaDealerDataTable(DataTables::of($query));
     }
@@ -465,6 +401,10 @@ class DealerController extends Controller
             ->editColumn('sold_qty', function ($dealer) {
                 return '<span class="dealer-metric is-sold">' . number_format((float) $dealer->sold_qty) . '</span>';
             })
+            ->editColumn('remaining_qty', function ($dealer) {
+                $quantity = (float) $dealer->remaining_qty;
+                return '<span class="dealer-metric '.($quantity < 0 ? 'is-deficit' : 'is-remaining').'">' . number_format($quantity) . '</span>';
+            })
             ->editColumn('address', function ($dealer) {
                 return '<div class="dealer-muted">' . e(strtoupper($dealer->address ?: '-')) . '</div>';
             })
@@ -496,7 +436,7 @@ class DealerController extends Controller
                 $query->where($table . '.name', 'like', '%' . $keyword . '%');
             })
             ->rawColumns([
-                'dealer_reference', 'name', 'stock_qty', 'sold_qty',
+                'dealer_reference', 'name', 'stock_qty', 'sold_qty', 'remaining_qty',
                 'address', 'area', 'status', 'action',
             ])
             ->make(true);
@@ -623,28 +563,6 @@ class DealerController extends Controller
                 $query->whereIn($alias . '.area', $areas);
             }
 
-            $stockExpression = '0';
-            if ($schema->hasTable('order_details')) {
-                $qtyColumn = $schema->hasColumn('order_details', 'qty') ? 'qty' : ($schema->hasColumn('order_details', 'quantity') ? 'quantity' : null);
-                $completedOrders = $user->role !== 'Admin' && $schema->hasColumn('order_details', 'status')
-                    ? " AND remote_orders.status = 'Completed'" : '';
-                if ($qtyColumn && $metadata['dedicated'] && $schema->hasColumn('order_details', 'mega_dealer_id')) {
-                    $stockExpression = '(SELECT COALESCE(SUM(remote_orders.' . $qtyColumn . '), 0) FROM order_details AS remote_orders WHERE remote_orders.mega_dealer_id = ' . $alias . '.id' . $completedOrders . ')';
-                } elseif ($qtyColumn && $schema->hasColumn('order_details', 'dealer_id') && $schema->hasColumn($table, 'user_id')) {
-                    $stockExpression = '(SELECT COALESCE(SUM(remote_orders.' . $qtyColumn . '), 0) FROM order_details AS remote_orders WHERE remote_orders.dealer_id = ' . $alias . '.user_id' . $completedOrders . ')';
-                }
-            }
-
-            $soldExpression = '0';
-            if ($schema->hasTable('transaction_details')) {
-                $qtyColumn = $schema->hasColumn('transaction_details', 'qty') ? 'qty' : ($schema->hasColumn('transaction_details', 'quantity') ? 'quantity' : null);
-                if ($qtyColumn && $metadata['dedicated'] && $schema->hasColumn('transaction_details', 'mega_dealer_id')) {
-                    $soldExpression = '(SELECT COALESCE(SUM(remote_sales.' . $qtyColumn . '), 0) FROM transaction_details AS remote_sales WHERE remote_sales.mega_dealer_id = ' . $alias . '.id)';
-                } elseif ($qtyColumn && $schema->hasColumn('transaction_details', 'dealer_id') && $schema->hasColumn($table, 'user_id')) {
-                    $soldExpression = '(SELECT COALESCE(SUM(remote_sales.' . $qtyColumn . '), 0) FROM transaction_details AS remote_sales WHERE remote_sales.dealer_id = ' . $alias . '.user_id)';
-                }
-            }
-
             $query->select($alias . '.*');
 
             if ($referenceColumn !== 'dealer_reference') {
@@ -659,9 +577,7 @@ class DealerController extends Controller
                 }
             }
 
-            return $query
-                ->selectRaw($stockExpression . ' AS stock_qty')
-                ->selectRaw($soldExpression . ' AS sold_qty');
+            return (new MegaDealerQuantities)->addTo($query, $connection, $table, $alias, $metadata['dedicated']);
         } catch (\Throwable $exception) {
             return null;
         }

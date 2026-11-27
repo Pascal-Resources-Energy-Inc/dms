@@ -142,7 +142,7 @@ class AdpoCollateralPricingTest extends TestCase
         $this->assertSame($profile['delivery_address'], $order->delivery_address);
         $this->assertSame('Saved North', $order->authorized_territory);
         $this->assertEquals(1, $order->ad_user_id);
-        $this->assertSame('prei_warehouse', $order->order_source);
+        $this->assertSame('prei_plant', $order->order_source);
         $this->assertNull($order->provincial_distributor_id);
         if ($role === User::ROLE_PROVINCIAL_DISTRIBUTOR && !$keepLegacy) $this->assertNull($order->ad_id);
         else $this->assertEquals(1, $order->ad_id);

@@ -831,7 +831,7 @@ class NewUserAwardedAreasTest extends TestCase
     private function editInput($profile, array $rows)
     {
         return [
-            '_method' => 'PUT', 'sync_project_areas' => '1', 'name' => 'QA Distributor', 'store_code' => 'QA001',
+            '_method' => 'PUT', 'sync_project_areas' => '1', 'store_code' => 'QA001',
             'first_name' => 'QA', 'last_name' => 'Distributor', 'email_address' => 'qa@example.test',
             'contact_number' => '09123456789', 'business_name' => 'Updated Main Business', 'business_type' => 'Retail Shop',
             'nature_of_business' => $profile->nature_of_business,
@@ -843,6 +843,44 @@ class NewUserAwardedAreasTest extends TestCase
     private function editUrl($profile)
     {
         return $profile instanceof ProvincialDistributor ? '/pds/' . $profile->id : '/edit-ads/' . $profile->id;
+    }
+
+    /** @dataProvider roles */
+    public function test_edit_saves_split_names_without_the_obsolete_full_name_field($role, $profileClass)
+    {
+        $this->postJson('/new-user', $this->input($role))->assertStatus(201);
+        $profile = $profileClass::firstOrFail();
+        foreach (['D. ALBIS', ''] as $middleName) {
+            $input = array_replace($this->editInput($profile, []), [
+                'first_name' => 'NORA', 'middle_name' => $middleName, 'last_name' => 'DE LA CRUZ',
+            ]);
+            $this->assertArrayNotHasKey('name', $input);
+            $this->postJson($this->editUrl($profile), $input)->assertOk()->assertJson(['success' => true]);
+            $expectedName = $middleName === '' ? 'NORA DE LA CRUZ' : 'NORA D. ALBIS DE LA CRUZ';
+            $saved = $profile->fresh('userAds');
+            $this->assertSame($expectedName, $saved->name);
+            $this->assertSame($expectedName, $saved->userAds->name);
+            $this->assertSame('NORA', $saved->userAds->first_name);
+            $this->assertSame($middleName ?: null, $saved->userAds->middle_name);
+            $this->assertSame('DE LA CRUZ', $saved->userAds->last_name);
+            if ($profile instanceof ProvincialDistributor) {
+                $this->assertSame($expectedName, AreaDistributor::where('user_id', $profile->user_id)->firstOrFail()->name);
+            }
+        }
+    }
+
+    public function test_provincial_distributor_edit_rejects_missing_or_invalid_split_names()
+    {
+        $this->postJson('/new-user', $this->input('Provincial Distributor'))->assertStatus(201);
+        $profile = ProvincialDistributor::firstOrFail();
+        foreach (['first_name', 'last_name'] as $field) {
+            foreach (['', ['invalid']] as $invalid) {
+                $input = array_replace($this->editInput($profile, []), [$field => $invalid]);
+                $this->postJson($this->editUrl($profile), $input)->assertStatus(422)->assertJsonValidationErrors([$field]);
+            }
+        }
+        $this->assertSame($profile->name, $profile->fresh()->name);
+        $this->assertSame($profile->userAds->name, $profile->userAds->fresh()->name);
     }
 
     /** @dataProvider roles */
