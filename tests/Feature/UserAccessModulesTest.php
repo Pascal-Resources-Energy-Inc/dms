@@ -53,6 +53,72 @@ class UserAccessModulesTest extends TestCase
     }
 
     /** @dataProvider personnelRoles */
+    public function test_personnel_sidebar_groups_permitted_links_and_expands_the_active_module($role)
+    {
+        \Illuminate\Support\Facades\Route::shouldReceive('currentRouteName')->andReturn('inventory-transfers.index');
+        $user = $this->personnel(['products' => ['catalog' => ['view']],
+            'inventory_transfers' => ['transfers' => ['view']], 'customers' => ['records' => ['view']],
+            'forms' => ['incident' => ['view']], 'reports' => ['aging' => ['view']]], $role);
+        $html = view('users.partials.personnel-sidebar', ['sidebarUser' => $user])->render();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML($html);
+        $xpath = new \DOMXPath($dom);
+        foreach (['suppliesMenu', 'partnersMenu', 'formsMenu', 'reportsMenu'] as $id) {
+            $this->assertSame(1, $xpath->query('//a[@data-bs-toggle="collapse" and @aria-controls="'.$id.'"]')->length);
+        }
+        $this->assertSame(1, $xpath->query('//a[@aria-controls="suppliesMenu" and @aria-expanded="true"]')->length);
+        $this->assertSame(1, $xpath->query('//div[@id="suppliesMenu" and contains(@class,"show")]//a[contains(@class,"active") and @href="'.route('inventory-transfers.index').'"]')->length);
+        $this->assertSame(1, $xpath->query('//div[@id="partnersMenu"]//a[@href="'.route('my-customers').'"]')->length);
+        $this->assertNotContains('ti-layout-grid', $html);
+        $this->assertNotContains('href="'.route('dealer-ads').'"', $html);
+        $this->assertNotContains('href="'.route('ad-purchase-orders.index').'"', $html);
+    }
+
+    /** @dataProvider personnelRoles */
+    public function test_personnel_sidebar_hides_empty_groups_and_keeps_role_specific_links($role)
+    {
+        $user = $this->personnel(['purchase_orders' => ['adpo' => [], 'provincial' => ['view']],
+            'distributors' => ['records' => ['view']]], $role);
+        $html = view('users.partials.personnel-sidebar', ['sidebarUser' => $user])->render();
+        foreach (['suppliesMenu', 'formsMenu', 'reportsMenu'] as $id) $this->assertNotContains('id="'.$id.'"', $html);
+        if ($role === User::ROLE_PROVINCIAL_DISTRIBUTOR) {
+            $this->assertContains('href="'.route('ads').'"', $html);
+            $this->assertContains('href="'.route('provincial-distributor.purchase-orders').'"', $html);
+            $this->assertContains('ti-building-warehouse', $html);
+        } else {
+            $this->assertNotContains('href="'.route('ads').'"', $html);
+            $this->assertNotContains('href="'.route('provincial-distributor.purchase-orders').'"', $html);
+            $this->assertContains('No modules assigned.', $html);
+        }
+    }
+
+    public function test_pd_personnel_sidebar_counts_only_the_assigned_distributors_pending_orders()
+    {
+        config(['database.default' => 'personnel_sidebar_test',
+            'database.connections.personnel_sidebar_test' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']]);
+        DB::purge('personnel_sidebar_test');
+        \Illuminate\Support\Facades\Schema::create('ad_purchase_orders', function ($table) {
+            $table->increments('id'); $table->integer('provincial_distributor_id');
+            $table->string('order_source'); $table->string('status'); $table->softDeletes();
+        });
+        foreach ([[80, 'provincial_distributor', 'Pending'], [80, 'provincial_distributor', 'Pending'],
+            [80, 'provincial_distributor', 'Completed'], [80, 'warehouse', 'Pending'],
+            [9, 'provincial_distributor', 'Pending'], [7, 'provincial_distributor', 'Pending']] as $order) {
+            DB::table('ad_purchase_orders')->insert(['provincial_distributor_id' => $order[0], 'order_source' => $order[1], 'status' => $order[2]]);
+        }
+        $owner = $this->user([], User::ROLE_PROVINCIAL_DISTRIBUTOR)->forceFill(['id' => 80]);
+        $owner->setRelation('provincialDistributor', (new \App\ProvincialDistributor(['user_id' => 80]))->forceFill(['id' => 7]));
+        $staff = $this->personnel(['purchase_orders' => ['adpo' => [], 'provincial' => ['view']]], User::ROLE_PROVINCIAL_DISTRIBUTOR)
+            ->forceFill(['id' => 9, 'assigned_distributor_user_id' => 80]);
+        $staff->setRelation('assignedDistributor', $owner);
+        $html = view('users.partials.personnel-sidebar', ['sidebarUser' => $staff])->render();
+        $dom = new \DOMDocument; @$dom->loadHTML($html); $xpath = new \DOMXPath($dom);
+        $badge = $xpath->query('//a[@href="'.route('provincial-distributor.purchase-orders').'"]//span[contains(@class,"nav-badge")]');
+        $this->assertSame(1, $badge->length);
+        $this->assertSame('2', trim($badge->item(0)->textContent));
+    }
+
+    /** @dataProvider personnelRoles */
     public function test_personnel_login_uses_permitted_module_or_access_information_page($role)
     {
         $method = new \ReflectionMethod(\App\Http\Controllers\Auth\LoginController::class, 'redirectByRole');
