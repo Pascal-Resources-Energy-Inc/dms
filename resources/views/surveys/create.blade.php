@@ -17,10 +17,9 @@
     .survey-modal-icon { width: 44px; height: 44px; display: grid; flex: 0 0 auto; place-items: center; color: #0877ca; border-radius: 13px; background: #edf9ff; font-size: 19px; }
     .survey-modal-title { margin: 0; color: #101828; font-size: 18px; font-weight: 900; }
     .survey-modal-subtitle { margin-top: 3px; color: #667085; font-size: 12px; }
-    .survey-header-progress { width: min(270px, 28vw); margin-left: auto; }
     .survey-progress-copy { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; color: #667085; font-size: 10px; font-weight: 800; }
     .survey-progress { height: 7px; overflow: hidden; border-radius: 999px; background: #e9eef3; }
-    .survey-progress-bar { width: 16.667%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0877ca, #19a1d8); transition: width .25s ease; }
+    .survey-progress-bar { width: 14.286%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0877ca, #19a1d8); transition: width .25s ease; }
     .survey-modal .modal-body { min-height: 0; display: grid; grid-template-columns: 240px minmax(0, 1fr); padding: 0; overflow: hidden; }
     .survey-step-nav { padding: 20px 14px; overflow-y: auto; border-right: 1px solid #e4e7ec; background: #f8fafc; }
     .survey-step-label { margin: 0 9px 12px; color: #98a2b3; font-size: 9px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
@@ -34,13 +33,13 @@
     .survey-step-name { display: block; font-size: 11px; font-weight: 850; }
     .survey-step-hint { display: block; margin-top: 2px; color: #98a2b3; font-size: 9px; line-height: 1.3; }
     .survey-form-stage { min-width: 0; overflow-y: auto; background: #f5f7fa; scroll-behavior: smooth; }
-    .survey-pane { display: none; max-width: 940px; margin: 0 auto; padding: 26px 28px 34px; }
+    .survey-pane { display: none; width: 100%; max-width: none; margin: 0; padding: 24px 72px 30px; }
     .survey-pane.is-active { display: block; }
-    .survey-pane-head { margin-bottom: 18px; }
+    .survey-pane-head { margin-bottom: 14px; }
     .survey-pane-kicker { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 6px; color: #0877ca; font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
     .survey-pane-title { margin: 0; color: #101828; font-size: 22px; font-weight: 900; }
     .survey-pane-copy { max-width: 720px; margin: 6px 0 0; color: #667085; font-size: 13px; line-height: 1.6; }
-    .survey-card { margin-bottom: 14px; padding: 20px; border: 1px solid #e4e7ec; border-radius: 14px; background: #fff; box-shadow: 0 5px 16px rgba(15, 23, 42, .035); }
+    .survey-card { margin: 0 -18px 12px; padding: 18px; border: 1px solid #e4e7ec; border-radius: 14px; background: #fff; box-shadow: 0 5px 16px rgba(15, 23, 42, .035); }
     .survey-card:last-child { margin-bottom: 0; }
     .survey-card-title { display: flex; align-items: start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
     .survey-question { margin: 0; color: #25364a; font-size: 13px; font-weight: 900; line-height: 1.45; }
@@ -124,11 +123,13 @@
 
     @media (max-width: 767.98px) {
         .survey-page-head { align-items: stretch; flex-direction: column; }
-        .survey-header-progress { display: none; }
         .survey-modal .modal-header { min-height: 68px; padding: 12px 14px; }
+        .survey-modal-heading { width: 100%; align-items: center; gap: 10px; }
         .survey-modal-icon { width: 38px; height: 38px; }
+        .survey-modal-title { font-size: clamp(14px, 3.2vw, 14px); line-height: 1.2; letter-spacing: -.01em; white-space: nowrap; }
+        .survey-modal-subtitle { display: none; }
         .survey-grid, .survey-grid.is-three, .survey-choice-grid, .survey-choice-grid.is-five, .survey-number-grid, .survey-review-grid { grid-template-columns: 1fr; }
-        .survey-card { padding: 16px; }
+        .survey-card { margin-right: -16px; margin-left: -16px; padding: 16px; }
         .survey-choice-grid.is-five { grid-template-columns: repeat(5, minmax(48px, 1fr)); }
         .survey-choice-grid.is-five .survey-choice-card { justify-content: center; padding: 8px 4px; }
         .survey-choice-grid.is-five .survey-choice-mark { display: none; }
@@ -137,18 +138,18 @@
         .survey-modal .modal-footer .btn { flex: 1; }
     }
 
-    /* Single-page survey layout. */
-    .survey-modal .modal-content { height: auto; min-height: 0; overflow: visible; }
-    .survey-header-progress, .survey-step-nav { display: none !important; }
-    .survey-modal .modal-body { display: block; overflow: visible; }
-    .survey-form-stage { overflow: visible; }
-    .survey-pane { display: block; max-width: 1040px; padding: 30px 28px 38px; }
-    .survey-pane + .survey-pane { border-top: 1px solid #dbe3ea; }
-    .survey-modal .modal-footer { position: sticky; bottom: 0; z-index: 20; box-shadow: 0 -8px 24px rgba(15, 23, 42, .08); }
+    /* Section-by-section survey layout. */
+    .survey-modal .modal-body { grid-template-columns: minmax(0, 1fr); }
+    .survey-modal .modal-footer { box-shadow: 0 -8px 24px rgba(15, 23, 42, .08); }
+    .survey-footer-actions { width: 100%; display: flex; justify-content: flex-end; gap: 9px; }
+    .survey-footer-progress { width: min(360px, 100%); min-width: 0; margin-top: 8px; margin-left: auto; }
+    .survey-footer-progress .survey-progress-copy { justify-content: flex-start; }
 
-    @media (max-width: 991.98px) {
-        .survey-modal .modal-content { height: auto; min-height: 0; }
-        .survey-pane { padding: 24px 16px 30px; }
+    @media (max-width: 767.98px) {
+        .survey-footer-actions .btn { flex: 1 1 0; }
+        .survey-footer-progress { width: 100%; margin-right: 0; margin-left: 0; }
+        .survey-progress-copy { align-items: flex-start; }
+        .survey-progress-copy span:last-child { text-align: right; }
     }
 </style>
 @endsection
@@ -159,10 +160,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const isSubmitted = @json((bool) $isSubmitted);
     const form = document.getElementById('partnerSurveyForm');
     const panes = Array.from(form.querySelectorAll('[data-survey-pane]'));
+    const formStage = document.getElementById('surveyFormStage');
+    const previousButton = document.getElementById('surveyPrevious');
+    const nextButton = document.getElementById('surveyNext');
     const finishButton = document.getElementById('surveyFinish');
     const saveButton = document.getElementById('surveySaveDraft');
     const submissionIntent = document.getElementById('surveySubmissionIntent');
     const draftStatus = document.getElementById('surveyDraftStatus');
+    const progressBar = document.getElementById('surveyProgressBar');
+    const progressCurrent = document.getElementById('surveyProgressCurrent');
+    let currentPaneIndex = 0;
 
     function notify(title, message, icon) {
         if (window.Swal) {
@@ -190,6 +197,56 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         return true;
+    }
+
+    function validatePane(pane) {
+        if (!validateLimitGroups(pane)) {
+            return false;
+        }
+
+        const invalid = Array.from(pane.querySelectorAll('[required]')).find(function (field) {
+            return !field.checkValidity();
+        });
+
+        if (invalid) {
+            invalid.reportValidity();
+            invalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
+
+        return true;
+    }
+
+    function showPane(index, shouldFocus) {
+        currentPaneIndex = Math.max(0, Math.min(index, panes.length - 1));
+
+        panes.forEach(function (pane, paneIndex) {
+            pane.classList.toggle('is-active', paneIndex === currentPaneIndex);
+        });
+
+        const currentPane = panes[currentPaneIndex];
+        const title = currentPane.querySelector('.survey-pane-title');
+        const sectionNumber = currentPaneIndex + 1;
+        const isFirst = currentPaneIndex === 0;
+        const isLast = currentPaneIndex === panes.length - 1;
+
+        previousButton.disabled = isFirst;
+        nextButton.classList.toggle('d-none', isLast);
+        finishButton.classList.toggle('d-none', !isLast);
+
+        progressCurrent.textContent = 'Section ' + sectionNumber + ' of ' + panes.length;
+        progressBar.style.width = ((sectionNumber / panes.length) * 100) + '%';
+        progressBar.setAttribute('aria-valuenow', String(sectionNumber));
+        progressBar.setAttribute('aria-valuemax', String(panes.length));
+
+        if (formStage) {
+            formStage.scrollTop = 0;
+        }
+
+        if (shouldFocus && title) {
+            title.setAttribute('tabindex', '-1');
+            title.focus({ preventScroll: true });
+        }
     }
 
     function updateLimitGroup(group) {
@@ -270,16 +327,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function validateAllSteps() {
         for (let paneIndex = 0; paneIndex < panes.length; paneIndex += 1) {
             const pane = panes[paneIndex];
-            if (!validateLimitGroups(pane)) {
-                return false;
-            }
-
-            const invalid = Array.from(pane.querySelectorAll('[required]')).find(function (field) {
-                return !field.checkValidity();
-            });
-            if (invalid) {
-                invalid.reportValidity();
-                invalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            showPane(paneIndex, false);
+            if (!validatePane(pane)) {
                 return false;
             }
         }
@@ -307,6 +356,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    previousButton.addEventListener('click', function () {
+        showPane(currentPaneIndex - 1, true);
+    });
+
+    nextButton.addEventListener('click', function () {
+        if (!validatePane(panes[currentPaneIndex])) return;
+        showPane(currentPaneIndex + 1, true);
+    });
+
     finishButton.addEventListener('click', function () {
         if (!validateAllSteps()) return;
         submitSurvey('submit');
@@ -315,6 +373,7 @@ document.addEventListener('DOMContentLoaded', function () {
     updateChannelMix();
     updateTerritoryReason();
     updateOtherFields();
+    showPane(0, false);
     if (isSubmitted) {
         form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field) {
             field.disabled = true;
@@ -1085,7 +1144,27 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="modal-footer">
                 <!-- <div class="survey-footer-status" id="surveyDraftStatus"><i class="bi bi-circle-fill me-1"></i> {{ $isSubmitted ? 'Submitted ' . optional($survey->submitted_at)->format('M d, Y h:i A') : ($survey ? 'Saved draft loaded' : 'Not saved yet') }}</div> -->
                 <!-- @if(!$isSubmitted)<button class="btn btn-light" id="surveySaveDraft" type="button"><i class="bi bi-cloud-arrow-down me-1"></i> Save draft</button>@else<span id="surveySaveDraft"></span>@endif -->
-                <button class="btn btn-success" id="surveyFinish" type="button" {{ $isSubmitted ? 'disabled' : '' }}><i class="bi bi-check2-circle me-1"></i> Submit survey</button>
+                <div class="survey-footer-actions">
+                    <button class="btn btn-light" id="surveyPrevious" type="button" disabled>Previous</button>
+                    <button class="btn btn-primary" id="surveyNext" type="button">Next</button>
+                    <button class="btn btn-success d-none" id="surveyFinish" type="button" {{ $isSubmitted ? 'disabled' : '' }}><i class="bi bi-check2-circle me-1"></i> Submit survey</button>
+                </div>
+                <div class="survey-footer-progress">
+                    <div class="survey-progress-copy">
+                        <span id="surveyProgressCurrent">Section 1 of 7</span>
+                    </div>
+                    <div class="survey-progress">
+                        <div
+                            class="survey-progress-bar"
+                            id="surveyProgressBar"
+                            role="progressbar"
+                            aria-label="Survey progress"
+                            aria-valuemin="1"
+                            aria-valuemax="7"
+                            aria-valuenow="1"
+                        ></div>
+                    </div>
+                </div>
             </div>
         </form>
 </section>
