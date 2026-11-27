@@ -10,6 +10,7 @@ use App\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -71,6 +72,93 @@ class NewUserAwardedAreasTest extends TestCase
     {
         return [['Area Distributor', AreaDistributor::class, AreaAd::class],
             ['Provincial Distributor', ProvincialDistributor::class, ProvincialDistributorArea::class]];
+    }
+
+    public function pdViewerCases()
+    {
+        return [[false], [true]];
+    }
+
+    private function pdViewer($personnel)
+    {
+        return (new User(['role' => User::ROLE_PROVINCIAL_DISTRIBUTOR, 'name' => 'PD Viewer']))->forceFill([
+            'id' => 501, 'is_distributor_personnel' => $personnel,
+            'access_permissions' => json_encode(['distributors' => ['records' => ['view', 'add', 'edit', 'delete']]]),
+        ]);
+    }
+
+    /** @dataProvider pdViewerCases */
+    public function test_pd_users_cannot_change_area_distributors_even_with_saved_edit_permissions($personnel)
+    {
+        $profile = $this->personnelOwner(User::ROLE_AREA_DISTRIBUTOR, AreaDistributor::class);
+        $award = $profile->areas()->create(['area_name' => 'Area A', 'user_role' => User::ROLE_AREA_DISTRIBUTOR,
+            'ad_user_id' => $profile->user_id, 'package_amount' => 2000]);
+        $this->actingAs($this->pdViewer($personnel));
+        $this->putJson(route('edit-ads', $profile->id), ['name' => 'Unauthorized change'])->assertStatus(403);
+        $this->postJson(route('update.areas', $profile->id), ['areas' => []])->assertStatus(403);
+        $this->postJson(route('new-ad'), ['name' => 'Unauthorized new AD'])->assertStatus(403);
+        $this->assertSame('Existing distributor', $profile->fresh()->name);
+        $this->assertSame('Area A', $award->fresh()->area_name);
+        $this->assertSame('2000.00', $award->fresh()->package_amount);
+        $this->assertNull($award->fresh()->deleted_at);
+        $this->assertSame(1, AreaDistributor::count());
+    }
+
+    /** @dataProvider pdViewerCases */
+    public function test_pd_partner_directory_keeps_viewing_and_omits_management_forms($personnel)
+    {
+        $profile = $this->personnelOwner(User::ROLE_AREA_DISTRIBUTOR, AreaDistributor::class);
+        $profile->areas()->create(['area_name' => 'Area A', 'user_role' => User::ROLE_AREA_DISTRIBUTOR]);
+        $this->actingAs($this->pdViewer($personnel));
+        $this->withPartnerLayout(function () use ($profile) {
+            $this->get(route('ad.view', $profile->id))->assertOk()->assertSee('Existing distributor');
+            $html = $this->partnerDirectoryHtml($profile);
+            $this->assertContains('href="'.route('ad.view', $profile->id).'"', $html);
+            foreach (['data-bs-target="#edit_area_distributor-', 'data-bs-target="#manageAreaModal-',
+                'id="edit_area_distributor-', 'id="manageAreaModal-', 'id="new_area_distributor"'] as $marker) {
+                $this->assertNotContains($marker, $html);
+            }
+        });
+    }
+
+    public function test_admin_partner_directory_retains_edit_and_area_management()
+    {
+        $profile = $this->personnelOwner(User::ROLE_AREA_DISTRIBUTOR, AreaDistributor::class);
+        $this->withPartnerLayout(function () use ($profile) {
+            $html = $this->partnerDirectoryHtml($profile);
+            $this->assertContains('data-bs-target="#edit_area_distributor-'.$profile->id.'"', $html);
+            $this->assertContains('data-bs-target="#manageAreaModal-'.$profile->id.'"', $html);
+            $this->assertContains('id="edit_area_distributor-'.$profile->id.'"', $html);
+            $this->assertContains('id="manageAreaModal-'.$profile->id.'"', $html);
+        });
+    }
+
+    private function withPartnerLayout(callable $callback)
+    {
+        $root = storage_path('framework/testing/ad-read-only-'.uniqid());
+        File::makeDirectory($root.'/layouts', 0755, true);
+        File::put($root.'/layouts/header.blade.php', '@yield("content")');
+        $finder = app('view')->getFinder();
+        $originalPaths = $finder->getPaths();
+        $finder->prependLocation($root);
+        $finder->flush();
+        app('events')->forget('composing: layouts.header');
+        view()->share('errors', new \Illuminate\Support\ViewErrorBag);
+        try { $callback(); }
+        finally {
+            $finder->setPaths($originalPaths); $finder->flush();
+            File::deleteDirectory($root);
+        }
+    }
+
+    private function partnerDirectoryHtml($profile)
+    {
+        return view('area_distributor.index', [
+            'ads' => new \Illuminate\Pagination\LengthAwarePaginator(collect([$profile->load('areas', 'userAds')]), 1, 10),
+            'totalAds' => 1, 'activeAds' => 1, 'inactiveAds' => 0, 'totalAwardedAreas' => $profile->areas->count(),
+            'regions' => collect(), 'projectTypes' => collect(), 'areas' => \App\Area::all(), 'centers' => collect(),
+            'showCreateButton' => true,
+        ])->render();
     }
 
     private function personnelOwner($role, $profileClass, array $attributes = [])

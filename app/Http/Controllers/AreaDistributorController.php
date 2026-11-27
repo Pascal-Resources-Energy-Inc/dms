@@ -170,6 +170,7 @@ class AreaDistributorController extends Controller
      */
     public function create()
     {
+        $this->authorizeManagement();
         //
     }
 
@@ -181,6 +182,7 @@ class AreaDistributorController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeManagement();
         $request->validate([
             'has_service_vehicle' => 'required|boolean',
             'business_years_operation' => 'required|integer|min:0|max:200',
@@ -287,6 +289,7 @@ class AreaDistributorController extends Controller
 
     public function edit($id)
     {
+        $this->authorizeManagement();
         $ad = AreaDistributor::with('areas')->findOrFail($id);
         $centers = Center::all();
         $areas = Area::all();
@@ -296,6 +299,7 @@ class AreaDistributorController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeManagement();
         $ad = AreaDistributor::findOrFail($id);
         $projectAreaChanges = $request->has('sync_project_areas')
             ? app(DistributorProjectAreas::class)->validate($request, $ad)
@@ -549,6 +553,7 @@ class AreaDistributorController extends Controller
      */
     public function destroy(AreaDistributor $areaDistributor)
     {
+        $this->authorizeManagement();
         //
     }
 
@@ -823,6 +828,7 @@ class AreaDistributorController extends Controller
 
     public function updateAreas(Request $request, $id)
     {
+        $this->authorizeManagement();
         $profile = AreaDistributor::findOrFail($id);
         $changes = app(\App\Services\ManageDistributorAreas::class)->validate($request, $profile);
         $service = app(DistributorProjectAreas::class);
@@ -838,6 +844,12 @@ class AreaDistributorController extends Controller
             report($exception);
             return response()->json(['status' => false, 'message' => 'Unable to save the awarded areas. Please try again.'], 500);
         }
+    }
+
+    private function authorizeManagement()
+    {
+        abort_if(optional(auth()->user())->role === User::ROLE_PROVINCIAL_DISTRIBUTOR, 403,
+            'Provincial Distributors have view-only access to Area Distributors.');
     }
 
     private function mergeContractAttachments(Request $request, AreaDistributor $profile)

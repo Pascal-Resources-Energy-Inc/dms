@@ -123,6 +123,7 @@
     $updateRoute = $updateRoute ?? 'edit-ads';
     $updateAreasRoute = $updateAreasRoute ?? 'update.areas';
     $destroyRoute = $destroyRoute ?? null;
+    $canManageDistributor = $indexRoute !== 'ads' || auth()->user()->role !== \App\User::ROLE_PROVINCIAL_DISTRIBUTOR;
     $filteredAwardedAreas = $ads->sum(function ($ad) { return $ad->areas->count(); });
     $hasFilters = request()->filled('search') || request()->filled('status') || request()->filled('region') || request()->filled('project_type') || request()->filled('area');
 @endphp
@@ -184,6 +185,7 @@
                             <td>
                                 <div class="ad-actions">
                                     <a href="{{ route($viewRoute, $ad->id) }}" class="btn btn-outline-info ad-action-btn" title="View"><i class="ti ti-eye"></i></a>
+                                    @if($canManageDistributor)
                                     <button type="button" class="btn btn-outline-warning ad-action-btn" data-bs-toggle="modal" data-bs-target="#edit_area_distributor-{{ $ad->id }}" title="Edit"><i class="ti ti-edit"></i></button>
                                     @if($destroyRoute)
                                         <form method="POST" action="{{ route($destroyRoute, $ad->id) }}" class="d-inline" onsubmit="return confirm('Remove this {{ strtolower($distributorSingular) }}? Existing operational history will be preserved.');">
@@ -191,6 +193,7 @@
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-outline-danger ad-action-btn" title="Delete"><i class="ti ti-trash"></i></button>
                                         </form>
+                                    @endif
                                     @endif
                                 </div>
                             </td>
@@ -206,7 +209,9 @@
                                 @else
                                     <span class="ad-no-area"><i class="ti ti-map-off"></i>No awarded areas</span>
                                 @endif
-                                <button type="button" class="btn btn-outline-primary ad-manage-btn" data-bs-toggle="modal" data-bs-target="#manageAreaModal-{{ $ad->id }}"><i class="ti ti-map-plus"></i> Manage Areas</button>
+                                @if($canManageDistributor)
+                                    <button type="button" class="btn btn-outline-primary ad-manage-btn" data-bs-toggle="modal" data-bs-target="#manageAreaModal-{{ $ad->id }}"><i class="ti ti-map-plus"></i> Manage Areas</button>
+                                @endif
                             </td>
                             <td><span class="ad-status {{ strtolower($ad->status ?: 'inactive') }}"><i class="ti ti-circle-filled"></i>{{ $ad->status ?: 'Inactive' }}</span></td>
                         </tr>
@@ -214,10 +219,12 @@
                     </tbody>
                 </table>
             </div>
-            @foreach($ads as $ad)
-                @include('area_distributor.manage_areas')
-                @include('area_distributor.edit')
-            @endforeach
+            @if($canManageDistributor)
+                @foreach($ads as $ad)
+                    @include('area_distributor.manage_areas')
+                    @include('area_distributor.edit')
+                @endforeach
+            @endif
             @if($ads->hasPages())
                 <div class="ad-pagination">
                     <div class="ad-pagination-summary">
@@ -233,7 +240,7 @@
 </section>
 @endsection
 
-@if($showCreateButton)
+@if($showCreateButton && $canManageDistributor)
     @include('area_distributor.create')
 @endif
 
