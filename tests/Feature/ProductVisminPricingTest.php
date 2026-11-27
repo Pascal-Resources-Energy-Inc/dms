@@ -24,8 +24,8 @@ class ProductVisminPricingTest extends TestCase
             ],
         ]);
         DB::statement('CREATE TABLE items (id INTEGER PRIMARY KEY, item TEXT, item_description TEXT, item_image TEXT,
-            price NUMERIC, dealer_price NUMERIC, md_price NUMERIC, dprice NUMERIC, vismin_price NUMERIC,
-            vismin_dealer_price NUMERIC, vismin_md_price NUMERIC, vismin_dprice NUMERIC, for_ad INTEGER,
+            price NUMERIC, dealer_price NUMERIC, md_price NUMERIC, dprice NUMERIC, pdprice NUMERIC, vismin_price NUMERIC,
+            vismin_dealer_price NUMERIC, vismin_md_price NUMERIC, vismin_dprice NUMERIC, vismin_pdprice NUMERIC, for_ad INTEGER,
             dealer_points INTEGER, customer_points INTEGER, status TEXT, item_type TEXT,
             created_at TEXT, updated_at TEXT, deleted_at TEXT)');
         DB::statement('CREATE TABLE products (id INTEGER PRIMARY KEY, item_id INTEGER, product_name TEXT,
@@ -59,8 +59,8 @@ class ProductVisminPricingTest extends TestCase
     private function item(array $attributes = [])
     {
         return Item::create($attributes + ['item' => '330g LPG Refill', 'price' => 100, 'dealer_price' => 85,
-            'md_price' => 75, 'dprice' => 60, 'vismin_price' => 110.25, 'vismin_dealer_price' => 95.35,
-            'vismin_md_price' => 85.45, 'vismin_dprice' => 72.35, 'status' => 'Activate', 'item_type' => 'product']);
+            'md_price' => 75, 'dprice' => 60, 'pdprice' => 50.25, 'vismin_price' => 110.25, 'vismin_dealer_price' => 95.35,
+            'vismin_md_price' => 85.45, 'vismin_dprice' => 72.35, 'vismin_pdprice' => 65.45, 'status' => 'Activate', 'item_type' => 'product']);
     }
 
     private function product(Item $item = null, array $attributes = [])
@@ -112,7 +112,10 @@ class ProductVisminPricingTest extends TestCase
         $this->assertSame('140.00', $product->fresh()->price, 'Viewing the catalog must not write product prices.');
         $matrix = $this->get(route('products.create'))->assertOk()->getContent();
         $xpath = $this->xpath($matrix);
-        foreach (['client_price' => $regional ? 110.25 : 100, 'dealer_price' => $regional ? 95.35 : 85, 'mega_dealer_price' => $regional ? 85.45 : 75, 'dprice' => $regional ? 72.35 : 60] as $field => $expected) {
+        $isPd = $role === User::ROLE_PROVINCIAL_DISTRIBUTOR;
+        $costField = $isPd ? 'pdprice' : 'dprice';
+        $expectedCost = $isPd ? ($regional ? 65.45 : 50.25) : ($regional ? 72.35 : 60);
+        foreach (['client_price' => $regional ? 110.25 : 100, 'dealer_price' => $regional ? 95.35 : 85, 'mega_dealer_price' => $regional ? 85.45 : 75, $costField => $expectedCost] as $field => $expected) {
             $this->assertEquals($expected, $xpath->query('//input[@name="items[0]['.$field.']"]')->item(0)->getAttribute('value'));
         }
         // Posted prices and region cannot replace configured rates from Items.
@@ -164,23 +167,38 @@ class ProductVisminPricingTest extends TestCase
         $this->assertSame('110.25', $product->fresh()->price);
     }
 
-    public function test_matrix_cost_falls_back_only_when_vismin_distributor_price_is_unset()
+    public function test_matrix_cost_uses_each_roles_own_tier_and_falls_back_only_when_its_regional_price_is_unset()
     {
-        $item = $this->item(['vismin_dprice' => null]);
+        $item = $this->item();
         foreach ([User::ROLE_AREA_DISTRIBUTOR, User::ROLE_PROVINCIAL_DISTRIBUTOR] as $role) {
+            $isPd = $role === User::ROLE_PROVINCIAL_DISTRIBUTOR;
+            $field = $isPd ? 'pdprice' : 'dprice';
+            $basePrice = $isPd ? '50.25' : '60.00';
             foreach (['Region VII (Central Visayas)', 'Region XI (Davao Region)'] as $region) {
                 $this->signIn($role, $region);
-                foreach ([[null, '60.00'], [0, '0.00'], [72.35, '72.35']] as [$price, $expected]) {
-                    $item->update(['vismin_dprice' => $price]);
+                foreach ([[null, $basePrice], [0, '0.00'], [$isPd ? 65.45 : 72.35, $isPd ? '65.45' : '72.35']] as [$price, $expected]) {
+                    $item->update(['vismin_'.$field => $price]);
                     $matrix = $this->xpath($this->get(route('products.create'))->assertOk()->getContent());
-                    $cost = $matrix->query('//input[@name="items[0][dprice]"]')->item(0);
+                    $cost = $matrix->query('//input[@name="items[0]['.$field.']"]')->item(0);
                     $this->assertSame($expected, $cost->getAttribute('value'));
                     $this->assertTrue($cost->hasAttribute('readonly'));
-                    $this->assertSame('60.00', $item->fresh()->dprice);
+                    $this->assertSame($basePrice, $item->fresh()->{$field});
                     $this->assertSame('110.25', $matrix->query('//input[@name="items[0][client_price]"]')->item(0)->getAttribute('value'));
                 }
             }
         }
+    }
+
+    public function test_matrix_keeps_existing_cost_for_legacy_items_without_a_pd_price()
+    {
+        $item = $this->item(['pdprice' => null, 'vismin_pdprice' => null]);
+        foreach (['Region V (Bicol Region)' => '60.00', 'Region VII (Central Visayas)' => '72.35'] as $region => $expected) {
+            $this->signIn(User::ROLE_PROVINCIAL_DISTRIBUTOR, $region);
+            $matrix = $this->xpath($this->get(route('products.create'))->assertOk()->getContent());
+            $this->assertSame($expected, $matrix->query('//td[@data-label="Cost"]//input')->item(0)->getAttribute('value'));
+        }
+        $this->assertNull($item->fresh()->pdprice);
+        $this->assertNull($item->fresh()->vismin_pdprice);
     }
 
     public function test_matrix_save_uses_current_item_fallbacks_for_missing_and_stale_browser_prices()

@@ -96,6 +96,7 @@
 
 @section('content')
 @php
+    $costField = auth()->user()->role === \App\User::ROLE_PROVINCIAL_DISTRIBUTOR ? 'pdprice' : 'dprice';
     $configuredCount = $productItems->filter(function ($product) {
         return $product->status === 'Activate';
     })->count();
@@ -171,7 +172,7 @@
                     @php
                         $product = $productItems[$item->id] ?? null;
                         $sellingPrices = $item->productPriceMatrixFor(auth()->user());
-                        $costPrice = $sellingPrices['dprice'];
+                        $costPrice = $sellingPrices[$costField] ?? $sellingPrices['dprice'];
                         $megaDealerPrice = $sellingPrices['mega_dealer_price'];
                         $dealerPrice = $sellingPrices['dealer_price'];
                         $clientPrice = $sellingPrices['client_price'];
@@ -214,7 +215,7 @@
                         <td class="srp-cell" data-label="Cost">
                             <div class="input-group price-input">
                                 <span class="input-group-text">PHP</span>
-                                <input type="number" class="form-control js-srp" name="items[{{ $index }}][dprice]" value="{{ $costPrice }}" min="0" step="0.01" placeholder="0.00" readonly>
+                                <input type="number" class="form-control js-srp" name="items[{{ $index }}][{{ $costField }}]" value="{{ $costPrice }}" min="0" step="0.01" placeholder="0.00" readonly>
                             </div>
                             <div class="srp-note">Reference only</div>
                         </td>
