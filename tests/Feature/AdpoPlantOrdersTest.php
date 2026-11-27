@@ -264,4 +264,125 @@ class AdpoPlantOrdersTest extends TestCase
         $lubao->access_permissions = json_encode(['purchase_orders' => ['plant' => []]]);
         $this->assertNotContains('Plant Orders', view('ad_purchase_orders.partials.warehouse-sidebar-link', ['sidebarUser' => $lubao])->render());
     }
+
+    public function adSupplierRegions()
+    {
+        return [['Region V (Bicol Region)'], ['Region VII (Central Visayas)'], ['Region XI (Davao Region)']];
+    }
+
+    private function award(User $user, $name)
+    {
+        $profile = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR ? $user->provincialDistributor : $user->ad;
+        return $profile->areas()->create(['area_name' => $name]);
+    }
+
+    private function submitOrder(User $buyer, array $changes = [])
+    {
+        $this->actingAs($buyer);
+        $product = \App\Item::first() ?: \App\Item::create(['item' => '330g LPG Refill', 'status' => 'Activate', 'dprice' => 70, 'pdprice' => 65]);
+        return $this->post(route('ad-purchase-orders.store'), $changes + [
+            'authorized_territory' => 'Area A', 'shipping_type' => 'delivered', 'payment_method' => 'cash',
+            'use_rebate_voucher' => 'no', 'products' => [$product->id => ['selected' => 1, 'qty' => 10]],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+    }
+
+    /** @dataProvider adSupplierRegions */
+    public function test_ad_orders_automatically_use_the_pd_in_the_selected_area_before_the_plant($region)
+    {
+        $buyer = $this->distributor(User::ROLE_AREA_DISTRIBUTOR, $region);
+        $this->award($buyer, 'Area A');
+        $supplier = $this->distributor(User::ROLE_PROVINCIAL_DISTRIBUTOR, 'Region V (Bicol Region)');
+        $this->award($supplier, 'Area A');
+        $unrelated = $this->distributor(User::ROLE_PROVINCIAL_DISTRIBUTOR, $region);
+        $this->award($unrelated, 'Area B');
+        $this->actingAs($buyer);
+        $response = $this->get(route('ad-purchase-orders.create'))->assertOk();
+        $this->assertSame([$supplier->id], $response->viewData('provincialDistributors')->pluck('id')->all());
+        $this->assertSame('provincial_distributor', $response->viewData('selectedOrderSource'));
+        $dom = new \DOMDocument; @$dom->loadHTML($response->getContent()); $xpath = new \DOMXPath($dom);
+        $this->assertSame('provincial_distributor', $xpath->query('//input[@name="order_source"]')->item(0)->getAttribute('value'));
+        $this->assertSame((string) $supplier->id, $xpath->query('//select[@name="provincial_distributor_id"]/option[@selected]')->item(0)->getAttribute('value'));
+        $this->submitOrder($buyer, ['order_source' => 'prei_plant', 'provincial_distributor_id' => $unrelated->id]);
+        $order = AdPurchaseOrder::firstOrFail();
+        $this->assertSame('provincial_distributor', $order->order_source);
+        $this->assertEquals($supplier->id, $order->provincial_distributor_id);
+        $this->assertNull(app(AdpoRouting::class)->warehouseFor($order));
+        $this->actingAs($supplier);
+        $this->get(route('provincial-distributor.purchase-orders'))->assertOk()->assertSee($order->po_number);
+    }
+
+    public function test_ad_supplier_changes_with_the_order_territory_and_falls_back_to_plant_when_uncovered()
+    {
+        $buyer = $this->distributor(User::ROLE_AREA_DISTRIBUTOR, 'Region VII (Central Visayas)');
+        foreach (['Area A', 'Area B', 'Area C'] as $area) $this->award($buyer, $area);
+        $north = $this->distributor(User::ROLE_PROVINCIAL_DISTRIBUTOR, 'Region VII (Central Visayas)');
+        $south = $this->distributor(User::ROLE_PROVINCIAL_DISTRIBUTOR, 'Region VII (Central Visayas)');
+        $this->award($north, 'Area A'); $this->award($south, 'Area B');
+        $this->actingAs($buyer);
+        $response = $this->withSession(['_old_input' => ['authorized_territory' => 'Area B', 'order_source' => 'prei_plant',
+            'provincial_distributor_id' => $north->id]])->get(route('ad-purchase-orders.create'))->assertOk();
+        $this->assertSame('provincial_distributor', $response->viewData('selectedOrderSource'));
+        $this->assertEquals($south->id, $response->viewData('selectedProvincialDistributorId'));
+        $this->assertSame(['Area A'], $response->viewData('provincialDistributorAreas')->get($north->id));
+        $this->submitOrder($buyer, ['authorized_territory' => 'Area B', 'provincial_distributor_id' => $north->id]);
+        $this->assertEquals($south->id, AdPurchaseOrder::orderByDesc('id')->first()->provincial_distributor_id);
+        $this->submitOrder($buyer, ['authorized_territory' => 'Area C', 'order_source' => 'provincial_distributor', 'provincial_distributor_id' => $south->id]);
+        $order = AdPurchaseOrder::orderByDesc('id')->first();
+        $this->assertSame('prei_plant', $order->order_source);
+        $this->assertNull($order->provincial_distributor_id);
+    }
+
+    public function test_inactive_disengaged_deleted_and_personnel_profiles_cannot_be_automatic_suppliers()
+    {
+        $buyer = $this->distributor(User::ROLE_AREA_DISTRIBUTOR, 'Region VII (Central Visayas)');
+        $this->award($buyer, 'Area A');
+        foreach (['inactive', 'disengaged', 'deleted', 'personnel', 'stale_legacy'] as $type) {
+            $supplier = $this->distributor(User::ROLE_PROVINCIAL_DISTRIBUTOR, 'Region VII (Central Visayas)');
+            $award = $this->award($supplier, $type === 'stale_legacy' ? 'Area B' : 'Area A');
+            if ($type === 'inactive') $supplier->provincialDistributor->update(['status' => 'Inactive']);
+            if ($type === 'disengaged') $award->delete();
+            if ($type === 'deleted') $supplier->provincialDistributor->delete();
+            if ($type === 'personnel') $supplier->forceFill(['is_distributor_personnel' => true])->save();
+            if (in_array($type, ['deleted', 'stale_legacy'], true)) {
+                AreaDistributor::create(['user_id' => $supplier->id, 'status' => 'Active'])->areas()->create(['area_name' => 'Area A']);
+            }
+        }
+        $this->actingAs($buyer);
+        $response = $this->get(route('ad-purchase-orders.create'))->assertOk();
+        $this->assertCount(0, $response->viewData('provincialDistributors'));
+        $this->submitOrder($buyer, ['order_source' => 'provincial_distributor', 'provincial_distributor_id' => $supplier->id]);
+        $this->assertSame('prei_plant', AdPurchaseOrder::firstOrFail()->order_source);
+    }
+
+    public function test_legacy_pd_areas_still_route_orders_and_region_v_without_a_pd_keeps_the_warehouse()
+    {
+        $buyer = $this->distributor(User::ROLE_AREA_DISTRIBUTOR, 'Region V (Bicol Region)');
+        $this->award($buyer, 'Area A');
+        $this->submitOrder($buyer, ['order_source' => 'prei_plant']);
+        $this->assertSame('prei_warehouse', AdPurchaseOrder::firstOrFail()->order_source);
+        $legacy = User::create(['role' => User::ROLE_PROVINCIAL_DISTRIBUTOR, 'name' => 'Legacy PD']);
+        AreaDistributor::create(['user_id' => $legacy->id, 'status' => 'Active'])->areas()->create(['area_name' => 'Area A']);
+        $this->submitOrder($buyer, ['order_source' => 'prei_warehouse']);
+        $order = AdPurchaseOrder::orderByDesc('id')->first();
+        $this->assertSame('provincial_distributor', $order->order_source);
+        $this->assertEquals($legacy->id, $order->provincial_distributor_id);
+    }
+
+    public function test_pd_pickup_remains_editable_without_a_plant_pickup_discount()
+    {
+        $buyer = $this->distributor(User::ROLE_AREA_DISTRIBUTOR, 'Region VII (Central Visayas)');
+        $this->award($buyer, 'Area A');
+        $supplier = $this->distributor(User::ROLE_PROVINCIAL_DISTRIBUTOR, 'Region VII (Central Visayas)');
+        $this->award($supplier, 'Area A');
+        $this->submitOrder($buyer, ['shipping_type' => 'pickup_lubao']);
+        $order = AdPurchaseOrder::with('items')->firstOrFail();
+        $this->assertSame('pickup', $order->shipping_type);
+        $this->assertEquals(0, $order->pickup_discount);
+        $this->get(route('ad-purchase-orders.edit', $order->id))->assertOk()->assertSee('Pick Up — Provincial Distributor');
+        $this->patch(route('ad-purchase-orders.update', $order->id), ['shipping_type' => 'pickup', 'payment_method' => 'cash',
+            'authorized_territory' => 'Area A', 'items' => [$order->items->first()->id => ['qty' => 8]],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame('pickup', $order->fresh()->shipping_type);
+        $this->assertEquals($supplier->id, $order->fresh()->provincial_distributor_id);
+    }
 }
