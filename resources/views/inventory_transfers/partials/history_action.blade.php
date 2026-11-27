@@ -8,8 +8,6 @@
 <button
     type="button"
     class="btn btn-sm btn-outline-primary js-view-movement"
-    data-toggle="modal"
-    data-target="#movementDetailsModal"
     data-date="{{ $movement->transfer_date ? $movement->transfer_date->format('M d, Y') : '-' }}"
     data-type="{{ strtoupper($movement->movement_type) }}"
     data-reason="{{ $movement->out_type ?: '-' }}"

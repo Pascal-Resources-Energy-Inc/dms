@@ -175,11 +175,20 @@ class ProvincialDistributorController extends Controller
     {
         $profile = ProvincialDistributor::with('userAds')->findOrFail($id);
         $businessDetails = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
             'nature_of_business' => ['required', 'string', Rule::in(config('distributors.natures_of_business'))],
         ], [
             'nature_of_business.required' => 'Please select the nature of business.',
             'nature_of_business.in' => 'Please choose a nature of business from the available options.',
         ]);
+        $fullName = trim(collect([
+            $businessDetails['first_name'],
+            $businessDetails['middle_name'] ?? null,
+            $businessDetails['last_name'],
+        ])->filter()->implode(' '));
+        $request->merge(['name' => $fullName]);
         $data = $this->validateProfile($request, $profile);
         $projectAreaChanges = $request->has('sync_project_areas')
             ? app(DistributorProjectAreas::class)->validate($request, $profile)
@@ -193,12 +202,6 @@ class ProvincialDistributorController extends Controller
         DB::beginTransaction();
 
         try {
-            $fullName = trim(collect([
-                $request->first_name,
-                $request->middle_name,
-                $request->last_name,
-            ])->filter()->implode(' ')) ?: $data['name'];
-
             if ($profile->userAds) {
                 User::whereKey($profile->user_id)->update([
                     'name' => $fullName,

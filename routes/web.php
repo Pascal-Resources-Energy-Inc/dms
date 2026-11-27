@@ -95,6 +95,7 @@ Route::post('/products/bulk-update', 'ProductController@storeBulk')
 // Inventory Transfer
 Route::get('/inventory-transfers', 'InventoryTransferController@index')->name('inventory-transfers.index');
 Route::get('/inventory-transfers/data', 'InventoryTransferController@movementHistoryData')->name('inventory-transfers.data');
+Route::get('/inventory-transfers/stock-data', 'InventoryTransferController@stockBalancesData')->name('inventory-transfers.stock-data');
 Route::post('/inventory-transfers', 'InventoryTransferController@store')->name('inventory-transfers.store');
 Route::delete('/inventory-transfers/{id}', 'InventoryTransferController@destroy')->name('inventory-transfers.destroy');
 Route::get('/warehouse/pull-out-requests', 'InventoryTransferController@warehousePullOuts')->name('warehouse-pull-outs.index');
@@ -190,6 +191,8 @@ Route::patch('/ad-purchase-orders/{id}', 'AdPurchaseOrderController@update')->na
 Route::post('/ad-purchase-orders/products/{item}/favorite', 'AdPurchaseOrderController@toggleFavoriteProduct')->name('ad-purchase-orders.products.favorite');
 Route::get('/warehouse/ad-purchase-orders/region-v', 'AdPurchaseOrderController@regionVWarehouseIndex')->name('warehouse-ad-purchase-orders.region-v');
 Route::get('/warehouse/ad-purchase-orders/region-v/export', 'AdPurchaseOrderController@exportRegionVWarehouse')->name('warehouse-ad-purchase-orders.region-v.export');
+Route::get('/warehouse/ad-purchase-orders/plant', 'AdPurchaseOrderController@plantWarehouseIndex')->name('warehouse-ad-purchase-orders.plant');
+Route::get('/warehouse/ad-purchase-orders/plant/export', 'AdPurchaseOrderController@exportPlantWarehouse')->name('warehouse-ad-purchase-orders.plant.export');
 Route::get('/provincial-distributor/purchase-orders', 'AdPurchaseOrderController@provincialDistributorOrders')->name('provincial-distributor.purchase-orders');
 Route::get('/ad-purchase-orders/{id}', 'AdPurchaseOrderController@show')->name('ad-purchase-orders.show');
 Route::patch('/ad-purchase-orders/{id}/status', 'AdPurchaseOrderController@updateStatus')->name('ad-purchase-orders.updateStatus');

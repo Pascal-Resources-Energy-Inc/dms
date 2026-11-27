@@ -13,6 +13,7 @@ use App\Item;
 use App\Product;
 use App\OrderDetail;
 use App\Services\DistributorProjectAreas;
+use App\Services\DealerQuantities;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -629,10 +630,11 @@ class AreaDistributorController extends Controller
     public function myDealer(Request $request)
     {
         $user = auth()->user();
-        $user->loadMissing('ad.areas.distributor');
+        $profile = $user->role === User::ROLE_PROVINCIAL_DISTRIBUTOR ? $user->provincialDistributor : $user->ad;
+        if ($profile) $profile->loadMissing('areas.distributor');
 
-        $assignedAreaAds = $user->ad
-            ? $user->ad->areas
+        $assignedAreaAds = $profile
+            ? $profile->areas
                 ->filter(function ($area) {
                     return filled($area->area_name);
                 })
@@ -654,22 +656,10 @@ class AreaDistributorController extends Controller
             ->where('status', 'Pending')
             ->count();
 
-        $localDealers = Dealer::where('dealer_reference', 'LIKE', 'DL%')->with([
-            'orders' => function ($q) {
-                $q->where('status', 'Completed')->select('dealer_id', 'item', \DB::raw('SUM(qty) as total_qty'))
-                ->groupBy('dealer_id', 'item');
-            },
-            'sales' => function ($q) {
-                $q->select('dealer_id', 'item', \DB::raw('SUM(qty) as total_qty'))
-                ->groupBy('dealer_id', 'item');
-            }
-        ])->whereIn('area', $areaNames)->get()->toBase();
-        $localDealers = $localDealers->map(function ($dealer) {
-            $dealer->stock_qty = (float) $dealer->orders->sum('total_qty');
-            $dealer->sold_qty = (float) $dealer->sales->sum('total_qty');
-
-            return $dealer;
-        });
+        $localDealerQuery = Dealer::where('dealer_reference', 'LIKE', 'DL%')
+            ->whereIn('area', $areaNames)->select('dealers.*');
+        $localDealers = (new DealerQuantities)->addTo($localDealerQuery, config('database.default'), 'dealers', 'dealers')
+            ->get()->toBase();
 
         $crmDealers = $this->adCrmDealers($areaNames);
         $dealers = $localDealers
@@ -736,14 +726,9 @@ class AreaDistributorController extends Controller
                     $dealers->whereNull('deleted_at');
                 }
 
+                $dealers = (new DealerQuantities)->addTo($dealers->select('dealers.*'), $connection, 'dealers', 'dealers');
                 return $dealers->get()->map(function ($dealer) use ($connection, $label) {
-                    $dealer = $this->normalizeAdCrmDealer($dealer, $connection, $label);
-                    $dealer->orders = $this->adCrmDealerItemTotals($connection, 'order_details', $dealer, true);
-                    $dealer->sales = $this->adCrmDealerItemTotals($connection, 'transaction_details', $dealer, false);
-                    $dealer->stock_qty = (float) $dealer->orders->sum('total_qty');
-                    $dealer->sold_qty = (float) $dealer->sales->sum('total_qty');
-
-                    return $dealer;
+                    return $this->normalizeAdCrmDealer($dealer, $connection, $label);
                 });
             } catch (\Exception $exception) {
                 return collect();
@@ -774,75 +759,11 @@ class AreaDistributorController extends Controller
         $dealer->area = $dealer->area ?? ($dealer->sales_territory ?? '-');
         $dealer->status = ucfirst(strtolower((string) ($dealer->status ?? 'Active')));
         $dealer->user_id = $dealer->user_id ?? null;
+        $dealer->stock_qty = (float) $dealer->stock_qty;
+        $dealer->sold_qty = (float) $dealer->sold_qty;
+        $dealer->remaining_qty = (float) $dealer->remaining_qty;
 
         return $dealer;
-    }
-
-    private function adCrmDealerItemTotals($connection, $table, $dealer, $completedOnly)
-    {
-        try {
-            $schema = DB::connection($connection)->getSchemaBuilder();
-
-            if (
-                !$schema->hasTable($table)
-            ) {
-                return collect();
-            }
-
-            $qtyColumn = collect(['qty', 'quantity'])->first(function ($column) use ($schema, $table) {
-                return $schema->hasColumn($table, $column);
-            });
-
-            if (!$qtyColumn) {
-                return collect();
-            }
-
-            $itemColumn = collect(['item', 'product_name', 'product'])->first(function ($column) use ($schema, $table) {
-                return $schema->hasColumn($table, $column);
-            });
-
-            if (!$itemColumn) {
-                return collect();
-            }
-
-            $dealerIds = collect([$dealer->user_id ?? null, $dealer->id ?? null])
-                ->filter()
-                ->unique()
-                ->values();
-
-            if ($dealerIds->isEmpty()) {
-                return collect();
-            }
-
-            $query = DB::connection($connection)->table($table)
-                ->select($itemColumn . ' as item', DB::raw('SUM(' . $qtyColumn . ') as total_qty'))
-                ->groupBy($itemColumn);
-
-            if ($schema->hasColumn($table, 'dealer_id') && $schema->hasColumn($table, 'user_id')) {
-                $query->where(function ($inner) use ($dealerIds) {
-                    $inner->whereIn('dealer_id', $dealerIds)
-                        ->orWhereIn('user_id', $dealerIds);
-                });
-            } elseif ($schema->hasColumn($table, 'dealer_id')) {
-                $query->whereIn('dealer_id', $dealerIds);
-            } elseif ($schema->hasColumn($table, 'user_id')) {
-                $query->whereIn('user_id', $dealerIds);
-            } else {
-                return collect();
-            }
-
-            if ($completedOnly && $schema->hasColumn($table, 'status')) {
-                $query->where('status', 'Completed');
-            }
-
-            if ($schema->hasColumn($table, 'deleted_at')) {
-                $query->whereNull('deleted_at');
-            }
-
-            return $query->get();
-        } catch (\Exception $exception) {
-            return collect();
-        }
     }
 
     private function adCrmProducts()

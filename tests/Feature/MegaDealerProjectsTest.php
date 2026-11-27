@@ -122,6 +122,104 @@ class MegaDealerProjectsTest extends TestCase
         return [['regular'], ['admin_crms'], ['admin_crms2']];
     }
 
+    private function sourceDatabase($source)
+    {
+        return DB::connection($source === 'regular' ? 'mega_test' : $source);
+    }
+
+    /** @dataProvider sources */
+    public function test_stock_sold_and_remaining_use_completed_active_records_for_admin_and_distributor($source)
+    {
+        $db = $this->sourceDatabase($source);
+        $db->statement('ALTER TABLE order_details ADD COLUMN deleted_at TEXT');
+        $db->statement('ALTER TABLE transaction_details ADD COLUMN deleted_at TEXT');
+        $db->statement('ALTER TABLE transaction_details ADD COLUMN status TEXT');
+        $db->table('order_details')->insert([
+            ['dealer_id' => 10, 'qty' => 40, 'status' => 'Cancelled', 'deleted_at' => null],
+            ['dealer_id' => 10, 'qty' => 50, 'status' => 'Completed', 'deleted_at' => '2026-11-01'],
+        ]);
+        $db->table('transaction_details')->insert([
+            ['dealer_id' => 10, 'qty' => 2, 'status' => 'Completed', 'deleted_at' => null],
+            ['dealer_id' => 10, 'qty' => 8, 'status' => 'Pending', 'deleted_at' => null],
+            ['dealer_id' => 10, 'qty' => 9, 'status' => 'Cancelled', 'deleted_at' => null],
+            ['dealer_id' => 10, 'qty' => 10, 'status' => 'Completed', 'deleted_at' => '2026-11-01'],
+        ]);
+        foreach (['Area Distributor', 'Admin'] as $role) {
+            $this->actingAs($role === 'Admin' ? new User(['role' => 'Admin']) : auth()->user());
+            $row = $this->data($source)['data'][0];
+            $this->assertContains('>5</span>', $row['stock_qty']);
+            $this->assertContains('>5</span>', $row['sold_qty']);
+            $this->assertContains('>0</span>', $row['remaining_qty']);
+        }
+    }
+
+    public function dedicatedSources()
+    {
+        return [['regular'], ['admin_crms']];
+    }
+
+    /** @dataProvider dedicatedSources */
+    public function test_supplier_order_link_counts_as_sold_and_buyer_user_link_counts_as_stock($source)
+    {
+        $db = $this->sourceDatabase($source);
+        $db->statement('ALTER TABLE order_details ADD COLUMN mega_dealer_id INTEGER');
+        $db->statement('ALTER TABLE order_details ADD COLUMN mega_dealer_source TEXT');
+        $db->statement('ALTER TABLE order_details ADD COLUMN deleted_at TEXT');
+        $origin = $db->getName();
+        $db->table('order_details')->insert([
+            ['dealer_id' => 30, 'mega_dealer_id' => 1, 'mega_dealer_source' => null, 'qty' => 2, 'status' => 'Completed', 'deleted_at' => null],
+            ['dealer_id' => 40, 'mega_dealer_id' => 1, 'mega_dealer_source' => $origin, 'qty' => 4, 'status' => 'Completed', 'deleted_at' => null],
+            ['dealer_id' => 40, 'mega_dealer_id' => 1, 'mega_dealer_source' => 'another_database', 'qty' => 100, 'status' => 'Completed', 'deleted_at' => null],
+            ['dealer_id' => 10, 'mega_dealer_id' => 2, 'mega_dealer_source' => $origin, 'qty' => 7, 'status' => 'Completed', 'deleted_at' => null],
+            ['dealer_id' => 20, 'mega_dealer_id' => 1, 'mega_dealer_source' => null, 'qty' => 9, 'status' => 'Pending', 'deleted_at' => null],
+            ['dealer_id' => 20, 'mega_dealer_id' => 1, 'mega_dealer_source' => null, 'qty' => 50, 'status' => 'Completed', 'deleted_at' => '2026-11-01'],
+        ]);
+        $this->actingAs(new User(['role' => 'Admin']));
+        $row = $this->data($source)['data'][0];
+        $this->assertContains('>12</span>', $row['stock_qty']);
+        $this->assertContains('>9</span>', $row['sold_qty']);
+        $this->assertContains('>3</span>', $row['remaining_qty']);
+    }
+
+    public function test_explicit_and_legacy_retail_seller_links_do_not_mix_profile_and_user_ids()
+    {
+        $db = $this->sourceDatabase('admin_crms');
+        $db->statement('ALTER TABLE transaction_details ADD COLUMN mega_dealer_id INTEGER');
+        $db->statement('ALTER TABLE transaction_details ADD COLUMN mega_dealer_source TEXT');
+        $db->table('transaction_details')->insert([
+            ['dealer_id' => 999, 'mega_dealer_id' => 1, 'mega_dealer_source' => 'admin_crms', 'qty' => 2],
+            ['dealer_id' => 10, 'mega_dealer_id' => 2, 'mega_dealer_source' => null, 'qty' => 9],
+            ['dealer_id' => 10, 'mega_dealer_id' => 1, 'mega_dealer_source' => 'another_database', 'qty' => 500],
+        ]);
+        $row = $this->data('admin_crms')['data'][0];
+        $this->assertContains('>5</span>', $row['stock_qty']);
+        $this->assertContains('>5</span>', $row['sold_qty']);
+        $this->assertContains('>0</span>', $row['remaining_qty']);
+    }
+
+    /** @dataProvider sources */
+    public function test_remaining_stock_can_be_sorted_and_paginated_on_the_server($source)
+    {
+        $this->actingAs(new User(['role' => 'Admin']));
+        $row = $this->data($source, ['length' => 1, 'start' => 1,
+            'columns' => [['data' => 'remaining_qty', 'name' => 'remaining_qty', 'searchable' => 'false']],
+            'order' => [['column' => 0, 'dir' => 'asc']],
+        ])['data'][0];
+        $this->assertContains('NORTH MEGA', $row['name']);
+        $this->assertContains('>2</span>', $row['remaining_qty']);
+    }
+
+    public function test_remaining_stock_displays_a_deficit_without_hiding_missing_stock_history()
+    {
+        $db = $this->sourceDatabase('admin_crms');
+        $db->table('order_details')->update(['status' => 'Pending']);
+        $row = $this->data('admin_crms')['data'][0];
+        $this->assertContains('>0</span>', $row['stock_qty']);
+        $this->assertContains('>3</span>', $row['sold_qty']);
+        $this->assertContains('is-deficit', $row['remaining_qty']);
+        $this->assertContains('>-3</span>', $row['remaining_qty']);
+    }
+
     /** @dataProvider sources */
     public function test_each_source_returns_only_mega_dealers_in_assigned_areas($source)
     {
@@ -132,6 +230,8 @@ class MegaDealerProjectsTest extends TestCase
         $this->assertNotContains('SOUTH', json_encode($json));
         $this->assertNotContains('Ordinary Dealer', json_encode($json));
         $this->assertContains('>5</span>', $json['data'][0]['stock_qty']);
+        $this->assertContains('>3</span>', $json['data'][0]['sold_qty']);
+        $this->assertContains('>2</span>', $json['data'][0]['remaining_qty']);
     }
 
     public function test_search_and_pagination_work_for_project_records()
@@ -220,5 +320,7 @@ class MegaDealerProjectsTest extends TestCase
         }
         $this->assertContains('serverSide: true', $html);
         $this->assertContains('request.source = activeDealerType', $html);
+        $this->assertContains('Remaining Stock</th>', $html);
+        $this->assertContains("{data: 'remaining_qty'", $html);
     }
 }

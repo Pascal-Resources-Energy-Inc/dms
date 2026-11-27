@@ -288,11 +288,9 @@ class HomeController extends Controller
     {
         $warehouse = strtolower((string) $user->warehouse);
         $orders = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'ad'])
+            ->forWarehouse($warehouse)
             ->orderByDesc('id')
             ->get()
-            ->filter(function ($order) use ($warehouse) {
-                return $this->orderBelongsToWarehouse($order, $warehouse);
-            })
             ->values();
 
         $activeStatuses = ['Pending', 'SO Created', 'For Delivery', 'Partial Received'];
@@ -332,7 +330,7 @@ class HomeController extends Controller
             'warehouse_label' => ucwords(str_replace('_', ' ', $warehouse)),
             'orders_url' => $warehouse === 'guinobatan'
                 ? route('warehouse-ad-purchase-orders.region-v')
-                : route('ad-purchase-orders.index'),
+                : route('warehouse-ad-purchase-orders.plant'),
             'report_url' => route('dpo'),
             'inventory_url' => route('isl'),
             'generated_at' => now()->format('M d, Y h:i A'),
@@ -355,57 +353,6 @@ class HomeController extends Controller
             'recent_orders' => $orders->take(8)->values(),
             'pending_confirmation_receipts' => $pendingConfirmationReceipts->take(8)->values(),
         ];
-    }
-
-    private function orderBelongsToWarehouse(AdPurchaseOrder $order, $warehouse)
-    {
-        if ($warehouse === 'guinobatan') {
-            return $order->shipping_type === 'pickup_guinobatan'
-                || $this->isRegionVText(
-                    $order->delivery_address,
-                    optional($order->ad)->delivery_address,
-                    optional($order->ad)->location_region
-                );
-        }
-
-        if ($warehouse === 'lubao') {
-            return $order->shipping_type === 'pickup_lubao'
-                || (
-                    $order->shipping_type === 'delivered'
-                    && !$this->isRegionVText(
-                        $order->delivery_address,
-                        optional($order->ad)->delivery_address,
-                        optional($order->ad)->location_region
-                    )
-                );
-        }
-
-        return true;
-    }
-
-    private function isRegionVText(...$values)
-    {
-        $regionText = strtolower(implode(' ', array_filter($values)));
-
-        foreach ([
-            'region v',
-            'region 5',
-            'region-5',
-            'region-v',
-            'bicol',
-            'albay',
-            'camarines norte',
-            'camarines sur',
-            'catanduanes',
-            'masbate',
-            'sorsogon',
-        ] as $needle) {
-            if (strpos($regionText, $needle) !== false) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public function liveOverview(Request $request)

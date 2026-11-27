@@ -230,6 +230,10 @@
 @section('content')
 @php
     $profile = $orderProfile ?? ($ad ?: auth()->user());
+    $warehouseOrderSource = $warehouseOrderSource ?? app(\App\Services\AdpoRouting::class)->sourceFor(auth()->user());
+    $isPlantOrder = $isPlantOrder ?? (auth()->user()->hasAreaDistributorAccess() && $warehouseOrderSource === 'prei_plant');
+    $lockOrderSource = $lockOrderSource ?? (($isProvincialDistributor ?? false) || $isPlantOrder);
+    $selectedOrderSource = $lockOrderSource ? $warehouseOrderSource : old('order_source', $selectedOrderSource);
     $territoryOptions = collect($territoryOptions ?? [])->map(function ($territory) {
         if (is_array($territory)) {
             return $territory;
@@ -269,6 +273,7 @@
     if ($selectedShippingType === 'pickup_lubao' && !$showPickupLubao) {
         $selectedShippingType = 'delivered';
     }
+    if ($selectedShippingType === 'pickup_guinobatan' && $isPlantOrder) $selectedShippingType = 'delivered';
 @endphp
 
 <form action="{{ route('ad-purchase-orders.store') }}" method="POST" id="adpoForm">
@@ -319,19 +324,23 @@
                         <div class="adpo-info-grid">
                             <div class="adpo-field-span">
                                 <label class="form-label" for="orderSource">Order From <span class="text-danger">*</span></label>
-                                @if($isProvincialDistributor ?? false)
-                                    <input type="hidden" name="order_source" value="prei_warehouse">
-                                    <div class="form-control bg-light d-flex align-items-center gap-2"><i class="bi bi-building"></i><strong>PREI Warehouse</strong></div>
-                                    <small class="text-muted d-block mt-1">Provincial Distributor replenishment orders are supplied by PREI Warehouse.</small>
+                                @if($lockOrderSource)
+                                    <input type="hidden" name="order_source" value="{{ $warehouseOrderSource }}">
+                                    <div class="form-control bg-light d-flex align-items-center gap-2 py-3" aria-label="Order source">
+                                        <i class="bi bi-building" aria-hidden="true"></i>
+                                        <div><strong>{{ $isPlantOrder ? 'PREI Plant' : 'PREI Warehouse' }}</strong></div>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">{{ $isPlantOrder ? 'Orders from distributors outside Region V are fulfilled by PREI Plant in Lubao.' : 'Provincial Distributor replenishment orders are supplied by PREI Warehouse.' }}</small>
                                 @else
                                     <select id="orderSource" name="order_source" class="form-select">
-                                        <option value="prei_warehouse" {{ old('order_source', $selectedOrderSource) === 'prei_warehouse' ? 'selected' : '' }}>PREI Warehouse</option>
-                                        <option value="provincial_distributor" {{ old('order_source', $selectedOrderSource) === 'provincial_distributor' ? 'selected' : '' }}>Provincial Distributor</option>
+                                        <option value="prei_warehouse" {{ $selectedOrderSource === 'prei_warehouse' ? 'selected' : '' }}>PREI Warehouse</option>
+                                        @if($isAdmin)<option value="prei_plant" {{ $selectedOrderSource === 'prei_plant' ? 'selected' : '' }}>PREI Plant — Lubao</option>@endif
+                                        <option value="provincial_distributor" {{ $selectedOrderSource === 'provincial_distributor' ? 'selected' : '' }}>Provincial Distributor</option>
                                     </select>
                                     <small class="text-muted d-block mt-1">Choose the source that will supply this order.</small>
                                 @endif
                             </div>
-                            <div class="adpo-field-span {{ old('order_source', $selectedOrderSource) === 'provincial_distributor' ? '' : 'd-none' }}" id="provincialDistributorWrap">
+                            <div class="adpo-field-span {{ $selectedOrderSource === 'provincial_distributor' ? '' : 'd-none' }}" id="provincialDistributorWrap">
                                 <label class="form-label" for="provincialDistributorId">Supplying Provincial Distributor <span class="text-danger">*</span></label>
                                 <select id="provincialDistributorId" name="provincial_distributor_id" class="form-select">
                                     @if($provincialDistributors->isEmpty())
@@ -419,12 +428,14 @@
                                         </label>
                                     </div>
                                 @endif
+                                @if(!$isPlantOrder)
                                 <div class="col-sm-6">
                                     <label class="adpo-option">
                                         <input type="radio" name="shipping_type" value="pickup_guinobatan" required @if($selectedShippingType === 'pickup_guinobatan') checked @endif>
                                         <span><strong>Pick Up</strong><small>Pick Up in Guinobatan Warehouse</small></span>
                                     </label>
                                 </div>
+                                @endif
                             </div>
                             {{-- <label class="form-label mt-3">Delivery Fee</label>
                             <input type="number" name="delivery_fee" id="deliveryFee" class="form-control" min="0" step="0.01" value="{{ old('delivery_fee', 0) }}"> --}}

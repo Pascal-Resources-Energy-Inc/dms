@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\AdPurchaseOrder;
 use App\AdpoTaxCertificate;
 use App\Services\AdpoTaxService;
+use App\Services\AdpoRouting;
 use App\AdPurchaseOrderPartialReceipt;
 use App\InventoryTransfer;
 use App\Exports\AdPurchaseOrdersExport;
@@ -120,14 +121,26 @@ class AdPurchaseOrderController extends Controller
 
     public function regionVWarehouseIndex(Request $request)
     {
+        return $this->warehouseOrderIndex($request, 'guinobatan');
+    }
+
+    public function plantWarehouseIndex(Request $request)
+    {
+        return $this->warehouseOrderIndex($request, 'lubao');
+    }
+
+    private function warehouseOrderIndex(Request $request, $warehouse)
+    {
         $user = auth()->user();
 
-        if ($user->role !== 'Admin' || strtolower((string) $user->warehouse) !== 'guinobatan') {
+        if ($user->role !== 'Admin' || strtolower(trim((string) $user->warehouse)) !== $warehouse) {
             abort(403);
         }
 
-        $orders = $this->regionVFilteredOrderQuery($request)->get();
-        $favoriteOrders = $this->regionVFilteredOrderQuery($request, false)->get();
+        $orders = $this->adpoIndexQuery($request)->get();
+        $favoriteOrders = $this->adpoIndexQuery($request, false)->get();
+        $isPlant = $warehouse === 'lubao';
+        $deskRoute = $isPlant ? 'warehouse-ad-purchase-orders.plant' : 'warehouse-ad-purchase-orders.region-v';
 
         $summary = [
             'total' => $orders->count(),
@@ -156,29 +169,41 @@ class AdPurchaseOrderController extends Controller
             'orders' => $orders,
             'summary' => $summary,
             'favoriteSummary' => $favoriteSummary,
-            'pageTitle' => 'Purchase Orders',
-            'pageSubtitle' => 'Guinobatan warehouse module for DPO deliveries in Region V / Bicol.',
+            'pageTitle' => $isPlant ? 'Plant Orders' : 'Region V Warehouse Orders',
+            'pageSubtitle' => $isPlant
+                ? 'Review and fulfill distributor purchase orders supplied by PREI Plant in Lubao.'
+                : 'Guinobatan warehouse module for DPO deliveries in Region V / Bicol.',
             'panelTitle' => 'Purchase Order History',
             'showCreateButton' => false,
-            'clearRoute' => route('warehouse-ad-purchase-orders.region-v'),
-            'exportRoute' => route('warehouse-ad-purchase-orders.region-v.export', request()->query()),
+            'clearRoute' => route($deskRoute),
+            'exportRoute' => route($deskRoute . '.export', request()->query()),
             'viewRouteName' => 'ad-purchase-orders.show',
         ]);
     }
 
     public function exportRegionVWarehouse(Request $request)
     {
+        return $this->exportWarehouseOrders($request, 'guinobatan');
+    }
+
+    public function exportPlantWarehouse(Request $request)
+    {
+        return $this->exportWarehouseOrders($request, 'lubao');
+    }
+
+    private function exportWarehouseOrders(Request $request, $warehouse)
+    {
         $user = auth()->user();
 
-        if ($user->role !== 'Admin' || strtolower((string) $user->warehouse) !== 'guinobatan') {
+        if ($user->role !== 'Admin' || strtolower(trim((string) $user->warehouse)) !== $warehouse) {
             abort(403);
         }
 
-        $orders = $this->regionVFilteredOrderQuery($request)->get();
+        $orders = $this->adpoIndexQuery($request)->get();
 
         return Excel::download(
             new AdPurchaseOrdersExport($orders),
-            'region-v-ad-purchase-orders-' . now()->format('Ymd-His') . '.xlsx'
+            ($warehouse === 'lubao' ? 'plant-orders-' : 'region-v-ad-purchase-orders-') . now()->format('Ymd-His') . '.xlsx'
         );
     }
 
@@ -233,7 +258,7 @@ class AdPurchaseOrderController extends Controller
     {
         $user = auth()->user();
 
-        return AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad', 'provincialDistributor'])
+        return AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad', 'provincialDistributor', 'distributorUser.ad', 'distributorUser.provincialDistributor'])
             ->when($user->role !== 'Admin', function ($query) use ($user, $includeSuppliedOrders) {
                 $query->where(function ($accessQuery) use ($user, $includeSuppliedOrders) {
                     $accessQuery->where('ad_user_id', $user->id);
@@ -242,8 +267,8 @@ class AdPurchaseOrderController extends Controller
                     }
                 });
             })
-            ->when($user->role === 'Admin' && filled($user->warehouse), function ($query) {
-                $query->where('order_source', 'prei_warehouse');
+            ->when($user->role === 'Admin' && filled($user->warehouse), function ($query) use ($user) {
+                $query->forWarehouse($user->warehouse);
             })
             ->when($applyStatus && $request->filled('status'), function ($query) use ($request) {
                 $query->where('status', $request->status);
@@ -255,7 +280,11 @@ class AdPurchaseOrderController extends Controller
                 $query->where('payment_method', $request->payment_method);
             })
             ->when($request->filled('order_source'), function ($query) use ($request) {
-                $query->where('order_source', $request->order_source);
+                if (in_array($request->order_source, [AdpoRouting::WAREHOUSE, AdpoRouting::PLANT], true)) {
+                    $query->forWarehouse($request->order_source === AdpoRouting::PLANT ? 'lubao' : 'guinobatan');
+                } else {
+                    $query->where('order_source', $request->order_source);
+                }
             })
             ->when($request->filled('date_from'), function ($query) use ($request) {
                 $query->whereDate('submitted_at', '>=', $request->date_from);
@@ -268,43 +297,11 @@ class AdPurchaseOrderController extends Controller
                 $query->where(function ($inner) use ($search) {
                     $inner->where('po_number', 'like', '%' . $search . '%')
                         ->orWhere('business_name', 'like', '%' . $search . '%')
-                        ->orWhere('authorized_territory', 'like', '%' . $search . '%')
-                        ->orWhereHas('ad', function ($adQuery) use ($search) {
-                            $adQuery->where('name', 'like', '%' . $search . '%')
-                                ->orWhere('business_name', 'like', '%' . $search . '%');
-                        });
-                });
-            })
-            ->orderBy('id', 'desc');
-    }
-
-    private function regionVFilteredOrderQuery(Request $request, $applyStatus = true)
-    {
-        return $this->regionVOrderQuery()
-            ->with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad'])
-            ->where('order_source', 'prei_warehouse')
-            ->when($applyStatus && $request->filled('status'), function ($query) use ($request) {
-                $query->where('status', $request->status);
-            })
-            ->when($request->filled('shipping_type'), function ($query) use ($request) {
-                $query->where('shipping_type', $request->shipping_type);
-            })
-            ->when($request->filled('payment_method'), function ($query) use ($request) {
-                $query->where('payment_method', $request->payment_method);
-            })
-            ->when($request->filled('date_from'), function ($query) use ($request) {
-                $query->whereDate('submitted_at', '>=', $request->date_from);
-            })
-            ->when($request->filled('date_to'), function ($query) use ($request) {
-                $query->whereDate('submitted_at', '<=', $request->date_to);
-            })
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $search = $request->search;
-                $query->where(function ($inner) use ($search) {
-                    $inner->where('po_number', 'like', '%' . $search . '%')
-                        ->orWhere('business_name', 'like', '%' . $search . '%')
-                        ->orWhere('authorized_territory', 'like', '%' . $search . '%')
                         ->orWhere('delivery_address', 'like', '%' . $search . '%')
+                        ->orWhere('authorized_territory', 'like', '%' . $search . '%')
+                        ->orWhereHas('distributorUser', function ($buyerQuery) use ($search) {
+                            $buyerQuery->where('name', 'like', '%' . $search . '%');
+                        })
                         ->orWhereHas('ad', function ($adQuery) use ($search) {
                             $adQuery->where('name', 'like', '%' . $search . '%')
                                 ->orWhere('business_name', 'like', '%' . $search . '%');
@@ -335,6 +332,10 @@ class AdPurchaseOrderController extends Controller
         }
 
         $orderProfile = $this->purchaseOrderProfile($user);
+        $warehouseOrderSource = app(AdpoRouting::class)->sourceFor($user);
+        $isPlantOrder = $user->hasAreaDistributorAccess() && $warehouseOrderSource === AdpoRouting::PLANT;
+        $lockOrderSource = $isProvincialDistributor || $isPlantOrder;
+        if ($lockOrderSource) $selectedOrderSource = $warehouseOrderSource;
         $territoryOptions = $this->territoryOptions($orderProfile);
         $provincialDistributors = $this->provincialDistributorQueryFor($user, $ad)
             ->orderBy('name')
@@ -384,14 +385,7 @@ class AdPurchaseOrderController extends Controller
                 return (int) $id;
             })
             ->all();
-        $showPickupLubao = !$this->isRegionVText(
-            data_get($orderProfile, 'address'),
-            data_get($orderProfile, 'delivery_address'),
-            data_get($orderProfile, 'location_region'),
-            $user->delivery_address,
-            $user->region,
-            $user->province
-        );
+        $showPickupLubao = $warehouseOrderSource === AdpoRouting::PLANT;
 
         return view('ad_purchase_orders.create', compact(
             'ad', 
@@ -401,6 +395,9 @@ class AdPurchaseOrderController extends Controller
             'favoriteProductIds', 
             'userVouchers', 
             'showPickupLubao', 
+            'warehouseOrderSource',
+            'isPlantOrder',
+            'lockOrderSource',
             'isAdmin', 
             'provincialDistributors', 
             'selectedOrderSource', 
@@ -460,20 +457,23 @@ class AdPurchaseOrderController extends Controller
             return back()->withInput();
         }
 
-        if ($isProvincialDistributor) {
-            // Provincial Distributors replenish directly from PREI Warehouse.
-            // Incoming AD orders are handled in the separate PD Purchase Orders module.
+        $orderProfile = $this->purchaseOrderProfile($user);
+        $warehouseOrderSource = app(AdpoRouting::class)->sourceFor($user);
+        $isPlantOrder = $user->hasAreaDistributorAccess() && $warehouseOrderSource === AdpoRouting::PLANT;
+        if ($isProvincialDistributor || $isPlantOrder) {
+            // Replenishment outside Region V is always supplied by the Lubao plant.
             $request->merge([
-                'order_source' => 'prei_warehouse',
+                'order_source' => $warehouseOrderSource,
                 'provincial_distributor_id' => null,
             ]);
         }
 
-        $orderProfile = $this->purchaseOrderProfile($user);
         $territoryOptions = $this->territoryOptions($orderProfile);
 
         $request->validate([
-            'order_source' => 'required|in:prei_warehouse,provincial_distributor',
+            'order_source' => $isPlantOrder || $user->role === 'Admin'
+                ? 'required|in:prei_warehouse,prei_plant,provincial_distributor'
+                : 'required|in:prei_warehouse,provincial_distributor',
             'provincial_distributor_id' => 'nullable|required_if:order_source,provincial_distributor|integer',
             'phone_number' => 'nullable|string|max:50',
             'email_address' => 'nullable|email|max:255',
@@ -516,15 +516,7 @@ class AdPurchaseOrderController extends Controller
                 ->withErrors(['authorized_territory' => 'Please select a valid authorized territory.']);
         }
 
-        $isRegionVAd = $this->isRegionVText(
-            $request->delivery_address,
-            data_get($orderProfile, 'address'),
-            data_get($orderProfile, 'delivery_address'),
-            data_get($orderProfile, 'location_region'),
-            $user->delivery_address,
-            $user->region,
-            $user->province
-        );
+        $isRegionVAd = $request->order_source !== AdpoRouting::PLANT && $warehouseOrderSource === AdpoRouting::WAREHOUSE;
 
         if ($request->shipping_type === 'pickup_lubao' && $isRegionVAd) {
             Alert::error('ADPO Error', 'Pick Up in Lubao Plant is not available for Region V or Albay addresses.');
@@ -722,7 +714,7 @@ class AdPurchaseOrderController extends Controller
         });
 
         $taxService->deliverForOrder($po);
-        $this->notifyGuinobatanWarehouseForRegionV($po);
+        $this->notifyAssignedWarehouse($po);
 
         Alert::success('ADPO Created', 'ADPO ' . $po->po_number . ' submitted successfully.');
 
@@ -733,7 +725,7 @@ class AdPurchaseOrderController extends Controller
     {
         $user = auth()->user();
 
-        $order = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad', 'provincialDistributor'])
+        $order = AdPurchaseOrder::with(['items.partialReceipts', 'partialReceipts.item', 'paymentProofs', 'verificationItems', 'ad', 'provincialDistributor', 'distributorUser.ad', 'distributorUser.provincialDistributor'])
             ->when($user->role !== 'Admin', function ($query) use ($user) {
                 $query->where(function ($accessQuery) use ($user) {
                     $accessQuery->where('ad_user_id', $user->id);
@@ -742,8 +734,8 @@ class AdPurchaseOrderController extends Controller
                     }
                 });
             })
-            ->when($user->role === 'Admin' && filled($user->warehouse), function ($query) {
-                $query->where('order_source', 'prei_warehouse');
+            ->when($user->role === 'Admin' && filled($user->warehouse), function ($query) use ($user) {
+                $query->forWarehouse($user->warehouse);
             })
             ->findOrFail($id);
 
@@ -830,14 +822,15 @@ class AdPurchaseOrderController extends Controller
             ]);
         }
 
-        if ($request->shipping_type === 'pickup_lubao' && $this->isRegionVText(
-            $request->delivery_address,
-            data_get($orderProfile, 'address'),
-            data_get($orderProfile, 'delivery_address'),
-            data_get($orderProfile, 'location_region')
-        )) {
+        if ($request->shipping_type === 'pickup_lubao' && app(AdpoRouting::class)->warehouseFor($order) === 'guinobatan') {
             throw ValidationException::withMessages([
                 'shipping_type' => 'Pick Up in Lubao Plant is not available for Region V or Albay addresses.',
+            ]);
+        }
+
+        if ($request->shipping_type === 'pickup_guinobatan' && app(AdpoRouting::class)->warehouseFor($order) === 'lubao') {
+            throw ValidationException::withMessages([
+                'shipping_type' => 'Please select delivery or pickup at PREI Plant in Lubao.',
             ]);
         }
 
@@ -1074,7 +1067,7 @@ class AdPurchaseOrderController extends Controller
                 });
             })
             ->when(auth()->user()->role === 'Admin' && filled(auth()->user()->warehouse), function ($query) {
-                $query->where('order_source', 'prei_warehouse');
+                $query->forWarehouse(auth()->user()->warehouse);
             })
             ->findOrFail($id);
 
@@ -1809,7 +1802,7 @@ class AdPurchaseOrderController extends Controller
 
         $order = AdPurchaseOrder::with(['items', 'verificationItems', 'ad.userAds'])->findOrFail($id);
         $assignedWarehouse = $this->warehouseForOrder($order);
-        if ($assignedWarehouse && strtolower(trim((string) $user->warehouse)) !== $assignedWarehouse) {
+        if (!$assignedWarehouse || strtolower(trim((string) $user->warehouse)) !== $assignedWarehouse) {
             abort(403);
         }
 
@@ -1956,7 +1949,7 @@ class AdPurchaseOrderController extends Controller
 
         $order = AdPurchaseOrder::with(['items', 'verificationItems', 'ad.userAds'])->findOrFail($id);
         $assignedWarehouse = $this->warehouseForOrder($order);
-        if ($assignedWarehouse && strtolower(trim((string) $user->warehouse)) !== $assignedWarehouse) {
+        if (!$assignedWarehouse || strtolower(trim((string) $user->warehouse)) !== $assignedWarehouse) {
             abort(403);
         }
 
@@ -2000,6 +1993,9 @@ class AdPurchaseOrderController extends Controller
 
         $order = AdPurchaseOrder::when($user->role !== 'Admin', function ($query) use ($user) {
                 $query->where('ad_user_id', $user->id);
+            })
+            ->when($user->role === 'Admin' && filled($user->warehouse), function ($query) use ($user) {
+                $query->forWarehouse($user->warehouse);
             })
             ->where('status', 'Pending')
             ->findOrFail($id);
@@ -2155,27 +2151,6 @@ class AdPurchaseOrderController extends Controller
         });
     }
 
-    private function regionVOrderQuery()
-    {
-        $needles = $this->regionVNeedles();
-
-        return AdPurchaseOrder::query()
-            ->where(function ($query) use ($needles) {
-                foreach ($needles as $needle) {
-                    $query->orWhereRaw('LOWER(delivery_address) LIKE ?', ['%' . $needle . '%']);
-                }
-
-                $query->orWhereHas('ad', function ($adQuery) use ($needles) {
-                    $adQuery->where(function ($inner) use ($needles) {
-                        foreach ($needles as $needle) {
-                            $inner->orWhereRaw('LOWER(delivery_address) LIKE ?', ['%' . $needle . '%'])
-                                ->orWhereRaw('LOWER(location_region) LIKE ?', ['%' . $needle . '%']);
-                        }
-                    });
-                });
-            });
-    }
-
     /**
      * Uses the normalized verification table first, with the JSON snapshot as a
      * backward-compatible fallback for older ADPO submissions.
@@ -2197,20 +2172,15 @@ class AdPurchaseOrderController extends Controller
             });
     }
 
-    private function notifyGuinobatanWarehouseForRegionV(AdPurchaseOrder $po)
+    private function notifyAssignedWarehouse(AdPurchaseOrder $po)
     {
         $po->loadMissing(['items', 'ad']);
 
-        if (($po->order_source ?? 'prei_warehouse') !== 'prei_warehouse') {
-            return;
-        }
-
-        if (!$this->isRegionVOrder($po)) {
-            return;
-        }
+        $warehouse = $this->warehouseForOrder($po);
+        if (!$warehouse) return;
 
         $recipients = User::where('role', 'Admin')
-            ->whereRaw('LOWER(warehouse) = ?', ['guinobatan'])
+            ->whereRaw('LOWER(TRIM(warehouse)) = ?', [$warehouse])
             ->whereNotNull('email')
             ->pluck('email')
             ->filter()
@@ -2218,9 +2188,10 @@ class AdPurchaseOrderController extends Controller
             ->values();
 
         if ($recipients->isEmpty()) {
-            Log::warning('Region V ADPO notification skipped: no Guinobatan warehouse email found.', [
+            Log::warning('ADPO notification skipped: no assigned warehouse email found.', [
                 'ad_purchase_order_id' => $po->id,
                 'po_number' => $po->po_number,
+                'warehouse' => $warehouse,
             ]);
 
             return;
@@ -2229,7 +2200,7 @@ class AdPurchaseOrderController extends Controller
         try {
             Mail::to($recipients->all())->send(new AdPurchaseOrderWarehouseNotification($po));
         } catch (\Exception $exception) {
-            Log::error('Region V ADPO notification failed.', [
+            Log::error('ADPO warehouse notification failed.', [
                 'ad_purchase_order_id' => $po->id,
                 'po_number' => $po->po_number,
                 'error' => $exception->getMessage(),
@@ -2294,6 +2265,7 @@ class AdPurchaseOrderController extends Controller
         $order->loadMissing(['items', 'ad']);
 
         $warehouse = $this->warehouseForOrder($order);
+        if (!$warehouse) return;
         $recipients = User::where('role', 'Admin')
             ->when($warehouse, function ($query) use ($warehouse) {
                 $query->whereRaw('LOWER(warehouse) = ?', [$warehouse]);
@@ -2332,53 +2304,6 @@ class AdPurchaseOrderController extends Controller
 
     private function warehouseForOrder(AdPurchaseOrder $order)
     {
-        if ($this->isRegionVOrder($order) || $order->shipping_type === 'pickup_guinobatan') {
-            return 'guinobatan';
-        }
-
-        if ($order->shipping_type === 'pickup_lubao') {
-            return 'lubao';
-        }
-
-        return null;
-    }
-
-    private function isRegionVOrder(AdPurchaseOrder $po)
-    {
-        return $this->isRegionVText(
-            $po->delivery_address,
-            optional($po->ad)->delivery_address,
-            optional($po->ad)->location_region
-        );
-    }
-
-    private function isRegionVText(...$values)
-    {
-        $regionText = strtolower(implode(' ', array_filter($values)));
-
-        foreach ($this->regionVNeedles() as $needle) {
-            if (strpos($regionText, $needle) !== false) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function regionVNeedles()
-    {
-        return [
-            'region v',
-            'region 5',
-            'region-5',
-            'region-v',
-            'bicol',
-            'albay',
-            'camarines norte',
-            'camarines sur',
-            'catanduanes',
-            'masbate',
-            'sorsogon',
-        ];
+        return app(AdpoRouting::class)->warehouseFor($order);
     }
 }
